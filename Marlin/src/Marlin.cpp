@@ -872,6 +872,9 @@ void setup() {
   #if HAS_FILAMENT_SENSOR
     runout.setup();
   #endif
+  
+  // Extruder Power 
+  OUT_WRITE(PB10, false);
 
   setup_killpin();
 
