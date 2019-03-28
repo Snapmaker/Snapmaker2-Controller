@@ -44,64 +44,66 @@
 bool firstWrite = false;
 uint32_t pageBase = EEPROM_START_ADDRESS;
 
+#define HAL_GD32F1_EEPROM_SIZE 4096
+char HAL_GD32F1_eeprom_content[HAL_GD32F1_EEPROM_SIZE];
+
+
 bool PersistentStore::access_start() {
+  uint32_t Address;
+  uint16_t *pBuff;
+  Address = pageBase;
+  pBuff = (uint16_t*)HAL_GD32F1_eeprom_content;
+  for (int i=0;i<HAL_GD32F1_EEPROM_SIZE;i=i+2) {
+      *pBuff++ = *((uint16_t*)Address);
+      Address += 2;
+  }
   firstWrite = true;
   return true;
 }
 
 bool PersistentStore::access_finish() {
+  uint32_t Address;
+  uint16_t *pu16value;
+
+
+  Address = pageBase;
+  pu16value = (uint16_t*)HAL_GD32F1_eeprom_content;
+  FLASH_Unlock();
+  FLASH_ErasePage(EEPROM_PAGE0_BASE);
+  FLASH_ErasePage(EEPROM_PAGE1_BASE);
+  for (int i=0;i<HAL_GD32F1_EEPROM_SIZE;i=i+2) {
+    FLASH_ProgramHalfWord(Address, *pu16value++);
+    Address += 2;
+  }
   FLASH_Lock();
-  firstWrite = false;
   return true;
+
 }
 
 bool PersistentStore::write_data(int &pos, const uint8_t *value, const size_t size, uint16_t *crc) {
-  FLASH_Status status;
-
-  if (firstWrite) {
-    FLASH_Unlock();
-    status = FLASH_ErasePage(EEPROM_PAGE0_BASE);
-    if (status != FLASH_COMPLETE) return true;
-    status = FLASH_ErasePage(EEPROM_PAGE1_BASE);
-    if (status != FLASH_COMPLETE) return true;
-    firstWrite = false;
-  }
-
-  // First write full words
-  int i = 0;
-  int wordsToWrite = size / sizeof(uint16_t);
-  uint16_t* wordBuffer = (uint16_t *)value;
-  while (wordsToWrite) {
-    status = FLASH_ProgramHalfWord(pageBase + pos + (i * 2), wordBuffer[i]);
-    if (status != FLASH_COMPLETE) return true;
-    wordsToWrite--;
-    i++;
-  }
-
-  // Now, write any remaining single byte
-  if (size & 1) {
-    uint16_t temp = value[size - 1];
-    status = FLASH_ProgramHalfWord(pageBase + pos + i, temp);
-    if (status != FLASH_COMPLETE) return true;
+  int bytewritten = 0;
+  int bytetowrite = size;
+  uint8_t* Buff = (uint8_t *)value;
+  while (bytetowrite--) {
+    HAL_GD32F1_eeprom_content[pos++] = *Buff++;
+    bytewritten++;
   }
 
   crc16(crc, value, size);
-  pos += ((size + 1) & ~1);
   return false;
 }
 
 bool PersistentStore::read_data(int &pos, uint8_t* value, const size_t size, uint16_t *crc, const bool writing/*=true*/) {
   for (uint16_t i = 0; i < size; i++) {
-    byte* accessPoint = (byte*)(pageBase + pos + i);
-    uint8_t c = *accessPoint;
+    uint8_t c = HAL_GD32F1_eeprom_content[pos + i];
     if (writing) value[i] = c;
     crc16(crc, &c, 1);
   }
-  pos += ((size + 1) & ~1);
+  pos += size;
   return false;
 }
 
-size_t PersistentStore::capacity() { return E2END + 1; }
+size_t PersistentStore::capacity() { return 4095; }
 
 #endif // EEPROM_SETTINGS && EEPROM FLASH
 #endif // __STM32F1__

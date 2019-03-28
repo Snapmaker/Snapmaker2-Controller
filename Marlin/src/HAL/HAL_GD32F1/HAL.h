@@ -57,6 +57,11 @@
 // Defines
 // --------------------------------------------------------------------------
 
+#if defined(__GD32F1__)
+#define FLASH_EEPROM_EMULATION
+#endif
+
+
 #ifdef SERIAL_USB
   #define UsbSerial Serial
   #define MSerial1  Serial1
