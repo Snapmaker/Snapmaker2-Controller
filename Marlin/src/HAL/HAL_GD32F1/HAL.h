@@ -124,6 +124,20 @@
   #define NUM_SERIAL 1
 #endif
 
+#if defined(HMI_SERIAL_PORT)
+  #if (HMI_SERIAL_PORT == 1)
+  #define HMISERIAL   MSerial1
+  #elif (HMI_SERIAL_PORT == 2)
+  #define HMISERIAL   MSerial2
+  #elif (HMI_SERIAL_PORT == 3)
+  #define HMISERIAL   MSerial3
+  #elif (HMI_SERIAL_PORT == 4)
+  #define HMISERIAL   MSerial4
+  #elif (HMI_SERIAL_PORT == 5)
+  #define HMISERIAL   MSerial5
+  #endif //
+#endif // defined HMI_SERIAL_PORT
+
 // Use HAL_init() to set interrupt grouping.
 #define HAL_INIT
 void HAL_init();

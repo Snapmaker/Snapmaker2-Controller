@@ -50,7 +50,7 @@ typedef uint16_t hal_timer_t;
 #define STEP_TIMER_CHAN 1 // Channel of the timer to use for compare and interrupts
 #define TEMP_TIMER_CHAN 1 // Channel of the timer to use for compare and interrupts
 
-#if defined(MCU_STM32F103CB) || defined(MCU_STM32F103C8)
+#if defined(MCU_STM32F103CB) || defined(MCU_STM32F103C8) || defined(MCU_GD32F105VE)
   #define STEP_TIMER_NUM 4 // For C8/CB boards, use timer 4
 #else
   #define STEP_TIMER_NUM 5 // for other boards, five is fine.

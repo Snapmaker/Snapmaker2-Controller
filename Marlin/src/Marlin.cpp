@@ -41,6 +41,7 @@
 #include "module/configuration_store.h"
 #include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "feature/closedloop.h"
+#include "SnapScreen/Screen.h"
 
 #include "HAL/shared/Delay.h"
 
@@ -55,6 +56,20 @@
 #include "gcode/gcode.h"
 #include "gcode/parser.h"
 #include "gcode/queue.h"
+
+#include "udisk/usbh_core.h"
+#include "udisk/usbh_usr.h"
+#include "udisk/usbh_msc_core.h"
+
+extern void USBH_Init(USB_OTG_CORE_HANDLE *pdev,
+               USB_OTG_CORE_ID_TypeDef coreID, 
+               USBH_HOST *phost,                    
+               USBH_Class_cb_TypeDef *class_cb, 
+               USBH_Usr_cb_TypeDef *usr_cb);
+               
+
+extern void USBH_Process(USB_OTG_CORE_HANDLE *pdev , 
+                  USBH_HOST *phost);
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
@@ -115,6 +130,10 @@
 
 #if ENABLED(SDSUPPORT)
   CardReader card;
+#endif
+
+#if ENABLED(HMISUPPORT)
+  HMIScreen HMI;
 #endif
 
 #if ENABLED(G38_PROBE_TARGET)
@@ -673,6 +692,9 @@ void idle(
   #endif
 
   ui.update();
+  #if ENABLED(HMISUPPORT)
+    HMI.CommandProcess();
+  #endif
 
   #if ENABLED(HOST_KEEPALIVE_FEATURE)
     gcode.host_keepalive();
@@ -819,6 +841,13 @@ void stop() {
   }
 }
 
+#include "udisk/usbh_core.h"
+#include "udisk/usbh_usr.h"
+#include "udisk/usbh_msc_core.h"
+
+USB_OTG_CORE_HANDLE USB_OTG_Core;
+USBH_HOST USB_Host;
+
 /**
  * Marlin entry-point: Set up before the program loop
  *  - Set up the kill pin, filament runout, power hold
@@ -889,6 +918,10 @@ void setup() {
     #if NUM_SERIAL > 1
       MYSERIAL1.begin(BAUDRATE);
     #endif
+  #endif
+
+  #if ENABLED(HMISUPPORT)
+    HMI.Init();
   #endif
 
   #if NUM_SERIAL > 0
@@ -1113,6 +1146,9 @@ void setup() {
   #if ENABLED(PRUSA_MMU2)
     mmu2.init();
   #endif
+
+  
+  //USBH_Init(&USB_OTG_Core, USB_OTG_FS_CORE_ID,&USB_Host,&USBH_MSC_cb, &USR_cb);
 }
 
 /**
@@ -1124,6 +1160,7 @@ void setup() {
  *  - Call inactivity manager
  */
 void loop() {
+  HMI.ChangePage(PAGE_PRINT);
 
   for (;;) {
 
@@ -1147,7 +1184,7 @@ void loop() {
         #endif
       }
     #endif // SDSUPPORT
-
+    //USBH_Process(&USB_OTG_Core, &USB_Host);
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();
     endstops.event_handler();
