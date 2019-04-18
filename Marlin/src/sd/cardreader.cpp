@@ -32,6 +32,7 @@
 #include "../module/printcounter.h"
 #include "../core/language.h"
 #include "../gcode/queue.h"
+#include "../../module/ExecuterManager.h"
 
 #if ENABLED(EMERGENCY_PARSER)
   #include "../feature/emergency_parser.h"
@@ -209,8 +210,30 @@ void CardReader::lsDive(const char *prepend, SdFile parent, const char * const m
 
       flag.filenameIsDir = DIR_IS_SUBDIR(&p);
 
+      #if ENABLED(EXECUTER_MANAGER_SUPPORT)
+			char ExtName[5];
+			ExtName[0] = p.name[8];
+      ExtName[1] = p.name[9];
+      ExtName[2] = p.name[10];
+			if(ExtName[0] >= 'a')
+				ExtName[0] = ExtName[0] - 'a' + 'A';
+			if(ExtName[1] >= 'a')
+				ExtName[1] = ExtName[1] - 'a' + 'A';
+      if(ExtName[2] >= 'a')
+				ExtName[2] = ExtName[2] - 'a' + 'A';
+      
+      if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+        if (!flag.filenameIsDir && (p.name[8] != 'G' || p.name[9] == '~')) continue;
+      }
+      else {
+        bool condition = (ExtName[0]=='N') && (ExtName[1]=='C');
+        bool condition2 = (ExtName[0]=='C') && (ExtName[1]=='N') && (ExtName[2]=='C');
+				if((condition == false) && (condition2 == false)) continue;
+      }
+      #else
       if (!flag.filenameIsDir && (p.name[8] != 'G' || p.name[9] == '~')) continue;
-
+      #endif
+      
       switch (lsAction) {  // 1 based file count
         case LS_Count:
           nrFiles++;
@@ -1036,5 +1059,18 @@ void CardReader::printingHasFinished() {
   }
 
 #endif // POWER_LOSS_RECOVERY
+
+#if ENABLED(USB_HOST_UDISK_SUPPORT)
+void CardReader::LoopProcess(void)
+{
+  sd2card.idle();
+}
+
+void CardReader::IrqProcess(void)
+{
+  sd2card.isr();
+}
+#endif
+
 
 #endif // SDSUPPORT

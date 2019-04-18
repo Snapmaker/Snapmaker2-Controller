@@ -42,6 +42,7 @@
 #include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "feature/closedloop.h"
 #include "SnapScreen/Screen.h"
+#include "module/LaserExecuter.h"
 
 #include "HAL/shared/Delay.h"
 
@@ -57,19 +58,9 @@
 #include "gcode/parser.h"
 #include "gcode/queue.h"
 
-#include "udisk/usbh_core.h"
-#include "udisk/usbh_usr.h"
-#include "udisk/usbh_msc_core.h"
-
-extern void USBH_Init(USB_OTG_CORE_HANDLE *pdev,
-               USB_OTG_CORE_ID_TypeDef coreID, 
-               USBH_HOST *phost,                    
-               USBH_Class_cb_TypeDef *class_cb, 
-               USBH_Usr_cb_TypeDef *usr_cb);
-               
-
-extern void USBH_Process(USB_OTG_CORE_HANDLE *pdev , 
-                  USBH_HOST *phost);
+#if ENABLED(EXECUTER_MANAGER_SUPPORT)
+  #include "module/executermanager.h"
+#endif
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
@@ -741,6 +732,8 @@ void idle(
 
   #if ENABLED(USB_FLASH_DRIVE_SUPPORT)
     Sd2Card::idle();
+  #elif ENABLED(USB_HOST_UDISK_SUPPORT)
+    card.LoopProcess();
   #endif
 
   #if ENABLED(PRUSA_MMU2)
@@ -840,13 +833,6 @@ void stop() {
     Running = false;
   }
 }
-
-#include "udisk/usbh_core.h"
-#include "udisk/usbh_usr.h"
-#include "udisk/usbh_msc_core.h"
-
-USB_OTG_CORE_HANDLE USB_OTG_Core;
-USBH_HOST USB_Host;
 
 /**
  * Marlin entry-point: Set up before the program loop
@@ -1160,7 +1146,35 @@ void setup() {
  *  - Call inactivity manager
  */
 void loop() {
-  HMI.ChangePage(PAGE_PRINT);
+  #if ENABLED(EXECUTER_MANAGER_SUPPORT)
+  while(true)
+  {
+    if(ExecuterHead.Detecte() == true)
+    {
+      if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
+        HMI.ChangePage(PAGE_PRINT);
+      else
+        HMI.ChangePage(PAGE_CNC);
+      
+
+      if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+        SERIAL_ECHOLNPGM("Laser Module\r\n");
+        Laser.Init();
+      }
+      else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+        SERIAL_ECHOLNPGM("CNC Module\r\n");
+      }
+      else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+        SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
+      }
+      else {
+        SERIAL_ECHOLNPGM("Undefined Module\r\n");
+      }
+
+      break;
+    }
+  }
+  #endif
 
   for (;;) {
 
@@ -1184,10 +1198,19 @@ void loop() {
         #endif
       }
     #endif // SDSUPPORT
-    //USBH_Process(&USB_OTG_Core, &USB_Host);
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();
     endstops.event_handler();
     idle();
   }
 }
+
+#if ENABLED(SDSUPPORT)	
+extern "C"
+{
+void __irq_otg_fs(void)
+{
+    card.IrqProcess();
+}
+}
+#endif

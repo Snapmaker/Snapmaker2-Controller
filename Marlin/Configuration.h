@@ -392,7 +392,7 @@
 #define TEMP_WINDOW              1  // (°C) Temperature proximity for the "temperature reached" timer
 #define TEMP_HYSTERESIS          3  // (°C) Temperature proximity considered "close enough" to the target
 
-#define TEMP_BED_RESIDENCY_TIME 10  // (seconds) Time to wait for bed to "settle" in M190
+#define TEMP_BED_RESIDENCY_TIME 2  // (seconds) Time to wait for bed to "settle" in M190
 #define TEMP_BED_WINDOW          1  // (°C) Temperature proximity for the "temperature reached" timer
 #define TEMP_BED_HYSTERESIS      3  // (°C) Temperature proximity considered "close enough" to the target
 
@@ -797,7 +797,7 @@
  * or (with LCD_BED_LEVELING) the LCD controller.
  */
 #define PROBE_MANUALLY
-#define MANUAL_PROBE_START_Z 8
+#define MANUAL_PROBE_START_Z 6
 
 /**
  * A Fix-Mounted Probe either doesn't deploy or needs manual deployment.
@@ -863,12 +863,12 @@
  *      O-- FRONT --+
  *    (0,0)
  */
-#define X_PROBE_OFFSET_FROM_EXTRUDER 10  // X offset: -left  +right  [of the nozzle]
-#define Y_PROBE_OFFSET_FROM_EXTRUDER 10  // Y offset: -front +behind [the nozzle]
+#define X_PROBE_OFFSET_FROM_EXTRUDER 0  // X offset: -left  +right  [of the nozzle]
+#define Y_PROBE_OFFSET_FROM_EXTRUDER 0  // Y offset: -front +behind [the nozzle]
 #define Z_PROBE_OFFSET_FROM_EXTRUDER 0   // Z offset: -below +above  [the nozzle]
 
 // Certain types of probes need to stay away from edges
-#define MIN_PROBE_EDGE 10
+#define MIN_PROBE_EDGE 5
 
 // X and Y axis travel speed (mm/m) between probes
 #define XY_PROBE_SPEED 4000
@@ -899,7 +899,7 @@
  *     But: `M851 Z+1` with a CLEARANCE of 2  =>  2mm from bed to nozzle.
  */
 #define Z_CLEARANCE_DEPLOY_PROBE   10 // Z Clearance for Deploy/Stow
-#define Z_CLEARANCE_BETWEEN_PROBES  8 // Z Clearance between probe points
+#define Z_CLEARANCE_BETWEEN_PROBES  5 // Z Clearance between probe points
 #define Z_CLEARANCE_MULTI_PROBE     5 // Z Clearance between multiple probes
 //#define Z_AFTER_PROBING           5 // Z position after probing is done
 
@@ -986,8 +986,8 @@
 // @section machine
 
 // The size of the print bed
-#define X_BED_SIZE 130
-#define Y_BED_SIZE 130
+#define X_BED_SIZE 131
+#define Y_BED_SIZE 131
 
 // Travel limits (mm) after homing, corresponding to endstop positions.
 #define X_MIN_POS 0
@@ -995,7 +995,7 @@
 #define Z_MIN_POS 0
 #define X_MAX_POS X_BED_SIZE
 #define Y_MAX_POS Y_BED_SIZE
-#define Z_MAX_POS 200
+#define Z_MAX_POS 131
 
 /**
  * Software Endstops
@@ -1148,10 +1148,10 @@
   #define GRID_MAX_POINTS_Y GRID_MAX_POINTS_X
 
   // Set the boundaries for probing (where the probe can reach).
-  #define LEFT_PROBE_BED_POSITION MIN_PROBE_EDGE
-  #define RIGHT_PROBE_BED_POSITION (X_BED_SIZE - (MIN_PROBE_EDGE))
-  #define FRONT_PROBE_BED_POSITION MIN_PROBE_EDGE
-  #define BACK_PROBE_BED_POSITION (Y_BED_SIZE - (MIN_PROBE_EDGE))
+  #define LEFT_PROBE_BED_POSITION 10
+  #define RIGHT_PROBE_BED_POSITION (X_BED_SIZE - (10))
+  #define FRONT_PROBE_BED_POSITION 10
+  #define BACK_PROBE_BED_POSITION (Y_BED_SIZE - (10))
 
   // Probe along the Y axis, advancing X after each column
   //#define PROBE_Y_FIRST
@@ -1406,7 +1406,7 @@
  *    P1  Raise the nozzle always to Z-park height.
  *    P2  Raise the nozzle by Z-park amount, limited to Z_MAX_POS.
  */
-//#define NOZZLE_PARK_FEATURE
+#define NOZZLE_PARK_FEATURE
 
 #if ENABLED(NOZZLE_PARK_FEATURE)
   // Specify a park position as { X, Y, Z }
@@ -1564,7 +1564,7 @@
  * you must uncomment the following option or it won't work.
  *
  */
-//#define SDSUPPORT
+#define SDSUPPORT
 
 /**
  * SD CARD: SPI SPEED
@@ -2131,4 +2131,60 @@
     #error "HMI Screen serial port must be from 1 to 5"
   #endif
 
-#endif //defined HMISUPPORT
+#endif //defined ENABLE HMISUPPORT
+
+/**
+ * Special Executer
+ *
+ */
+#define EXECUTER_MANAGER_SUPPORT
+#if ENABLED(EXECUTER_MANAGER_SUPPORT)
+
+  //#define EXECUTER_CANBUS
+  #define EXECUTER_TEMPERATURE
+
+  #if (BOTH(EXECUTER_CANBUS, EXECUTER_TEMPERATURE) || (NONE(EXECUTER_CANBUS, EXECUTER_TEMPERATURE)))
+    #error "Only 1 executer manager must be selected."
+  #endif
+
+  #if defined(EXECUTER_CANBUS)
+    //This Value Can be 1 or 2
+    #define EXECUTER_CAN_PORT 1
+    #if (EXECUTER_CAN_PORT < 1) || (EXECUTER_CAN_PORT > 2)
+      #error "Can Port must be from 1 to 2"
+    #endif
+  #endif
+
+  #if defined(EXECUTER_TEMPERATURE)
+
+  #endif
+#endif //EXECUTER_MANAGER_SUPPORT
+
+/**
+ * Periph Device
+ */
+#define PERIPH_DEVICE_SUPPORT
+#if defined(PERIPH_DEVICE_SUPPORT)
+  //CanBus periph device
+  //#define PERIPH_CANBUS
+
+  //Device define
+  //#define FILAMENT_SENSOR
+  #define DOOR_SENSOR
+  //#define POWERPANIC_SENSOR
+
+  #if defined(PERIPH_CANBUS)
+    #if defined(PERIPH_CANBUS)
+      //This Value Can be 1 or 2
+      #define PERIPH_CAN_PORT 1
+      #if (PERIPH_CAN_PORT < 1) || (PERIPH_CAN_PORT > 2)
+        #error "Can Port must be from 1 to 2"
+      #elif defined(EXECUTER_CAN_PORT)
+        #if (PERIPH_CAN_PORT == EXECUTER_CAN_PORT)
+          #error "Periph and Executer used the same port"
+        #endif
+      #endif
+    #endif
+  #endif
+#endif // PERIPH_DEVICE_SUPPORT
+

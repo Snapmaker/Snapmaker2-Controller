@@ -300,7 +300,7 @@ void GcodeSuite::process_parsed_command(
         case 1: M0_M1(); break;                                   // M1: Conditional stop - Wait for user button press on LCD
       #endif
 
-      #if ENABLED(SPINDLE_LASER_ENABLE)
+      #if ENABLED(SPINDLE_LASER_ENABLE) || ENABLED(SPAPMAKER_LASER_CNC)
         case 3: M3_M4(false); break;                              // M3: turn spindle/laser on, set laser/spindle power/speed, set rotation direction CW
         case 4: M3_M4(true ); break;                              // M4: turn spindle/laser on, set laser/spindle power/speed, set rotation direction CCW
         case 5: M5(); break;                                      // M5 - turn spindle/laser off

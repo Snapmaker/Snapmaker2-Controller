@@ -446,7 +446,7 @@ private:
     static void M0_M1();
   #endif
 
-  #if ENABLED(SPINDLE_LASER_ENABLE)
+  #if ENABLED(SPINDLE_LASER_ENABLE) || ENABLED(SPAPMAKER_LASER_CNC)
     static void M3_M4(const bool is_M4);
     static void M5();
   #endif

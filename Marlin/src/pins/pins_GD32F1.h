@@ -85,9 +85,13 @@
 // Heaters / Fans
 //
 #define HEATER_0_PIN       PB0   // EXTRUDER 1
-#define HEATER_1_PIN       PB1
 
 #define HEATER_BED_PIN     PA7   // BED
+
+#define LASER_PIN      PB1
+#define SPINDLE_LASER_ENABLE_PIN       PB10
+
+#define CNC_PIN        PB1
 
 //
 // Temperature Sensors
@@ -261,3 +265,4 @@
   #endif // NEWPANEL
 
 #endif // ULTRA_LCD
+

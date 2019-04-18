@@ -73,4 +73,6 @@
 
 #if ENABLED(SDIO_SUPPORT) && DISABLED(SDSUPPORT)
   #error "SDIO_SUPPORT requires SDSUPPORT. Enable SDSUPPORT to continue."
+#elif ENABLED(UDISK_SUPPORT) && DISABLED(SDSUPPORT) 
+  #error "UDISK_SUPPORT requires SDSUPPORT. Enable SDSUPPORT to continue."
 #endif

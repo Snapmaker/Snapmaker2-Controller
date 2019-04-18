@@ -55,6 +55,9 @@
 #include "../libs/vector_3.h"
 #include "../gcode/gcode.h"
 #include "../Marlin.h"
+#include "LaserExecuter.h"
+#include "CNCexecuter.h"
+
 
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
   #include "../HAL/shared/persistent_store_api.h"
@@ -281,6 +284,10 @@ typedef struct SettingsDataStruct {
     toolchange_settings_t toolchange_settings;          // M217 S P R
   #endif
 
+  //
+  //Laser
+  //
+  uint8_t LaserPower;
 } SettingsData;
 
 MarlinSettings settings;
@@ -1088,6 +1095,12 @@ void MarlinSettings::postprocess() {
     #endif
 
     //
+    //Laser
+    //
+    _FIELD_TEST(Laser.LastPercent);
+    EEPROM_WRITE(Laser.LastPercent);
+
+    //
     // Validate CRC and Data Size
     //
     if (!eeprom_error) {
@@ -1803,6 +1816,9 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(toolchange_settings);
       #endif
 
+      _FIELD_TEST(Laser.LastPercent);
+      EEPROM_READ(Laser.LastPercent);
+
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {
         DEBUG_ECHO_START();
@@ -2276,6 +2292,11 @@ void MarlinSettings::reset() {
       fc_settings[e].load_length = FILAMENT_CHANGE_FAST_LOAD_LENGTH;
     }
   #endif
+
+  //
+  //Laser
+  //
+  Laser.LastPercent = 80;
 
   postprocess();
 

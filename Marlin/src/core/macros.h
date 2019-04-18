@@ -267,3 +267,16 @@
 #else
   #define I2C_ADDRESS(A) A
 #endif
+
+//Machine type defines,ExecuterManager use this
+#define MACHINE_TYPE_UNDEFINE 0  
+#define MACHINE_TYPE_3DPRINT  1  
+#define MACHINE_TYPE_CNC    2  
+#define MACHINE_TYPE_LASER  3
+
+//Machine Status defines,StatuaControl use this
+#define STAT_IDLE           0
+#define STAT_PAUSE          1
+#define STAT_PAUSE_ONLINE   2
+#define STAT_RUNNING        3
+#define STAT_RUNNING_ONLINE 4

@@ -140,6 +140,11 @@ public:
 
   static inline char* longest_filename() { return longFilename[0] ? longFilename : filename; }
 
+  #if ENABLED(USB_HOST_UDISK_SUPPORT)
+  void LoopProcess(void);
+  void IrqProcess(void);
+  #endif
+
 public:
   static card_flags_t flag;
   static char filename[FILENAME_LENGTH], longFilename[LONG_FILENAME_LENGTH];
@@ -240,6 +245,8 @@ private:
 };
 
 #if ENABLED(USB_FLASH_DRIVE_SUPPORT)
+  #define IS_SD_INSERTED() Sd2Card::isInserted()
+#elif ENABLED(USB_HOST_UDISK_SUPPORT)
   #define IS_SD_INSERTED() Sd2Card::isInserted()
 #elif PIN_EXISTS(SD_DETECT)
   #if ENABLED(SD_DETECT_INVERTED)

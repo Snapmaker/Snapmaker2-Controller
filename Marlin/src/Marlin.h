@@ -378,16 +378,7 @@ void protected_pin_err();
 
 
 #if ENABLED(HMISUPPORT)
-  #if ENABLED(HMI_LONG)
-    #include "SnapScreen/HMILongDefines.h"
-  #endif
+  #include "SnapScreen/HMILongDefines.h"
 #endif
 
-/**
-* Snapmaker Define
-*/
-//v  功率0 -100
-#define SetLaserPower(v)    //TIM1->CCR2 = laserpwm = LaserPowerTable[v]
-//调焦使用
-#define SetLaserLowPower()  //TIM1->CCR2 = laserpwm = LaserFocusPwm
 
