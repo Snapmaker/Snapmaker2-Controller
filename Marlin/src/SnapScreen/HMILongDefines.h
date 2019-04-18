@@ -1,0 +1,396 @@
+#ifndef _HMI_DEFINE_H_
+#define _HMI_DEFINE_H_
+
+
+#define PAGE_PRINT	0
+#define PAGE_FILELIST	1
+#define PAGE_CONTROL	2
+#define PAGE_SETTING	3
+#define PAGE_MOVE001		4
+#define PAGE_MOVE010		5
+#define PAGE_MOVE100	6
+#define PAGE_ZOFFSET	7
+#define PAGE_WAITHOME	8
+#define PAGE_ZCENTER	9
+#define PAGE_CONFIRMSTOP	10
+#define PAGE_CONFIRMPRINT	11
+#define PAGE_AUTOHOME	12
+#define PAGE_CHANGEFILAMENT	13
+#define PAGE_FAQ	14
+#define PAGE_WAITHEAT	15
+#define PAGE_SCREENSAVE	16
+#define PAGE_LASER 17
+#define PAGE_CNC	17
+#define PAGE_LOGO	18
+#define PAGE_ABOUT	19
+#define PAGE_PROCESSING	20
+#define PAGE_WAITHEAT_2	21
+#define PAGE_CALIBRATE1	22
+#define PAGE_CALIBRATE2	23
+#define PAGE_CALIBRATE3	24
+#define PAGE_RESETCALIBRATE	25
+#define PAGE_CNCCONTROL	26
+#define PAGE_ORIGINSAVED 27
+#define PAGE_CALIBRATE_HA1	28
+#define PAGE_CALIBRATE_HA2	29
+#define PAGE_CALIBRATE_HA3	30
+#define PAGE_PAGE_RESETCALIBRATE_HA	31
+
+
+/*Page  ID*/
+#define  Menu_PageID         0
+#define  OpenFile_PageID   1
+#define  Control_PageID     2
+#define  Setting_PageID     3
+#define  Move_PageID1       4
+#define  Move_PageID2     5
+#define  Move_PageID3     6
+#define  Zsetting_Page     7
+#define  AutoHome_Page     8
+#define  ConfirmStop_Page     9
+#define  ConfirmPrint_Page     10
+#define Filament_Page     11
+#define  ConfirmCncStart_Page     12
+#define  WaitHome_Page     13
+#define  WaitNozzleHeat_Page            14
+#define  CncMain_PageID         15
+#define  Faq_PageID         16
+#define  WaitZCenter_Page            17
+#define	ScreenSaver_PageID	18
+#define  Logo_PageID      19
+#define About_PageID	20
+#define Wait_StopPage	21
+#define LoadUnloaded_PageID 22
+#define Heating_PageID	23
+#define Zcalibration_Page1ID 24
+#define Zcalibration_Page2ID 25
+#define Zcalibration_Page3ID 26
+#define Reset_PageID  27
+#define CNCControl_PageID  28
+#define NewSave_PageID 29
+#define ZCalibration_HalfAuto1	30
+#define ZCalibration_HalfAuto2	31
+#define ZCalibration_HalfAuto3	32
+#define ZCalibration_Reset_HA	33
+
+
+const uint8_t PageID[] = {
+	Menu_PageID,
+	OpenFile_PageID, 
+	Control_PageID, 
+	Setting_PageID, 
+	Move_PageID1, 
+	Move_PageID2, 
+	Move_PageID3, 
+	Zsetting_Page, 
+	WaitHome_Page, 
+	WaitZCenter_Page, 
+	ConfirmStop_Page, 
+	ConfirmPrint_Page, 
+	AutoHome_Page, 
+	Filament_Page, 
+	Faq_PageID, 
+	Heating_PageID,
+	ScreenSaver_PageID,
+	CncMain_PageID,
+	Logo_PageID,
+	About_PageID,
+	Wait_StopPage,
+	LoadUnloaded_PageID,
+	Zcalibration_Page1ID,//22
+	Zcalibration_Page2ID,
+	Zcalibration_Page3ID,
+	Reset_PageID,
+	CNCControl_PageID,
+	NewSave_PageID,
+	ZCalibration_HalfAuto1,
+	ZCalibration_HalfAuto2,
+	ZCalibration_HalfAuto3,
+	ZCalibration_Reset_HA
+};
+
+
+
+//机型选择界面
+#define BUTTON_CNC	0x0F39
+#define BUTTON_3DPRINT	0x0F3A
+
+//控制退出
+#define BUTTON_CONTROL_BACK	0x0206
+
+//轴移动控制
+#define BUTTON_MOVE_AXIS 	0x0214
+#define BUTTON_MOVE_AXIS_BACK_001 0x0406
+#define BUTTON_MOVE_AXIS_HOME_001 0x0407
+#define BUTTON_MOVE_AXIS_BACK_010 0x0506
+#define BUTTON_MOVE_AXIS_HOME_010 0x0507
+#define BUTTON_MOVE_AXIS_BACK_100 0x0606
+#define BUTTON_MOVE_AXIS_HOME_100 0x0607
+#define BUTTON_XL_01 	0x041C
+#define BUTTON_XR_01 	0x041D
+#define BUTTON_YL_01 	0x041E
+#define BUTTON_YR_01 	0x041F
+#define BUTTON_ZL_01 	0x0420
+#define BUTTON_ZR_01 	0x0421
+
+#define BUTTON_XL_10 	0x051C
+#define BUTTON_XR_10 	0x051D
+#define BUTTON_YL_10 	0x051E
+#define BUTTON_YR_10 	0x051F
+#define BUTTON_ZL_10 	0x0520
+#define BUTTON_ZR_10 	0x0521
+
+#define BUTTON_XL_100 	0x061C
+#define BUTTON_XR_100 	0x061D
+#define BUTTON_YL_100 	0x061E
+#define BUTTON_YR_100 	0x061F
+#define BUTTON_ZL_100 	0x0620
+#define BUTTON_ZR_100 	0x0621
+
+//机型选择
+#define BUTTON_MACHINE_SELECT	0xFFFF
+
+//回原点
+#define BUTTON_MOTOR_HOME 	0x0213
+#define BUTTON_STOP_HOME	0x0D35
+
+//取消打印确定
+#define BUTTON_STOP_PRINT_CONFIRM	0x092F
+#define BUTTON_STOP_PRINT_CANCEL	0x0949
+
+
+#define BUTTON_CONFIRM	0x082C
+#define BUTTON_CANCEL	0x082B
+
+//换料
+#define BUTTON_CHANGE_FILAMENT 	0x0212
+#define BUTTON_CONFIRM_CHANGE_FILAMENT	0x0B2F
+#define BUTTON_CANCEL_CHANGE_FILAMENT	0x0B49
+#define BUTTON_STOP_HEAT		0x0E2E
+#define BUTTON_CHANGEFILAMENT_NEXT				0x0E50
+#define BUTTON_END_HEAD			0x1635
+
+#define BUTTON_STOP_HEAT_2	0x1706
+#define BUTTON_TAMP_INC	0x1754
+#define BUTTON_TAMP_DEC	0x1753
+
+
+#define BUTTON_PREV_PAGE_UP	0x010F
+#define BUTTON_NEXT_PAGE_UP	0x0110
+
+#define BUTTON_PRINT_SHOW_FILE	0x0003
+
+#define BUTTON_SELECT_FILE_BACK	0x0106
+#define BUTTON_SELECT_FILE_HOME	0x0107
+#define BUTTON_FILE1	0x0109
+#define BUTTON_FILE2	0x010A
+#define BUTTON_FILE3	0x010B
+#define BUTTON_FILE4	0x010C
+#define BUTTON_FILE5	0x010D
+#define BUTTON_FILE6	0x010E
+
+//文件确定
+#define BUTTON_FILE_CONFIRM_UP	0x0A4A
+#define BUTTON_FILE_CANCEL_UP	0x0A2E
+
+//控制
+#define BUTTON_STOP_PRINT	0x0002
+#define BUTTON_CONTROLL	0x0004
+#define BUTTON_SETTING	0x0005
+
+//暂停打印
+#define BUTTON_PAUSE_PRINT	0x0030
+#define BUTTON_CONTINUE_PRINT	0x0031
+
+
+//Z OFFSET
+#define BUTTON_STOP_ZOFFSET	0xfff3
+#define BUTTON_ZOFFSET_SETUP	0x0316
+#define BUTTON_ZOFFSET_HOME	0x0707
+#define BUTTON_ZOFFSET_BACK	0x0706
+#define BUTTON_ZOFFSET_UP	0x0729
+#define BUTTON_ZOFFSET_DOWN	0x072a
+
+#define BUTTON_CALIBRATE_UP_005	0x185d
+#define BUTTON_CALIBRATE_UP_020	0x195d
+#define BUTTON_CALIBRATE_UP_050	0x1a5d
+
+
+#define BUTTON_CALIBRATE_DOWN_005	0x185e
+#define BUTTON_CALIBRATE_DOWN_020	0x195e
+#define BUTTON_CALIBRATE_DOWN_050	0x1a5e
+
+#define BUTTON_CALIBRATE1_P1	0x185f
+#define BUTTON_CALIBRATE1_P2	0x1860
+#define BUTTON_CALIBRATE1_P3	0x1862
+#define BUTTON_CALIBRATE1_P4	0x1861
+#define BUTTON_CALIBRATE2_P1	0x195f
+#define BUTTON_CALIBRATE2_P2	0x1960
+#define BUTTON_CALIBRATE2_P3	0x1962
+#define BUTTON_CALIBRATE2_P4	0x1961
+#define BUTTON_CALIBRATE3_P1	0x1a5f
+#define BUTTON_CALIBRATE3_P2	0x1a60
+#define BUTTON_CALIBRATE3_P3	0x1a62
+#define BUTTON_CALIBRATE3_P4	0x1a61
+
+#define BUTTON_CALIBRATE1_RESET	0x1856
+#define BUTTON_CALIBRATE2_RESET	0x1956
+#define BUTTON_CALIBRATE3_RESET	0x1a56
+
+
+#define BUTTON_CALIBRATE1_SAVE	0x1855
+#define BUTTON_CALIBRATE2_SAVE	0x1955
+#define BUTTON_CALIBRATE3_SAVE	0x1a55
+
+#define BUTTON_CALIBRATE1_BACK	0x1806
+#define BUTTON_CALIBRATE2_BACK	0x1906
+#define BUTTON_CALIBRATE3_BACK	0x1a06
+
+
+#define BUTTON_CALIBRATE_RESET_CONFIRM	0x1b2f
+#define BUTTON_CALIBRATE_RESET_BACK		0x1b49
+
+
+#define BUTTON_ZOFFSET_CONFIRM	0x072B
+#define BUTTON_ZOFFSET_P1	0x0725
+#define BUTTON_ZOFFSET_P2	0x0726
+#define BUTTON_ZOFFSET_P3	0x0728
+#define BUTTON_ZOFFSET_P4	0x0727
+
+
+
+//Wait Zcenter
+#define BUTTON_STOP_ZCENTER	0x1135
+
+
+//设置界面Back
+#define BUTTON_SETTING_BACK	0x0306
+//FAQ
+#define BUTTON_FAQ		0x0317
+#define BUTTON_FAQ_BACK	0x1006
+#define BUTTON_FAQ_HOME	0x1007
+
+//CNC  主界面
+#define BUTTON_CNC_SHOW_FILE	0x0F3C
+#define BUTTON_CNC_PAUSE	0x0F3F
+#define BUTTON_CNC_RUN	0x0F3E
+#define BUTTON_CNC_STOP	0x0F40
+#define BUTTON_CNC_CONTROL	0x0f69
+
+//CNC  控制界面Back
+#define BUTTON_CNC_CONTROL_BACK	0x1C06
+
+//CNC  开
+#define BUTTON_CNC_ON	0x1C66
+//CNC  关
+#define BUTTON_CNC_OFF	0x1C67
+
+//CNC  设置原点
+#define BUTTON_CNC_SET_ORIGIN	0x1C65
+
+//CNC  手动模式
+#define BUTTON_CNC_MOVE_AXIS	0x1C64
+
+//About
+#define BUTTON_ABOUT	0x0318
+#define BUTTON_ABOUT_BACK	0x1406
+#define BUTTON_ABOUT_HOME	0x1407
+#define BUTTON_ABOUT_UPDATE	0x1408
+
+//半自动高平
+#define BUTTON_ZHA_ZOFFSET_SETUP	0x0319
+
+#define BUTTON_ZHA_CALIBRATE_UP_005	0x1e5d
+#define BUTTON_ZHA_CALIBRATE_UP_020	0x1f5d
+#define BUTTON_ZHA_CALIBRATE_UP_050	0x205d
+
+
+#define BUTTON_ZHA_CALIBRATE_DOWN_005	0x1e5e
+#define BUTTON_ZHA_CALIBRATE_DOWN_020	0x1f5e
+#define BUTTON_ZHA_CALIBRATE_DOWN_050	0x205e
+
+#define BUTTON_ZHA_CALIBRATE1_RESET	0x1e56
+#define BUTTON_ZHA_CALIBRATE2_RESET	0x1f56
+#define BUTTON_ZHA_CALIBRATE3_RESET	0x2056
+
+
+#define BUTTON_ZHA_CALIBRATE1_SAVE	0x1e55
+#define BUTTON_ZHA_CALIBRATE2_SAVE	0x1f55
+#define BUTTON_ZHA_CALIBRATE3_SAVE	0x2055
+
+#define BUTTON_ZHA_CALIBRATE1_BACK	0x1e06
+#define BUTTON_ZHA_CALIBRATE2_BACK	0x1f06
+#define BUTTON_ZHA_CALIBRATE3_BACK	0x2006
+
+
+#define BUTTON_CALIBRATE_HA_RESET_CONFIRM	0x212f
+#define BUTTON_CALIBRATE_HA_RESET_BACK		0x2149
+
+#define BUTTON_GET_BREAK_DATA		0x3001
+#define BUTTON_RESUME_BREAK_PRINT	0x3002
+
+#define BUTTON_SHIELD_FAN_ON	0x3003
+#define BUTTON_SHIELD_FAN_OFF	0x3004
+#define BUTTON_SHIELD_LIGHT_ON	0x3005
+#define BUTTON_SHIELD_LIGHT_OFF	0x3006
+
+#define BUTTON_EXTRDE	0x3007
+
+#define BUTTON_SET_LASER_FOCUS_HIGH	0x3008
+#define BUTTON_ENTER_LASER_FOCUS_SETTING	0x3009
+
+//LABEL  由RegionID  和LABLEID  组成
+
+/*****ProgressBar ID*******/
+#define PROGRESSBAR_PRINT  0x0100
+//喷头温度
+#define LABEL_TEMP_HEART0		0x0107
+//热床温度
+#define LABEL_TEMP_BED		0x0108
+//确定打印对话框文件名
+#define LABEL_CONFIRM_PRINT_FILENAME	0x3232
+//打印文件名
+#define LABEL_PRINT_FILENAME	0x0100
+//对话框标签
+#define LABEL_DIALOG_FILENAME	0x4243
+//打印时间
+#define LABEL_PRINT_TIME			0x0109
+//Z offset
+#define LABEL_ZOFFSET		0x252A
+//文件列表
+#define LABEL_FILE1		0x090F
+#define LABEL_FILE2		0x0A10
+#define LABEL_FILE3		0x0B11
+#define LABEL_FILE4		0x0C12
+#define LABEL_FILE5		0x0D13
+#define LABEL_FILE6		0x0E14
+
+//About  界面Lable ID
+#define LABEL_ABOUT_1	0x1445
+#define LABEL_ABOUT_2	0x1446
+#define LABEL_ABOUT_3	0x1447
+#define LABEL_ABOUT_4	0x1448
+#define LABEL_ABOUT_5	0x1449
+#define LABEL_ABOUT_6	0x144A
+#define LABEL_ABOUT_7	0x144B
+#define LABEL_ABOUT_8	0x144C
+
+
+//确认换料
+#define LABEL_HEATER_TARGET_TEMP	0x5255
+#define LABEL_HEATER_CUR_TEMP	0x5257
+
+//换料界面
+#define LABEL_WAIT_HEATER		0x0E44
+
+//CNC  打印文件列表
+#define LABEL_CNC_FILENAME	0x3B01
+//CNC  时间
+#define LABEL_CNC_TIME	0x3A3A
+//CNC  时间
+#define LABEL_CNC_POWER	0x3A6F
+//CNC  进度条
+#define PROGRESSBAR_CNC 0x0F01
+
+
+#endif

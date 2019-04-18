@@ -171,3 +171,6 @@ CMakeListsPrivate.txt
 
 #CLion
 cmake-build-*
+
+#SourceInsight
+Edit/
