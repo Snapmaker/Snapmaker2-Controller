@@ -367,9 +367,7 @@ bool set_probe_deployed(const bool deploy) {
     DEBUG_POS("set_probe_deployed", current_position);
     DEBUG_ECHOLNPAIR("deploy: ", deploy);
   }
-
   if (endstops.z_probe_enabled == deploy) return false;
-
   // Make room for probe to deploy (or stow)
   // Fix-mounted probe should only raise for deploy
   // unless PAUSE_BEFORE_DEPLOY_STOW is enabled

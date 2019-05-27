@@ -39,6 +39,7 @@ extern float destination[XYZE];
 
 #if ENABLED(VARIABLE_G0_FEEDRATE)
   float saved_g0_feedrate_mm_s = MMM_TO_MMS(G0_FEEDRATE);
+  float saved_g1_feedrate_mm_s;
 #endif
 
 /**
@@ -63,6 +64,9 @@ void GcodeSuite::G0_G1(
           saved_feedrate_mm_s = feedrate_mm_s;      // Back up the (old) motion mode feedrate
           feedrate_mm_s = saved_g0_feedrate_mm_s;   // Get G0 feedrate from last usage
         }
+        else {
+          feedrate_mm_s = saved_g1_feedrate_mm_s;
+        }
       #endif
     #endif
 
@@ -76,6 +80,9 @@ void GcodeSuite::G0_G1(
           saved_feedrate_mm_s = feedrate_mm_s;      // Back up the (new) motion mode feedrate
           feedrate_mm_s = MMM_TO_MMS(G0_FEEDRATE);  // Get the fixed G0 feedrate
         #endif
+      }
+      else {
+        saved_g1_feedrate_mm_s = feedrate_mm_s;
       }
     #endif
 

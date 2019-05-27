@@ -32,6 +32,8 @@
   #include "../feature/power.h"
 #endif
 
+#include "ExecuterManager.h"
+
 #ifndef SOFT_PWM_SCALE
   #define SOFT_PWM_SCALE 0
 #endif
@@ -569,6 +571,9 @@ class Temperature {
       #endif
       temp_hotend[HOTEND_INDEX].target = MIN(celsius, temp_range[HOTEND_INDEX].maxtemp - 15);
       start_watching_heater(HOTEND_INDEX);
+      #if ENABLED(EXECUTER_CANBUS_SUPPORT)
+        ExecuterHead.SetTemperature(HOTEND_INDEX, temp_hotend[HOTEND_INDEX].target);
+      #endif
     }
 
     #if WATCH_CHAMBER

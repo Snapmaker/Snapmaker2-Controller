@@ -72,10 +72,10 @@ void GcodeSuite::M3_M4(const bool is_M4) {
  
   if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
     if (parser.seen('S')) {
-      Laser.SetLaserPower(parser.value_ushort());
+      ExecuterHead.Laser.SetLaserPower(parser.value_ushort());
     }
     else if(parser.seen('P')) {
-      Laser.SetLaserPower(parser.value_byte());
+      ExecuterHead.Laser.SetLaserPower(parser.value_float());
     }
   }
   else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
@@ -91,7 +91,7 @@ void GcodeSuite::M5() {
   planner.synchronize();
   //set_spindle_laser_enabled(false);
   if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    Laser.SetLaserPower((uint16_t)0);
+    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
   }
   else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
   }

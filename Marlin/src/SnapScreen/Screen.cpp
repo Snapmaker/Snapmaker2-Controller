@@ -8,8 +8,9 @@
 #if ENABLED(HMI_LONG)
 #include "HMILong.h"
 HMILong LongHMI;
-#elif ENABLED(HMI_SC20)
+#elif ENABLED(HMI_SC20W)
 #include "HMISC20.h"
+HMI_SC20 SC20HMI;
 #endif
 /**
  * Init:Initial the hmi communication port
@@ -27,6 +28,8 @@ void HMIScreen::CommandProcess(void)
   #if ENABLED(HMI_LONG)
     LongHMI.PollingCommand();
     LongHMI.Show();
+  #elif ENABLED(HMI_SC20W)
+    SC20HMI.PollingCommand();
   #endif
 }
 
@@ -36,8 +39,10 @@ void HMIScreen::CommandProcess(void)
  * para Page:Page name,see HMILongDefines.h
  */
 void HMIScreen::ChangePage(uint8_t Page)
-{  
+{
+  #if ENABLED(HMI_LONG)
     LongHMI.ChangePage(Page);
+  #endif
 }
 
 /**
@@ -45,13 +50,15 @@ void HMIScreen::ChangePage(uint8_t Page)
  */
 void HMIScreen::Show(void)
 {
-  LongHMI.Show();
+  #if ENABLED(HMI_LONG)
+    LongHMI.Show();
+  #endif
 }
 
 #endif
 
 
-#if ENABLED(HMI_SC20)
+#if ENABLED(HMI_SC20W)
 /**
  * SendGcode:Send packed gcode to HMI
  * para Gcode:the Gcode STRINGIFY
@@ -59,6 +66,7 @@ void HMIScreen::Show(void)
  */
 void HMIScreen::SendGcode(char *GCode, uint8_t EventID)
 {
+  SC20HMI.SendGcode(GCode, EventID);
 }
 #endif
 

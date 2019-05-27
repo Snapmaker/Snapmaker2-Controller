@@ -132,11 +132,13 @@ void reset_bed_level() {
   #elif ENABLED(AUTO_BED_LEVELING_UBL)
     ubl.reset();
   #elif ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    bilinear_start[X_AXIS] = bilinear_start[Y_AXIS] =
-    bilinear_grid_spacing[X_AXIS] = bilinear_grid_spacing[Y_AXIS] = 0;
+    bilinear_start[X_AXIS] = LEFT_PROBE_BED_POSITION;
+    bilinear_start[Y_AXIS] = FRONT_PROBE_BED_POSITION;
+    bilinear_grid_spacing[X_AXIS] = (X_MAX_POS - LEFT_PROBE_BED_POSITION) / GRID_MAX_POINTS_X;
+    bilinear_grid_spacing[Y_AXIS] = (Y_MAX_POS - BACK_PROBE_BED_POSITION) / GRID_MAX_POINTS_Y;
     for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
       for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
-        z_values[x][y] = NAN;
+        z_values[x][y] = 6;
         #if ENABLED(EXTENSIBLE_UI)
           ExtUI::onMeshUpdate(x, y, 0);
         #endif

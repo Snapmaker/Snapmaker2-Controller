@@ -1,6 +1,6 @@
 #include "../inc/MarlinConfig.h"
 
-#if ENABLED(HMI_SC20)
+#if ENABLED(HMI_SC20W)
 
 #include "../module/stepper.h"
 
@@ -15,12 +15,14 @@
 #include "../module/configuration_store.h"
 #include "../sd/cardreader.h"
 #include "../module/ExecuterManager.h"
+#include "../module/PowerPanic.h"
 #include "../module/StatusControl.h"
 #include "../module/LaserExecuter.h"
 #include "../module/CNCexecuter.h"
 #include "../module/PeriphDevice.h"
+#include <EEPROM.h>
 
-
+#include "HMISC20.h"
 
 extern long pCounter_X,pCounter_Y,pCounter_Z,pCounter_E;
 
@@ -29,8 +31,6 @@ char FileListBuff[1028];
 
 //指令暂存缓冲，正确解析之后，指令存放在这里
 static char tmpBuff[1024];
-
-
 
 //检测指令缓冲是否为空
 #define CMD_BUFF_EMPTY()	(commands_in_queue>0?false:true)
@@ -41,28 +41,98 @@ static char tmpBuff[1024];
 #define IS_UDISK_INSERTED false
 #endif
 
+/**
+ *PackedProtocal:Pack up the data in protocal
+ */
+void HMI_SC20::PackedProtocal(uint8_t *pData, uint16_t len)
+{
+  uint16_t i;
+	uint16_t j;
+	uint32_t checksum;
+	i=0;
+	//包头
+	tmpBuff[i++] = 0xAA;
+	tmpBuff[i++] = 0x55;
+	//包长
+	tmpBuff[i++] = 0x00;
+	tmpBuff[i++] = 0x00;
+	//协议版本
+	tmpBuff[i++] = 0x00;
+	//包长效验
+	tmpBuff[i++] = 0x00;
+	//校验
+	tmpBuff[i++] = 0x00;
+	tmpBuff[i++] = 0x00;
 
-//调平点索引
-uint8_t PointIndex;
-float MeshPointZ[3 * 3];
-uint16_t ZHomeOffsetIndex;
+  while(len--)
+    tmpBuff[i++] = *pData++;
 
+  //重填包长
+	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
+	tmpBuff[3] = (uint8_t)(i - 8);
+	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
+	//校验
+	checksum = 0;
+	for(j = 8;j<(i - 1);j = j + 2)
+		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
+
+	if((i - 8) % 2)
+		checksum += tmpBuff[i-1];
+	while(checksum > 0xffff)
+		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
+	checksum = ~checksum;
+
+	tmpBuff[6] = checksum >> 8;
+	tmpBuff[7] = checksum;
+	
+	HmiWriteData(tmpBuff, i);
+}
+
+/**
+ *HmiWriteData:Write datas to the HMI serial port
+ *para pData:the pointer to the datas
+ *para len:number of the datas to be written
+ */
+void HMI_SC20::HmiWriteData(char *pData, uint16_t len)
+{
+  uint8_t c;
+	while(len--)
+	{
+	  c = *pData++;
+		HMISERIAL.write(c);
+	} 
+}
 
 /**
  *SC20屏幕获取指令
  */
 short HMI_SC20::GetCommand(unsigned char *pBuff)
 {
-    uint8_t *pReadBuff;
+  int c;
 	uint16_t tmplen;
 	uint16_t tmphead;
+  uint16_t nexthead;
 	uint16_t tmptail;
 	uint16_t i;
-    uint16_t BuffSize;
 	uint32_t checksum;
 
-	tmphead = ScreenOps.ReadHead;
-	tmptail = ScreenOps.ReadTail;
+	tmphead = ReadHead;
+	tmptail = ReadTail;
+
+  while(1)
+  {
+    nexthead = (tmphead + 1) % sizeof(ReadBuff);
+    if(nexthead == tmptail)
+      break;
+    
+    c = HMISERIAL.read();
+    if(c == -1)
+      break;
+    
+    ReadBuff[tmphead] = (uint8_t)c;
+    tmphead = nexthead;
+  }
+  ReadHead = tmphead;
 	
 	//没数据
 	if (tmphead == tmptail)
@@ -70,41 +140,40 @@ short HMI_SC20::GetCommand(unsigned char *pBuff)
 		return (short)-1;
 	}
 
-    BuffSize = ScreenOps.ReadBuffSize;
-    pReadBuff = ScreenOps.pReadBuff;
+  ReadHead = tmphead;
 
-	tmplen = (uint16_t)((tmphead + BuffSize - tmptail) % BuffSize);
+	tmplen = (uint16_t)((tmphead + sizeof(ReadBuff) - tmptail) % sizeof(ReadBuff));
 	
 	//数据长度足够
 	while(tmplen > 9)
 	{
-		if(pReadBuff[tmptail] != 0xAA)
+		if(ReadBuff[tmptail] != 0xAA)
 		{
-			tmptail = (tmptail + 1) % BuffSize;
+			tmptail = (tmptail + 1) % sizeof(ReadBuff);
 			tmplen--;
 			//更新读指针
-			ScreenOps.ReadTail = tmptail;
+			ReadTail = tmptail;
 			continue;
 		}
-		if(pReadBuff[(tmptail + 1) % BuffSize] != 0x55)
+		if(ReadBuff[(tmptail + 1) % sizeof(ReadBuff)] != 0x55)
 		{
-			tmptail = (tmptail + 2) % BuffSize;
+			tmptail = (tmptail + 2) % sizeof(ReadBuff);
 			tmplen = tmplen - 2;
 			//更新读指针
-			ScreenOps.ReadTail = tmptail;
+			ReadTail = tmptail;
 			continue;
 		}
 		//读取包长
-		uint8_t cmdLen0 = pReadBuff[(tmptail + 2) % BuffSize];
-		uint8_t cmdLen1 = pReadBuff[(tmptail + 3) % BuffSize];
+		uint8_t cmdLen0 = ReadBuff[(tmptail + 2) % sizeof(ReadBuff)];
+		uint8_t cmdLen1 = ReadBuff[(tmptail + 3) % sizeof(ReadBuff)];
 		uint16_t commandLen = (uint16_t)((cmdLen0 << 8) | cmdLen1);
 		//包长效验错误
-		if((((commandLen >> 8) & 0xff) ^ (commandLen & 0xff)) != pReadBuff[(tmptail + 5) % BuffSize])
+		if((((commandLen >> 8) & 0xff) ^ (commandLen & 0xff)) != ReadBuff[(tmptail + 5) % sizeof(ReadBuff)])
 		{
-			tmptail = (tmptail + 2) % BuffSize;
+			tmptail = (tmptail + 2) % sizeof(ReadBuff);
 			tmplen = tmplen - 2;
 			//更新读指针
-			ScreenOps.ReadTail = tmptail;
+			ReadTail = tmptail;
 			continue;
 		}
 
@@ -114,12 +183,12 @@ short HMI_SC20::GetCommand(unsigned char *pBuff)
 			//复制数据
 			for(i=0;i<(commandLen + 8);i++)
 			{
-				pBuff[i] = pReadBuff[tmptail];
-				tmptail = (tmptail + 1) % BuffSize;
+				pBuff[i] = ReadBuff[tmptail];
+				tmptail = (tmptail + 1) % sizeof(ReadBuff);
 			}
 
 			//更新读指针
-			ScreenOps.ReadTail = tmptail;
+			ReadTail = tmptail;
 
 			//校验
 			checksum = 0;
@@ -149,117 +218,154 @@ short HMI_SC20::GetCommand(unsigned char *pBuff)
 	return (short)-1;
 }
 
-uint32_t UpdateDataSize;
-uint8_t UpdateInProgress;
-uint16_t UpdatePackRequest;
 /********************************************************
 启动升级
 *********************************************************/
 void HMI_SC20::StartUpdate(void)
 {
-    uint32_t Address;
+  uint32_t Address;
+  uint8_t Pages;
+  //擦除FLASH
+  FLASH_Unlock();
 
-    Address = FLASH_UPDATE_FLAG;
-	//擦除FLASH
-	FLASH_Unlock();
-    for(int i=0;i<128;i++)
-    {
-        FLASH_ErasePage(Address);
-        Address += 2048;
-    }
-    FLASH_Lock();
-    HMI_SendStartUpdateReack(0);
-    UpdateDataSize = 0;
-    UpdateInProgress = 1;
-    UpdatePackRequest = 0;
-    SendUpdatePackRequest(UpdatePackRequest);
+  //擦除升级文件信息
+  Pages = UPDATE_CONTENT_INFO_SIZE / 2048;
+  Address = FLASH_UPDATE_CONTENT_INFO;
+  for(int i=0;i<Pages;i++)
+  {
+    FLASH_ErasePage(Address);
+    Address += 2048;
+  }
+  //擦除升级内容
+  Pages = MARLIN_CODE_SIZE / 2048;
+  Address = FLASH_UPDATE_CONTENT;
+  for(int i=0;i<128;i++)
+  {
+    FLASH_ErasePage(Address);
+    Address += 2048;
+  }
+  FLASH_Lock();
+  SendStartUpdateReack(0);
+  UpdateDataSize = 0;
+  UpdateInProgress = 1;
+  UpdatePackRequest = 0;
+  SendUpdatePackRequest(UpdatePackRequest);
 }
 
+/********************************************************
+升级包处理
+参数    pBuff:数据缓冲区指针
+      DataLen:数据长度
+*********************************************************/
+void HMI_SC20::UpdatePackProcess(uint8_t *pBuff, uint16_t DataLen)
+{
+  uint32_t Address;
+  uint16_t Packindex;
+  uint16_t u16Value;
+  uint16_t maxpack;
+  Packindex = (uint16_t)((pBuff[0] << 8) | pBuff[1]);
+  maxpack = (MARLIN_CODE_SIZE + UPDATE_CONTENT_INFO_SIZE) / 512;
+  //暂定500包，即250K
+  if((Packindex < maxpack) && (UpdateInProgress == 1) && (Packindex == UpdatePackRequest))
+  {
+    //减去包序号2个字节
+    DataLen = DataLen - 2;
+    UpdateDataSize = Packindex * 512 + DataLen;
+    Address = FLASH_UPDATE_CONTENT_INFO + Packindex * 512;
+    if((DataLen % 2) != 0)
+      DataLen++;
+    FLASH_Unlock();
+    for(int i=0;i<DataLen;i=i+2)
+    {
+      u16Value = ((pBuff[i + 3] << 8) | pBuff[i + 2]);
+      FLASH_ProgramHalfWord(Address, u16Value);
+      Address = Address + 2;
+    }
+    FLASH_Lock();
+    UpdatePackRequest++;
+    SendUpdatePackRequest(UpdatePackRequest);
+  }
+}
 
-
+/********************************************************
+升级结束应答
+*********************************************************/
+void HMI_SC20::UpdateComplete(void)
+{
+  if(UpdateDataSize == 0)   
+    SendUpdateCompleteReack(1);
+  else
+    SendUpdateCompleteReack(0);
+}
 
 /********************************************************
 平自动调平处理
 *********************************************************/
-static uint8_t CalibrateXIndeX[]={0, 1, 2, 2, 2, 1, 0, 0, 1};
-static uint8_t CalibrateXIndeY[]={0, 0, 0, 1, 2, 2, 2, 1, 1};
-void HMI_SC20::HalfAutoCalibrate(void)
+void HMI_SC20::HalfAutoCalibrate()
 {
-	int i, j;
+	int j;
+  int indexdir;
 	int indexx, indexy;
-	if((StepperSync == false) && (CMD_BUFF_EMPTY() == true))
+	if(CMD_BUFF_EMPTY() == true)
 	{
-	    //请求执行头的开关状态
-	    CanRequestIOSwichStatus(0);
+    //请求执行头的开关状态
+    
+    //CanRequestIOSwichStatus(0);
 		//关闭热床和加热头
-		disable_all_heaters();
+		thermalManager.disable_all_heaters();
     strcpy(tmpBuff, "G28");
     parser.parse(tmpBuff);
     gcode.process_next_command();
 		while(planner.movesplanned());
-		mbl.active = false;
+		set_bed_leveling_enabled(false);
 
 		//设置Z  轴最大速度
-		strcpy(tmpBuff, "M203 Z50");
-    parser.parse(tmpBuff);
-    gcode.process_next_command();
+		planner.settings.max_feedrate_mm_s[Z_AXIS] = 50;
 
 		//设置海平面点的坐标
-		current_position[Z_AXIS] = MaxPos[Z_AXIS];
+		current_position[Z_AXIS] = Z_MAX_POS;
 		sync_plan_position();
-
+    indexx = 0;
+    indexy = 0;
+    indexdir = 1;
 		for(j=0;j<(GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y);j++)
 		{
-			//绝对模式
-			relative_mode = false;
 			//Z  轴移动到13mm
-			strcpy(tmpBuff, "G0 Z7 F2000");
-			parser.parse(tmpBuff);
-      gcode.process_next_command();
-			while(planner.movesplanned());
+			do_blocking_move_to_z(7);
 
-			//获取调平点索引值
-			indexx = CalibrateXIndeX[j];
-			indexy = CalibrateXIndeY[j];
 			//X  Y  移动到第i  个调平点
-			sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", mbl.get_x(indexx) - 11, mbl.get_y(indexy) - 13);
-			parser.parse(tmpBuff);
-      gcode.process_next_command();
-			while(planner.movesplanned());
+			do_blocking_move_to_xy(_GET_MESH_X(indexx) - 11, _GET_MESH_Y(indexy) - 13, 70.0f);
 
-			//相对坐标模式
-			relative_mode = true;
-			HalfAutoCalibrateState = 1;
-			strcpy(tmpBuff, "G0 Z-11 F70");
-			parser.parse(tmpBuff);
-      gcode.process_next_command();
-			while(planner.movesplanned());
-			current_position[Z_AXIS] = pCounter_Z / axis_steps_per_unit[Z_AXIS];
+			Periph.StartLevelingCheck();
+      do_blocking_move_to_z(current_position[Z_AXIS] - 11, 1.16f);
+
+			set_current_from_steppers_for_axis(ALL_AXES);
 			MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
-			HalfAutoCalibrateState = 0;
+			Periph.StoplevelingCheck();
 			sync_plan_position();
+      //获取调平点索引值
+			indexx += indexdir;
+      if(indexx == GRID_MAX_POINTS_X)
+      {
+        indexy++;
+        indexdir = -1;
+      }
+      else if(indexx < 0)
+      {
+        indexy++;
+        indexdir = 1;
+      }
 			//发送进度
 			SettingReack(0x03, indexy * GRID_MAX_POINTS_X + indexx + 1);
 		}
 
 		//Zoffset
-		relative_mode = false;
-		strcpy(tmpBuff, "G0 Z7 F2000");
-		parser.parse(tmpBuff);
-    gcode.process_next_command();
-		while(planner.movesplanned());
+		do_blocking_move_to_z(7, 50);
 
-		sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F3000", (mbl.get_x(0) + mbl.get_x(GRID_MAX_POINTS_X - 1)) / 2.0f, (mbl.get_y(0) + mbl.get_y(GRID_MAX_POINTS_Y - 1)) / 2.0f);
-		parser.parse(tmpBuff);
-    gcode.process_next_command();
-		while(planner.movesplanned());
-		
-		relative_mode = true;
+    do_blocking_move_to_xy(_GET_MESH_X(0) + _GET_MESH_X(GRID_MAX_POINTS_X - 1) / 2.0f, _GET_MESH_Y(0) + _GET_MESH_Y(GRID_MAX_POINTS_Y - 1) / 2.0f, 50.0f);
 
 		//设置Z  轴最大速度
-		strcpy(tmpBuff, "M203 Z20");
-		parser.parse(tmpBuff);
-    gcode.process_next_command();
+		planner.settings.max_feedrate_mm_s[Z_AXIS] = 20;
 		//屏幕锁定
 		HMICommandSave = 1;
 
@@ -275,50 +381,35 @@ void HMI_SC20::HalfAutoCalibrate(void)
 void HMI_SC20::ManualCalibrateStart()
 {
 	int i,j;
-	if((StepperSync == false) && (CMD_BUFF_EMPTY() == true))
+	//if((StepperSync == false) && (CMD_BUFF_EMPTY() == true))
+	if(CMD_BUFF_EMPTY() == true)
 	{
-	    //请求执行头的开关状态
-	    CanRequestIOSwichStatus(0);
+		//请求执行头的开关状态
+		//CanRequestIOSwichStatus(0);
 		//关闭热床和加热头
-		disable_all_heaters();
+		thermalManager.disable_all_heaters();
 		strcpy(tmpBuff, "G28");
 		parser.parse(tmpBuff);
     gcode.process_next_command();
 		while(planner.movesplanned());
 
-		mbl.active = false;
+		set_bed_leveling_enabled(false);
 
 		//绝对坐标模式
-		relative_mode = false;
-		/*
-		sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F3000",home_offset[X_AXIS], home_offset[Y_AXIS]);
-		parser.parse(tmpBuff);
-    gcode.process_next_command();
-		st_synchronize();
-
-		strcpy(tmpBuff, "G0 Z0");
-		parser.parse(tmpBuff);
-    gcode.process_next_command();
-		st_synchronize();
-		*/
+    do_blocking_move_to_xy(home_offset[X_AXIS], home_offset[Y_AXIS]);
+    do_blocking_move_to_z(0);
 		
 		//设置海平面点的坐标
 		//限位开关在最高处
-		if(AxisHomeDir[Z_AXIS] > 0)
-			current_position[Z_AXIS] = MaxPos[Z_AXIS];
+		if(Z_HOME_DIR > 0)
+			current_position[Z_AXIS] = Z_MAX_POS;
 		//限位开关在最低处
 		else
 			current_position[Z_AXIS] = 0;
 		sync_plan_position();
 
 		//Z  轴移到20  的位置
-		strcpy(tmpBuff, "G0 Z15");
-		parser.parse(tmpBuff);
-    gcode.process_next_command();
-		while(planner.movesplanned());
-		
-		//相对模式
-		relative_mode = true;
+		do_blocking_move_to_z(15);
 
 		//初始化
 		PointIndex = 99;
@@ -330,7 +421,7 @@ void HMI_SC20::ManualCalibrateStart()
 		{
 			for(j=0;j<GRID_MAX_POINTS_X;j++)
 			{
-				MeshPointZ[i * GRID_MAX_POINTS_X + j] = mbl.z_values[i][j] - home_offset[Z_AXIS];
+				MeshPointZ[i * GRID_MAX_POINTS_X + j] = z_values[i][j];
 			}
 		}
 
@@ -344,7 +435,6 @@ void HMI_SC20::ManualCalibrateStart()
 ***************************************************/
 void HMI_SC20::ResizeMachine(char *pBuff)
 {
-	char strCmd[50];
 	uint32_t u32Value;
 	int32_t int32Value;
 	uint16_t j;
@@ -353,69 +443,69 @@ void HMI_SC20::ResizeMachine(char *pBuff)
 	j = 0;
 	//X
 	u32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	MaxPos[X_AXIS] = u32Value / 1000.0f;
+	X_MAX_POS = u32Value / 1000.0f;
 	j = j + 4;
 	//Y
 	u32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	MaxPos[Y_AXIS] = u32Value / 1000.0f;
+	Y_MAX_POS = u32Value / 1000.0f;
 	j = j + 4;
 	//Z
 	u32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	MaxPos[Z_AXIS] = u32Value / 1000.0f;
+	Z_MAX_POS = u32Value / 1000.0f;
 	j = j + 4;
 
 	//回原点方向
 	//X
 	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
 	if(int32Value < 0)
-		AxisHomeDir[X_AXIS] = -1;
+		X_HOME_DIR = -1;
 	else
-		AxisHomeDir[X_AXIS] = 1;
+		X_HOME_DIR = 1;
 	j = j + 4;
 	
 	//Y
 	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
 	if(int32Value < 0)
-		AxisHomeDir[Y_AXIS] = -1;
+		Y_HOME_DIR = -1;
 	else
-		AxisHomeDir[Y_AXIS] = 1;
+		Y_HOME_DIR = 1;
 	j = j + 4;
 	
 	//Z
 	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
 	if(int32Value < 0)
-		AxisHomeDir[Z_AXIS] = -1;
+		Z_HOME_DIR = -1;
 	else
-		AxisHomeDir[Z_AXIS] = 1;
-  	j = j + 4;
+		Z_HOME_DIR = 1;
+  j = j + 4;
 
 	//电机方向
 	//X
 	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
 	if(int32Value < 0)
-		AxisDir[X_AXIS] = false;
+		X_DIR = false;
 	else
-		AxisDir[X_AXIS] = true;
+		X_DIR = true;
 	j = j + 4;
 	
 	//Y
 	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
 	if(int32Value < 0)
-		AxisDir[Y_AXIS] = false;
+		Y_DIR = false;
 	else
-		AxisDir[Y_AXIS] = true;
+		Y_DIR = true;
 	j = j + 4;
 	
 	//Z
 	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
 	if(int32Value < 0)
-		AxisDir[Z_AXIS] = false;
+		Z_DIR = false;
 	else
-		AxisDir[Z_AXIS] = true;
-  	j = j + 4;
+		Z_DIR = true;
+  j = j + 4;
 
 	//E
-	AxisDir[E_AXIS] = INVERT_E0_DIR;
+	E_DIR = true;
 
 	//Offset
 	//X
@@ -433,31 +523,13 @@ void HMI_SC20::ResizeMachine(char *pBuff)
 	home_offset[Z_AXIS] = int32Value / 1000.0f;
 	j = j + 4;
 
-	soft_endstop[X_AXIS] = MaxPos[X_AXIS];
-	soft_endstop[Y_AXIS] = MaxPos[Y_AXIS];
-	soft_endstop[Z_AXIS] = MaxPos[Z_AXIS];
+  #if ENABLED(SW_MACHINE_SIZE)
+    UpdateMachineDefines();
+  #endif
 
-  /*
-	mbl.MinX = 20;
-	mbl.MaxX = Maxpos[X_AXIS] + home_offset[X_AXIS] - mbl.MinX;
-	mbl.MinY = 20;
-	mbl.MaxY = MaxPos[Y_AXIS] + home_offset[Y_AXIS] - mbl.MinY;
-	*/
+  do_blocking_move_to(current_position[X_AXIS] + 0.05f, current_position[Y_AXIS] + 0.05f, current_position[Z_AXIS] + 0.05f, 16);
+  do_blocking_move_to(current_position[X_AXIS] - 0.05f, current_position[Y_AXIS] - 0.05f, current_position[Z_AXIS] - 0.05f, 16);
 
-	//相对模式
-	relative_mode = true;
-	//微动轴，更新方向
-	strcpy(strCmd, "G0 X0.05 Y0.05 Z0.05 F1000");
-	parser.parse(tmpBuff);
-  gcode.process_next_command();
-	while(planner.movesplanned());
-	strcpy(strCmd, "G0 X-0.05 Y-0.05 Z-0.05 F1000");
-	parser.parse(tmpBuff);
-  gcode.process_next_command();
-	while(planner.movesplanned());
-
-	//绝对模式
-	relative_mode = false;
 	//保存数据
 	settings.save();
 }
@@ -465,37 +537,25 @@ void HMI_SC20::ResizeMachine(char *pBuff)
 /****************************************************
 激光焦点设置启动
 ***************************************************/
-void HMI_SC20::EnterLaserFocusSetting(void)
+void HMI_SC20::EnterLaserFocusSetting()
 {
-	bool tmpRelativeMode;
 	char strCmd[50];
 
-	//保存之前的运动模式
-	tmpRelativeMode = relative_mode;
 	//回原点
 	strcpy(strCmd, "G28 Z");
 	parser.parse(tmpBuff);
   gcode.process_next_command();
-	//绝模式
-	relative_mode = false;
 	//走到特定高度
-	strcpy(strCmd, "G0 Z20");
-	parser.parse(tmpBuff);
-  gcode.process_next_command();
-	while(planner.movesplanned());
+	do_blocking_move_to_z(20.0f);
 	//微光
-	Laser.SetLaserLowPower();
-	//恢得模式
-	relative_mode = tmpRelativeMode;
+	ExecuterHead.Laser.SetLaserPower(0.5f);
 }
 
-void HMI_SC20::Process(void)
+void HMI_SC20::PollingCommand(void)
 {
-	static uint16_t ListFileOffset = 0;
-	PrinterStatus CurStatus;
+	uint8_t CurStatus;
 	uint32_t ID;
 	float fCenterX, fCenterY; 
-	uint32_t u32Value;
 	int32_t int32Value;
 	uint8_t eventId;
 	short i;
@@ -516,49 +576,47 @@ void HMI_SC20::Process(void)
 		//上位指令调试
 		if(eventId == 0x01)
 		{
-			ShieldLedOn();
+		  Periph.EncloseLedOn();
 			//指令尾补0
 			j = cmdLen + 8;
 			tmpBuff[j] = 0;
-			Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02);
-			
+			Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02);	
 		}
 		//GCode  打印
 		else if(eventId == 0x03)
-		{
-		  
-			ShieldLedOn();
+		{	  
+			Periph.EncloseLedOn();
 			//获取当前状态
 			CurStatus = SystemStatus.GetCurrentPrinterStatus();
 			//上位启动打印
 			if((CurStatus== STAT_RUNNING_ONLINE) || (CurStatus== STAT_PAUSE_ONLINE))
 			{
 				//激光头
-				if(isLaserMachine(MachineSelected) == 1)
+				if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 				{
 					//行号
 					ID = (tmpBuff[9] << 24) | (tmpBuff[10] << 16) | (tmpBuff[11] << 8) | tmpBuff[12];
 					//指令尾补0
 					j = cmdLen + 8;
 					tmpBuff[j] = 0;
-					
-					#ifdef DOOR_PORT
-					if(DoorCheckEnable == true)
+
+					if(Periph.GetDoorCheckFlag() == true)
 					{
 						//门已关闭
-						if(READ(DOOR_PORT, DOOR_PIN) == false)
+						if(Periph.IsDoorOpened() == false)
 						{
 							Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
 						}
 						else
 						{
 							SystemStatus.PauseTriggle(ManualPause);
-							SetCurrentPrinterStatus(STAT_PAUSE_ONLINE);
+							SystemStatus.SetCurrentPrinterStatus(STAT_PAUSE_ONLINE);
 						}
 					}
-					#else
-					Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
-					#endif
+					else
+          {     
+					  Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+          }
 				}
 				//非激光头
 				else
@@ -570,20 +628,20 @@ void HMI_SC20::Process(void)
 					tmpBuff[j] = 0;
 					Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
 				}
-				lastlineNum = ID;
 			}
 		}
+    #if(0)
 		//文件操作
 		else if(eventId == 0x05)
 		{
-			ShieldLedOn();
+			Periph.ShieldLedOn();
 			//控制字
 			switch(tmpBuff[9])
 			{
 				//重新挂载
 				case 0:
 					card.initsd();
-					if(card.cardOK == true)
+					if(card.isDetected())
 						SendInitUdisk(0);
 					else
 						SendInitUdisk(1);
@@ -721,6 +779,7 @@ void HMI_SC20::Process(void)
 				break;
 			}
 		}
+    #endif
 		//状态上报
 		else if(eventId == 0x07)
 		{
@@ -746,43 +805,38 @@ void HMI_SC20::Process(void)
 				{
 					//设置打印状态
 					SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING_ONLINE);
-					/*
+					
 					//激光执行头
-					if(isLaserMachine(MachineSelected) == 1)
+					if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 					{
+					  
 						//Z  未知坐标
-						if(HomeAfterReset[Z_AXIS] == false)
+						if(axes_homed(Z_AXIS) == false)
 						{
 							//Z  轴回原点
 							strcpy(tmpBuff, "G28 Z");
 							parser.parse(tmpBuff);
               gcode.process_next_command();
 						}
-						//走到工件坐标
-						strcpy(tmpBuff, "G0 X0 Y0");
-						parser.parse(tmpBuff);
-            gcode.process_next_command();
-						while(planner.movesplanned());
+            //走到工件坐标
+            do_blocking_move_to_xy(0, 0);
 					}
-					*/
-					PowerPanicData.FilePosition = 0;
-					PowerPanicData.accumulator = 0;
-					PowerPanicData.HeaterTamp[0] = 0;
-					PowerPanicData.BedTamp = 0;
-					PowerPanicData.PositionData[0] = 0;
-					PowerPanicData.PositionData[1] = 0;
-					PowerPanicData.PositionData[2] = 0;
-					PowerPanicData.PositionData[3] = 0;
-					PowerPanicData.GCodeSource = GCODE_SOURCE_SCREEN;
-					PowerPanicData.MachineType = ExecuterHead.MachineType;
-					lastlineNum = 0;
+					
+					PowerPanicData.Data.FilePosition = 0;
+					PowerPanicData.Data.accumulator = 0;
+					PowerPanicData.Data.HeaterTamp[0] = 0;
+					PowerPanicData.Data.BedTamp = 0;
+					PowerPanicData.Data.PositionData[0] = 0;
+					PowerPanicData.Data.PositionData[1] = 0;
+					PowerPanicData.Data.PositionData[2] = 0;
+					PowerPanicData.Data.PositionData[3] = 0;
+					PowerPanicData.Data.GCodeSource = GCODE_SOURCE_SCREEN;
+					PowerPanicData.Data.MachineType = ExecuterHead.MachineType;
 					//使能断电检测
-					EnablePowerPanicCheck();
+					//EnablePowerPanicCheck();
 					//使能检测
-					#if((HAVE_FILAMENT_SENSOR == 1) || (HAVE_FILAMENT_SWITCH == 1))
 					if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
 						Periph.StartFilamentCheck();
-					#endif
 					SendMachineStatusChange(0x03, 0);
 					//屏幕锁定
 					HMICommandSave = 1;
@@ -797,14 +851,14 @@ void HMI_SC20::Process(void)
 				{
 					HmiRequestStatus = STAT_PAUSE;
 					if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-						Laser.SetLaserPower(0);
+						ExecuterHead.Laser.SetLaserPower(0.0f);
 					SystemStatus.PauseTriggle(ManualPause);
 				}
 				else if(CurStatus == STAT_RUNNING_ONLINE)
 				{
 					HmiRequestStatus = STAT_PAUSE_ONLINE;
 					if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-						Laser.SetLaserPower(0);
+						ExecuterHead.Laser.SetLaserPower(0.0f);
 					SystemStatus.PauseTriggle(ManualPause);
 				}
 			}
@@ -819,14 +873,13 @@ void HMI_SC20::Process(void)
 					//激光执行头
 					if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 					{
-						#ifdef DOOR_PORT
 						//关闭检测
-						//DisableDoorCheck();
+						Periph.StopDoorCheck();
 						//门开关检测使能
 						if(Periph.GetDoorCheckFlag() == true)
 						{
 							//门已关闭
-							if(READ(DOOR_PIN) == false)
+							if(Periph.IsDoorOpened() == false)
 							{
 								//启动打印
 								SystemStatus.PauseResume();
@@ -839,9 +892,6 @@ void HMI_SC20::Process(void)
 						{
 							SystemStatus.PauseResume();
 						}
-						#else
-						SystemStatus.PauseResume();
-						#endif
 					}
 					else
 					{
@@ -871,7 +921,7 @@ void HMI_SC20::Process(void)
 					//上位机停止分2  种，立即停止
 					SystemStatus.StopTriggle(ManualStop);
 					//清除断电有效标置
-					PowerPanicData.Valid = 0;
+					PowerPanicData.Data.Valid = 0;
 				}
 			}
 			//打印结束
@@ -883,13 +933,12 @@ void HMI_SC20::Process(void)
 					//触发停止
 					SystemStatus.StopTriggle(EndPrint);
 					//清除断电有效标置
-					PowerPanicData.Valid = 0;
+					PowerPanicData.Data.Valid = 0;
 				}
 			}
 			//请求最近行号
 			else if(StatuID == 0x08)
 			{
-				//SendBreakPointLine();
 				SendBreakPointData();
 			}
 			//请求打印进度
@@ -908,13 +957,13 @@ void HMI_SC20::Process(void)
 				//清除标置
 				SystemStatus.ClearSystemFaultBit(0xffffffff);
 				//断电数据有效
-				if(PowerPanicData.Valid == 1)
+				if(PowerPanicData.Data.Valid == 1)
 				{
 					//清除Flash  有效位
-					MaskBreadkPointData();
+					PowerPanicData.MaskPowerPanicData();
 				}
 				//标志断电续打无效
-				PowerPanicData.Valid = 0;
+				PowerPanicData.Data.Valid = 0;
 				//应答
 				SendFaultClearReack();
 			}
@@ -930,10 +979,10 @@ void HMI_SC20::Process(void)
 					if(Periph.GetDoorCheckFlag() == true)
 					{
 						//门已关闭且处于待机状态
-						if((READ(DOOR_PIN) == false) && (CurStatus == STAT_IDLE))
+						if((Periph.IsDoorOpened() == false) && (CurStatus == STAT_IDLE))
 						{
 							//启动打印
-							PowerPanicResumeWork(NULL);
+							PowerPanicData.PowerPanicResumeWork(NULL);
 							//开启检测
 							Periph.StartDoorCheck();
 						}
@@ -948,7 +997,7 @@ void HMI_SC20::Process(void)
 					else if(CurStatus == STAT_IDLE)
 					{
 						//启动打印
-						PowerPanicResumeWork(NULL);
+						PowerPanicData.PowerPanicResumeWork(NULL);
 					}
 					//不检测外罩 门，非待机状态
 					else
@@ -966,7 +1015,7 @@ void HMI_SC20::Process(void)
 						//切换状态
 						SystemStatus.SetCurrentPrinterStatus(STAT_PAUSE_ONLINE);
 						//启动断电续打
-						PowerPanicResumeWork(NULL);
+						PowerPanicData.PowerPanicResumeWork(NULL);
 					}
 					//非待机状态
 					else
@@ -988,10 +1037,10 @@ void HMI_SC20::Process(void)
 					if(Periph.GetDoorCheckFlag() == true)
 					{
 						//门已关闭且处于待机状态
-						if((READ(DOOR_PIN) == false) && (CurStatus == STAT_IDLE))
+						if((Periph.IsDoorOpened() == false) && (CurStatus == STAT_IDLE))
 						{
 							//启动打印
-							PowerPanicResumeWork(NULL);
+							PowerPanicData.PowerPanicResumeWork(NULL);
 							//开启检测
 							Periph.StartDoorCheck();
 						}
@@ -1006,7 +1055,7 @@ void HMI_SC20::Process(void)
 					else if(CurStatus == STAT_IDLE)
 					{
 						//启动打印
-						PowerPanicResumeWork(NULL);
+						PowerPanicData.PowerPanicResumeWork(NULL);
 					}
 					//不检测外罩 门，非待机状态
 					else
@@ -1022,7 +1071,7 @@ void HMI_SC20::Process(void)
 					if(CurStatus == STAT_IDLE)
 					{
 						//启动断电续打
-						PowerPanicResumeWork(NULL);
+						PowerPanicData.PowerPanicResumeWork(NULL);
 					}
 					//非待机状态
 					else
@@ -1049,7 +1098,8 @@ void HMI_SC20::Process(void)
 				//开启自动调平
 				case 2:
 					//3D  打印并开启调平传感器
-					if((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (HeadProbeEnable == true))
+					//if((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (HeadProbeEnable == true))
+					if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
 					{
 						HalfAutoCalibrate();
 						//应答
@@ -1088,28 +1138,21 @@ void HMI_SC20::Process(void)
 						}
 						//更新点索引
 						PointIndex = tmpBuff[10] - 1;
-						//相对模式
-						do_blocking_move_to_z(current_position[Z_AXIS] + 5, 30);
-						
-						//绝对模式
-						relative_mode = false;
-						sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", mbl.get_x(PointIndex % GRID_MAX_POINTS_X), mbl.get_y(PointIndex / GRID_MAX_POINTS_Y));
-						parser.parse(tmpBuff);
-            gcode.process_next_command();
-						while(planner.movesplanned());
-						
-						#if(HAVE_PROBE == 1)
+						do_blocking_move_to_z(current_position[Z_AXIS] + 5, 30);						
+						do_blocking_move_to_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X), _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), 60.0f);
+            
 						//使能调平传感器
-						if(HeadProbeEnable == true)
+						if(Periph.LevelingSensorValid() == true)
 						{
-							HalfAutoCalibrateState = 1;
+						  //启动探头触发
+						  Periph.StartLevelingCheck();
 							//走到-5  位置
 							do_blocking_move_to_z(-5.0, 0.2);
 							
 							//关闭探头触发
-							HalfAutoCalibrateState = 0;
+							Periph.StoplevelingCheck();
 							//更新Z  轴坐标
-							current_position[Z_AXIS] = pCounter_Z / planner.settings.axis_steps_per_mm[Z_AXIS];
+							set_current_from_steppers_for_axis(ALL_AXES);
 							sync_plan_position();
 						}
 						//禁能调平传感器
@@ -1117,14 +1160,6 @@ void HMI_SC20::Process(void)
 						{
 							do_blocking_move_to_z(current_position[Z_AXIS] - 5, 0.2);
 						}
-						//相对模式
-						relative_mode = true;
-						#else
-						//相对模式
-						relative_mode = true;
-						//下降5  mm
-						do_blocking_move_to_z(current_position[Z_AXIS] - 5.0, 0.2);
-						#endif
 						
 						//应答
 						SettingReack(0x05, 0);
@@ -1133,22 +1168,8 @@ void HMI_SC20::Process(void)
 
 				//Z  轴移动
 				case 6:
-					//保存原来状态
-					if(relative_mode == false)
-						i = 0;
-					else
-						i = 1;
-					//相对模式
-					relative_mode = true;
 					int32Value = (tmpBuff[10] << 24) | (tmpBuff[11] << 16) | (tmpBuff[12] << 8) | (tmpBuff[13]);
-					sprintf(tmpBuff, "G0 Z%0.2f F1000", (float)int32Value / 1000.0f);
-					parser.parse(tmpBuff);
-          gcode.process_next_command();
-					if(i == 0)
-						relative_mode = false;
-					else
-						relative_mode = true;
-
+          do_blocking_move_to_z(current_position[Z_AXIS] + int32Value, 20.0f);
 					//应答
 					SettingReack(0x06, 0);
 				break;
@@ -1164,25 +1185,14 @@ void HMI_SC20::Process(void)
 							for(i=0;i<GRID_MAX_POINTS_Y;i++)
 							{
 								for(j=0;j<GRID_MAX_POINTS_X;j++)
-									mbl.set_z(j, i, MeshPointZ[i * GRID_MAX_POINTS_X + j] - MeshPointZ[4]);
+                {        
+                  sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[i * GRID_MAX_POINTS_X + j]);
+                  parser.parse(tmpBuff);
+                  gcode.process_parsed_command();
+                }
 							}
-
-							//回原点
-							strcpy(tmpBuff, "G28");
-							parser.parse(tmpBuff);
-              gcode.process_next_command();
-
 							//保存数据
 							settings.save();
-							HMICommandSave = 0;
-							//切换到绝对位置模式
-							relative_mode = false;
-							//清除标志
-							CalibrateMethod = 0;
-							//应答
-							SettingReack(0x07, 0);
-							//解除屏幕锁定
-							HMICommandSave = 0;
 						}
 						//手动调平
 						else if(CalibrateMethod == 2)
@@ -1190,96 +1200,44 @@ void HMI_SC20::Process(void)
 							if(PointIndex != 99)
 							{
 								MeshPointZ[PointIndex] = current_position[Z_AXIS];
-
-								//设置ZOffset
-    							// 4  点调平
-    							if((GRID_MAX_POINTS_X == 2) && (GRID_MAX_POINTS_Y == 2))
-    							{
-    							    //暂时设置调平值，为了计算中心点的Z轴高度，
-    								for(i=0;i<GRID_MAX_POINTS_Y;i++)
-    								{
-    									for(j=0;j<GRID_MAX_POINTS_X;j++)
-    										mbl.set_z(j, i, MeshPointZ[i * GRID_MAX_POINTS_X + j]);
-    								}
-    								//中心点坐标
-    								float tmpCenterX, tmpCenterY, tmpCenterZ;
-    								//计算中心坐标X
-    								tmpCenterX = (mbl.get_x(0) + mbl.get_x(1)) / 2.0f;
-    								//计算中心坐标Y
-    								tmpCenterY = (mbl.get_y(0) + mbl.get_y(1)) / 2.0f;
-                                    //计算中心坐标Z
-    								tmpCenterZ = mbl.get_z(tmpCenterX, tmpCenterY);
-    								//
-    								sprintf(tmpBuff, "M206 Z%0.2f", tmpCenterZ);
-                                    //重新计算4个调平点的值
-                                    for(i=0;i<GRID_MAX_POINTS_Y;i++)
-    								{
-    									for(j=0;j<GRID_MAX_POINTS_X;j++)
-    										mbl.set_z(j, i, MeshPointZ[i * GRID_MAX_POINTS_X + j] - tmpCenterZ);
-    								}
-    							}
-    							//9  点调平
-    							else
-    							{
-    							    //设置调平值
-    								for(i=0;i<GRID_MAX_POINTS_Y;i++)
-    								{
-    									for(j=0;j<GRID_MAX_POINTS_X;j++)
-    										mbl.set_z(j, i, MeshPointZ[i * GRID_MAX_POINTS_X + j]);
-    								}
-    								sprintf(tmpBuff, "M206 Z%0.2f", -current_position[Z_AXIS]);
-    							}
-    							parser.parse(tmpBuff);
-              gcode.process_next_command();
-								
-								//回原点
-								strcpy(tmpBuff, "G28");
-								parser.parse(tmpBuff);
-                gcode.process_next_command();
-
+                //设置调平值
+              	for(i=0;i<GRID_MAX_POINTS_Y;i++)
+              	{
+                  for(j=0;j<GRID_MAX_POINTS_X;j++)
+                  {
+                    sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[i * GRID_MAX_POINTS_X + j]);
+                    parser.parse(tmpBuff);
+                    gcode.process_parsed_command();
+                  }
+              	}
 								//保存数据
 								settings.save();
-								//切换到绝对位置模式
-								relative_mode = false;
-								//清除标志
-								CalibrateMethod = 0;
-								//应答
-								SettingReack(0x07, 0);
-								//解除屏幕锁定
-								HMICommandSave = 0;
-							}
-							//未作任何设置
-							else
-							{
-								//回原点
-								strcpy(tmpBuff, "G28");
-								parser.parse(tmpBuff);
-                gcode.process_next_command();
-
-								//切换到绝对位置模式
-								relative_mode = false;
-								//清除标志
-								CalibrateMethod = 0;
-								//应答
-								SettingReack(0x07, 0);
-								//解除屏幕锁定
-								HMICommandSave = 0;
 							}
 						}
+            //回原点
+						strcpy(tmpBuff, "G28");
+						parser.parse(tmpBuff);
+            gcode.process_next_command();
+            //切换到绝对位置模式
+            relative_mode = false;
+            //清除标志
+            CalibrateMethod = 0;
+            //应答
+            SettingReack(0x07, 0);
+            //解除屏幕锁定
+						HMICommandSave = 0;
 					}
 				break;
 
 				//退出调平点
 				case 8:
-					if((StepperSync == false) && (CMD_BUFF_EMPTY() == true))
+					if(CMD_BUFF_EMPTY() == true)
 					{
 						//Load
 						settings.load();
-						relative_mode = false;
 						strcpy(tmpBuff, "G28");
 						parser.parse(tmpBuff);
             gcode.process_next_command();
-						while(planner.movesplanned());
 	
 						HMICommandSave = 0;
 						//切换到绝对位置模式
@@ -1298,22 +1256,18 @@ void HMI_SC20::Process(void)
 				//读取激光Z  轴高度
 				case 10:
 					//读取
-					LoadLaserZValue(&LaserZValue);
-					//
+					ExecuterHead.Laser.LoadFocusHeight();
 					SendLaserFocus(tmpBuff[9]);
 				break;
 
 				//设置激光Z  轴高度
 				case 11:
 					//关闭激光
-					SetLaserPower(0);
-					//当前坐标标为焦点高度
-					LaserZValue = current_position[Z_AXIS];
+					ExecuterHead.Laser.SetLaserPower(0.5f);
 					//保存
-					SaveLaserZValue(LaserZValue);
+					ExecuterHead.Laser.SaveFocusHeight(0, current_position[Z_AXIS]);
 					//读取
-					LoadLaserZValue(&LaserZValue);
-					//
+					ExecuterHead.Laser.LoadFocusHeight();
 					SendLaserFocus(tmpBuff[9]);
 				break;
 
@@ -1325,18 +1279,15 @@ void HMI_SC20::Process(void)
           gcode.process_next_command();
 
 					//调平数据失效
-					mbl.active = false;
+					set_bed_leveling_enabled(false);
 
 					//Z  轴移动到70  位置
 					do_blocking_move_to_z(70, 40);
 
 					//X  Y  移动到中心位置
-					fCenterX = (MaxPos[X_AXIS] + home_offset[X_AXIS]) / 2.0f;
-					fCenterY = (MaxPos[Y_AXIS] + home_offset[Y_AXIS]) / 2.0f;
-					sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F2400", fCenterX, fCenterY);
-					parser.parse(tmpBuff);
-          gcode.process_next_command();
-					while(planner.movesplanned());
+					fCenterX = (X_MAX_POS + home_offset[X_AXIS]) / 2.0f;
+					fCenterY = (Y_MAX_POS + home_offset[Y_AXIS]) / 2.0f;
+					do_blocking_move_to_xy(fCenterX, fCenterY, 4.0f);
 					SettingReack(0x0c, 0);
 				break;
 
@@ -1357,7 +1308,7 @@ void HMI_SC20::Process(void)
 					parser.parse(tmpBuff);
           gcode.process_next_command();
 					//调平数据失效
-					mbl.active = false;
+					set_bed_leveling_enabled(false);
 					MovementRequestReack(tmpBuff[9], 0);
 				break;
 			}
@@ -1383,7 +1334,7 @@ void HMI_SC20::Process(void)
                 break;
             }
         }
-		//ScreenOps.ReadTail = ReadHead;
+		//ReadTail = ReadHead;
 	}
 }
 
@@ -1439,8 +1390,8 @@ void HMI_SC20::SendProgressPercent(uint8_t Percent)
 
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
-	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -1493,7 +1444,7 @@ void HMI_SC20::SendPowerPanicResume(uint8_t OpCode, uint8_t Result)
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -1531,7 +1482,7 @@ void HMI_SC20::SendLaserFocus(uint8_t OpCode)
 	{
 		//读取激光焦点高度应答
 		case 10:
-			u32Value = (uint32_t)((LaserZValue + LaserFocus) * 1000.0f);
+			u32Value = (uint32_t)((ExecuterHead.Laser.FocusHeight) * 1000.0f);
 			tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 			tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 			tmpBuff[i++] = (uint8_t)(u32Value >> 8);
@@ -1568,7 +1519,7 @@ void HMI_SC20::SendLaserFocus(uint8_t OpCode)
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 /***********************************************
@@ -1602,19 +1553,19 @@ void HMI_SC20::SendMachineSize()
 	tmpBuff[i++] = 0;
 
 	//Size
-	u32Value = (uint32_t)(MaxPos[X_AXIS] * 1000);
+	u32Value = (uint32_t)(X_MAX_POS * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(u32Value);
 
-	u32Value = (uint32_t)(MaxPos[Y_AXIS] * 1000);
+	u32Value = (uint32_t)(Y_MAX_POS * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(u32Value);
 
-	u32Value = (uint32_t)(MaxPos[Z_AXIS] * 1000);
+	u32Value = (uint32_t)(Z_MAX_POS * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
@@ -1657,9 +1608,8 @@ void HMI_SC20::SendMachineSize()
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
-
 
 /***********************************************
 启动升级应答
@@ -1709,7 +1659,7 @@ void HMI_SC20::SendStartUpdateReack(uint8_t Result)
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -1762,7 +1712,7 @@ void HMI_SC20::SendUpdatePackRequest(uint16_t PackRequested)
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -1814,7 +1764,7 @@ void HMI_SC20::SendUpdateCompleteReack(uint16_t Resultl)
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -1866,7 +1816,7 @@ void HMI_SC20::MovementRequestReack(uint8_t OP_ID, uint8_t Result)
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -1918,7 +1868,7 @@ void HMI_SC20::SettingReack(uint8_t OP_ID, uint8_t Result)
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 /***********************************************
@@ -1949,10 +1899,10 @@ void HMI_SC20::SendBreakPointLine()
 	tmpBuff[i++] = 0x08;
 
 	//断点数据
-	tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 24);
-	tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 16);
-	tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 8);
-	tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 24);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 16);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition);
 
 	//重填包长
 	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
@@ -1972,7 +1922,7 @@ void HMI_SC20::SendBreakPointLine()
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 /***********************************************
@@ -2023,7 +1973,7 @@ void HMI_SC20::SendFaultClearReack()
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -2055,12 +2005,12 @@ void HMI_SC20::SendBreakPointData()
 	tmpBuff[i++] = 0x08;
 
 	//断点数据
-	tmpBuff[i++] = PowerPanicData.Valid;
-	tmpBuff[i++] = PowerPanicData.GCodeSource;
-	tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 24);
-	tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 16);
-	tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 8);
-	tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition);
+	tmpBuff[i++] = PowerPanicData.Data.Valid;
+	tmpBuff[i++] = PowerPanicData.Data.GCodeSource;
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 24);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 16);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition);
 
 	//重填包长
 	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
@@ -2080,7 +2030,7 @@ void HMI_SC20::SendBreakPointData()
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 /***********************************************
@@ -2110,6 +2060,8 @@ void HMI_SC20::SendMachineFaultFlag()
 	//异常上报
 	tmpBuff[i++] = 0x02;
 	//异常标志
+	uint32_t SysFaultFlag;
+  SysFaultFlag = SystemStatus.GetSystemFault();
 	tmpBuff[i++] = (uint8_t)(SysFaultFlag >> 24);
 	tmpBuff[i++] = (uint8_t)(SysFaultFlag >> 16);
 	tmpBuff[i++] = (uint8_t)(SysFaultFlag >> 8);
@@ -2119,13 +2071,13 @@ void HMI_SC20::SendMachineFaultFlag()
 	if(SystemStatus.GetCurrentPrinterStatus() == STAT_IDLE)
 		tmpBuff[i++] = 3;
 	else
-		tmpBuff[i++] = PowerPanicData.GCodeSource;
+		tmpBuff[i++] = PowerPanicData.Data.GCodeSource;
 
 	//行号
-	//tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 24);
-	//tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 16);
-	//tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 8);
-	//tmpBuff[i++] = (uint8_t)(PowerPanicData.FilePosition);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 24);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 16);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition);
 
 	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
 	tmpBuff[3] = (uint8_t)(i - 8);
@@ -2144,7 +2096,7 @@ void HMI_SC20::SendMachineFaultFlag()
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -2194,7 +2146,7 @@ void HMI_SC20::SendMachineStatusChange(uint8_t Status, uint8_t Result)
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
 
@@ -2228,28 +2180,28 @@ void HMI_SC20::SendMachineStatus()
 	tmpBuff[i++] = 0x01;
 
 	//坐标
-	fValue = pCounter_X / axis_steps_per_unit[X_AXIS];
+	fValue = pCounter_X / planner.settings.axis_steps_per_mm[X_AXIS];
 	u32Value = (uint32_t)(fValue * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(u32Value);
 
-	fValue = pCounter_Y / axis_steps_per_unit[Y_AXIS];
+	fValue = pCounter_Y / planner.settings.axis_steps_per_mm[Y_AXIS];
 	u32Value = (uint32_t)(fValue * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(u32Value);
 
-	fValue = pCounter_Z / axis_steps_per_unit[Z_AXIS];
+	fValue = pCounter_Z / planner.settings.axis_steps_per_mm[Z_AXIS];
 	u32Value = (uint32_t)(fValue * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(u32Value);
 
-	fValue = pCounter_E / axis_steps_per_unit[E_AXIS];
+	fValue = pCounter_E / planner.settings.axis_steps_per_mm[E_AXIS];
 	u32Value = (uint32_t)(fValue * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
@@ -2278,20 +2230,22 @@ void HMI_SC20::SendMachineStatus()
 	tmpBuff[i++] = (uint8_t)((int)T0S);
 
 	//FeedRate
-	tmpBuff[i++] = (uint8_t)(HmiFeedRate >> 8);
-	tmpBuff[i++] = (uint8_t)(HmiFeedRate);
+	//tmpBuff[i++] = (uint8_t)(HmiFeedRate >> 8);
+	//tmpBuff[i++] = (uint8_t)(HmiFeedRate);
+	tmpBuff[i++] = 0;
+  tmpBuff[i++] = 0;
 
 	//LaserPower
 	tmpBuff[i++] = 0;
 	tmpBuff[i++] = 0;
 	tmpBuff[i++] = 0;
-	tmpBuff[i++] = (uint8_t)(laserPercent);
+	tmpBuff[i++] = (uint8_t)(ExecuterHead.Laser.LastPercent);
 
 	//RPM
 	tmpBuff[i++] = 0;
 	tmpBuff[i++] = 0;
-	tmpBuff[i++] = (uint8_t)(CurRPM >> 8);
-	tmpBuff[i++] = (uint8_t)(CurRPM);
+	tmpBuff[i++] = (uint8_t)(ExecuterHead.CNC.RPM >> 8);
+	tmpBuff[i++] = (uint8_t)(ExecuterHead.CNC.RPM);
 
 	//打印机状态
 	j = SystemStatus.GetCurrentPrinterStatus();
@@ -2301,14 +2255,14 @@ void HMI_SC20::SendMachineStatus()
 	//tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 24);
 	//tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 16);
 	//tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 8);
-	tmpBuff[i++] = (uint8_t)(SysStatusFlag);
+	tmpBuff[i++] = (uint8_t)(SystemStatus.GetPeriphDeviceStatus());
 
 	//执行头类型
 	tmpBuff[i++] = ExecuterHead.MachineType;
 
 	//CNC  转速
-	tmpBuff[i++] = (uint8_t)(CurRPM >> 8);
-	tmpBuff[i++] = (uint8_t)(CurRPM);
+	tmpBuff[i++] = (uint8_t)(ExecuterHead.CNC.RPM >> 8);
+	tmpBuff[i++] = (uint8_t)(ExecuterHead.CNC.RPM);
 
 	//重填长度
 	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
@@ -2328,10 +2282,11 @@ void HMI_SC20::SendMachineStatus()
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(tmpBuff, i);
+	HmiWriteData(tmpBuff, i);
 }
 
-
+#if(0)
+#if ENABLED(SDSUPPORT)
 /***********************************************
 重新挂载U  盘
 参数    Result:结果，0表示成功，非0表示失败
@@ -2377,7 +2332,7 @@ void HMI_SC20::SendInitUdisk(uint8_t Result)
 	FileListBuff[6] = checksum >> 8;
 	FileListBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(FileListBuff, i);
+	HmiWriteData(FileListBuff, i);
 }
 
 
@@ -2426,7 +2381,7 @@ void HMI_SC20::SendChDirResult(uint8_t Result)
 	FileListBuff[6] = checksum >> 8;
 	FileListBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(FileListBuff, i);
+	HmiWriteData(FileListBuff, i);
 }
 
 
@@ -2480,7 +2435,7 @@ void HMI_SC20::SendCurrentUDiskPath(uint8_t Result)
 	FileListBuff[6] = checksum >> 8;
 	FileListBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(FileListBuff, i);
+	HmiWriteData(FileListBuff, i);
 }
 
 
@@ -2572,7 +2527,7 @@ uint8_t HMI_SC20::SendDirItems(uint16_t Offset)
 	FileListBuff[6] = checksum >> 8;
 	FileListBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(FileListBuff, i);
+	HmiWriteData(FileListBuff, i);
 
 	return Count;
 }
@@ -2675,13 +2630,14 @@ void HMI_SC20::SendSpecialData()
 		FileListBuff[6] = checksum >> 8;
 		FileListBuff[7] = checksum;
 		
-		ScreenOps.lpScreenWriteData(FileListBuff, i);
+		HmiWriteData(FileListBuff, i);
 	}while(ContentLen > 0);
 	card.closefile();
 	current_temperature[0] = tmpTamp;
 	current_temperature_bed = tmpTampBed;
 }
-
+#endif
+#endif
 
 /***********************************************
 打印文件应答
@@ -2728,12 +2684,12 @@ void HMI_SC20::SendStartPrintReack(uint8_t Result)
 	FileListBuff[6] = checksum >> 8;
 	FileListBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(FileListBuff, i);
+	HmiWriteData(FileListBuff, i);
 }
 
 
 //发送Gcode
-void HMI_SC20::SC20SendGcode(char *GCode, uint8_t EventID)
+void HMI_SC20::SendGcode(char *GCode, uint8_t EventID)
 {
 	uint8_t i, j;
 	uint32_t checksum;
@@ -2774,11 +2730,11 @@ void HMI_SC20::SC20SendGcode(char *GCode, uint8_t EventID)
 	FileListBuff[6] = checksum >> 8;
 	FileListBuff[7] = checksum;
 	
-	ScreenOps.lpScreenWriteData(FileListBuff, i);
+	HmiWriteData(FileListBuff, i);
 }
 
 //发送继续打印
-void HMI_SC20::SendContinuePrint(void)
+void HMI_SC20::SendContinuePrint()
 {
 	uint8_t i, j;
 	uint32_t checksum;
@@ -2799,10 +2755,10 @@ void HMI_SC20::SendContinuePrint(void)
 	FileListBuff[i++] = 0x00;
 	//EventID
 	FileListBuff[i++] = 0x52;
-	FileListBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 24);
-	FileListBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 16);
-	FileListBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 8);
-	FileListBuff[i++] = (uint8_t)(PowerPanicData.FilePosition >> 0);
+	FileListBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 24);
+	FileListBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 16);
+	FileListBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
+	FileListBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 0);
 	//包长
 	FileListBuff[2] = (uint8_t)((i - 8) >> 8);
 	FileListBuff[3] = (uint8_t)(i - 8);
@@ -2820,7 +2776,7 @@ void HMI_SC20::SendContinuePrint(void)
 
 	FileListBuff[6] = checksum >> 8;
 	FileListBuff[7] = checksum;
-	ScreenOps.lpScreenWriteData(FileListBuff, i);
+	HmiWriteData(FileListBuff, i);
 }
 
 

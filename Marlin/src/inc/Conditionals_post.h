@@ -58,9 +58,11 @@
 /**
  * Axis lengths and center
  */
-#define X_MAX_LENGTH (X_MAX_POS - (X_MIN_POS))
-#define Y_MAX_LENGTH (Y_MAX_POS - (Y_MIN_POS))
-#define Z_MAX_LENGTH (Z_MAX_POS - (Z_MIN_POS))
+#if DISABLED(SW_MACHINE_SIZE)
+  #define X_MAX_LENGTH (X_MAX_POS - (X_MIN_POS))
+  #define Y_MAX_LENGTH (Y_MAX_POS - (Y_MIN_POS))
+  #define Z_MAX_LENGTH (Z_MAX_POS - (Z_MIN_POS))
+#endif
 
 // Defined only if the sanity-check is bypassed
 #ifndef X_BED_SIZE
@@ -520,7 +522,7 @@
 /**
  * X_DUAL_ENDSTOPS endstop reassignment
  */
-#if ENABLED(X_DUAL_ENDSTOPS)
+#if ENABLED(X_DUAL_ENDSTOPS) && DISABLED(SW_MACHINE_SIZE)
   #if X_HOME_DIR > 0
     #if X2_USE_ENDSTOP == _XMIN_
       #define X2_MAX_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
@@ -576,7 +578,7 @@
 /**
  * Y_DUAL_ENDSTOPS endstop reassignment
  */
-#if ENABLED(Y_DUAL_ENDSTOPS)
+#if ENABLED(Y_DUAL_ENDSTOPS) && DISABLED(SW_MACHINE_SIZE)
   #if Y_HOME_DIR > 0
     #if Y2_USE_ENDSTOP == _XMIN_
       #define Y2_MAX_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
@@ -632,7 +634,7 @@
 /**
  * Z_DUAL_ENDSTOPS endstop reassignment
  */
-#if Z_MULTI_ENDSTOPS
+#if Z_MULTI_ENDSTOPS && DISABLED(SW_MACHINE_SIZE)
   #if Z_HOME_DIR > 0
     #if Z2_USE_ENDSTOP == _XMIN_
       #define Z2_MAX_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
@@ -682,7 +684,7 @@
   #endif
 #endif
 
-#if ENABLED(Z_TRIPLE_ENDSTOPS)
+#if ENABLED(Z_TRIPLE_ENDSTOPS) && DISABLED(SW_MACHINE_SIZE)
   #if Z_HOME_DIR > 0
     #if Z3_USE_ENDSTOP == _XMIN_
       #define Z3_MAX_ENDSTOP_INVERTING X_MIN_ENDSTOP_INVERTING
@@ -1370,7 +1372,14 @@
   #define _MAX_PROBE_Y (Y_CENTER +  SCARA_PRINTABLE_RADIUS - (MIN_PROBE_EDGE))
 
 #else
-
+  #if ENABLED(SW_MACHINE_SIZE)
+    extern float X_MAX_POS;
+    extern float Y_MAX_POS;
+    extern float Z_MAX_POS;
+    extern float X_MIN_POS;
+    extern float Y_MIN_POS;
+    extern float Z_MIN_POS;
+  #endif
   // Boundaries for Cartesian probing based on bed limits
   #define _MIN_PROBE_X (MAX(X_MIN_BED + MIN_PROBE_EDGE, X_MIN_POS + X_PROBE_OFFSET_FROM_EXTRUDER))
   #define _MIN_PROBE_Y (MAX(Y_MIN_BED + MIN_PROBE_EDGE, Y_MIN_POS + Y_PROBE_OFFSET_FROM_EXTRUDER))

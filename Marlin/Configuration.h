@@ -388,7 +388,7 @@
 //#define TEMP_SENSOR_1_AS_REDUNDANT
 #define MAX_REDUNDANT_TEMP_SENSOR_DIFF 10
 
-#define TEMP_RESIDENCY_TIME     10  // (seconds) Time to wait for hotend to "settle" in M109
+#define TEMP_RESIDENCY_TIME     3  // (seconds) Time to wait for hotend to "settle" in M109
 #define TEMP_WINDOW              1  // (°C) Temperature proximity for the "temperature reached" timer
 #define TEMP_HYSTERESIS          3  // (°C) Temperature proximity considered "close enough" to the target
 
@@ -576,9 +576,9 @@
 #define USE_XMIN_PLUG
 #define USE_YMIN_PLUG
 #define USE_ZMIN_PLUG
-//#define USE_XMAX_PLUG
-//#define USE_YMAX_PLUG
-//#define USE_ZMAX_PLUG
+#define USE_XMAX_PLUG
+#define USE_YMAX_PLUG
+#define USE_ZMAX_PLUG
 
 // Enable pullup for all endstops to prevent a floating state
 #define ENDSTOPPULLUPS
@@ -610,10 +610,10 @@
 #define X_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
 #define Y_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
 #define Z_MIN_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
-#define X_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
-#define Y_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
-#define Z_MAX_ENDSTOP_INVERTING false // set to true to invert the logic of the endstop.
-#define Z_MIN_PROBE_ENDSTOP_INVERTING false // set to true to invert the logic of the probe.
+#define X_MAX_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
+#define Y_MAX_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
+#define Z_MAX_ENDSTOP_INVERTING true // set to true to invert the logic of the endstop.
+#define Z_MIN_PROBE_ENDSTOP_INVERTING true // set to true to invert the logic of the probe.
 
 /**
  * Stepper Drivers
@@ -748,7 +748,7 @@
  *
  * See https://github.com/synthetos/TinyG/wiki/Jerk-Controlled-Motion-Explained
  */
-//#define S_CURVE_ACCELERATION
+#define S_CURVE_ACCELERATION
 
 //===========================================================================
 //============================= Z Probe Options =============================
@@ -764,7 +764,7 @@
  *
  * Enable this option for a probe connected to the Z Min endstop pin.
  */
-#define Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
+//#define Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN
 
 /**
  * Z_MIN_PROBE_PIN
@@ -952,11 +952,20 @@
 #define DISABLE_INACTIVE_EXTRUDER   // Keep only the active extruder enabled
 
 // @section machine
+/**
+ * Software machine size
+ */
+#if NONE(SCARA, DELTA) && NONE(DUAL_X_CARRIAGE, Y_DUAL_STEPPER_DRIVERS, Z_DUAL_STEPPER_DRIVERS)
+  //#define SW_MACHINE_SIZE
+#endif
+
 
 // Invert the stepper direction. Change (or reverse the motor connector) if an axis goes the wrong way.
+#if DISABLED(SW_MACHINE_SIZE)
 #define INVERT_X_DIR true
 #define INVERT_Y_DIR true
 #define INVERT_Z_DIR true
+#endif // DISABLED(SW_MACHINE_SIZE)
 
 // @section extruder
 
@@ -968,6 +977,7 @@
 #define INVERT_E4_DIR false
 #define INVERT_E5_DIR false
 
+
 // @section homing
 
 //#define NO_MOTION_BEFORE_HOMING  // Inhibit movement until all axes have been homed
@@ -977,25 +987,51 @@
 //#define Z_HOMING_HEIGHT 4  // (mm) Minimal Z height before homing (G28) for Z clearance above the bed, clamps, ...
                              // Be sure you have this distance over your Z_MAX_POS in case.
 
-// Direction of endstops when homing; 1=MAX, -1=MIN
-// :[-1,1]
-#define X_HOME_DIR -1
-#define Y_HOME_DIR -1
-#define Z_HOME_DIR -1
 
-// @section machine
+
+
+#if DISABLED(SW_MACHINE_SIZE)
+  // Direction of endstops when homing; 1=MAX, -1=MIN
+  // :[-1,1]
+  #define X_HOME_DIR -1
+  #define Y_HOME_DIR -1
+  #define Z_HOME_DIR -1
+
+  // @section machine
+
+  // The size of the print bed
+  #define X_BED_SIZE 128
+  #define Y_BED_SIZE 128
+
+  // Travel limits (mm) after homing, corresponding to endstop positions.
+  #define X_MIN_POS 0
+  #define Y_MIN_POS 0
+  #define Z_MIN_POS 0
+  #define X_MAX_POS 131
+  #define Y_MAX_POS 131
+  #define Z_MAX_POS 131
+
+#else
+  extern bool X_DIR;
+  extern bool Y_DIR;
+  extern bool Z_DIR;
+  extern bool E_DIR;
+  extern signed char X_HOME_DIR;
+  extern signed char Y_HOME_DIR;
+  extern signed char Z_HOME_DIR;
+  extern float X_MAX_POS;
+  extern float Y_MAX_POS;
+  extern float Z_MAX_POS;
+  extern float X_MIN_POS;
+  extern float Y_MIN_POS;
+  extern float Z_MIN_POS;
+
+#endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed
-#define X_BED_SIZE 131
-#define Y_BED_SIZE 131
+#define X_BED_SIZE 128
+#define Y_BED_SIZE 128
 
-// Travel limits (mm) after homing, corresponding to endstop positions.
-#define X_MIN_POS 0
-#define Y_MIN_POS 0
-#define Z_MIN_POS 0
-#define X_MAX_POS X_BED_SIZE
-#define Y_MAX_POS Y_BED_SIZE
-#define Z_MAX_POS 131
 
 /**
  * Software Endstops
@@ -1410,7 +1446,11 @@
 
 #if ENABLED(NOZZLE_PARK_FEATURE)
   // Specify a park position as { X, Y, Z }
-  #define NOZZLE_PARK_POINT { (X_MIN_POS + 10), (Y_MAX_POS - 10), 20 }
+  #if ENABLED(SW_MACHINE_SIZE)
+    #define NOZZLE_PARK_POINT { (0 + 10), (0 - 10), 20 }
+  #else
+    #define NOZZLE_PARK_POINT { (X_MIN_POS + 10), (Y_MAX_POS - 10), 20 }
+  #endif
   #define NOZZLE_PARK_XY_FEEDRATE 100   // (mm/s) X and Y axes feedrate (also used for delta Z axis)
   #define NOZZLE_PARK_Z_FEEDRATE 5      // (mm/s) Z axis feedrate (not used for delta printers)
 #endif
@@ -2114,14 +2154,14 @@
 
   //Select HMI screen
   #define HMI_LONG
-  //#define HMI_SC20
+  //#define HMI_SC20W
 
   //Select Serial Port，Port:1-5 for Snapmaker
   #define HMI_SERIAL_PORT 2
 
-  #if BOTH(HMI_LONG, HMI_SC20)
+  #if BOTH(HMI_LONG, HMI_SC20W)
     #error "You have select more than one type screen"
-  #elif NONE(HMI_LONG, HMI_SC20)
+  #elif NONE(HMI_LONG, HMI_SC20W)
     #error "You have HMISUPPORT, please select one type screen"
   #endif
 
@@ -2133,58 +2173,50 @@
 
 #endif //defined ENABLE HMISUPPORT
 
+
 /**
  * Special Executer
- *
+ * Support 3 tool head, so need executer manager
  */
 #define EXECUTER_MANAGER_SUPPORT
-#if ENABLED(EXECUTER_MANAGER_SUPPORT)
-
-  //#define EXECUTER_CANBUS
-  #define EXECUTER_TEMPERATURE
-
-  #if (BOTH(EXECUTER_CANBUS, EXECUTER_TEMPERATURE) || (NONE(EXECUTER_CANBUS, EXECUTER_TEMPERATURE)))
-    #error "Only 1 executer manager must be selected."
-  #endif
-
-  #if defined(EXECUTER_CANBUS)
-    //This Value Can be 1 or 2
-    #define EXECUTER_CAN_PORT 1
-    #if (EXECUTER_CAN_PORT < 1) || (EXECUTER_CAN_PORT > 2)
-      #error "Can Port must be from 1 to 2"
-    #endif
-  #endif
-
-  #if defined(EXECUTER_TEMPERATURE)
-
-  #endif
-#endif //EXECUTER_MANAGER_SUPPORT
 
 /**
- * Periph Device
+ * Executer Can 
  */
-#define PERIPH_DEVICE_SUPPORT
-#if defined(PERIPH_DEVICE_SUPPORT)
-  //CanBus periph device
-  //#define PERIPH_CANBUS
+//#define EXECUTER_CANBUS_SUPPORT
 
-  //Device define
-  //#define FILAMENT_SENSOR
-  #define DOOR_SENSOR
-  //#define POWERPANIC_SENSOR
+/**
+ * Executer Can 
+ */
+#define PERIPH_CANBUS_SUPPORT
 
-  #if defined(PERIPH_CANBUS)
-    #if defined(PERIPH_CANBUS)
-      //This Value Can be 1 or 2
-      #define PERIPH_CAN_PORT 1
-      #if (PERIPH_CAN_PORT < 1) || (PERIPH_CAN_PORT > 2)
-        #error "Can Port must be from 1 to 2"
-      #elif defined(EXECUTER_CAN_PORT)
-        #if (PERIPH_CAN_PORT == EXECUTER_CAN_PORT)
-          #error "Periph and Executer used the same port"
-        #endif
-      #endif
-    #endif
-  #endif
-#endif // PERIPH_DEVICE_SUPPORT
+#if ENABLED(PERIPH_CANBUS_SUPPORT)
+  //#define CAN_ENDSTOP_X_MIN
+  //#define CAN_ENDSTOP_Y_MIN
+  //#define CAN_ENDSTOP_Z_MIN
+  //#define CAN_ENDSTOP_X_MAX
+  //#define CAN_ENDSTOP_Y_MAX
+  //#define CAN_ENDSTOP_Z_MAX
+  #define CAN_ZMIN_PROBE
+  //#define CAN_ENDSTOP_X2_MIN
+  //#define CAN_ENDSTOP_Y2_MIN
+  //#define CAN_ENDSTOP_Z2_MIN
+  //#define CAN_ENDSTOP_X2_MAX
+  //#define CAN_ENDSTOP_Y2_MAX
+  //#define CAN_ENDSTOP_Z2_MAX
+  //#define CAN_FILAMENT1_RUNOUT
+  //#define CAN_FILAMENT2_RUNOUT
+  //#define CAN_FILAMENT3_RUNOUT
+  //#define CAN_FILAMENT4_RUNOUT
+  //#define CAN_FILAMENT5_RUNOUT
+  //#define CAN_FILAMENT6_RUNOUT
+  //#define CAN_FAN
+  //#define CAN_ENCLOSE_FAN
+  //#define CAN_ENCLOSE_LED
+  //#define CAN_PROBE
+#endif
+
+#if ANY(EXECUTER_CANBUS_SUPPORT, PERIPH_CANBUS_SUPPORT)
+  #define CANBUS_SUPPORT
+#endif
 

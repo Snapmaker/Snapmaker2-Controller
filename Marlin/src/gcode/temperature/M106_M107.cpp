@@ -27,6 +27,9 @@
 #include "../gcode.h"
 #include "../../module/motion.h"
 #include "../../module/temperature.h"
+#if ENABLED(CAN_FAN)
+  #include "../../module/periphdevice.h"
+#endif
 
 #if ENABLED(SINGLENOZZLE)
   #define _ALT_P active_extruder
@@ -50,28 +53,45 @@
  *           3-255 = Set the speed for use with T2
  */
 void GcodeSuite::M106() {
-  const uint8_t p = parser.byteval('P', _ALT_P);
-
-  if (p < _CNT_P) {
-
-    #if ENABLED(EXTRA_FAN_SPEED)
-      const uint16_t t = parser.intval('T');
-      if (t > 0) return thermalManager.set_temp_fan_speed(p, t);
-    #endif
+  #if ENABLED(CAN_FAN)
+    uint8_t p = parser.byteval('P', 0);
     uint16_t d = parser.seen('A') ? thermalManager.fan_speed[active_extruder] : 255;
     uint16_t s = parser.ushortval('S', d);
     NOMORE(s, 255U);
+    NOMORE(p, 4);
+    if(p < 4)
+      ExecuterHead.SetFan(p, uint8_t percent)
+    else
+      Periph.SetFanSpeed(p, 0, s);
+  #else
+    const uint8_t p = parser.byteval('P', _ALT_P);
 
-    thermalManager.set_fan_speed(p, s);
-  }
+    if (p < _CNT_P) {
+
+      #if ENABLED(EXTRA_FAN_SPEED)
+        const uint16_t t = parser.intval('T');
+        if (t > 0) return thermalManager.set_temp_fan_speed(p, t);
+      #endif
+      uint16_t d = parser.seen('A') ? thermalManager.fan_speed[active_extruder] : 255;
+      uint16_t s = parser.ushortval('S', d);
+      NOMORE(s, 255U);
+
+      thermalManager.set_fan_speed(p, s);
+    }
+  #endif // ENABLED(CAN_FAN)
 }
 
 /**
  * M107: Fan Off
  */
 void GcodeSuite::M107() {
-  const uint8_t p = parser.byteval('P', _ALT_P);
-  thermalManager.set_fan_speed(p, 0);
+  #if ENABLED(CAN_FAN)
+    uint8_t p = parser.byteval('P', 0);
+    Periph.SetFanSpeed(p, 0, 0);
+  #else
+    const uint8_t p = parser.byteval('P', _ALT_P);
+    thermalManager.set_fan_speed(p, 0);
+  #endif
 }
 
 #endif // FAN_COUNT > 0

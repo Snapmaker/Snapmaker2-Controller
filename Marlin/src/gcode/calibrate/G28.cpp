@@ -56,6 +56,10 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
+#if ENABLED(EXECUTER_MANAGER_SUPPORT)
+  #include "../../module/executermanager.h"
+#endif
+
 #if ENABLED(QUICK_HOME)
 
   static void quick_home_xy() {
@@ -272,12 +276,15 @@ void GcodeSuite::G28(const bool always_home_all) {
 
     set_destination_from_current();
 
-    #if Z_HOME_DIR > 0  // If homing away from BED do Z first
-
-      if (home_all || homeZ) homeaxis(Z_AXIS);
-
-    #endif
-
+    #if DISABLED(SW_MACHINE_SIZE)
+      #if Z_HOME_DIR > 0  // If homing away from BED do Z first
+        if (home_all || homeZ) homeaxis(Z_AXIS);
+      #endif
+    #else
+      if (Z_HOME_DIR > 0)
+        if (home_all || homeZ) homeaxis(Z_AXIS);
+    #endif // DISABLED(SW_MACHINE_SIZE) 
+    
     const float z_homing_height = (
       #if ENABLED(UNKNOWN_Z_NO_RAISE)
         !TEST(axis_known_position, Z_AXIS) ? 0 :
@@ -349,20 +356,35 @@ void GcodeSuite::G28(const bool always_home_all) {
     #endif
 
     // Home Z last if homing towards the bed
-    #if Z_HOME_DIR < 0
-      if (home_all || homeZ) {
-        #if ENABLED(Z_SAFE_HOMING)
-          home_z_safely();
-        #else
-          homeaxis(Z_AXIS);
-        #endif
+    #if DISABLED(SW_MACHINE_SIZE)
+      #if Z_HOME_DIR < 0
+        if (home_all || homeZ) {
+          #if ENABLED(Z_SAFE_HOMING)
+            home_z_safely();
+          #else
+            homeaxis(Z_AXIS);
+          #endif
 
-        #if HOMING_Z_WITH_PROBE && defined(Z_AFTER_PROBING)
-          move_z_after_probing();
-        #endif
+          #if HOMING_Z_WITH_PROBE && defined(Z_AFTER_PROBING)
+            move_z_after_probing();
+          #endif
 
-      } // home_all || homeZ
-    #endif // Z_HOME_DIR < 0
+        } // home_all || homeZ
+      #endif // Z_HOME_DIR < 0
+    #else
+      if (Z_HOME_DIR < 0)
+        if (home_all || homeZ) {
+          #if ENABLED(Z_SAFE_HOMING)
+            home_z_safely();
+          #else
+            homeaxis(Z_AXIS);
+          #endif
+
+          #if HOMING_Z_WITH_PROBE && defined(Z_AFTER_PROBING)
+            move_z_after_probing();
+          #endif
+        } // home_all || homeZ
+    #endif // DISABLED(SW_MACHINE_SIZE)
 
     sync_plan_position();
 
@@ -410,8 +432,12 @@ void GcodeSuite::G28(const bool always_home_all) {
   #endif
 
   #if HAS_LEVELING && ENABLED(RESTORE_LEVELING_AFTER_G28)
-    set_bed_leveling_enabled(leveling_was_active);
+    //set_bed_leveling_enabled(leveling_was_active);
+    //Always set bed leveling active after home all axis when in 3dprint mode
   #endif
+
+  if((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (all_axes_homed()))
+    set_bed_leveling_enabled(true);
 
   clean_up_after_endstop_or_probe_move();
 

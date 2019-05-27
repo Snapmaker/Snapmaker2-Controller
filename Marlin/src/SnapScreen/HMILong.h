@@ -62,14 +62,12 @@ class HMILong
   uint16_t ReadTail;
   uint16_t ReadHead;
   uint8_t CurrentHMIPage;
-
   uint16_t FileCounts;
   uint8_t FilePages;
   uint8_t CurFilePage;
   char CardFileNameSelected[13];
   char tmpCardFileNameSelected[13];
   char PrintFileNameSelected[13];
-  
   uint16_t FileIndex;
   char CardFileName[FILE_PER_PAGE][80];
   char PrintFileName[FILE_PER_PAGE][13];

@@ -23,7 +23,7 @@
 #include "../../../inc/MarlinConfig.h"
 
 #if(0)
-//#if ENABLED(DOOR_SENSOR)
+//#if ENABLED(DOOR_SWITCH)
 
 #include "../../gcode.h"
 #include "../../../module/motion.h"
@@ -51,4 +51,4 @@ void GcodeSuite::M1020() {
 
 }
 
-#endif // ENABLED(DOOR_SENSOR)
+#endif // ENABLED(DOOR_SWITCH)

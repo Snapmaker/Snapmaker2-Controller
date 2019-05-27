@@ -30,7 +30,7 @@
 #include "../inc/usb_bsp.h"
 #include "../inc/usbh_conf.h"
 #include "../inc/usb_hcd_int.h"
-#include "board\board.h"
+#include "board/board.h"
 #ifdef ARDUINO
   #include <pins_arduino.h>
 #endif

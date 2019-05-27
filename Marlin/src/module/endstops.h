@@ -72,6 +72,7 @@ class Endstops {
     static bool enabled, enabled_globally;
     static esbits_t live_state;
     static volatile uint8_t hit_state;      // Use X_MIN, Y_MIN, Z_MIN and Z_MIN_PROBE as BIT index
+    static volatile uint32_t statefromcan;
 
     #if ENDSTOP_NOISE_THRESHOLD
       static esbits_t validated_live_state;

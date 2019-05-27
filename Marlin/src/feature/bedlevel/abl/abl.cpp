@@ -422,4 +422,15 @@ float bilinear_z_offset(const float raw[XYZ]) {
 
 #endif // IS_CARTESIAN && !SEGMENT_LEVELED_MOVES
 
+/**
+ * bilinear_grid_manual:Initialize bilinear parameters
+ */
+void bilinear_grid_manual(float startx, float starty, float endx, float endy)
+{
+  bilinear_grid_spacing[X_AXIS] = (endx - startx) / GRID_MAX_POINTS_X;
+  bilinear_grid_spacing[Y_AXIS] = (endx - startx) / GRID_MAX_POINTS_Y;
+  bilinear_start[X_AXIS] = startx;
+  bilinear_start[Y_AXIS] = starty;
+}
+
 #endif // AUTO_BED_LEVELING_BILINEAR

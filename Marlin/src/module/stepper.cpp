@@ -354,6 +354,7 @@ void Stepper::set_directions() {
     uint8_t L6470_buf[MAX_L6470 + 1];   // chip command sequence - element 0 not used
   #endif
 
+  #if DISABLED(SW_MACHINE_SIZE)
   #define SET_STEP_DIR(A)                       \
     if (motor_direction(_AXIS(A))) {            \
       A##_APPLY_DIR(INVERT_## A##_DIR, false);  \
@@ -362,7 +363,19 @@ void Stepper::set_directions() {
     else {                                      \
       A##_APPLY_DIR(!INVERT_## A##_DIR, false); \
       count_direction[_AXIS(A)] = 1;            \
-    }
+    } 
+
+  #else
+  #define SET_STEP_DIR(A)                       \
+    if (motor_direction(_AXIS(A))) {            \
+      A##_APPLY_DIR(A##_DIR, false);  \
+      count_direction[_AXIS(A)] = -1;           \
+    }                                           \
+    else {                                      \
+      A##_APPLY_DIR(!A##_DIR, false); \
+      count_direction[_AXIS(A)] = 1;            \
+    } 
+  #endif // DISABLED(SW_MACHINE_SIZE)
 
   #if HAS_X_DIR
     SET_STEP_DIR(X); // A
@@ -1298,7 +1311,7 @@ void Stepper::isr() {
     ;
 
     // Limit the value to the maximum possible value of the timer
-    NOMORE(interval, HAL_TIMER_TYPE_MAX);
+    NOMORE(interval, (uint32_t)HAL_TIMER_TYPE_MAX);
 
     // Compute the time remaining for the main isr
     nextMainISR -= interval;

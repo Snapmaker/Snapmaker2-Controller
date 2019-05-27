@@ -285,9 +285,30 @@ typedef struct SettingsDataStruct {
   #endif
 
   //
-  //Laser
+  // Laser
   //
-  uint8_t LaserPower;
+  float LaserPower;
+  float LaserPlatformHeight;
+
+  //
+  // Software machine resize
+  //
+  #if ENABLED(SW_MACHINE_SIZE)
+    uint32_t X_DIR;
+    uint32_t Y_DIR;
+    uint32_t Z_DIR;
+    uint32_t E_DIR;
+    uint32_t X_HOME_DIR;
+    uint32_t Y_HOME_DIR;
+    uint32_t Z_HOME_DIR;
+    uint32_t DUMMY_HOME_DIR;
+    float X_MAX_POS;
+    float Y_MAX_POS;
+    float Z_MAX_POS;
+    float X_MIN_POS;
+    float Y_MIN_POS;
+    float Z_MIN_POS;
+  #endif
 } SettingsData;
 
 MarlinSettings settings;
@@ -432,7 +453,8 @@ void MarlinSettings::postprocess() {
 
   bool MarlinSettings::size_error(const uint16_t size) {
     if (size != datasize()) {
-      DEBUG_ERROR_MSG("EEPROM datasize error.");
+      DEBUG_ERROR_MSG("EEPROM datasize error.\r\n");
+      SERIAL_ECHOLNPAIR("Datasize:", datasize(), "Write Size:", size);
       return true;
     }
     return false;
@@ -1095,10 +1117,45 @@ void MarlinSettings::postprocess() {
     #endif
 
     //
-    //Laser
+    // Laser
     //
-    _FIELD_TEST(Laser.LastPercent);
-    EEPROM_WRITE(Laser.LastPercent);
+    _FIELD_TEST(ExecuterHead.Laser.LastPercent);
+    EEPROM_WRITE(ExecuterHead.Laser.LastPercent);
+    _FIELD_TEST(ExecuterHead.Laser.PlatformHeight);
+    EEPROM_WRITE(ExecuterHead.Laser.PlatformHeight);
+
+    //
+    // Software machine size
+    //
+    #if ENABLED(SW_MACHINE_SIZE)
+      uint32_t DIR[XYZE];
+      DIR[X_AXIS] = X_DIR==true?1:-1;
+      DIR[Y_AXIS] = Y_DIR==true?1:-1;
+      DIR[Z_AXIS] = Z_DIR==true?1:-1;
+      DIR[E_AXIS] = E_DIR==true?1:-1;
+      _FIELD_TEST(DIR);
+      EEPROM_WRITE(DIR);
+      
+      DIR[X_AXIS] = X_HOME_DIR>0?1:-1;
+      DIR[Y_AXIS] = Y_HOME_DIR>0?1:-1;
+      DIR[Z_AXIS] = Z_HOME_DIR>0?1:-1;
+      _FIELD_TEST(DIR);
+      EEPROM_WRITE(DIR);
+
+      _FIELD_TEST(X_MAX_POS);
+      EEPROM_WRITE(X_MAX_POS);
+      EEPROM_WRITE(Y_MAX_POS);
+      EEPROM_READ(Y_MAX_POS);
+      _FIELD_TEST(Z_MAX_POS);
+      EEPROM_WRITE(Z_MAX_POS);
+
+      _FIELD_TEST(X_MIN_POS);
+      EEPROM_WRITE(X_MIN_POS);
+      _FIELD_TEST(Y_MIN_POS);
+      EEPROM_WRITE(Y_MIN_POS);
+      _FIELD_TEST(Z_MIN_POS);
+      EEPROM_WRITE(Z_MIN_POS);
+    #endif //ENABLED(SW_MACHINE_SIZE)
 
     //
     // Validate CRC and Data Size
@@ -1816,9 +1873,47 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(toolchange_settings);
       #endif
 
-      _FIELD_TEST(Laser.LastPercent);
-      EEPROM_READ(Laser.LastPercent);
+      //
+      // Laser power
+      //
+      _FIELD_TEST(ExecuterHead.Laser.LastPercent);
+      EEPROM_READ(ExecuterHead.Laser.LastPercent);
+      _FIELD_TEST(ExecuterHead.Laser.PlatformHeight);
+      EEPROM_READ(ExecuterHead.Laser.PlatformHeight);
 
+      //
+      // Software machine size
+      //
+      #if ENABLED(SW_MACHINE_SIZE)
+        uint32_t DIR[XYZE];
+        _FIELD_TEST(DIR);
+        EEPROM_READ((DIR));
+        X_DIR = DIR[X_AXIS]>0?true:false;
+        Y_DIR = DIR[Y_AXIS]>0?true:false;
+        Z_DIR = DIR[Z_AXIS]>0?true:false;
+        E_DIR = DIR[E_AXIS]>0?true:false;
+
+        _FIELD_TEST(DIR);
+        EEPROM_READ((DIR));
+        X_HOME_DIR = DIR[X_AXIS]>0?1:-1;
+        Y_HOME_DIR = DIR[Y_AXIS]>0?1:-1;
+        Z_HOME_DIR = DIR[Z_AXIS]>0?1:-1;
+
+        _FIELD_TEST(X_MAX_POS);
+        EEPROM_READ(X_MAX_POS);
+        _FIELD_TEST(Y_MAX_POS);
+        EEPROM_READ(Y_MAX_POS);
+        _FIELD_TEST(Z_MAX_POS);
+        EEPROM_READ(Z_MAX_POS);
+
+        _FIELD_TEST(X_MIN_POS);
+        EEPROM_READ(X_MIN_POS);
+        _FIELD_TEST(Y_MIN_POS);
+        EEPROM_READ(Y_MIN_POS);
+        _FIELD_TEST(Z_MIN_POS);
+        EEPROM_READ(Z_MIN_POS);
+      #endif //ENABLED(SW_MACHINE_SIZE)
+      
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {
         DEBUG_ECHO_START();
@@ -1874,6 +1969,33 @@ void MarlinSettings::postprocess() {
       if (!validating) report();
     #endif
     EEPROM_FINISH();
+
+    #if ENABLED(SW_MACHINE_SIZE)
+      base_min_pos_P[X_AXIS] = X_MIN_POS;
+      base_min_pos_P[Y_AXIS] = Y_MIN_POS;
+      base_min_pos_P[Z_AXIS] = Z_MIN_POS;
+      base_max_pos_P[X_AXIS] = X_MAX_POS;
+      base_max_pos_P[Y_AXIS] = Y_MAX_POS;
+      base_max_pos_P[Z_AXIS] = Z_MAX_POS;
+      home_dir_P[X_AXIS] = X_HOME_DIR;
+      home_dir_P[Y_AXIS] = Y_HOME_DIR;
+      home_dir_P[Z_AXIS] = Z_HOME_DIR;
+      home_bump_mm_P[X_AXIS] = X_HOME_BUMP_MM;
+      home_bump_mm_P[Y_AXIS] = Y_HOME_BUMP_MM;
+      home_bump_mm_P[Z_AXIS] = Z_HOME_BUMP_MM;
+      base_home_pos_P[X_AXIS] = (home_dir_P[X_AXIS] < 0)?X_MIN_POS:X_MAX_POS;
+      base_home_pos_P[Y_AXIS] = (home_dir_P[Y_AXIS] < 0)?Y_MIN_POS:Y_MAX_POS;
+      base_home_pos_P[Z_AXIS] = (home_dir_P[Z_AXIS] < 0)?Z_MIN_POS:Z_MAX_POS;
+      soft_endstop[X_AXIS].min = X_MIN_POS;
+      soft_endstop[Y_AXIS].min = Y_MIN_POS;
+      soft_endstop[Z_AXIS].min = Z_MIN_POS;
+      soft_endstop[X_AXIS].max = X_MAX_POS;
+      soft_endstop[Y_AXIS].max = Y_MAX_POS;
+      soft_endstop[Z_AXIS].max = Z_MAX_POS;
+      max_length_P[X_AXIS] = X_MAX_POS - X_MIN_POS;
+      max_length_P[Y_AXIS] = Y_MAX_POS - Y_MIN_POS;
+      max_length_P[Z_AXIS] = Z_MAX_POS - Z_MIN_POS;
+    #endif
 
     return !eeprom_error;
   }
@@ -2294,9 +2416,38 @@ void MarlinSettings::reset() {
   #endif
 
   //
-  //Laser
+  // Laser
   //
-  Laser.LastPercent = 80;
+  ExecuterHead.Laser.LastPercent = 80;
+  ExecuterHead.Laser.PlatformHeight = 10;
+
+  //
+  // Software machine size
+  //
+  #if ENABLED(SW_MACHINE_SIZE)
+    X_DIR = 1;
+    Y_DIR = 1;
+    Z_DIR = 1;
+    E_DIR = 1;
+    X_HOME_DIR = -1;
+    Y_HOME_DIR = -1;
+    Z_HOME_DIR = -1;
+    X_MAX_POS = 125;
+    Y_MAX_POS = 125;
+    Z_MAX_POS = 125;
+    X_MIN_POS = 0;
+    Y_MIN_POS = 0;
+    Z_MIN_POS = 0;
+    base_home_pos_P[X_AXIS] = (home_dir_P[X_AXIS] < 0)?X_MIN_POS:X_MAX_POS;
+    base_home_pos_P[Y_AXIS] = (home_dir_P[Y_AXIS] < 0)?Y_MIN_POS:Y_MAX_POS;
+    base_home_pos_P[Z_AXIS] = (home_dir_P[Z_AXIS] < 0)?Z_MIN_POS:Z_MAX_POS;
+    soft_endstop[X_AXIS].min = X_MIN_POS;
+    soft_endstop[Y_AXIS].min = Y_MIN_POS;
+    soft_endstop[Z_AXIS].min = Z_MIN_POS;
+    soft_endstop[X_AXIS].max = X_MAX_POS;
+    soft_endstop[Y_AXIS].max = Y_MAX_POS;
+    soft_endstop[Z_AXIS].max = Z_MAX_POS;
+  #endif //ENABLED(SW_MACHINE_SIZE)
 
   postprocess();
 
@@ -2603,6 +2754,17 @@ void MarlinSettings::reset() {
       #endif
 
     #endif // HAS_LEVELING
+
+    #if ENABLED(SW_MACHINE_SIZE)
+      SERIAL_ECHO("  Machine Size:\r\n");
+      SERIAL_ECHOLNPAIR("   X:", X_MIN_POS, " - ", X_MAX_POS);
+      SERIAL_ECHOLNPAIR("   Y:", Y_MIN_POS, " - ", Y_MAX_POS);
+      SERIAL_ECHOLNPAIR("   Z:", Z_MIN_POS, " - ", Z_MAX_POS);
+      SERIAL_ECHOPAIR("  Directions:\r\n");
+      SERIAL_ECHOLNPAIR("   X:", X_DIR, " Y:", Y_DIR, " Z:", Z_DIR, " E:", E_DIR);
+      SERIAL_ECHOPAIR("  Home Directions:\r\n");
+      SERIAL_ECHOLNPAIR("   X:", X_HOME_DIR, " Y:", Y_HOME_DIR, " Z:", Z_HOME_DIR);
+    #endif
 
     #if ENABLED(EDITABLE_SERVO_ANGLES)
 

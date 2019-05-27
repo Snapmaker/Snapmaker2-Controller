@@ -1674,6 +1674,8 @@ bool Planner::_buffer_steps(const int32_t (&target)[XYZE]
   // Wait for the next available block
   uint8_t next_buffer_head;
   block_t * const block = get_next_free_block(next_buffer_head);
+  if(block == NULL)
+    return false;
 
   // Fill the block with the specified movement
   if (!_populate_block(block, false, target

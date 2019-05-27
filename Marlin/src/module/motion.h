@@ -41,6 +41,9 @@ FORCE_INLINE bool all_axes_homed() { return (axis_homed & xyz_bits) == xyz_bits;
 FORCE_INLINE bool all_axes_known() { return (axis_known_position & xyz_bits) == xyz_bits; }
 FORCE_INLINE void set_all_unhomed() { axis_homed = 0; }
 FORCE_INLINE void set_all_unknown() { axis_known_position = 0; }
+#define axes_homed(axis) (axis_homed & _BV(axis))
+#define axes_known(axis) (axis_known_position & _BV(axis))
+
 
 // Error margin to work around float imprecision
 constexpr float slop = 0.0001;
@@ -93,10 +96,25 @@ extern int16_t feedrate_percentage;
 FORCE_INLINE float pgm_read_any(const float *p) { return pgm_read_float(p); }
 FORCE_INLINE signed char pgm_read_any(const signed char *p) { return pgm_read_byte(p); }
 
-#define XYZ_DEFS(type, array, CONFIG) \
-  extern const type array##_P[XYZ]; \
-  FORCE_INLINE type array(AxisEnum axis) { return pgm_read_any(&array##_P[axis]); } \
-  typedef void __void_##CONFIG##__
+#if DISABLED(SW_MACHINE_SIZE)
+  #define XYZ_DEFS(type, array, CONFIG) \
+    extern const type array##_P[XYZ]; \
+    FORCE_INLINE type array(AxisEnum axis) { return pgm_read_any(&array##_P[axis]); } \
+    typedef void __void_##CONFIG##__
+#else
+  #define XYZ_DEFS(type, array, CONFIG) \
+    extern type array##_P[XYZ]; \
+    FORCE_INLINE type array(AxisEnum axis) { return (array##_P[axis]); } \
+    typedef void __void_##CONFIG##__
+  /*
+  extern float base_min_pos_P[XYZ];
+  extern float base_max_pos_P[XYZ];
+  extern float base_home_pos_P[XYZ];
+  extern float max_length_P[XYZ];
+  extern float home_bump_mm_P[XYZ];
+  extern float home_dir_P[XYZ];
+  */
+#endif
 
 XYZ_DEFS(float, base_min_pos,   MIN_POS);
 XYZ_DEFS(float, base_max_pos,   MAX_POS);
@@ -360,4 +378,8 @@ void homeaxis(const AxisEnum axis);
 
 #if HAS_M206_COMMAND
   void set_home_offset(const AxisEnum axis, const float v);
+#endif
+
+#if ENABLED(SW_MACHINE_SIZE)
+  void UpdateMachineDefines(void);
 #endif

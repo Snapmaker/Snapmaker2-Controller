@@ -2,7 +2,7 @@
 
 #include "../inc/MarlinConfig.h"
 
-#if ENABLED(HMI_SC20)
+#if ENABLED(HMI_SC20W)
 #ifndef _HMI_SC20_H_
 #define _HMI_SC20_H_
 
@@ -10,11 +10,8 @@ class HMI_SC20
 {
 public:
   HMI_SC20(){};
-  short GetCommand(unsigned char *pBuff);
-  void Process();
-  void SC20NopProcess(void);
-  void SC20ChangePage(unsigned char page);
-  void SC20SendGcode(char *GCode, uint8_t EventID);
+  void PollingCommand();
+  void SendGcode(char *GCode, uint8_t EventID);
 
   void SendBreakPointLine();
   void SendChDirResult(uint8_t Result);
@@ -22,10 +19,7 @@ public:
   void SendMachineFaultFlag();
   void SendBreakPointData();
   void SendMachineStatus();
-  void SendCurrentUDiskPath(uint8_t Result);
-  void SendInitUdisk(uint8_t Result);
-  uint8_t SendDirItems(uint16_t Offset);
-  void SendSpecialData();
+  
   void SendStartPrintReack(uint8_t Result);
   void BuffFlush(void);
   void SettingReack(uint8_t OP_ID, uint8_t Result);
@@ -42,10 +36,41 @@ public:
   void UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen);
   void StartUpdate(void);
 
+  void SendContinuePrint();
+  #if ENABLED(SDSUPPORT)
+   void SendCurrentUDiskPath(uint8_t Result);
+   void SendInitUdisk(uint8_t Result);
+   uint8_t SendDirItems(uint16_t Offset);
+   void SendSpecialData();
+  #endif
+private:
+  void HmiWriteData(char *pData, uint16_t len);
+  short GetCommand(unsigned char *pBuff);
+  void HalfAutoCalibrate();
+  void ManualCalibrateStart();
+  void ResizeMachine(char *pBuff);
+  void EnterLaserFocusSetting();
+  void PackedProtocal(uint8_t *pData, uint16_t len);
+
+public:
+  uint8_t HmiRequestStatus;
+
 private:
   uint8_t CalibrateMethod;
   uint8_t HalfAutoCalibrateState;
   uint8_t HMICommandSave;
+  uint8_t ReadBuff[256];
+  uint16_t ReadTail;
+  uint16_t ReadHead;
+  uint32_t UpdateDataSize;
+  uint8_t UpdateInProgress;
+  uint16_t UpdatePackRequest;
+  uint8_t CalibrateXIndeX[9]={0, 1, 2, 2, 2, 1, 0, 0, 1};
+  uint8_t CalibrateXIndeY[9]={0, 0, 0, 1, 2, 2, 2, 1, 1};
+  //调平点索引
+  uint8_t PointIndex;
+  float MeshPointZ[9];
+  uint16_t ZHomeOffsetIndex;
 };
 
 

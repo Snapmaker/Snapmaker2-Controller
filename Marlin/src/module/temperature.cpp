@@ -905,7 +905,7 @@ float Temperature::get_pid_output(const int8_t e) {
  *  - Update the heated bed PID output value
  */
 void Temperature::manage_heater() {
-
+  bool CheckTempError = false;
   #if EARLY_WATCHDOG
     // If thermal manager is still not running, make sure to at least reset the watchdog!
     if (!inited) {
@@ -922,61 +922,75 @@ void Temperature::manage_heater() {
     if (emergency_parser.killed_by_M112) kill();
   #endif
 
-  if (!temp_meas_ready) return;
-
-  updateTemperaturesFromRawValues(); // also resets the watchdog
-
-  #if ENABLED(HEATER_0_USES_MAX6675)
-    if (temp_hotend[0].current > MIN(HEATER_0_MAXTEMP, HEATER_0_MAX6675_TMAX - 1.0)) max_temp_error(0);
-    if (temp_hotend[0].current < MAX(HEATER_0_MINTEMP, HEATER_0_MAX6675_TMIN + .01)) min_temp_error(0);
-  #endif
-
-  #if ENABLED(HEATER_1_USES_MAX6675)
-    if (temp_hotend[1].current > MIN(HEATER_1_MAXTEMP, HEATER_1_MAX6675_TMAX - 1.0)) max_temp_error(1);
-    if (temp_hotend[1].current < MAX(HEATER_1_MINTEMP, HEATER_1_MAX6675_TMIN + .01)) min_temp_error(1);
-  #endif
-
   #if WATCH_HOTENDS || WATCH_BED || DISABLED(PIDTEMPBED) || HAS_AUTO_FAN || HEATER_IDLE_HANDLER || WATCH_CHAMBER
     millis_t ms = millis();
   #endif
 
-  HOTEND_LOOP() {
+  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
+    updateTemperaturesFromRawValues(); // also resets the watchdog
 
-    #if HEATER_IDLE_HANDLER
-      hotend_idle[e].update(ms);
+    #if ENABLED(HEATER_0_USES_MAX6675)
+      if (temp_hotend[0].current > MIN(HEATER_0_MAXTEMP, HEATER_0_MAX6675_TMAX - 1.0)) max_temp_error(0);
+      if (temp_hotend[0].current < MAX(HEATER_0_MINTEMP, HEATER_0_MAX6675_TMIN + .01)) min_temp_error(0);
     #endif
 
-    #if ENABLED(THERMAL_PROTECTION_HOTENDS)
-      // Check for thermal runaway
-      thermal_runaway_protection(tr_state_machine[e], temp_hotend[e].current, temp_hotend[e].target, e, THERMAL_PROTECTION_PERIOD, THERMAL_PROTECTION_HYSTERESIS);
+    #if ENABLED(HEATER_1_USES_MAX6675)
+      if (temp_hotend[1].current > MIN(HEATER_1_MAXTEMP, HEATER_1_MAX6675_TMAX - 1.0)) max_temp_error(1);
+      if (temp_hotend[1].current < MAX(HEATER_1_MINTEMP, HEATER_1_MAX6675_TMIN + .01)) min_temp_error(1);
     #endif
-
-    temp_hotend[e].soft_pwm_amount = (temp_hotend[e].current > temp_range[e].mintemp || is_preheating(e)) && temp_hotend[e].current < temp_range[e].maxtemp ? (int)get_pid_output(e) >> 1 : 0;
-
-    #if WATCH_HOTENDS
-      // Make sure temperature is increasing
-      if (watch_hotend[e].next_ms && ELAPSED(ms, watch_hotend[e].next_ms)) { // Time to check this extruder?
-        if (degHotend(e) < watch_hotend[e].target)                             // Failed to increase enough?
-          _temp_error(e, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, e));
-        else                                                                 // Start again if the target is still far off
-          start_watching_heater(e);
-      }
-    #endif
-
-    #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
-      // Make sure measured temperatures are close together
-      if (ABS(temp_hotend[0].current - redundant_temperature) > MAX_REDUNDANT_TEMP_SENSOR_DIFF)
-        _temp_error(0, PSTR(MSG_REDUNDANCY), PSTR(MSG_ERR_REDUNDANT_TEMP));
-    #endif
-
-  } // HOTEND_LOOP
-
-  #if HAS_AUTO_FAN
-    if (ELAPSED(ms, next_auto_fan_check_ms)) { // only need to check fan state very infrequently
-      checkExtruderAutoFans();
-      next_auto_fan_check_ms = ms + 2500UL;
+    CheckTempError = true;
+  #else
+    if(ExecuterHead.CanTempMeasReady == true)
+    {
+      for(int i=0;i<HOTENDS;i++)
+        temp_hotend[i].current = ExecuterHead.GetTemp(i);
+      ExecuterHead.CanTempMeasReady = false;
+      CheckTempError = true;
     }
   #endif
+
+  if(CheckTempError == true)
+  {
+    HOTEND_LOOP() {
+
+      #if HEATER_IDLE_HANDLER
+        hotend_idle[e].update(ms);
+      #endif
+
+      #if ENABLED(THERMAL_PROTECTION_HOTENDS)
+        // Check for thermal runaway
+        thermal_runaway_protection(tr_state_machine[e], temp_hotend[e].current, temp_hotend[e].target, e, THERMAL_PROTECTION_PERIOD, THERMAL_PROTECTION_HYSTERESIS);
+      #endif
+
+      temp_hotend[e].soft_pwm_amount = (temp_hotend[e].current > temp_range[e].mintemp || is_preheating(e)) && temp_hotend[e].current < temp_range[e].maxtemp ? (int)get_pid_output(e) >> 1 : 0;
+
+      #if WATCH_HOTENDS
+        // Make sure temperature is increasing
+        if (watch_hotend[e].next_ms && ELAPSED(ms, watch_hotend[e].next_ms)) { // Time to check this extruder?
+          if (degHotend(e) < watch_hotend[e].target)                             // Failed to increase enough?
+            _temp_error(e, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, e));
+          else                                                                 // Start again if the target is still far off
+            start_watching_heater(e);
+        }
+      #endif
+
+      #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
+        // Make sure measured temperatures are close together
+        if (ABS(temp_hotend[0].current - redundant_temperature) > MAX_REDUNDANT_TEMP_SENSOR_DIFF)
+          _temp_error(0, PSTR(MSG_REDUNDANCY), PSTR(MSG_ERR_REDUNDANT_TEMP));
+      #endif
+
+    } // HOTEND_LOOP
+  }
+
+  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
+    #if HAS_AUTO_FAN
+      if (ELAPSED(ms, next_auto_fan_check_ms)) { // only need to check fan state very infrequently
+        checkExtruderAutoFans();
+        next_auto_fan_check_ms = ms + 2500UL;
+      }
+    #endif
+  #endif // DISABLED(EXECUTER_CANBUS_SUPPORT)
 
   #if ENABLED(FILAMENT_WIDTH_SENSOR)
     /**
@@ -992,7 +1006,9 @@ void Temperature::manage_heater() {
   #endif // FILAMENT_WIDTH_SENSOR
 
   #if HAS_HEATED_BED
-
+    #if ENABLED()
+      if (!temp_meas_ready) return;
+    #endif
     #if WATCH_BED
       // Make sure temperature is increasing
       if (watch_bed.elapsed(ms)) {        // Time to check the bed?
@@ -1347,42 +1363,11 @@ void Temperature::init() {
     last_e_position = 0;
   #endif
 
-  #if HAS_HEATER_0
-    OUT_WRITE(HEATER_0_PIN, HEATER_0_INVERTING);
-  #endif
-  #if HAS_HEATER_1
-    OUT_WRITE(HEATER_1_PIN, HEATER_1_INVERTING);
-  #endif
-  #if HAS_HEATER_2
-    OUT_WRITE(HEATER_2_PIN, HEATER_2_INVERTING);
-  #endif
-  #if HAS_HEATER_3
-    OUT_WRITE(HEATER_3_PIN, HEATER_3_INVERTING);
-  #endif
-  #if HAS_HEATER_4
-    OUT_WRITE(HEATER_4_PIN, HEATER_4_INVERTING);
-  #endif
-  #if HAS_HEATER_5
-    OUT_WRITE(HEATER_5_PIN, HEATER_5_INVERTING);
-  #endif
   #if HAS_HEATED_BED
     OUT_WRITE(HEATER_BED_PIN, HEATER_BED_INVERTING);
   #endif
   #if HAS_HEATED_CHAMBER
     OUT_WRITE(HEATER_CHAMBER_PIN, HEATER_CHAMBER_INVERTING);
-  #endif
-
-  #if HAS_FAN0
-    INIT_FAN_PIN(FAN_PIN);
-  #endif
-  #if HAS_FAN1
-    INIT_FAN_PIN(FAN1_PIN);
-  #endif
-  #if HAS_FAN2
-    INIT_FAN_PIN(FAN2_PIN);
-  #endif
-  #if ENABLED(USE_CONTROLLER_FAN)
-    INIT_FAN_PIN(CONTROLLER_FAN_PIN);
   #endif
 
   #if MAX6675_SEPARATE_SPI
@@ -1404,24 +1389,27 @@ void Temperature::init() {
 
   HAL_adc_init();
 
-  #if HAS_TEMP_ADC_0
-    HAL_ANALOG_SELECT(TEMP_0_PIN);
-  #endif
-  #if HAS_TEMP_ADC_1
-    HAL_ANALOG_SELECT(TEMP_1_PIN);
-  #endif
-  #if HAS_TEMP_ADC_2
-    HAL_ANALOG_SELECT(TEMP_2_PIN);
-  #endif
-  #if HAS_TEMP_ADC_3
-    HAL_ANALOG_SELECT(TEMP_3_PIN);
-  #endif
-  #if HAS_TEMP_ADC_4
-    HAL_ANALOG_SELECT(TEMP_4_PIN);
-  #endif
-  #if HAS_TEMP_ADC_5
-    HAL_ANALOG_SELECT(TEMP_5_PIN);
-  #endif
+  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
+    #if HAS_TEMP_ADC_0
+      HAL_ANALOG_SELECT(TEMP_0_PIN);
+    #endif
+    #if HAS_TEMP_ADC_1
+      HAL_ANALOG_SELECT(TEMP_1_PIN);
+    #endif
+    #if HAS_TEMP_ADC_2
+      HAL_ANALOG_SELECT(TEMP_2_PIN);
+    #endif
+    #if HAS_TEMP_ADC_3
+      HAL_ANALOG_SELECT(TEMP_3_PIN);
+    #endif
+    #if HAS_TEMP_ADC_4
+      HAL_ANALOG_SELECT(TEMP_4_PIN);
+    #endif
+    #if HAS_TEMP_ADC_5
+      HAL_ANALOG_SELECT(TEMP_5_PIN);
+    #endif
+  #endif // DISABLED(EXECUTER_CANBUS_SUPPORT)
+  
   #if HAS_HEATED_BED
     HAL_ANALOG_SELECT(TEMP_BED_PIN);
   #endif
@@ -1435,27 +1423,29 @@ void Temperature::init() {
   HAL_timer_start(TEMP_TIMER_NUM, TEMP_TIMER_FREQUENCY);
   ENABLE_TEMPERATURE_INTERRUPT();
 
-  #if HAS_AUTO_FAN_0
-    INIT_AUTO_FAN_PIN(E0_AUTO_FAN_PIN);
-  #endif
-  #if HAS_AUTO_FAN_1 && !AUTO_1_IS_0
-    INIT_AUTO_FAN_PIN(E1_AUTO_FAN_PIN);
-  #endif
-  #if HAS_AUTO_FAN_2 && !(AUTO_2_IS_0 || AUTO_2_IS_1)
-    INIT_AUTO_FAN_PIN(E2_AUTO_FAN_PIN);
-  #endif
-  #if HAS_AUTO_FAN_3 && !(AUTO_3_IS_0 || AUTO_3_IS_1 || AUTO_3_IS_2)
-    INIT_AUTO_FAN_PIN(E3_AUTO_FAN_PIN);
-  #endif
-  #if HAS_AUTO_FAN_4 && !(AUTO_4_IS_0 || AUTO_4_IS_1 || AUTO_4_IS_2 || AUTO_4_IS_3)
-    INIT_AUTO_FAN_PIN(E4_AUTO_FAN_PIN);
-  #endif
-  #if HAS_AUTO_FAN_5 && !(AUTO_5_IS_0 || AUTO_5_IS_1 || AUTO_5_IS_2 || AUTO_5_IS_3 || AUTO_5_IS_4)
-    INIT_AUTO_FAN_PIN(E5_AUTO_FAN_PIN);
-  #endif
-  #if HAS_AUTO_CHAMBER_FAN && !(AUTO_CHAMBER_IS_0 || AUTO_CHAMBER_IS_1 || AUTO_CHAMBER_IS_2 || AUTO_CHAMBER_IS_3 || AUTO_CHAMBER_IS_4 || AUTO_CHAMBER_IS_5)
-    INIT_AUTO_FAN_PIN(CHAMBER_AUTO_FAN_PIN);
-  #endif
+  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
+    #if HAS_AUTO_FAN_0
+      INIT_AUTO_FAN_PIN(E0_AUTO_FAN_PIN);
+    #endif
+    #if HAS_AUTO_FAN_1 && !AUTO_1_IS_0
+      INIT_AUTO_FAN_PIN(E1_AUTO_FAN_PIN);
+    #endif
+    #if HAS_AUTO_FAN_2 && !(AUTO_2_IS_0 || AUTO_2_IS_1)
+      INIT_AUTO_FAN_PIN(E2_AUTO_FAN_PIN);
+    #endif
+    #if HAS_AUTO_FAN_3 && !(AUTO_3_IS_0 || AUTO_3_IS_1 || AUTO_3_IS_2)
+      INIT_AUTO_FAN_PIN(E3_AUTO_FAN_PIN);
+    #endif
+    #if HAS_AUTO_FAN_4 && !(AUTO_4_IS_0 || AUTO_4_IS_1 || AUTO_4_IS_2 || AUTO_4_IS_3)
+      INIT_AUTO_FAN_PIN(E4_AUTO_FAN_PIN);
+    #endif
+    #if HAS_AUTO_FAN_5 && !(AUTO_5_IS_0 || AUTO_5_IS_1 || AUTO_5_IS_2 || AUTO_5_IS_3 || AUTO_5_IS_4)
+      INIT_AUTO_FAN_PIN(E5_AUTO_FAN_PIN);
+    #endif
+    #if HAS_AUTO_CHAMBER_FAN && !(AUTO_CHAMBER_IS_0 || AUTO_CHAMBER_IS_1 || AUTO_CHAMBER_IS_2 || AUTO_CHAMBER_IS_3 || AUTO_CHAMBER_IS_4 || AUTO_CHAMBER_IS_5)
+      INIT_AUTO_FAN_PIN(CHAMBER_AUTO_FAN_PIN);
+    #endif
+  #endif // DISABLED(EXECUTER_CANBUS_SUPPORT)
 
   // Wait for temperature measurement to settle
   delay(250);

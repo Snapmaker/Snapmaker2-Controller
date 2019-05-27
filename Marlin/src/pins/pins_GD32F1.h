@@ -37,12 +37,13 @@
 //
 // Limit Switches
 //
-#define U_MIN_PIN          -1
-#define V_MIN_PIN          -1
-#define W_MIN_PIN          -1
-#define X_STOP_PIN         PC11
-#define Y_STOP_PIN         PC10
-#define Z_STOP_PIN         PC0
+#define U_MIN_PIN         -1
+#define V_MIN_PIN         -1
+#define W_MIN_PIN         -1
+#define X_STOP_PIN        PC11
+#define Y_STOP_PIN        PC10
+#define Z_STOP_PIN        PC0
+#define Z_MIN_PROBE_PIN   -1 
 
 //
 // Steppers
@@ -99,6 +100,9 @@
 #define TEMP_BED_PIN       PC4   // ANALOG NUMBERING
 #define TEMP_0_PIN         PC5   // ANALOG NUMBERING
 #define TEMP_1_PIN         -1   // ANALOG NUMBERING
+
+// Filament Switch
+#define FIL_RUNOUT_PIN  PC11
 
 //
 // LCD Pins

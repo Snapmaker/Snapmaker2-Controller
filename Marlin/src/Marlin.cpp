@@ -43,6 +43,7 @@
 #include "feature/closedloop.h"
 #include "SnapScreen/Screen.h"
 #include "module/LaserExecuter.h"
+#include "module/statuscontrol.h"
 
 #include "HAL/shared/Delay.h"
 
@@ -58,9 +59,7 @@
 #include "gcode/parser.h"
 #include "gcode/queue.h"
 
-#if ENABLED(EXECUTER_MANAGER_SUPPORT)
-  #include "module/executermanager.h"
-#endif
+#include "module/executermanager.h"
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
@@ -216,6 +215,24 @@ millis_t max_inactive_time, // = 0
   I2CPositionEncodersMgr I2CPEM;
 #endif
 
+// Software machine size
+#if ENABLED(SW_MACHINE_SIZE)
+  bool X_DIR;
+  bool Y_DIR;
+  bool Z_DIR;
+  bool E_DIR;
+  signed char X_HOME_DIR;
+  signed char Y_HOME_DIR;
+  signed char Z_HOME_DIR;
+  float X_MAX_POS;
+  float Y_MAX_POS;
+  float Z_MAX_POS;
+  float X_MIN_POS;
+  float Y_MIN_POS;
+  float Z_MIN_POS;
+#endif //ENABLED(SW_MACHINE_SIZE)
+
+
 /**
  * ***************************************************************************
  * ******************************** FUNCTIONS ********************************
@@ -333,64 +350,70 @@ void disable_all_steppers() {
 #if HAS_FILAMENT_SENSOR
 
   void event_filament_runout() {
+    #if(0)
+      #if ENABLED(ADVANCED_PAUSE_FEATURE)
+        if (did_pause_print) return;  // Action already in progress. Purge triggered repeated runout.
+      #endif
 
-    #if ENABLED(ADVANCED_PAUSE_FEATURE)
-      if (did_pause_print) return;  // Action already in progress. Purge triggered repeated runout.
-    #endif
+      #if ENABLED(EXTENSIBLE_UI)
+        ExtUI::onFilamentRunout(ExtUI::getActiveTool());
+      #endif
 
-    #if ENABLED(EXTENSIBLE_UI)
-      ExtUI::onFilamentRunout(ExtUI::getActiveTool());
-    #endif
-
-    #if EITHER(HOST_PROMPT_SUPPORT, HOST_ACTION_COMMANDS)
-      const char tool = '0'
-        #if NUM_RUNOUT_SENSORS > 1
-          + active_extruder
-        #endif
-      ;
-    #endif
-
-    //action:out_of_filament
-    #if ENABLED(HOST_PROMPT_SUPPORT)
-      host_prompt_reason = PROMPT_FILAMENT_RUNOUT;
-      host_action_prompt_end();
-      host_action_prompt_begin(PSTR("FilamentRunout T"), false);
-      SERIAL_CHAR(tool);
-      SERIAL_EOL();
-      host_action_prompt_show();
-    #endif
-
-    const bool run_runout_script = !runout.host_handling;
-
-    #if ENABLED(HOST_ACTION_COMMANDS)
-      if (run_runout_script
-        && ( strstr(FILAMENT_RUNOUT_SCRIPT, "M600")
-          || strstr(FILAMENT_RUNOUT_SCRIPT, "M125")
-          #if ENABLED(ADVANCED_PAUSE_FEATURE)
-            || strstr(FILAMENT_RUNOUT_SCRIPT, "M25")
+      #if EITHER(HOST_PROMPT_SUPPORT, HOST_ACTION_COMMANDS)
+        const char tool = '0'
+          #if NUM_RUNOUT_SENSORS > 1
+            + active_extruder
           #endif
-        )
-      ) {
-        host_action_paused(false);
-      }
-      else {
-        // Legacy Repetier command for use until newer version supports standard dialog
-        // To be removed later when pause command also triggers dialog
-        #ifdef ACTION_ON_FILAMENT_RUNOUT
-          host_action(PSTR(ACTION_ON_FILAMENT_RUNOUT " T"), false);
-          SERIAL_CHAR(tool);
-          SERIAL_EOL();
-        #endif
+        ;
+      #endif
 
-        host_action_pause(false);
-      }
-      SERIAL_ECHOPGM(" " ACTION_REASON_ON_FILAMENT_RUNOUT " ");
-      SERIAL_CHAR(tool);
-      SERIAL_EOL();
-    #endif // HOST_ACTION_COMMANDS
+      //action:out_of_filament
+      #if ENABLED(HOST_PROMPT_SUPPORT)
+        host_prompt_reason = PROMPT_FILAMENT_RUNOUT;
+        host_action_prompt_end();
+        host_action_prompt_begin(PSTR("FilamentRunout T"), false);
+        SERIAL_CHAR(tool);
+        SERIAL_EOL();
+        host_action_prompt_show();
+      #endif
 
-    if (run_runout_script)
-      enqueue_and_echo_commands_P(PSTR(FILAMENT_RUNOUT_SCRIPT));
+      const bool run_runout_script = !runout.host_handling;
+
+      #if ENABLED(HOST_ACTION_COMMANDS)
+        if (run_runout_script
+          && ( strstr(FILAMENT_RUNOUT_SCRIPT, "M600")
+            || strstr(FILAMENT_RUNOUT_SCRIPT, "M125")
+            #if ENABLED(ADVANCED_PAUSE_FEATURE)
+              || strstr(FILAMENT_RUNOUT_SCRIPT, "M25")
+            #endif
+          )
+        ) {
+          host_action_paused(false);
+        }
+        else {
+          // Legacy Repetier command for use until newer version supports standard dialog
+          // To be removed later when pause command also triggers dialog
+          #ifdef ACTION_ON_FILAMENT_RUNOUT
+            host_action(PSTR(ACTION_ON_FILAMENT_RUNOUT " T"), false);
+            SERIAL_CHAR(tool);
+            SERIAL_EOL();
+          #endif
+
+          host_action_pause(false);
+        }
+        SERIAL_ECHOPGM(" " ACTION_REASON_ON_FILAMENT_RUNOUT " ");
+        SERIAL_CHAR(tool);
+        SERIAL_EOL();
+      #endif // HOST_ACTION_COMMANDS
+
+      if (run_runout_script)
+        enqueue_and_echo_commands_P(PSTR(FILAMENT_RUNOUT_SCRIPT));
+    #else
+      uint8_t curstatus;
+      curstatus = SystemStatus.GetCurrentPrinterStatus();
+      if((curstatus == STAT_RUNNING) || (curstatus == STAT_RUNNING_ONLINE))
+        SystemStatus.PauseTriggle(FilamentFaultPause);
+    #endif
   }
 
 #endif // HAS_FILAMENT_SENSOR
@@ -1146,7 +1169,6 @@ void setup() {
  *  - Call inactivity manager
  */
 void loop() {
-  #if ENABLED(EXECUTER_MANAGER_SUPPORT)
   while(true)
   {
     if(ExecuterHead.Detecte() == true)
@@ -1156,16 +1178,17 @@ void loop() {
       else
         HMI.ChangePage(PAGE_CNC);
       
-
       if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
         SERIAL_ECHOLNPGM("Laser Module\r\n");
-        Laser.Init();
+        ExecuterHead.Laser.Init();
       }
       else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
         SERIAL_ECHOLNPGM("CNC Module\r\n");
+        ExecuterHead.CNC.Init();
       }
       else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
         SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
+        ExecuterHead.Print3D.Init();
       }
       else {
         SERIAL_ECHOLNPGM("Undefined Module\r\n");
@@ -1174,7 +1197,14 @@ void loop() {
       break;
     }
   }
+  #if ENABLED(SW_MACHINE_SIZE)
+    UpdateMachineDefines();
   #endif
+  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+    SERIAL_ECHOLN("grid manual");
+    bilinear_grid_manual(LEFT_PROBE_BED_POSITION, FRONT_PROBE_BED_POSITION, (X_MAX_POS - X_MIN_POS - 10), (Y_MAX_POS - Y_MIN_POS - 10));
+  #endif
+  
 
   for (;;) {
 
@@ -1201,6 +1231,8 @@ void loop() {
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();
     endstops.event_handler();
+    SystemStatus.StopProcess();
+    SystemStatus.PauseProcess();
     idle();
   }
 }

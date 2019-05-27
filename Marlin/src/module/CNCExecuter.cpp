@@ -4,17 +4,17 @@
 #include "../module/temperature.h"
 #include "../module/configuration_store.h"
 #include "CNCExecuter.h"
+#include "CanBus.h"
 
 
-CNCExecuter CNC;
+#if ENABLED(EXECUTER_CANBUS_SUPPORT)
 
-#if ENABLED(EXECUTER_CANBUS)
 /**
  * Init
  */
 void CNCExecuter::Init()
 {
-  CanInit(EXECUTER_CAN_PORT);
+  
 }
 
 /**
@@ -30,13 +30,17 @@ void CNCExecuter::SetCNCRPM(uint16_t RPMValue)
  * SetCNCPower:Set CNC power
  * para percent:
  */
-void CNCExecuter::SetCNCRPM(uint8_t Percent)
+void CNCExecuter::SetCNCPower(float Percent)
 {
-  
+  uint8_t Data[3];
+
+  Data[0] = 0;
+  Data[1] = Percent;
+  CanBusControlor.SendData(1, CAN_IDS_DCMOTOR, Data, 2);
 }
 
-
 #else
+
 /**
  * Init
  */
@@ -61,7 +65,7 @@ void CNCExecuter::SetCNCRPM(uint16_t RPMValue)
  * SetCNCPower:Set CNC power
  * para percent:50-100
  */
-void CNCExecuter::SetCNCPower(uint8_t Percent)
+void CNCExecuter::SetCNCPower(float Percent)
 {
   if(Percent > 50)
     WRITE(CNC_PIN, true);
@@ -69,5 +73,4 @@ void CNCExecuter::SetCNCPower(uint8_t Percent)
     WRITE(CNC_PIN, false);
 }
 
-
-#endif
+#endif // ENABLED EXECUTER_CANBUS_SUPPORT

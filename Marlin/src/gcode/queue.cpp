@@ -31,6 +31,7 @@
 #include "../sd/cardreader.h"
 #include "../module/planner.h"
 #include "../module/temperature.h"
+#include "../SnapScreen/Screen.h"
 #include "../Marlin.h"
 
 #if ENABLED(PRINTER_EVENT_LEDS)
@@ -78,6 +79,9 @@ char command_queue[BUFSIZE][MAX_CMD_SIZE];
 static int serial_count[NUM_SERIAL] = { 0 };
 
 bool send_ok[BUFSIZE];
+bool Screen_send_ok[BUFSIZE];
+uint8_t Screen_send_ok_opcode[BUFSIZE];
+uint32_t CommandLine[BUFSIZE];
 
 /**
  * Next Injected Command pointer. NULL if no commands are being injected.
@@ -88,7 +92,7 @@ static PGM_P injected_commands_P = NULL;
 
 void queue_setup() {
   // Send "ok" after commands by default
-  for (uint8_t i = 0; i < COUNT(send_ok); i++) send_ok[i] = true;
+  for (uint8_t i = 0; i < COUNT(send_ok); i++) send_ok[i] = Screen_send_ok[i] = true;
 }
 
 /**
@@ -107,6 +111,7 @@ inline void _commit_command(bool say_ok
   #endif
 ) {
   send_ok[cmd_queue_index_w] = say_ok;
+  Screen_send_ok[cmd_queue_index_w] = false;
   #if NUM_SERIAL > 1
     command_queue_port[cmd_queue_index_w] = port;
   #endif
@@ -205,6 +210,40 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
 #endif
 
 /**
+ *SC20 queue the gcdoe
+ *para pgcode:the pointer to the gcode
+ *para Lines:the line position of the gcode in the file
+ *para Opcode:operation code
+ */
+#if ENABLED(HMI_SC20W)
+void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_t Opcode)
+{
+  //缓冲未满
+	if((cmd_queue_index_w + 1) % BUFSIZE != cmd_queue_index_r)
+	{
+		//指令入队
+		strcpy(command_queue[cmd_queue_index_w], pgcode);
+		//应答ok
+		Screen_send_ok[cmd_queue_index_w] = true;
+		//应答控制字
+		Screen_send_ok_opcode[cmd_queue_index_w] = Opcode;
+		//代码行号
+		//非打印状态
+		if(Opcode == 0x02)
+			CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
+		//打印状态
+		else
+			CommandLine[cmd_queue_index_w] = Lines;
+		//主串口取消应答ok
+		send_ok[cmd_queue_index_w] = false;
+		//写入索引下移
+		cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
+		commands_in_queue++;
+	}
+}
+#endif
+
+/**
  * Send an "ok" message to the host, indicating
  * that a command was successfully processed.
  *
@@ -219,20 +258,26 @@ void ok_to_send() {
     if (port < 0) return;
     PORT_REDIRECT(port);
   #endif
-  if (!send_ok[cmd_queue_index_r]) return;
-  SERIAL_ECHOPGM(MSG_OK);
-  #if ENABLED(ADVANCED_OK)
-    char* p = command_queue[cmd_queue_index_r];
-    if (*p == 'N') {
-      SERIAL_ECHO(' ');
-      SERIAL_ECHO(*p++);
-      while (NUMERIC_SIGNED(*p))
+  if (send_ok[cmd_queue_index_r]) 
+  {
+    SERIAL_ECHOPGM(MSG_OK);
+    #if ENABLED(ADVANCED_OK)
+      char* p = command_queue[cmd_queue_index_r];
+      if (*p == 'N') {
+        SERIAL_ECHO(' ');
         SERIAL_ECHO(*p++);
-    }
-    SERIAL_ECHOPGM(" P"); SERIAL_ECHO(int(BLOCK_BUFFER_SIZE - planner.movesplanned() - 1));
-    SERIAL_ECHOPGM(" B"); SERIAL_ECHO(BUFSIZE - commands_in_queue);
-  #endif
-  SERIAL_EOL();
+        while (NUMERIC_SIGNED(*p))
+          SERIAL_ECHO(*p++);
+      }
+      SERIAL_ECHOPGM(" P"); SERIAL_ECHO(int(BLOCK_BUFFER_SIZE - planner.movesplanned() - 1));
+      SERIAL_ECHOPGM(" B"); SERIAL_ECHO(BUFSIZE - commands_in_queue);
+    #endif
+    SERIAL_EOL();
+  }
+  if(Screen_send_ok[cmd_queue_index_r])
+  {
+    HMI.SendGcode((char*)"ok\r\n", Screen_send_ok_opcode[cmd_queue_index_r]);
+  }
 }
 
 /**

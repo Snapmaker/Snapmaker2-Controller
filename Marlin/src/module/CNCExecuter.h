@@ -8,13 +8,12 @@ class CNCExecuter
 public:
   CNCExecuter(){};
   void Init();
-
   void SetCNCRPM(uint16_t RPMValue);
-  void SetCNCPower(uint8_t Percent);
+  void SetCNCPower(float Percent);
 
 public:
   uint8_t Percent;
+  uint16_t RPM;
 
 };
 
-extern CNCExecuter CNC;

@@ -32,6 +32,9 @@
 
 //#define WaitingStepper() {while(blocks_queued()){manage_heater();process_next_command();}}
 
+#define IsOnlineBusy()   (SystemStatus.GetCurrentPrinterStatus() == STAT_RUNNING_ONLINE || SystemStatus.GetCurrentPrinterStatus() == STAT_PAUSE_ONLINE)
+#define IsOffLineBusy()   (SystemStatus.GetCurrentPrinterStatus() == STAT_RUNNING || SystemStatus.GetCurrentPrinterStatus() == STAT_PAUSE)
+
 
 short HMILong::HmiGetCommand(void)
 {
@@ -129,6 +132,7 @@ void HMILong::PollingCommand(void)
 	static uint8_t SeekFileCount = 0;
 	static uint8_t SeekingFile = 0;
 	static uint8_t ShowFileIndex = 0;
+  float xGridSpacing, yGridSpacing;
 	uint32_t ID;
 	uint16_t SetTamp;
 	uint8_t eventId;
@@ -419,12 +423,12 @@ void HMILong::PollingCommand(void)
 					}
 					else if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 					{
-						Laser.SetLaserPower((uint16_t)0);
+						ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 						ChangePage(PAGE_LASER);
 					}
 					else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType)
 					{
-						CNC.SetCNCPower(0);
+						ExecuterHead.CNC.SetCNCPower(0);
 						ChangePage(PAGE_CNC);
 					}
 				break;
@@ -478,7 +482,7 @@ void HMILong::PollingCommand(void)
 							if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 							{
 								//关闭激光，CNC
-								Laser.SetLaserPower((uint16_t)0);
+								ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 								//LastLaserPwm = 0;             
  							}
 						}
@@ -501,12 +505,12 @@ void HMILong::PollingCommand(void)
 							if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 							{
 								//关闭激光，CNC
-								Laser.SetLaserPower((uint16_t)0);
+								ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 								//LastLaserPwm = 0;
 							}
 							else if(MACHINE_TYPE_CNC != ExecuterHead.MachineType)
 							{
-								CNC.SetCNCPower(0);
+								ExecuterHead.CNC.SetCNCPower(0);
 							}
 						}
 
@@ -627,6 +631,8 @@ void HMILong::PollingCommand(void)
           
 					ChangePage(PAGE_ZCENTER);
  					gcode.home_all_axes();
+          set_bed_leveling_enabled(false);
+          
           do_blocking_move_to_z(MANUAL_PROBE_START_Z);
 
 					//初始化之后为基准点
@@ -650,18 +656,24 @@ void HMILong::PollingCommand(void)
 					{
 						//切换等待界面
 						ChangePage(PAGE_ZCENTER);
+            
+            sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[0]);
+            parser.parse(tmpBuff);
+            gcode.process_parsed_command();
 
-						//P1
-						z_values[0][1] = MeshPointZ[2];
+            sprintf(tmpBuff, "G29 W I1 J0 Z%0.3f", MeshPointZ[1]);
+            parser.parse(tmpBuff);
+            gcode.process_parsed_command();
 
-						//P2
-						z_values[1][1] = MeshPointZ[3];
-						
-						//P3
-						z_values[1][0] = MeshPointZ[1];
+            sprintf(tmpBuff, "G29 W I0 J1 Z%0.3f", MeshPointZ[2]);
+            parser.parse(tmpBuff);
+            gcode.process_parsed_command();
 
-						//P4
-						z_values[0][0] = MeshPointZ[0];
+            sprintf(tmpBuff, "G29 W I1 J1 Z%0.3f", MeshPointZ[3]);
+            parser.parse(tmpBuff);
+            gcode.process_parsed_command();
+
+            do_blocking_move_to_z(current_position[Z_AXIS] + 5, 30);
 
             //保存数据
 						settings.save();
@@ -752,9 +764,6 @@ void HMILong::PollingCommand(void)
 					do_blocking_move_to_z(MANUAL_PROBE_START_Z);
 					
 					ChangePage(PAGE_CALIBRATE1);
-
-					//相对坐标模式
-					relative_mode = true;
 
 					//初始化之后为基准点
 					PointIndex = 2;
@@ -868,23 +877,23 @@ void HMILong::PollingCommand(void)
 				
 				//停止打印确认
 				case BUTTON_STOP_PRINT_CONFIRM:
-					//该按钮只在停止工作界面中有效
-					//if(CurrentHMIPage == PAGE_CONFIRMSTOP)
-					{
+          //该按钮只在停止工作界面中有效
+          //if(CurrentHMIPage == PAGE_CONFIRMSTOP)
+          {
 						//脱机打印
-						if(card.isFileOpen() == true)
-						{
-					    card.stopSDPrint();
-							if(MACHINE_TYPE_CNC != ExecuterHead.MachineType)
-                thermalManager.disable_all_heaters();
-              wait_for_heatup = false;
-							SystemStatus.StopTriggle(ManualStop);
-							ChangePage(PAGE_PROCESSING);
-							//禁能断电检测
-							//DisablePowerPanicCheck();
-						}
+						if(SystemStatus.GetCurrentPrinterStatus() == STAT_RUNNING)
+            {      
+              if(card.isFileOpen() == true)
+              {
+  					    card.stopSDPrint();
+  							SystemStatus.StopTriggle(ManualStop);
+  							ChangePage(PAGE_PROCESSING);
+  							//禁能断电检测
+  							//DisablePowerPanicCheck();
+  						}
+            }
 						//联机打印
-						else if(SystemStatus.GetCurrentPrinterStatus() == STAT_RUNNING)
+						else if(SystemStatus.GetCurrentPrinterStatus() == STAT_RUNNING_ONLINE)
 						{
 							if(MACHINE_TYPE_CNC != ExecuterHead.MachineType)
 								thermalManager.disable_all_heaters();
@@ -912,21 +921,31 @@ void HMILong::PollingCommand(void)
 
 				//暂停打印
 				case BUTTON_PAUSE_PRINT:
-					//文件已打开
-					if(card.isFileOpen() == true)
-					{
-						SystemStatus.PauseTriggle(ManualPause);
-						ChangePage(PAGE_PROCESSING);
-					}
+          if(SystemStatus.GetCurrentPrinterStatus() == STAT_RUNNING)
+          {
+  					//文件已打开
+  					if(card.isFileOpen() == true)
+  					{
+  						SystemStatus.PauseTriggle(ManualPause);
+  						ChangePage(PAGE_PROCESSING);
+  					}
+          }
+          else if(SystemStatus.GetCurrentPrinterStatus() == STAT_RUNNING_ONLINE)
+          {
+            
+          }
 				break;
 
 				//继续打印
 				case BUTTON_CONTINUE_PRINT:
 					//文件已打开
-					if(card.isFileOpen() == true)
-					{
-					  ChangePage(PAGE_PROCESSING);
-					}
+					if(SystemStatus.GetCurrentPrinterStatus() == STAT_RUNNING)
+          {     
+  					if(card.isFileOpen() == true)
+  					{
+  					  ChangePage(PAGE_PROCESSING);
+  					}
+          }
 				break;
 
 				//CNC 
@@ -962,7 +981,6 @@ void HMILong::PollingCommand(void)
 							if(SystemStatus.GetCurrentPrinterStatus() ==  STAT_PAUSE)
 							{
 									//关闭检测
-									#if defined(DOOR_PIN)
                   Periph.StopDoorCheck();
 									if(Periph.GetDoorCheckFlag() == true)
 									{
@@ -970,16 +988,13 @@ void HMILong::PollingCommand(void)
 									}
 									else 
 									{
-										if(READ(DOOR_PIN) == false)
+										if(Periph.IsDoorOpened() == false)
 										{
 											SystemStatus.PauseResume();
 										}
 									}
 									//开启检测
-									Periph.SetDoorCheck(true);
-                  #else
-
-                  #endif
+									Periph.StartDoorCheck();
 							}
 							else
 								SystemStatus.PauseResume();
@@ -990,10 +1005,13 @@ void HMILong::PollingCommand(void)
 				case BUTTON_CNC_STOP:
 					#if ENABLED(SDSUPPORT)	
 						//打印中
-						if(card.isFileOpen() == true)
-						{
-							ChangePage(PAGE_CONFIRMSTOP);
-						}
+						if(IsOffLineBusy() == true)
+            {      
+  						if(card.isFileOpen() == true)
+  						{
+  							ChangePage(PAGE_CONFIRMSTOP);
+  						}
+            }
 					#endif
 				break;
 
@@ -1010,22 +1028,27 @@ void HMILong::PollingCommand(void)
 				case BUTTON_CNC_ON:
 					if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 					{
-						#ifdef DOOR_PORT
-							if((READ(DOOR_PORT) == false) || (SystemStatus.GetCurrentPrinterStatus() == STAT_IDLE))
-								Laser.SetLaserPower(laserPercent);
-						#else
-							;//Laser.SetLaserPower(laserPercent);
-						#endif
+					  if(Periph.GetDoorCheckFlag() == true)
+            {
+              if(Periph.IsDoorOpened() == true)
+              {
+                //ExecuterHead.Laser.SetLaserPower();
+              }
+            }
+            else
+            {
+              //ExecuterHead.Laser.SetLaserPower();
+            }
 					}
 					else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType)
-            CNC.SetCNCPower(100);
+            ExecuterHead.CNC.SetCNCPower(100);
 				break;
 
 				case BUTTON_CNC_OFF:
 					if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-						Laser.SetLaserPower((uint16_t)0);
+						ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 					else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType)
-						CNC.SetCNCPower(0);
+						ExecuterHead.CNC.SetCNCPower(0);
 				break;
 
 				case BUTTON_CNC_SET_ORIGIN:
@@ -1047,8 +1070,7 @@ void HMILong::PollingCommand(void)
 				case BUTTON_CNC_MOVE_AXIS:
 					if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 					{
-						Laser.SetLaserLowPower();
-						//LastLaserPwm = laserpwm;
+						ExecuterHead.Laser.SetLaserLowPower();
 					}
 					ChangePage(PAGE_MOVE100);
 				break;
@@ -1373,6 +1395,11 @@ void HMILong::PollingCommand(void)
 	#endif
 }
 
+/**
+ *HmiWriteData:Write datas to the HMI serial port
+ *para pData:the pointer to the datas
+ *para len:number of the datas to be written
+ */
 void HMILong::HmiWriteData(char *pData, uint16_t len)
 {
   uint8_t c;
@@ -1383,14 +1410,11 @@ void HMILong::HmiWriteData(char *pData, uint16_t len)
 	} 
 }
 
-
-
 //清除串口数据
 void HMILong::BuffFlush(void)
 {
 
 }
-
 
 void HMILong::Show(void)
 {

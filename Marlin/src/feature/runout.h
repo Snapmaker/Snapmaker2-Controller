@@ -29,6 +29,7 @@
 #include "../module/printcounter.h"
 #include "../module/stepper.h"
 #include "../gcode/queue.h"
+#include "../module/periphdevice.h"
 
 #include "../inc/MarlinConfig.h"
 
@@ -51,6 +52,8 @@ class FilamentMonitorBase {
     #else
       constexpr static bool host_handling = false;
     #endif
+  private:
+    static uint8_t statefromcan;
 };
 
 template<class RESPONSE_T, class SENSOR_T>
@@ -124,17 +127,30 @@ class FilamentSensorBase {
         #define INIT_RUNOUT_PIN(P) SET_INPUT(P)
       #endif
 
-      INIT_RUNOUT_PIN(FIL_RUNOUT_PIN);
+      #if DISABLED(CAN_FILAMENT1_RUNOUT)
+        INIT_RUNOUT_PIN(FIL_RUNOUT_PIN);
+      #endif
+      
       #if NUM_RUNOUT_SENSORS > 1
-        INIT_RUNOUT_PIN(FIL_RUNOUT2_PIN);
+        #if DISABLED(CAN_FILAMENT2_RUNOUT)
+          INIT_RUNOUT_PIN(FIL_RUNOUT2_PIN);
+        #endif
         #if NUM_RUNOUT_SENSORS > 2
-          INIT_RUNOUT_PIN(FIL_RUNOUT3_PIN);
+          #if DISABLED(CAN_FILAMENT3_RUNOUT)
+            INIT_RUNOUT_PIN(FIL_RUNOUT3_PIN);
+          #endif
           #if NUM_RUNOUT_SENSORS > 3
-            INIT_RUNOUT_PIN(FIL_RUNOUT4_PIN);
+            #if DISABLED(CAN_FILAMENT4_RUNOUT)
+              INIT_RUNOUT_PIN(FIL_RUNOUT4_PIN);
+            #endif
             #if NUM_RUNOUT_SENSORS > 4
-              INIT_RUNOUT_PIN(FIL_RUNOUT5_PIN);
+              #if DISABLED(CAN_FILAMENT5_RUNOUT)
+                INIT_RUNOUT_PIN(FIL_RUNOUT5_PIN);
+              #endif
               #if NUM_RUNOUT_SENSORS > 5
-                INIT_RUNOUT_PIN(FIL_RUNOUT6_PIN);
+                #if DISABLED(CAN_FILAMENT6_RUNOUT)
+                  INIT_RUNOUT_PIN(FIL_RUNOUT6_PIN);
+                #endif
               #endif
             #endif
           #endif
@@ -144,18 +160,43 @@ class FilamentSensorBase {
 
     // Return a bitmask of runout pin states
     static inline uint8_t poll_runout_pins() {
+      #define FILAMNET_START_BIT  19
       return (
-        (READ(FIL_RUNOUT_PIN ) ? _BV(0) : 0)
+        #if DISABLED(CAN_FILAMENT1_RUNOUT)
+          (READ(FIL_RUNOUT_PIN ) ? _BV(0) : 0)
+        #else
+          (Periph.IOLevel & (1<<(FILAMNET_START_BIT))? _BV(0):0)
+        #endif
         #if NUM_RUNOUT_SENSORS > 1
-          | (READ(FIL_RUNOUT2_PIN) ? _BV(1) : 0)
+          #if DISABLED(CAN_FILAMENT2_RUNOUT)
+            | (READ(FIL_RUNOUT2_PIN) ? _BV(1) : 0)
+          #else
+            | (Periph.IOLevel & (1<<(FILAMNET_START_BIT + 1))? _BV(1):0)
+          #endif
           #if NUM_RUNOUT_SENSORS > 2
-            | (READ(FIL_RUNOUT3_PIN) ? _BV(2) : 0)
+            #if DISABLED(CAN_FILAMENT3_RUNOUT)
+              | (READ(FIL_RUNOUT3_PIN) ? _BV(2) : 0)
+            #else
+              | (Periph.IOLevel & (1<<(FILAMNET_START_BIT + 2))? _BV(2):0)
+            #endif
             #if NUM_RUNOUT_SENSORS > 3
-              | (READ(FIL_RUNOUT4_PIN) ? _BV(3) : 0)
+              #if DISABLED(CAN_FILAMENT4_RUNOUT)
+                | (READ(FIL_RUNOUT4_PIN) ? _BV(3) : 0)
+              #else
+                | (Periph.IOLevel & (1<<(FILAMNET_START_BIT + 3))? _BV(3):0)
+              #endif
               #if NUM_RUNOUT_SENSORS > 4
-                | (READ(FIL_RUNOUT5_PIN) ? _BV(4) : 0)
+                #if DISABLED(CAN_FILAMENT5_RUNOUT)
+                  | (READ(FIL_RUNOUT5_PIN) ? _BV(4) : 0)
+                #else
+                  | (Periph.IOLevel & (1<<(FILAMNET_START_BIT + 4))? _BV(4):0)
+                #endif
                 #if NUM_RUNOUT_SENSORS > 5
-                  | (READ(FIL_RUNOUT6_PIN) ? _BV(5) : 0)
+                  #if DISABLED(CAN_FILAMENT5_RUNOUT)
+                    | (READ(FIL_RUNOUT6_PIN) ? _BV(5) : 0)
+                  #else
+                    | (Periph.IOLevel & (1<<(FILAMNET_START_BIT + 5))? _BV(5):0)
+                  #endif
                 #endif
               #endif
             #endif

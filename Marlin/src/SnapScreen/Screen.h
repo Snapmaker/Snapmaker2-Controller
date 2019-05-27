@@ -12,7 +12,7 @@ class HMIScreen
     HMIScreen(){}
     void Init(void);
     void CommandProcess(void);    
-    #if ENABLED(HMI_SC20)  
+    #if ENABLED(HMI_SC20W)  
       void SendMachineStatusChange(uint8_t, uint8_t);
       void SendMachineFaultFlag();
       void SendGcode(char *GCode, uint8_t EventID);
@@ -25,7 +25,7 @@ class HMIScreen
     #if ENABLED(HMI_LONG)
       void Show(void);
       void ChangePage(uint8_t Page);
-    #elif ENABLED(HMI_SC20)
+    #elif ENABLED(HMI_SC20W)
       FORCE_INLINE static void Show(void){}
       FORCE_INLINE static void ChangePage(uint8_t){}
     #endif

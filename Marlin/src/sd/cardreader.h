@@ -158,6 +158,8 @@ public:
     #endif
   #endif
 
+  uint8_t LastPercent;
+
 private:
   static SdFile root, workDir, workDirParents[MAX_DIR_DEPTH];
   static uint8_t workDirDepth;

@@ -1,33 +1,20 @@
 #include "../inc/MarlinConfig.h"
 
-#if ENABLED(EXECUTER_MANAGER_SUPPORT)
-
-
 #include "../Marlin.h"
-#include "../module/temperature.h"
-#include "../module/configuration_store.h"
+#include "temperature.h"
+#include "configuration_store.h"
 #include "ExecuterManager.h"
+#include "CanBus.h"
 
 ExecuterManager ExecuterHead;
-
-
-#define CAN_ID_BC   0x500
-#define CAN_ID_SWITCH   0x501
-#define CAN_ID_TEMP   0x510
-#define CAN_ID_FAN    0x511
-#define CAN_ID_DCMOTOR  0x512
 
 /**
  * Executer Init
  */
 void ExecuterManager::Init()
 {
-  #if ENABLED(EXECUTER_CANBUS)
-    #if (EXECUTER_CAN_PORT == 1)
-      CanInit(1);
-    #elif (EXECUTER_CAN_PORT == 2)
-      CanInit(2);
-    #endif
+  #if ENABLED(EXECUTER_CANBUS_SUPPORT)
+  CanBusControlor.Init();
   #endif
 }
 
@@ -37,18 +24,16 @@ void ExecuterManager::Init()
  */
 bool ExecuterManager::Detecte()
 {
-  #if ENABLED(EXECUTER_CANBUS)
+  #if ENABLED(EXECUTER_CANBUS_SUPPORT)
     MachineType = GetMachineTypeFromCAN();
-  #endif
-
-  #if ENABLED(EXECUTER_TEMPERATURE)
+  #else
     MachineType = GetMachineTypeFromTemperature();
   #endif
   return (MachineType != MACHINE_TYPE_UNDEFINE);
 }
 
 
-#if ENABLED(EXECUTER_CANBUS)
+#if ENABLED(EXECUTER_CANBUS_SUPPORT)
   /**
    * Get machine type from Can Bus
    * return   One of MACHINE_TYPE_CNC,MACHINE_TYPE_LASER,MACHINE_TYPE_3DPRINT
@@ -56,29 +41,52 @@ bool ExecuterManager::Detecte()
   uint8_t ExecuterManager::GetMachineTypeFromCAN(void)
   {
     uint8_t type;
-    uitn8_t retry;
+    uint8_t retry;
     millis_t tmpTick;
     type = MACHINE_TYPE_UNDEFINE;
     uint8_t Buff[8] = "SEEK";
     retry = 5;
+    tmpTick = millis();
     while(type == MACHINE_TYPE_UNDEFINE) {
       if((millis() - tmpTick) > 500L) {
         tmpTick = millis();
         if(retry-- == 0)
           return MACHINE_TYPE_UNDEFINE;
-        if(CanSendMessage(CAN_ID_BC, 1, FRAME_DATA, 8, Buff) == false)
+        if(CanBusControlor.SendData(1, CAN_IDS_BC, Buff, 8) == false)
           return MACHINE_TYPE_UNDEFINE;
       }
     }
     return type;
   }
-#endif // ENABLED(EXECUTER_CANBUS)
-
-
-#if ENABLED(EXECUTER_TEMPERATURE)
 
   /**
-   * Get machine type from Temerature
+   * SetTemperature:Set temperature 
+   * para index:executer index
+   * temperature:
+   */
+  void ExecuterManager::SetTemperature(uint8_t index, uint16_t temperature)
+  {
+  }
+
+  /**
+   * SetFan:Set fan 
+   * para index:executer index
+   * percent:fan speed in percent
+   */
+  void ExecuterManager::SetFan(uint8_t index, uint8_t s_value)
+  {
+    uint8_t Data[3];
+
+    Data[0] = index;
+    Data[1] = 0;
+    Data[2] = s_value;
+    FanSpeed[index] = s_value;
+    CanBusControlor.SendData(1, CAN_IDS_FAN, Data, 3);
+  }
+#else
+
+  /**
+   * GetMachineTypeFromTemperature:Get machine type from Temerature
    * return   One of MACHINE_TYPE_CNC,MACHINE_TYPE_LASER,MACHINE_TYPE_3DPRINT
    */
   uint8_t ExecuterManager::GetMachineTypeFromTemperature(void)
@@ -107,44 +115,5 @@ bool ExecuterManager::Detecte()
     }
     return type;
   }
-#endif //ENABLED(EXECUTER_TEMPERATURE)
 
-extern "C"
-{
-#if (EXECUTER_CAN_PORT == 1)
-void __irq_can1_tx(void)
-{
-}
-
-void __irq_can1_rx0(void)
-{
-}
-
-void __irq_can1_rx1(void)
-{
-}
-
-void __irq_can1_sce(void)
-{
-}
-
-#elif (EXECUTER_CAN_PORT == 2)
-void __irq_can2_tx(void)
-{
-}
-
-void __irq_can2_rx0(void)
-{
-}
-
-void __irq_can2_rx1(void)
-{
-}
-
-void __irq_can2_sce(void)
-{
-}
-#endif
-}
-
-#endif // ENABLED EXECUTER_CANBUS
+#endif //ENABLED(EXECUTER_CANBUS_SUPPORT)

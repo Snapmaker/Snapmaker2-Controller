@@ -149,8 +149,12 @@ void HAL_init();
   #define analogInputToDigitalPin(p) (p)
 #endif
 
-#define CRITICAL_SECTION_START  uint32_t primask = __get_primask(); (void)__iCliRetVal()
-#define CRITICAL_SECTION_END    if (!primask) (void)__iSeiRetVal()
+//#define CRITICAL_SECTION_START  uint32_t primask = __get_primask(); (void)__iCliRetVal()
+//#define CRITICAL_SECTION_END    if (!primask) (void)__iSeiRetVal()
+void EnterCritical(uint8_t option);
+#define CRITICAL_SECTION_START  EnterCritical(1);
+#define CRITICAL_SECTION_END    EnterCritical(0);
+
 #define ISRS_ENABLED() (!__get_primask())
 #define ENABLE_ISRS()  ((void)__iSeiRetVal())
 #define DISABLE_ISRS() ((void)__iCliRetVal())

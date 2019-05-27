@@ -381,4 +381,20 @@ void protected_pin_err();
   #include "SnapScreen/HMILongDefines.h"
 #endif
 
+// Software machine size
+#if ENABLED(SW_MACHINE_SIZE)
+  extern bool X_DIR;
+  extern bool Y_DIR;
+  extern bool Z_DIR;
+  extern bool E_DIR;
+  extern signed char X_HOME_DIR;
+  extern signed char Y_HOME_DIR;
+  extern signed char Z_HOME_DIR;
+  extern float X_MAX_POS;
+  extern float Y_MAX_POS;
+  extern float Z_MAX_POS;
+  extern float X_MIN_POS;
+  extern float Y_MIN_POS;
+  extern float Z_MIN_POS;
+#endif //ENABLED(SW_MACHINE_SIZE)
 

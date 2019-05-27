@@ -10,6 +10,16 @@
 #define TRIGGLE_STAT_STOP   2
 #define TRIGGLE_STAT_RESUME 3
 
+#define FAULT_FLAG_HEATER0	1
+#define FAULT_FLAG_BED		(1<<1)
+#define FAULT_FLAG_LOAD		(1<<2)
+#define FAULT_FLAG_FILAMENT	(1<<3)
+#define FAULT_FLAG_HEATFAIL	(1<<4)
+#define FAULT_FLAG_FILAMENT_SENSOR	(1<<5)
+#define FAULT_FLAG_POWERPANIC	(1<<6)
+#define FAULT_FLAG_LASER_EEPROM	(1<<7)
+
+
 //终止触发源
 typedef enum
 {
@@ -47,14 +57,21 @@ public:
   uint8_t GetCurrentPrinterStatus();
   uint32_t GetSystemFault();
   void SetCurrentPrinterStatus(uint8_t newstatus);
+  uint8_t GetPeriphDeviceStatus();
   void ClearSystemFaultBit(uint32_t BitsToClear);
+  void SetSystemFaultBit(uint32_t BitsToClear);
   bool PauseTriggle(PausePrintType type);
   bool StopTriggle(StopPrintType type);
   void PauseProcess();
   void StopProcess();
   void PauseResume();
+
+private:
+  void InterruptAllCommand();
+  
 public:
   uint8_t CurrentStatus = STAT_IDLE;
+  uint32_t PeriphDeviceStatus;
 
 private:
   uint8_t TriggleStat;

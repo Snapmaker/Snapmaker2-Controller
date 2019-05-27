@@ -5,43 +5,56 @@
 #include "../module/configuration_store.h"
 #include "periphdevice.h"
 #include "../HAL/HAL_GD32F1/HAL_exti_STM32F1.h"
-
+#include "CanBus.h"
 
 PeriphDevice Periph;
 
-#if ENABLED(PERIPH_CANBUS)
 /**
  * Init
  */
 void PeriphDevice::Init()
 {
-  CanInit(PERIPH_EXECUTER_CAN_PORT);
 }
 
+#if ENABLED(CAN_FAN)
 /**
- * SetCNCPower:Set laser power
+ * SetFanSpeed:Set Fan Speed
+ * para DelayTime:
+ * para index:
  * para percent:
  */
-
-#else
-/**
- * Init
- */
-void PeriphDevice::Init()
+void PeriphDevice::SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value)
 {
-  #if ENABLED(DOOR_SENSOR)
-    ExtiInit(PA, 0, 0);
+  uint8_t Data[3];
+
+  Data[0] = index;
+  Data[1] = DelayTime;
+  Data[2] = s_value;
+  FanSpeed[index] = s_value;
+  CanBusControlor.SendData(2, CAN_IDS_FAN, Data, 3);
+}
+#endif
+
+#if ENABLED(DOOR_SWITCH)
+
+/**
+ * DoorSwitchInit:Initialze the door switch IO
+ * para Enable:true enable ,false disable
+ */
+void PeriphDevice::DoorSwitchInit()
+{
+  #if DISABLED(PERIPH_CANBUS_SUPPORT)
   #endif
 }
 
-#if ENABLED(DOOR_SENSOR)
 /**
  * SetDoorCheck:enable or disable Door Sensor
  * para Enable:true enable ,false disable
  */
 void PeriphDevice::SetDoorCheck(bool Enable)
 {
-  
+  #if DISABLED(PERIPH_CANBUS_SUPPORT)
+  #endif
 }
 
 /**
@@ -50,6 +63,9 @@ void PeriphDevice::SetDoorCheck(bool Enable)
  */
 void PeriphDevice::StartDoorCheck()
 {
+  #if DISABLED(PERIPH_CANBUS_SUPPORT)
+
+  #endif
 }
 
 /**
@@ -58,9 +74,10 @@ void PeriphDevice::StartDoorCheck()
  */
 void PeriphDevice::StopDoorCheck()
 {
+  #if DISABLED(PERIPH_CANBUS_SUPPORT)
+  #endif
 }
-#endif //ENABLED(DOOR_SENSOR)
-
+#endif //ENABLED(DOOR_SWITCH)
 
 #if ENABLED(FILAMENT_SENSOR)
 /**
@@ -69,9 +86,9 @@ void PeriphDevice::StopDoorCheck()
  */
 void PeriphDevice::SetFilamentCheck(bool Enable)
 {
-  
-    
-  
+  #if ENABLED(PERIPH_CANBUS_SUPPORT)
+
+  #endif
 }
 
 /**
@@ -80,6 +97,9 @@ void PeriphDevice::SetFilamentCheck(bool Enable)
  */
 void PeriphDevice::StartFilamentCheck()
 {
+  #if ENABLED(PERIPH_CANBUS_SUPPORT)
+
+  #endif
 }
 
 /**
@@ -88,8 +108,62 @@ void PeriphDevice::StartFilamentCheck()
  */
 void PeriphDevice::StopFilamentCheck()
 {
+  #if ENABLED(PERIPH_CANBUS_SUPPORT)
+
+  #endif
 }
 #endif // ENABLED(FILAMENT_SENSOR)
 
+#if ENABLED(CAN_ENCLOSE_LED)
 
+/**
+ * EncloseLedOn:Turn on the led of enclose
+ */
+void PeriphDevice::EncloseLedOn()
+{
+  uint8_t Data[6];
+  Data[0] = 0;
+  Data[1] = 1;
+  CanBusControlor.SendData(2, CAN_IDS_LIGHT, Data, 6);
+}
+
+/**
+ * EncloseLedOff:Turn off the led of enclose
+ */
+void PeriphDevice::EncloseLedOff()
+{
+  uint8_t Data[6];
+  Data[0] = 0;
+  Data[1] = 0;
+  Data[2] = 0;
+  CanBusControlor.SendData(2, CAN_IDS_LIGHT, Data, 6);
+}
 #endif
+
+/**
+ * LevelingSensorValid:Check the bed leveling sensor valid
+ * return: true for valid
+ */
+bool PeriphDevice::LevelingSensorValid()
+{
+  if(LevelingSensorExisted() == false)
+    return false;
+  if(IOSwitch & PERIPH_IOSW_BLS)
+    return true;
+  else
+    return false;
+}
+
+/**
+ * LevelingSensorValid:Check the bed leveling sensor valid
+ * return: true for valid
+ */
+bool PeriphDevice::LevelingSensorExisted()
+{
+  #if ENABLED(BED_LEVELING_SENSOR)
+    return true;
+  #else
+    return false;
+  #endif
+}
+

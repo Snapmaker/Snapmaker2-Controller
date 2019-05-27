@@ -66,6 +66,8 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../core/debug_out.h"
 
+
+#if DISABLED(SW_MACHINE_SIZE)
 #define XYZ_CONSTS(type, array, CONFIG) const PROGMEM type array##_P[XYZ] = { X_##CONFIG, Y_##CONFIG, Z_##CONFIG }
 
 XYZ_CONSTS(float, base_min_pos,   MIN_POS);
@@ -74,6 +76,14 @@ XYZ_CONSTS(float, base_home_pos,  HOME_POS);
 XYZ_CONSTS(float, max_length,     MAX_LENGTH);
 XYZ_CONSTS(float, home_bump_mm,   HOME_BUMP_MM);
 XYZ_CONSTS(signed char, home_dir, HOME_DIR);
+#else
+float base_min_pos_P[XYZ];
+float base_max_pos_P[XYZ];
+float base_home_pos_P[XYZ];
+float max_length_P[XYZ];
+float home_bump_mm_P[XYZ];
+signed char home_dir_P[XYZ];
+#endif
 
 /**
  * axis_homed
@@ -1363,9 +1373,13 @@ void homeaxis(const AxisEnum axis) {
     // Only Z homing (with probe) is permitted
     if (axis != Z_AXIS) { BUZZ(100, 880); return; }
   #else
-    #define CAN_HOME(A) \
-      (axis == _AXIS(A) && ((A##_MIN_PIN > -1 && A##_HOME_DIR < 0) || (A##_MAX_PIN > -1 && A##_HOME_DIR > 0)))
-    if (!CAN_HOME(X) && !CAN_HOME(Y) && !CAN_HOME(Z)) return;
+    /*
+    #if DISABLED(PERIPH_CAN_SUPPORT)
+      #define CAN_HOME(A) \
+        (axis == _AXIS(A) && ((A##_MIN_PIN > -1 && A##_HOME_DIR < 0) || (A##_MAX_PIN > -1 && A##_HOME_DIR > 0)))
+      if (!CAN_HOME(X) && !CAN_HOME(Y) && !CAN_HOME(Z)) return;
+    #endif
+    */
   #endif
 
   if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPAIR(">>> homeaxis(", axis_codes[axis], ")");
@@ -1375,7 +1389,7 @@ void homeaxis(const AxisEnum axis) {
       axis == X_AXIS ? x_home_dir(active_extruder) :
     #endif
     home_dir(axis)
-  );
+  );;
 
   // Homing Z towards the bed? Deploy the Z probe or endstop.
   #if HOMING_Z_WITH_PROBE
@@ -1407,14 +1421,14 @@ void homeaxis(const AxisEnum axis) {
     if (axis == Z_AXIS && bltouch.deploy()) return;
   #endif
 
-  do_homing_move(axis, 1.5f * max_length(
-    #if ENABLED(DELTA)
-      Z_AXIS
-    #else
-      axis
-    #endif
-    ) * axis_home_dir
-  );
+  float maxlen;
+  #if ENABLED(DELTA)
+    maxlen = 1.5f * max_length(Z_AXIS);
+  #else
+    maxlen = 1.5f * max_length(axis);
+  #endif
+  
+  do_homing_move(axis, 1.5f * maxlen * axis_home_dir);
 
   #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH)
     // BLTOUCH needs to be stowed after trigger to rearm itself
@@ -1571,7 +1585,9 @@ void homeaxis(const AxisEnum axis) {
     }
 
   #else // CARTESIAN / CORE
-
+    //Move foward about mm
+    //current_position[axis] -= home_dir(axis) * 0.5f;
+    //do_blocking_move_to(current_position, 10);
     set_axis_is_at_home(axis);
     sync_plan_position();
 
@@ -1612,3 +1628,36 @@ void homeaxis(const AxisEnum axis) {
     update_workspace_offset(axis);
   }
 #endif // HAS_M206_COMMAND
+
+#if ENABLED(SW_MACHINE_SIZE)
+  /**
+   * Update the machine Size, Motor Dir, maxlen
+   */
+  void UpdateMachineDefines()
+  {
+    base_min_pos_P[X_AXIS] = X_MIN_POS;
+    base_min_pos_P[Y_AXIS] = Y_MIN_POS;
+    base_min_pos_P[Z_AXIS] = Z_MIN_POS;
+    base_max_pos_P[X_AXIS] = X_MAX_POS;
+    base_max_pos_P[Y_AXIS] = Y_MAX_POS;
+    base_max_pos_P[Z_AXIS] = Z_MAX_POS;
+    home_dir_P[X_AXIS] = X_HOME_DIR;
+    home_dir_P[Y_AXIS] = Y_HOME_DIR;
+    home_dir_P[Z_AXIS] = Z_HOME_DIR;
+    home_bump_mm_P[X_AXIS] = X_HOME_BUMP_MM;
+    home_bump_mm_P[Y_AXIS] = Y_HOME_BUMP_MM;
+    home_bump_mm_P[Z_AXIS] = Z_HOME_BUMP_MM;
+    base_home_pos_P[X_AXIS] = (home_dir_P[X_AXIS] < 0)?X_MIN_POS:X_MAX_POS;
+    base_home_pos_P[Y_AXIS] = (home_dir_P[Y_AXIS] < 0)?Y_MIN_POS:Y_MAX_POS;
+    base_home_pos_P[Z_AXIS] = (home_dir_P[Z_AXIS] < 0)?Z_MIN_POS:Z_MAX_POS;
+    soft_endstop[X_AXIS].min = X_MIN_POS;
+    soft_endstop[Y_AXIS].min = Y_MIN_POS;
+    soft_endstop[Z_AXIS].min = Z_MIN_POS;
+    soft_endstop[X_AXIS].max = X_MAX_POS;
+    soft_endstop[Y_AXIS].max = Y_MAX_POS;
+    soft_endstop[Z_AXIS].max = Z_MAX_POS;
+    max_length_P[X_AXIS] = X_MAX_POS - X_MIN_POS;
+    max_length_P[Y_AXIS] = Y_MAX_POS - Y_MIN_POS;
+    max_length_P[Z_AXIS] = Z_MAX_POS - Z_MIN_POS;
+  }
+#endif // ENABLED(SW_MACHINE_SIZE)
