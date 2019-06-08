@@ -79,6 +79,18 @@ class Endstops {
       static uint8_t endstop_poll_count;    // Countdown from threshold for polling
     #endif
 
+  #if ENABLED(EXECUTER_CANBUS_SUPPORT)
+    private:
+      static void CanSendAxisIndex(EndstopEnum Axis);
+
+    public:
+      void CanPrepareAxis();
+  #else
+    public:
+      void CanPrepareAxis() {};
+  #endif
+    
+
   public:
     Endstops() {};
 

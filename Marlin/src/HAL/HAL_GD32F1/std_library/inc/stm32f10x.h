@@ -3413,7 +3413,7 @@ typedef struct
 /*                             DMA Controller                                 */
 /*                                                                            */
 /******************************************************************************/
-#if(0)
+#if(1)
 /*******************  Bit definition for DMA_ISR register  ********************/
 #define  DMA_ISR_GIF1                        ((uint32_t)0x00000001)        /*!< Channel 1 Global interrupt flag */
 #define  DMA_ISR_TCIF1                       ((uint32_t)0x00000002)        /*!< Channel 1 Transfer Complete flag */

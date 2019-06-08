@@ -26,11 +26,11 @@
 
 extern long pCounter_X,pCounter_Y,pCounter_Z,pCounter_E;
 
-char FileListBuff[1028];
+char tmpBuff[512];
 
 
 //指令暂存缓冲，正确解析之后，指令存放在这里
-static char tmpBuff[1024];
+static char SendBuff[1024];
 
 //检测指令缓冲是否为空
 #define CMD_BUFF_EMPTY()	(commands_in_queue>0?false:true)
@@ -44,48 +44,48 @@ static char tmpBuff[1024];
 /**
  *PackedProtocal:Pack up the data in protocal
  */
-void HMI_SC20::PackedProtocal(uint8_t *pData, uint16_t len)
+void HMI_SC20::PackedProtocal(char *pData, uint16_t len)
 {
   uint16_t i;
 	uint16_t j;
 	uint32_t checksum;
 	i=0;
 	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
+	SendBuff[i++] = 0xAA;
+	SendBuff[i++] = 0x55;
 	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
+	SendBuff[i++] = 0x00;
+	SendBuff[i++] = 0x00;
 	//协议版本
-	tmpBuff[i++] = 0x00;
+	SendBuff[i++] = 0x00;
 	//包长效验
-	tmpBuff[i++] = 0x00;
+	SendBuff[i++] = 0x00;
 	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
+	SendBuff[i++] = 0x00;
+	SendBuff[i++] = 0x00;
 
   while(len--)
-    tmpBuff[i++] = *pData++;
+    SendBuff[i++] = *pData++;
 
   //重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
+	SendBuff[2] = (uint8_t)((i - 8) >> 8);
+	SendBuff[3] = (uint8_t)(i - 8);
+	SendBuff[5] = SendBuff[2] ^ SendBuff[3];
 	//校验
 	checksum = 0;
 	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
+		checksum += (uint32_t)(((uint8_t)SendBuff[j] << 8) | (uint8_t)SendBuff[j + 1]);
 
 	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
+		checksum += SendBuff[i-1];
 	while(checksum > 0xffff)
 		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
 	checksum = ~checksum;
 
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
+	SendBuff[6] = checksum >> 8;
+	SendBuff[7] = checksum;
 	
-	HmiWriteData(tmpBuff, i);
+	HmiWriteData(SendBuff, i);
 }
 
 /**
@@ -245,11 +245,9 @@ void HMI_SC20::StartUpdate(void)
     Address += 2048;
   }
   FLASH_Lock();
-  SendStartUpdateReack(0);
   UpdateDataSize = 0;
   UpdateInProgress = 1;
   UpdatePackRequest = 0;
-  SendUpdatePackRequest(UpdatePackRequest);
 }
 
 /********************************************************
@@ -290,12 +288,12 @@ void HMI_SC20::UpdatePackProcess(uint8_t *pBuff, uint16_t DataLen)
 /********************************************************
 升级结束应答
 *********************************************************/
-void HMI_SC20::UpdateComplete(void)
+bool HMI_SC20::UpdateComplete(void)
 {
-  if(UpdateDataSize == 0)   
-    SendUpdateCompleteReack(1);
+  if(UpdateDataSize == 0)
+    return false;
   else
-    SendUpdateCompleteReack(0);
+    return true;
 }
 
 /********************************************************
@@ -553,14 +551,19 @@ void HMI_SC20::EnterLaserFocusSetting()
 
 void HMI_SC20::PollingCommand(void)
 {
-	uint8_t CurStatus;
-	uint32_t ID;
-	float fCenterX, fCenterY; 
+  float fX, fY, fZ;
+  uint32_t ID;
 	int32_t int32Value;
-	uint8_t eventId;
-	short i;
-	uint16_t j;
+  uint16_t j;
 	uint16_t cmdLen;
+  short i;
+  char result;
+	uint8_t CurStatus;
+  bool GenReack = false;
+  uint8_t eventId, OpCode, Result;
+
+  #define MarkNeedReack(R)  do{GenReack = true; Result = R;}while(0)
+	
 	i = GetCommand((unsigned char*)tmpBuff);
 
 	if(i == (short)-1)
@@ -572,6 +575,7 @@ void HMI_SC20::PollingCommand(void)
 		cmdLen = (tmpBuff[2] << 8) | tmpBuff[3];
 		
 		eventId = tmpBuff[8];
+    OpCode = tmpBuff[9];
 		
 		//上位指令调试
 		if(eventId == 0x01)
@@ -580,7 +584,7 @@ void HMI_SC20::PollingCommand(void)
 			//指令尾补0
 			j = cmdLen + 8;
 			tmpBuff[j] = 0;
-			Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02);	
+			Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02);
 		}
 		//GCode  打印
 		else if(eventId == 0x03)
@@ -630,156 +634,6 @@ void HMI_SC20::PollingCommand(void)
 				}
 			}
 		}
-    #if(0)
-		//文件操作
-		else if(eventId == 0x05)
-		{
-			Periph.ShieldLedOn();
-			//控制字
-			switch(tmpBuff[9])
-			{
-				//重新挂载
-				case 0:
-					card.initsd();
-					if(card.isDetected())
-						SendInitUdisk(0);
-					else
-						SendInitUdisk(1);
-					//清除项目显示偏移量
-					ListFileOffset = 0;
-				break;
-
-				//获取当前目录路径
-				case 1:
-					if(card.getWorkDirPath() == true)
-						SendCurrentUDiskPath(0);
-					else
-						SendCurrentUDiskPath(1);
-				break;
-
-				//进入目录
-				case 2:
-					ID = 0;
-					FileListBuff[ID] = 0;
-					//清除项目显示偏移量
-					ListFileOffset = 0;
-					if(card.getWorkDirPath() == true)
-					{
-						for(int i=10;i<263;i++)
-						{
-							FileListBuff[ID++] = tmpBuff[i];
-							if(tmpBuff[i] == 0)
-								break;
-						}
-						if(card.chdir(FileListBuff) == 0)
-						{
-							SendChDirResult(0);
-						}
-						else
-						{
-							SendChDirResult(1);
-						}
-					}
-					else
-					{
-						SendChDirResult(1);
-					}
-				break;
-
-				//返回上一级
-				case 3:
-				break;
-
-				//获取当前目录的内容
-				case 4:
-					ListFileOffset += SendDirItems(ListFileOffset);
-				break;
-
-				//获取文件特殊内容
-				case 5:
-					//待机状态下可操作
-					if(SystemStatus.GetCurrentPrinterStatus() == STAT_IDLE)
-					{
-						ID = 0;
-						FileListBuff[ID] = 0;
-						if(card.getWorkDirPath() == true)
-						{
-							for(int i=10;i<263;i++)
-							{
-								FileListBuff[ID++] = tmpBuff[i];
-								if(tmpBuff[i] == 0)
-									break;
-							}
-						}
-						SendSpecialData();
-					}
-				break;
-
-				//启动U  盘打印
-				case 6:
-					//获取当前状态
-					CurStatus = SystemStatus.GetCurrentPrinterStatus();
-					//待机状态下可操作
-					if(CurStatus == STAT_IDLE)
-					{
-						ID = 0;
-						FileListBuff[ID] = 0;
-						tmpBuff[cmdLen + 8] = 0;
-						if(card.getWorkDirPath() == true)
-						{
-							for(int i=10;i<263;i++)
-							{
-								FileListBuff[ID++] = tmpBuff[i];
-								if(tmpBuff[i] == 0)
-									break;
-							}
-						}
-						card.StartSelectPrint(FileListBuff);
-						//文件打开成功
-						if(card.isFileOpen() == false)
-						{
-							//发送文件打开失败
-							SendStartPrintReack(1);
-							break;
-						}
-						PowerPanicData.FilePosition = 0;
-						PowerPanicData.accumulator = 0;
-						PowerPanicData.HeaterTamp[0] = 0;
-						PowerPanicData.BedTamp = 0;
-						PowerPanicData.PositionData[0] = 0;
-						PowerPanicData.PositionData[1] = 0;
-						PowerPanicData.PositionData[2] = 0;
-						PowerPanicData.PositionData[3] = 0;
-						PowerPanicData.GCodeSource = GCODE_SOURCE_UDISK;
-						PowerPanicData.MachineType = ExecuterHead.MachineType;
-						SendStartPrintReack(0);
-
-						//使能检测
-						EnablePowerPanicCheck();
-						//激光功能
-						if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-						{
-							//门检测开启
-							if(Periph.GetDoorCheckFlag() == true)
-							{
-								//门已关闭
-								if(READ(DOOR_PIN) == true)
-								{
-									SystemStatus.PauseTriggle(ManualPause);
-									SystemStatus.SetCurrentPrinterStatus(STAT_PAUSE);
-								}
-							}
-							//启动门开关检测
-							Periph.StartDoorCheck();
-						}
-							
-						//屏幕锁定
-						HMICommandSave = 1;
-					}
-				break;
-			}
-		}
-    #endif
 		//状态上报
 		else if(eventId == 0x07)
 		{
@@ -908,7 +762,6 @@ void HMI_SC20::PollingCommand(void)
 					//清除故障标志
 					SystemStatus.ClearSystemFaultBit(FAULT_FLAG_FILAMENT);
 					HmiRequestStatus = STAT_RUNNING_ONLINE;
-					
 				}
 			}
 			
@@ -965,7 +818,7 @@ void HMI_SC20::PollingCommand(void)
 				//标志断电续打无效
 				PowerPanicData.Data.Valid = 0;
 				//应答
-				SendFaultClearReack();
+				MarkNeedReack(0);
 			}
 			//联机续打
 			else if(StatuID == 0x0b)
@@ -999,7 +852,7 @@ void HMI_SC20::PollingCommand(void)
 						//启动打印
 						PowerPanicData.PowerPanicResumeWork(NULL);
 					}
-					//不检测外罩 门，非待机状态
+					//不检测外罩门，非待机状态
 					else
 					{
 						//发送失败
@@ -1085,14 +938,12 @@ void HMI_SC20::PollingCommand(void)
 		//操作指令
 		else if(eventId == 0x09)
 		{
-			switch(tmpBuff[9])
+			switch(OpCode)
 			{
 				//设置尺寸
 				case 1:
 					ResizeMachine(&tmpBuff[10]);
-
-					//应答
-					SettingReack(0x01, 0);
+					
 				break;
 
 				//开启自动调平
@@ -1103,11 +954,11 @@ void HMI_SC20::PollingCommand(void)
 					{
 						HalfAutoCalibrate();
 						//应答
-						SettingReack(0x02, 0);
+						MarkNeedReack(0);
 					}
 					else
 					{
-						SettingReack(0x02, 1);
+						MarkNeedReack(1);
 					}
 				break;
 
@@ -1117,12 +968,11 @@ void HMI_SC20::PollingCommand(void)
 					if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
 					{
 						ManualCalibrateStart();
-						//应答
-						SettingReack(0x04, 0);
+						MarkNeedReack(0);
 					}
 					else
 					{
-						SettingReack(0x04, 1);
+						MarkNeedReack(1);
 					}
 				break;
 
@@ -1160,9 +1010,7 @@ void HMI_SC20::PollingCommand(void)
 						{
 							do_blocking_move_to_z(current_position[Z_AXIS] - 5, 0.2);
 						}
-						
-						//应答
-						SettingReack(0x05, 0);
+						MarkNeedReack(0);
 					}
 				break;
 
@@ -1170,8 +1018,7 @@ void HMI_SC20::PollingCommand(void)
 				case 6:
 					int32Value = (tmpBuff[10] << 24) | (tmpBuff[11] << 16) | (tmpBuff[12] << 8) | (tmpBuff[13]);
           do_blocking_move_to_z(current_position[Z_AXIS] + int32Value, 20.0f);
-					//应答
-					SettingReack(0x06, 0);
+					MarkNeedReack(0);
 				break;
 
 				//保存调平点
@@ -1204,6 +1051,7 @@ void HMI_SC20::PollingCommand(void)
               	for(i=0;i<GRID_MAX_POINTS_Y;i++)
               	{
                   for(j=0;j<GRID_MAX_POINTS_X;j++)
+
                   {
                     sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[i * GRID_MAX_POINTS_X + j]);
                     parser.parse(tmpBuff);
@@ -1223,7 +1071,7 @@ void HMI_SC20::PollingCommand(void)
             //清除标志
             CalibrateMethod = 0;
             //应答
-            SettingReack(0x07, 0);
+            MarkNeedReack(0);
             //解除屏幕锁定
 						HMICommandSave = 0;
 					}
@@ -1243,7 +1091,7 @@ void HMI_SC20::PollingCommand(void)
 						//切换到绝对位置模式
 						relative_mode = false;
 						//应答
-						SettingReack(0x08, 0);
+						MarkNeedReack(0);
 						//解除屏幕锁定
 						HMICommandSave = 0;
 					}
@@ -1285,22 +1133,44 @@ void HMI_SC20::PollingCommand(void)
 					do_blocking_move_to_z(70, 40);
 
 					//X  Y  移动到中心位置
-					fCenterX = (X_MAX_POS + home_offset[X_AXIS]) / 2.0f;
-					fCenterY = (Y_MAX_POS + home_offset[Y_AXIS]) / 2.0f;
-					do_blocking_move_to_xy(fCenterX, fCenterY, 4.0f);
-					SettingReack(0x0c, 0);
+					fX = (X_MAX_POS + home_offset[X_AXIS]) / 2.0f;
+					fY = (Y_MAX_POS + home_offset[Y_AXIS]) / 2.0f;
+					do_blocking_move_to_xy(fX, fY, 4.0f);
+          //应答
+					MarkNeedReack(0);
 				break;
 
 				//读取尺寸参数
 				case 20:
 					SendMachineSize();
 				break;
+
+        //设置摄像头参数
+        case 21:
+          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
+          {
+          }
+          else
+          {
+          }
+        break;
+
+        //读取摄像头参数
+        case 22:
+          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
+          {
+          }
+          else
+          {
+          }
+        break;
+          
 			}
 		}
 		//Movement Request
 		else if(eventId == 0x0b)
 		{
-			switch(tmpBuff[9])
+			switch(OpCode)
 			{
 				//激光回原点应答
 				case 0x01:
@@ -1309,31 +1179,111 @@ void HMI_SC20::PollingCommand(void)
           gcode.process_next_command();
 					//调平数据失效
 					set_bed_leveling_enabled(false);
-					MovementRequestReack(tmpBuff[9], 0);
+          //应答
+					MarkNeedReack(0);
 				break;
 			}
 		}
-        //升级
-		else if(eventId == 0xA9)
+
+    //WIFI
+    else if(eventId == 0x0D)
+    {
+      if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
+      {
+        switch(OpCode)
         {
-            switch(tmpBuff[9])
+          //Set buildin wifi parameter
+          case 0x01:
+            j = 10;
+            for(i=0;i<32;i++)
             {
-                //启动升级
-                case 0:
-                    StartUpdate();
-                break;
-
-                //升级包数据
-                case 1:
-                    UpdatePackProcess((uint8_t*)&tmpBuff[10], cmdLen - 2);
-                break;
-
-                //升级结束
-                case 2:
-                    UpdateComplete();
+              SSID[i] = tmpBuff[j++];
+              if(SSID[i] == 0)
                 break;
             }
+            SSID[31] = 0;
+            for(i=0;i<32;i++)
+            {
+              Password[i] = tmpBuff[j++];
+              if(Password[i] == 0)
+                break;
+            }
+            Password[31] = 0;
+            SERIAL_ECHOLNPAIR("SSID:", SSID, " PWD:", Password);
+            ExecuterHead.Laser.SetWifiParameter(SSID, Password);
+            //应答
+            MarkNeedReack(0);
+          break;
+
+          //Read wifi connection status
+          case 0x02:
+            BuildinWifiIP[0] = 0;
+            result = ExecuterHead.Laser.ReadWifiStatus(BuildinWifiIP);
+            SERIAL_ECHOLNPAIR("IP:", BuildinWifiIP);
+            if(result == 1)
+              SendWifiIP(0x02, 0, BuildinWifiIP);            
+            else
+              MarkNeedReack(result);
+          break;
+
+          case 0x03:
+            int32Value = (tmpBuff[10] << 24) | (tmpBuff[11] << 16) | (tmpBuff[12] << 8) | (tmpBuff[13]);
+            fX = int32Value / 1000.0f;
+            int32Value = (tmpBuff[14] << 24) | (tmpBuff[15] << 16) | (tmpBuff[16] << 8) | (tmpBuff[17]);
+            fY = int32Value / 1000.0f;
+            int32Value = (tmpBuff[18] << 24) | (tmpBuff[19] << 16) | (tmpBuff[20] << 8) | (tmpBuff[21]);
+            fZ = int32Value / 1000.0f;
+            do_blocking_move_to_xy(current_position[X_AXIS] + fX, current_position[Y_AXIS] + fY, 40);
+            do_blocking_move_to_z(current_position[Z_AXIS] + fZ, 40);
+            //应答
+  					MarkNeedReack(0);
+          break;
+
+          case 0x04:
+            int32Value = (tmpBuff[10] << 24) | (tmpBuff[11] << 16) | (tmpBuff[12] << 8) | (tmpBuff[13]);
+            fX = int32Value / 1000.0f;
+            int32Value = (tmpBuff[14] << 24) | (tmpBuff[15] << 16) | (tmpBuff[16] << 8) | (tmpBuff[17]);
+            fY = int32Value / 1000.0f;
+            int32Value = (tmpBuff[18] << 24) | (tmpBuff[19] << 16) | (tmpBuff[20] << 8) | (tmpBuff[21]);
+            fZ = int32Value / 1000.0f;
+            do_blocking_move_to_xy(fX, fY, 40);
+            do_blocking_move_to_z(fZ, 40);
+            //应答
+  					MarkNeedReack(0);
+          break;
         }
+      }
+    }
+    
+    //升级
+		else if(eventId == 0xA9)
+    {
+      switch(OpCode)
+      {
+        //启动升级
+        case 0:
+          StartUpdate();
+          MarkNeedReack(0);
+          SendUpdatePackRequest(UpdatePackRequest);
+        break;
+
+        //升级包数据
+        case 1:
+          UpdatePackProcess((uint8_t*)&tmpBuff[10], cmdLen - 2);
+        break;
+
+        //升级结束
+        case 2:
+          if(UpdateComplete() == true)
+            MarkNeedReack(0);
+          else
+            MarkNeedReack(1);
+        break;
+      }
+    }
+    
+    if(GenReack == true)
+      SendGeneralReack((eventId + 1), OpCode, Result);
 		//ReadTail = ReadHead;
 	}
 }
@@ -1346,22 +1296,7 @@ void HMI_SC20::PollingCommand(void)
 void HMI_SC20::SendProgressPercent(uint8_t Percent)
 {
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
 	//EventID
 	tmpBuff[i++] = 0x08;
 	//行号
@@ -1373,27 +1308,8 @@ void HMI_SC20::SendProgressPercent(uint8_t Percent)
 	tmpBuff[i++] = 0;
 	tmpBuff[i++] = Percent;
 
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
-
 
 /***********************************************
 发送断电续打应答
@@ -1403,22 +1319,8 @@ void HMI_SC20::SendProgressPercent(uint8_t Percent)
 void HMI_SC20::SendPowerPanicResume(uint8_t OpCode, uint8_t Result)
 {
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
+	
 	//EventID
 	tmpBuff[i++] = 0x08;
 	//Operation ID
@@ -1426,27 +1328,36 @@ void HMI_SC20::SendPowerPanicResume(uint8_t OpCode, uint8_t Result)
 	//结果
 	tmpBuff[i++] = Result;
 
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
+/***********************************************
+发送Wifi应答
+参数    OpCode:操作码
+      Result:结果，0表示成功，非0表示失败
+************************************************/
+void HMI_SC20::SendWifiIP(uint8_t OpCode, uint8_t Result, char *IP)
+{
+	uint16_t i;
+	i=0;
+	
+	//EventID
+	tmpBuff[i++] = 0x0E;
+	//Operation ID
+	tmpBuff[i++] = OpCode;
+	//结果
+	tmpBuff[i++] = Result;
+  if(Result == 0)
+  {
+    for(int j=0;j<16;j++)
+    {
+      tmpBuff[i++] = IP[j];
+      if(IP[j] == 0)
+        break;
+    }
+  }
+	PackedProtocal(tmpBuff, i);
+}
 
 /***********************************************
 发送激光焦点
@@ -1455,22 +1366,8 @@ void HMI_SC20::SendLaserFocus(uint8_t OpCode)
 {
 	uint32_t u32Value;
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
+	
 	//EventID
 	tmpBuff[i++] = 0x0a;
 	//获取尺寸
@@ -1501,25 +1398,7 @@ void HMI_SC20::SendLaserFocus(uint8_t OpCode)
 		break;
 	}
 
-	//重填长度
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
 /***********************************************
@@ -1530,22 +1409,8 @@ void HMI_SC20::SendMachineSize()
 	int32_t int32Value;
 	uint32_t u32Value;
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
+
 	//EventID
 	tmpBuff[i++] = 0x0a;
 	//获取尺寸
@@ -1590,76 +1455,7 @@ void HMI_SC20::SendMachineSize()
 	tmpBuff[i++] = (uint8_t)(int32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(int32Value);
 
-	//重填长度
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
-}
-
-/***********************************************
-启动升级应答
-参数    Result:应答结果，0表示启动成功，非0表示失败
-***********************************************/
-void HMI_SC20::SendStartUpdateReack(uint8_t Result)
-{
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//EventID
-	tmpBuff[i++] = 0xAA;
-	//OP ID
-	tmpBuff[i++] = 0;
-	//结果
-	tmpBuff[i++] = Result;
-	
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
 
@@ -1670,22 +1466,8 @@ void HMI_SC20::SendStartUpdateReack(uint8_t Result)
 void HMI_SC20::SendUpdatePackRequest(uint16_t PackRequested)
 {
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
+	
 	//EventID
 	tmpBuff[i++] = 0xAA;
 	//OP ID
@@ -1694,181 +1476,26 @@ void HMI_SC20::SendUpdatePackRequest(uint16_t PackRequested)
 	tmpBuff[i++] = (PackRequested >> 8);
     tmpBuff[i++] = (PackRequested);
 	
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
-
 /***********************************************
-升级结束应答
+发送通用应答
 参数    Resultl:结果，0表示成功，非0表示失败
 ***********************************************/
-void HMI_SC20::SendUpdateCompleteReack(uint16_t Resultl)
+void HMI_SC20::SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result)
 {
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
+  uint16_t i;
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//EventID
-	tmpBuff[i++] = 0xAA;
-	//OP ID
-	tmpBuff[i++] = 2;
-	//包序号
-    tmpBuff[i++] = (Resultl);
 	
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
-}
-
-
-/***********************************************
-回复移动
-***********************************************/
-void HMI_SC20::MovementRequestReack(uint8_t OP_ID, uint8_t Result)
-{
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
 	//EventID
-	tmpBuff[i++] = 0x0C;
+	tmpBuff[i++] = EventID;
 	//OP ID
-	tmpBuff[i++] = OP_ID;
+	tmpBuff[i++] = OpCode;
 	//结果
 	tmpBuff[i++] = Result;
 
-	
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
-}
-
-
-/***********************************************
-回复设置
-***********************************************/
-void HMI_SC20::SettingReack(uint8_t OP_ID, uint8_t Result)
-{
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//EventID
-	tmpBuff[i++] = 0x0A;
-	//OP ID
-	tmpBuff[i++] = OP_ID;
-	//结果
-	tmpBuff[i++] = Result;
-
-	
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
 /***********************************************
@@ -1877,22 +1504,8 @@ void HMI_SC20::SettingReack(uint8_t OP_ID, uint8_t Result)
 void HMI_SC20::SendBreakPointLine()
 {
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
+	
 	//EventID
 	tmpBuff[i++] = 0x08;
 	//行号
@@ -1904,78 +1517,8 @@ void HMI_SC20::SendBreakPointLine()
 	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
 	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition);
 
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
-
-/***********************************************
-清除错误应答
-***********************************************/
-void HMI_SC20::SendFaultClearReack()
-{
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//EventID
-	tmpBuff[i++] = 0x08;
-	//OpCode
-	tmpBuff[i++] = 0x0A;
-
-	//结果
-	tmpBuff[i++] = 0;
-
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
-}
-
 
 /***********************************************
 发送断点数据
@@ -1983,22 +1526,8 @@ void HMI_SC20::SendFaultClearReack()
 void HMI_SC20::SendBreakPointData()
 {
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
+	
 	//EventID
 	tmpBuff[i++] = 0x08;
 	//Opcode
@@ -2012,25 +1541,7 @@ void HMI_SC20::SendBreakPointData()
 	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
 	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition);
 
-	//重填包长
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
 /***********************************************
@@ -2039,22 +1550,8 @@ void HMI_SC20::SendBreakPointData()
 void HMI_SC20::SendMachineFaultFlag()
 {
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
+
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
 	//EventID
 	tmpBuff[i++] = 0x08;
 	//异常上报
@@ -2079,24 +1576,7 @@ void HMI_SC20::SendMachineFaultFlag()
 	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
 	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition);
 
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
 
@@ -2106,22 +1586,8 @@ void HMI_SC20::SendMachineFaultFlag()
 void HMI_SC20::SendMachineStatusChange(uint8_t Status, uint8_t Result)
 {
 	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
+
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
 	//EventID
 	tmpBuff[i++] = 0x08;
 	//目前状态
@@ -2129,24 +1595,7 @@ void HMI_SC20::SendMachineStatusChange(uint8_t Status, uint8_t Result)
 	//处理结果
 	tmpBuff[i++] = Result;
 
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
 
@@ -2159,49 +1608,36 @@ void HMI_SC20::SendMachineStatus()
 	uint32_t u32Value;
 	uint16_t i;
 	uint16_t j;
-	uint32_t checksum;
+
 	i=0;
-	//包头
-	tmpBuff[i++] = 0xAA;
-	tmpBuff[i++] = 0x55;
-	//包长
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
-	//协议版本
-	tmpBuff[i++] = 0x00;
-	//包长效验
-	tmpBuff[i++] = 0x00;
-	//校验
-	tmpBuff[i++] = 0x00;
-	tmpBuff[i++] = 0x00;
 	//EventID
 	tmpBuff[i++] = 0x08;
 	//同步状态
 	tmpBuff[i++] = 0x01;
 
 	//坐标
-	fValue = pCounter_X / planner.settings.axis_steps_per_mm[X_AXIS];
+	fValue = stepper.position(X_AXIS) * planner.steps_to_mm[X_AXIS];
 	u32Value = (uint32_t)(fValue * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(u32Value);
 
-	fValue = pCounter_Y / planner.settings.axis_steps_per_mm[Y_AXIS];
+	fValue = stepper.position(Y_AXIS) * planner.steps_to_mm[X_AXIS];
 	u32Value = (uint32_t)(fValue * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(u32Value);
 
-	fValue = pCounter_Z / planner.settings.axis_steps_per_mm[Z_AXIS];
+	fValue = stepper.position(Z_AXIS) * planner.steps_to_mm[X_AXIS];
 	u32Value = (uint32_t)(fValue * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 8);
 	tmpBuff[i++] = (uint8_t)(u32Value);
 
-	fValue = pCounter_E / planner.settings.axis_steps_per_mm[E_AXIS];
+	fValue = stepper.position(E_AXIS) * planner.steps_to_mm[X_AXIS];
 	u32Value = (uint32_t)(fValue * 1000);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 24);
 	tmpBuff[i++] = (uint8_t)(u32Value >> 16);
@@ -2211,14 +1647,14 @@ void HMI_SC20::SendMachineStatus()
 	//温度
 	int16_t T0,TB,T0S,TBS;
 	//if(current_temperature[0] >= 0)
-		T0 = (int16_t)thermalManager.temp_hotend[0].current;
+  T0 = (int16_t)thermalManager.temp_hotend[0].current;
 
-	T0S = (int16_t)thermalManager.temp_hotend[0].target;
+  T0S = (int16_t)thermalManager.temp_hotend[0].target;
 	
 	//if(current_temperature_bed >= 0)
-		TB = (int16_t)thermalManager.temp_bed.current;
+  TB = (int16_t)thermalManager.temp_bed.current;
 
-	TBS = (int16_t)thermalManager.temp_bed.target;
+  TBS = (int16_t)thermalManager.temp_bed.target;
 	
 	tmpBuff[i++] = (uint8_t)((int)TB >> 8);
 	tmpBuff[i++] = (uint8_t)((int)TB);
@@ -2264,519 +1700,36 @@ void HMI_SC20::SendMachineStatus()
 	tmpBuff[i++] = (uint8_t)(ExecuterHead.CNC.RPM >> 8);
 	tmpBuff[i++] = (uint8_t)(ExecuterHead.CNC.RPM);
 
-	//重填长度
-	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
-	tmpBuff[3] = (uint8_t)(i - 8);
-	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += tmpBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	tmpBuff[6] = checksum >> 8;
-	tmpBuff[7] = checksum;
-	
-	HmiWriteData(tmpBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
-
-#if(0)
-#if ENABLED(SDSUPPORT)
-/***********************************************
-重新挂载U  盘
-参数    Result:结果，0表示成功，非0表示失败
-************************************************/
-void HMI_SC20::SendInitUdisk(uint8_t Result)
-{
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	//包头
-	FileListBuff[i++] = 0xAA;
-	FileListBuff[i++] = 0x55;
-	//包长
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//协议版本
-	FileListBuff[i++] = 0x00;
-	//包长效验
-	FileListBuff[i++] = 0x00;
-	//校验
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//EventID
-	FileListBuff[i++] = 0x06;
-	FileListBuff[i++] = 0;
-	FileListBuff[i++] = Result;
-	
-	FileListBuff[2] = (uint8_t)((i - 8) >> 8);
-	FileListBuff[3] = (uint8_t)(i - 8);
-	FileListBuff[5] = FileListBuff[2] ^ FileListBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (FileListBuff[j] << 8) | FileListBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += FileListBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	FileListBuff[6] = checksum >> 8;
-	FileListBuff[7] = checksum;
-	
-	HmiWriteData(FileListBuff, i);
-}
-
-
-/***********************************************
-进入目录应答
-参数    Result:结果，0表示成功，非0表示失败
-************************************************/
-void HMI_SC20::SendChDirResult(uint8_t Result)
-{
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	//包头
-	FileListBuff[i++] = 0xAA;
-	FileListBuff[i++] = 0x55;
-	//包长
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//协议版本
-	FileListBuff[i++] = 0x00;
-	//包长效验
-	FileListBuff[i++] = 0x00;
-	//校验
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//EventID
-	FileListBuff[i++] = 0x06;
-	FileListBuff[i++] = 0x02;
-	FileListBuff[i++] = Result;
-	
-	FileListBuff[2] = (uint8_t)((i - 8) >> 8);
-	FileListBuff[3] = (uint8_t)(i - 8);
-	FileListBuff[5] = FileListBuff[2] ^ FileListBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (FileListBuff[j] << 8) | FileListBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += FileListBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	FileListBuff[6] = checksum >> 8;
-	FileListBuff[7] = checksum;
-	
-	HmiWriteData(FileListBuff, i);
-}
-
-
-/***********************************************
-获取UDisk  当前目录应答
-参数    Result:结果，0表示成功，非0表示失败
-************************************************/
-void HMI_SC20::SendCurrentUDiskPath(uint8_t Result)
-{
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	//包头
-	FileListBuff[i++] = 0xAA;
-	FileListBuff[i++] = 0x55;
-	//包长
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//协议版本
-	FileListBuff[i++] = 0x00;
-	//包长效验
-	FileListBuff[i++] = 0x00;
-	//校验
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//EventID
-	FileListBuff[i++] = 0x06;
-	FileListBuff[i++] = 0x01;
-	if(Result == 0)
-	{
-		j = 0;
-		while(card.workdirpath[j] != 0)
-			FileListBuff[i++] = card.workdirpath[j++];
-	}
-	FileListBuff[i++] = 0;
-	FileListBuff[2] = (uint8_t)((i - 8) >> 8);
-	FileListBuff[3] = (uint8_t)(i - 8);
-	FileListBuff[5] = FileListBuff[2] ^ FileListBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (FileListBuff[j] << 8) | FileListBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += FileListBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	FileListBuff[6] = checksum >> 8;
-	FileListBuff[7] = checksum;
-	
-	HmiWriteData(FileListBuff, i);
-}
-
-
-/***********************************************
-获取目录内容
-参数    Offset:起始索引，表示本次第1个项目在遍历中的序号
-返回值:  本次发送的个数
-************************************************/
-uint8_t HMI_SC20::SendDirItems(uint16_t Offset)
-{
-	char Res;
-	uint8_t Count;
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	Count = 0;
-	//包头
-	FileListBuff[i++] = 0xAA;
-	FileListBuff[i++] = 0x55;
-	//包长
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//协议版本
-	FileListBuff[i++] = 0x00;
-	//包长效验
-	FileListBuff[i++] = 0x00;
-	//校验
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//EventID
-	FileListBuff[i++] = 0x06;
-	FileListBuff[i++] = 0x04;
-	//结果
-	FileListBuff[i++] = 0x00;
-	//Offset
-	FileListBuff[i++] = (uint8_t)(Offset >> 8);
-	FileListBuff[i++] = (uint8_t)Offset;
-	//个数
-	FileListBuff[i++] = 0x00;
-	//一次最多传20  个，且总数据长度在缓冲大小之内
-	while((Count < 10) && ((i + 257) < sizeof(FileListBuff)))
-	{
-		//读取目录 
-		Res = card.getWorkDirItems();
-		//类型
-		if(Res == 0)
-			FileListBuff[i++] = 0;
-		else if(Res == 1)
-			FileListBuff[i++] = 1;
-		else
-			break;
-		j = 0;
-		if(card.longFilename[0] != 0)
-		{
-			while(card.longFilename[j] != 0)
-				FileListBuff[i++] = card.longFilename[j++];
-		}
-		else
-		{
-			while(card.filename[j] != 0)
-				FileListBuff[i++] = card.filename[j++];
-		}
-		FileListBuff[i++] = 0;
-		Count++;
-	}
-
-	//填结果
-	if((Res == (char)-2) || (Res == (char)-1))
-		FileListBuff[10] = 1;
-		
-	//重填个数
-	FileListBuff[13] = Count;
-	
-	FileListBuff[2] = (uint8_t)((i - 8) >> 8);
-	FileListBuff[3] = (uint8_t)(i - 8);
-	FileListBuff[5] = FileListBuff[2] ^ FileListBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (FileListBuff[j] << 8) | FileListBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += FileListBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	FileListBuff[6] = checksum >> 8;
-	FileListBuff[7] = checksum;
-	
-	HmiWriteData(FileListBuff, i);
-
-	return Count;
-}
-
-
-/***********************************************
-获取文件的特殊内容
-************************************************/
-void HMI_SC20::SendSpecialData()
-{
-	float tmpTamp, tmpTampBed;
-	int32_t ContentLen;
-	
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	uint8_t dataValid;
-	
-	tmpTamp = current_temperature[0];
-	tmpTampBed = current_temperature_bed;
-
-	card.openFile(FileListBuff, true);
-	dataValid = 1;
-	//文件打开成功
-	if(card.isFileOpen() == true)
-	{
-		FileListBuff[0] = FileListBuff[1] = FileListBuff[2] = FileListBuff[3] = 0;
-		card.ReadBytes((uint8_t*)FileListBuff, 20);
-		if((FileListBuff[0] != 0x20) || (FileListBuff[1] != 0x18) || (FileListBuff[2] != 0x10) || (FileListBuff[3] != 0x01))
-		{
-			dataValid = 0;
-		}
-		else
-		{
-			//计算内容长度
-			ContentLen = (uint32_t)((FileListBuff[19] << 24) | (FileListBuff[18] << 16) | (FileListBuff[17] << 8) | FileListBuff[16]) - 20;
-		}
-	}
-	else
-	{
-		ContentLen = 0;
-	}
-
-	i=0;
-	//包头
-	FileListBuff[i++] = 0xAA;
-	FileListBuff[i++] = 0x55;
-	//包长
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//协议版本
-	FileListBuff[i++] = 0x00;
-	//包长效验
-	FileListBuff[i++] = 0x00;
-	//校验
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//EventID
-	FileListBuff[i++] = 0x06;
-	FileListBuff[i++] = 0x05;
-	FileListBuff[i++] = dataValid;
-	do
-	{
-		i = 11;
-		//正常的特殊文件
-		if(dataValid == 1)
-		{
-			if(ContentLen > 1024)
-			{
-				j = 1024;
-			}
-			else
-			{
-				j = ContentLen;
-				FileListBuff[10] = 2;
-			}
-			card.ReadBytes((uint8_t*)&FileListBuff[i], j);
-			i = i + j;
-			ContentLen -= j;
-			
-		}
-		else
-		{
-			FileListBuff[9] = 2;
-		}
-		FileListBuff[2] = (uint8_t)((i - 8) >> 8);
-		FileListBuff[3] = (uint8_t)(i - 8);
-		FileListBuff[5] = FileListBuff[2] ^ FileListBuff[3];
-		//校验
-		checksum = 0;
-		for(j = 8;j<(i - 1);j = j + 2)
-			checksum += (FileListBuff[j] << 8) | FileListBuff[j + 1];
-
-		if((i - 8) % 2)
-			checksum += FileListBuff[i-1];
-		while(checksum > 0xffff)
-			checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-		checksum = ~checksum;
-
-		FileListBuff[6] = checksum >> 8;
-		FileListBuff[7] = checksum;
-		
-		HmiWriteData(FileListBuff, i);
-	}while(ContentLen > 0);
-	card.closefile();
-	current_temperature[0] = tmpTamp;
-	current_temperature_bed = tmpTampBed;
-}
-#endif
-#endif
-
-/***********************************************
-打印文件应答
-参数    Result:结果，0表示启动成功，非0表示失败
-************************************************/
-void HMI_SC20::SendStartPrintReack(uint8_t Result)
-{
-	uint16_t i;
-	uint16_t j;
-	uint32_t checksum;
-	i=0;
-	//包头
-	FileListBuff[i++] = 0xAA;
-	FileListBuff[i++] = 0x55;
-	//包长
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//协议版本
-	FileListBuff[i++] = 0x00;
-	//包长效验
-	FileListBuff[i++] = 0x00;
-	//校验
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//EventID
-	FileListBuff[i++] = 0x06;
-	FileListBuff[i++] = 0x06;
-	FileListBuff[i++] = Result;
-	
-	FileListBuff[2] = (uint8_t)((i - 8) >> 8);
-	FileListBuff[3] = (uint8_t)(i - 8);
-	FileListBuff[5] = FileListBuff[2] ^ FileListBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (FileListBuff[j] << 8) | FileListBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += FileListBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	FileListBuff[6] = checksum >> 8;
-	FileListBuff[7] = checksum;
-	
-	HmiWriteData(FileListBuff, i);
-}
-
 
 //发送Gcode
 void HMI_SC20::SendGcode(char *GCode, uint8_t EventID)
 {
-	uint8_t i, j;
-	uint32_t checksum;
+	uint8_t i;
 	i = 0;
 
-	//包头
-	FileListBuff[i++] = 0xAA;
-	FileListBuff[i++] = 0x55;
-	//包长
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//协议版本
-	FileListBuff[i++] = 0x00;
-	//包长效验
-	FileListBuff[i++] = 0x00;
-	//校验
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
 	//EventID
-	FileListBuff[i++] = EventID;
+	tmpBuff[i++] = EventID;
 	while(*GCode != 0)
-		FileListBuff[i++] = *GCode++;
+		tmpBuff[i++] = *GCode++;
 	
-	FileListBuff[2] = (uint8_t)((i - 8) >> 8);
-	FileListBuff[3] = (uint8_t)(i - 8);
-	FileListBuff[5] = FileListBuff[2] ^ FileListBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (FileListBuff[j] << 8) | FileListBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += FileListBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	FileListBuff[6] = checksum >> 8;
-	FileListBuff[7] = checksum;
-	
-	HmiWriteData(FileListBuff, i);
+	PackedProtocal(tmpBuff, i);
 }
 
 //发送继续打印
 void HMI_SC20::SendContinuePrint()
 {
-	uint8_t i, j;
-	uint32_t checksum;
+	uint8_t i;
 	i = 0;
 	
-	//包头
-	FileListBuff[i++] = 0xAA;
-	FileListBuff[i++] = 0x55;
-	//包长
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
-	//协议版本
-	FileListBuff[i++] = 0x00;
-	//包长效验
-	FileListBuff[i++] = 0x00;
-	//校验
-	FileListBuff[i++] = 0x00;
-	FileListBuff[i++] = 0x00;
 	//EventID
-	FileListBuff[i++] = 0x52;
-	FileListBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 24);
-	FileListBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 16);
-	FileListBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
-	FileListBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 0);
-	//包长
-	FileListBuff[2] = (uint8_t)((i - 8) >> 8);
-	FileListBuff[3] = (uint8_t)(i - 8);
-	FileListBuff[5] = FileListBuff[2] ^ FileListBuff[3];
-	//校验
-	checksum = 0;
-	for(j = 8;j<(i - 1);j = j + 2)
-		checksum += (FileListBuff[j] << 8) | FileListBuff[j + 1];
-
-	if((i - 8) % 2)
-		checksum += FileListBuff[i-1];
-	while(checksum > 0xffff)
-		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-	checksum = ~checksum;
-
-	FileListBuff[6] = checksum >> 8;
-	FileListBuff[7] = checksum;
-	HmiWriteData(FileListBuff, i);
+	tmpBuff[i++] = 0x52;
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 24);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 16);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 8);
+	tmpBuff[i++] = (uint8_t)(PowerPanicData.Data.FilePosition >> 0);
+	PackedProtocal(tmpBuff, i);
 }
 
 

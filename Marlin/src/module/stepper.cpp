@@ -2020,24 +2020,6 @@ void Stepper::init() {
       Z3_DIR_INIT;
     #endif
   #endif
-  #if HAS_E0_DIR
-    E0_DIR_INIT;
-  #endif
-  #if HAS_E1_DIR
-    E1_DIR_INIT;
-  #endif
-  #if HAS_E2_DIR
-    E2_DIR_INIT;
-  #endif
-  #if HAS_E3_DIR
-    E3_DIR_INIT;
-  #endif
-  #if HAS_E4_DIR
-    E4_DIR_INIT;
-  #endif
-  #if HAS_E5_DIR
-    E5_DIR_INIT;
-  #endif
 
   // Init Enable Pins - steppers default to disabled.
   #if HAS_X_ENABLE
@@ -2068,30 +2050,7 @@ void Stepper::init() {
       if (!Z_ENABLE_ON) Z3_ENABLE_WRITE(HIGH);
     #endif
   #endif
-  #if HAS_E0_ENABLE
-    E0_ENABLE_INIT;
-    if (!E_ENABLE_ON) E0_ENABLE_WRITE(HIGH);
-  #endif
-  #if HAS_E1_ENABLE
-    E1_ENABLE_INIT;
-    if (!E_ENABLE_ON) E1_ENABLE_WRITE(HIGH);
-  #endif
-  #if HAS_E2_ENABLE
-    E2_ENABLE_INIT;
-    if (!E_ENABLE_ON) E2_ENABLE_WRITE(HIGH);
-  #endif
-  #if HAS_E3_ENABLE
-    E3_ENABLE_INIT;
-    if (!E_ENABLE_ON) E3_ENABLE_WRITE(HIGH);
-  #endif
-  #if HAS_E4_ENABLE
-    E4_ENABLE_INIT;
-    if (!E_ENABLE_ON) E4_ENABLE_WRITE(HIGH);
-  #endif
-  #if HAS_E5_ENABLE
-    E5_ENABLE_INIT;
-    if (!E_ENABLE_ON) E5_ENABLE_WRITE(HIGH);
-  #endif
+  
 
   #define _STEP_INIT(AXIS) AXIS ##_STEP_INIT
   #define _WRITE_STEP(AXIS, HIGHLOW) AXIS ##_STEP_WRITE(HIGHLOW)
@@ -2131,25 +2090,6 @@ void Stepper::init() {
       Z3_STEP_WRITE(INVERT_Z_STEP_PIN);
     #endif
     AXIS_INIT(Z, Z);
-  #endif
-
-  #if E_STEPPERS > 0 && HAS_E0_STEP
-    E_AXIS_INIT(0);
-  #endif
-  #if E_STEPPERS > 1 && HAS_E1_STEP
-    E_AXIS_INIT(1);
-  #endif
-  #if E_STEPPERS > 2 && HAS_E2_STEP
-    E_AXIS_INIT(2);
-  #endif
-  #if E_STEPPERS > 3 && HAS_E3_STEP
-    E_AXIS_INIT(3);
-  #endif
-  #if E_STEPPERS > 4 && HAS_E4_STEP
-    E_AXIS_INIT(4);
-  #endif
-  #if E_STEPPERS > 5 && HAS_E5_STEP
-    E_AXIS_INIT(5);
   #endif
 
   #if DISABLED(I2S_STEPPER_STREAM)

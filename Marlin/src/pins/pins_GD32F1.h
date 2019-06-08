@@ -40,37 +40,37 @@
 #define U_MIN_PIN         -1
 #define V_MIN_PIN         -1
 #define W_MIN_PIN         -1
-#define X_STOP_PIN        PC11
-#define Y_STOP_PIN        PC10
-#define Z_STOP_PIN        PC0
+#define X_STOP_PIN        PE12
+#define Y_STOP_PIN        PE12
+#define Z_STOP_PIN        PE12
 #define Z_MIN_PROBE_PIN   -1 
 
 //
 // Steppers
 //
-#define X_STEP_PIN         PB5
-#define X_DIR_PIN          PB6
-#define X_ENABLE_PIN       PB7
+#define X_STEP_PIN         PC6
+#define X_DIR_PIN          PD15
+#define X_ENABLE_PIN       PA3
 
-#define Y_STEP_PIN         PB8
-#define Y_DIR_PIN          PB9
-#define Y_ENABLE_PIN       PB4
+#define Y_STEP_PIN         PB4
+#define Y_DIR_PIN          PB3
+#define Y_ENABLE_PIN       PB5
 
-#define Z_STEP_PIN         PC2
-#define Z_DIR_PIN          PC1
-#define Z_ENABLE_PIN       PC3
+#define Z_STEP_PIN         PB7
+#define Z_DIR_PIN          PB6
+#define Z_ENABLE_PIN       PA2
 
-#define E0_STEP_PIN        PA4
-#define E0_DIR_PIN         PA1
-#define E0_ENABLE_PIN      PA0
+#define E0_STEP_PIN        PE14
+#define E0_DIR_PIN         PB10
+#define E0_ENABLE_PIN      PB11
 
 /**
  * TODO: Currently using same Enable pin to all steppers.
  */
 
-#define E1_STEP_PIN        PC8
-#define E1_DIR_PIN         PC9
-#define E1_ENABLE_PIN      PA8
+#define E1_STEP_PIN        PE13
+#define E1_DIR_PIN         PC10
+#define E1_ENABLE_PIN      PD11
 
 #define E2_STEP_PIN        -1
 #define E2_DIR_PIN         -1
@@ -101,8 +101,21 @@
 #define TEMP_0_PIN         PC5   // ANALOG NUMBERING
 #define TEMP_1_PIN         -1   // ANALOG NUMBERING
 
+//
 // Filament Switch
-#define FIL_RUNOUT_PIN  PC11
+//
+#define FIL_RUNOUT_PIN  PD0
+
+//
+// Power1 supply, for motor and extruder
+//
+#define POWER1_SUPPLY_PIN PB1
+
+//
+// Power2 supply, for eed and extern
+//
+#define POWER2_SUPPLY_PIN PB2
+
 
 //
 // LCD Pins

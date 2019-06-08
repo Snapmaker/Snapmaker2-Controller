@@ -36,7 +36,7 @@ void CNCExecuter::SetCNCPower(float Percent)
 
   Data[0] = 0;
   Data[1] = Percent;
-  CanBusControlor.SendData(1, CAN_IDS_DCMOTOR, Data, 2);
+  CanBusControlor.SendData(2, CAN_IDS_DCMOTOR, Data, 2);
 }
 
 #else

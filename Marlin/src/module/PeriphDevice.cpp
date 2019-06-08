@@ -14,6 +14,7 @@ PeriphDevice Periph;
  */
 void PeriphDevice::Init()
 {
+  IOLevel = 0xffffffff;
 }
 
 #if ENABLED(CAN_FAN)
@@ -31,7 +32,7 @@ void PeriphDevice::SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value
   Data[1] = DelayTime;
   Data[2] = s_value;
   FanSpeed[index] = s_value;
-  CanBusControlor.SendData(2, CAN_IDS_FAN, Data, 3);
+  CanBusControlor.SendData(1, CAN_IDS_FAN, Data, 3);
 }
 #endif
 
@@ -124,7 +125,7 @@ void PeriphDevice::EncloseLedOn()
   uint8_t Data[6];
   Data[0] = 0;
   Data[1] = 1;
-  CanBusControlor.SendData(2, CAN_IDS_LIGHT, Data, 6);
+  CanBusControlor.SendData(1, CAN_IDS_LIGHT, Data, 6);
 }
 
 /**
@@ -136,7 +137,7 @@ void PeriphDevice::EncloseLedOff()
   Data[0] = 0;
   Data[1] = 0;
   Data[2] = 0;
-  CanBusControlor.SendData(2, CAN_IDS_LIGHT, Data, 6);
+  CanBusControlor.SendData(1, CAN_IDS_LIGHT, Data, 6);
 }
 #endif
 

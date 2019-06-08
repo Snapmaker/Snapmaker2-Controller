@@ -17,8 +17,7 @@ CanBus CanBusControlor;
  */
 void CanBus::Init()
 {
-  CanInit(1);
-  CanInit(2);
+  CanInit();
 }
 
 /**
@@ -57,6 +56,19 @@ bool CanBus::WaitReply(uint8_t CanNum, uint32_t ID, uint8_t *pData, uint32_t Len
 bool CanBus::SendData(uint8_t CanNum, uint32_t ID, uint8_t *pData, uint32_t Len)
 {
   return CanSendShortPacked(ID, CanNum, FRAME_DATA, Len, pData);
+}
+
+/**
+ * SendData:Send data frame to the specific ID
+ * para CanNum:Can port number, 1 or 2
+ * para ID:The specific ID
+ * para pData:Datas to be send
+ * para Len:How many datas to be send, max is 8
+ * return : true if success, or else false
+ */
+bool CanBus::SendData(uint8_t CanNum, uint32_t ID, uint8_t *pData, uint32_t Len, uint32_t *Err)
+{
+  return CanSendShortPacked2(ID, CanNum, FRAME_DATA, Len, pData, Err);
 }
 
 /**
@@ -138,15 +150,33 @@ void __irq_can2_rx0(void)
   strCanData tmpData;
   uint8_t Len;
   uint8_t FMI;
-  FMI = Canbus2ParseData(&tmpData.ID, &tmpData.FrameType, tmpData.Data, &Len);
-
+  FMI = Canbus2ParseData(&tmpData.ID, &tmpData.FrameType, tmpData.Data, &Len);  
   if(FMI == 0)
   {
     switch(tmpData.ID)
     {
+      case CAN_IDS_BC:
+        if(tmpData.Data[0] == 0x01)
+        {
+          ExecuterHead.MachineType = tmpData.Data[1];
+        }
+      break;
+
+      case CAN_IDS_TEMP_CONTROL:
+        //if(tmpData.Data[0] < 5)
+        {
+          ExecuterHead.temp_hotend[tmpData.Data[1]] = (uint16_t)((tmpData.Data[2] << 8) | tmpData.Data[3]);
+          ExecuterHead.CanTempMeasReady = true;
+        }
+      break;
+      
       case CAN_IDS_SWTICH:
-        Periph.IOLevel &= ~(1 << tmpData.Data[0]);
-        Periph.IOLevel |= 1 << tmpData.Data[0];
+        Periph.IOLevel |= (1 << tmpData.Data[1]);
+        if(tmpData.Data[2] == 0)
+          Periph.IOLevel &= ~(1 << tmpData.Data[1]);
+      break;
+
+      case CAN_IDS_LASER:
       break;
     }
   }

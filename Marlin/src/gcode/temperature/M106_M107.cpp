@@ -22,7 +22,7 @@
 
 #include "../../inc/MarlinConfig.h"
 
-#if FAN_COUNT > 0
+//#if FAN_COUNT > 0
 
 #include "../gcode.h"
 #include "../../module/motion.h"
@@ -55,12 +55,12 @@
 void GcodeSuite::M106() {
   #if ENABLED(CAN_FAN)
     uint8_t p = parser.byteval('P', 0);
-    uint16_t d = parser.seen('A') ? thermalManager.fan_speed[active_extruder] : 255;
-    uint16_t s = parser.ushortval('S', d);
+    //uint16_t d = parser.seen('A') ? thermalManager.fan_speed[active_extruder] : 255;
+    uint16_t s = parser.ushortval('S', 255);
     NOMORE(s, 255U);
     NOMORE(p, 4);
     if(p < 4)
-      ExecuterHead.SetFan(p, uint8_t percent)
+      ExecuterHead.SetFan(p, s);
     else
       Periph.SetFanSpeed(p, 0, s);
   #else
@@ -94,4 +94,4 @@ void GcodeSuite::M107() {
   #endif
 }
 
-#endif // FAN_COUNT > 0
+//#endif // FAN_COUNT > 0

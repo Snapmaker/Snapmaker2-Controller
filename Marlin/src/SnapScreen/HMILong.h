@@ -75,6 +75,5 @@ class HMILong
   bool SdInsert = false;
 };
 
-
 #endif
 #endif // ENABLED(HMI_LONG)

@@ -40,23 +40,24 @@ bool ExecuterManager::Detecte()
    */
   uint8_t ExecuterManager::GetMachineTypeFromCAN(void)
   {
-    uint8_t type;
+    uint32_t Err;
     uint8_t retry;
     millis_t tmpTick;
-    type = MACHINE_TYPE_UNDEFINE;
-    uint8_t Buff[8] = "SEEK";
+    MachineType = MACHINE_TYPE_UNDEFINE;
+    uint8_t Buff[4];
     retry = 5;
     tmpTick = millis();
-    while(type == MACHINE_TYPE_UNDEFINE) {
+    Buff[0] = 0;
+    while(MachineType == MACHINE_TYPE_UNDEFINE) {
       if((millis() - tmpTick) > 500L) {
         tmpTick = millis();
         if(retry-- == 0)
           return MACHINE_TYPE_UNDEFINE;
-        if(CanBusControlor.SendData(1, CAN_IDS_BC, Buff, 8) == false)
+        if(CanBusControlor.SendData(2, CAN_IDS_BC, Buff, 1, &Err) == false)
           return MACHINE_TYPE_UNDEFINE;
       }
     }
-    return type;
+    return MachineType;
   }
 
   /**
@@ -66,6 +67,13 @@ bool ExecuterManager::Detecte()
    */
   void ExecuterManager::SetTemperature(uint8_t index, uint16_t temperature)
   {
+    uint8_t Data[3];
+
+    Data[0] = index & 0x3F;
+    Data[1] = (uint8_t)(temperature >> 8);
+    Data[2] = (uint8_t)temperature;
+    CanBusControlor.SendData(2, CAN_IDS_TEMP_CONTROL, Data, 3);
+    SERIAL_ECHOLN("Set Tamp");
   }
 
   /**
@@ -75,13 +83,14 @@ bool ExecuterManager::Detecte()
    */
   void ExecuterManager::SetFan(uint8_t index, uint8_t s_value)
   {
-    uint8_t Data[3];
+    uint8_t Data[8];
 
-    Data[0] = index;
-    Data[1] = 0;
-    Data[2] = s_value;
+    Data[0] = 0;
+    Data[1] = index;
+    Data[2] = 0;
+    Data[3] = s_value;
     FanSpeed[index] = s_value;
-    CanBusControlor.SendData(1, CAN_IDS_FAN, Data, 3);
+    CanBusControlor.SendData(2, CAN_IDS_FAN, Data, 4);
   }
 #else
 

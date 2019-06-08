@@ -32,7 +32,7 @@ public:
   void SendUpdatePackRequest(uint16_t PackRequested);
   void SendUpdateCompleteReack(uint16_t Resultl);
   void SendStartUpdateReack(uint8_t Result);
-  void UpdateComplete(void);
+  bool UpdateComplete(void);
   void UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen);
   void StartUpdate(void);
 
@@ -50,7 +50,9 @@ private:
   void ManualCalibrateStart();
   void ResizeMachine(char *pBuff);
   void EnterLaserFocusSetting();
-  void PackedProtocal(uint8_t *pData, uint16_t len);
+  void SendWifiIP(uint8_t OpCode, uint8_t Result, char *IP);
+  void PackedProtocal(char *pData, uint16_t len);
+  void SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result);
 
 public:
   uint8_t HmiRequestStatus;
@@ -71,6 +73,9 @@ private:
   uint8_t PointIndex;
   float MeshPointZ[9];
   uint16_t ZHomeOffsetIndex;
+  char BuildinWifiIP[16];
+  char SSID[32];
+  char Password[32];
 };
 
 

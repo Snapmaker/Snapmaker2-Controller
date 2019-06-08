@@ -408,10 +408,10 @@ void GcodeSuite::process_parsed_command(
         case 155: M155(); break;                                  // M155: Set temperature auto-report interval
       #endif
 
-      #if FAN_COUNT > 0
+      //#if FAN_COUNT > 0
         case 106: M106(); break;                                  // M106: Fan On
         case 107: M107(); break;                                  // M107: Fan Off
-      #endif
+      //#endif
 
       #if ENABLED(PARK_HEAD_ON_PAUSE)
         case 125: M125(); break;                                  // M125: Store current position and move to filament change position

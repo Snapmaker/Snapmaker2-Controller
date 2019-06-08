@@ -15,6 +15,9 @@ static const uint16_t LaserPowerTable[]=
   247,251,255
 };
 
+#define LASERSerial MSerial3
+
+#define TimSetPwm(n)  Tim1SetCCR4(n)
 
 /**
  * Init
@@ -22,6 +25,7 @@ static const uint16_t LaserPowerTable[]=
 void LaserExecuter::Init()
 {
   Tim1PwmInit();
+  LASERSerial.begin(115200);
 }
 
 /**
@@ -37,7 +41,7 @@ void LaserExecuter::SetLaserPower(float Percent)
   integer = Percent;
   decimal = Percent - integer;
   pwmvalue = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
-  Tim1SetCCR2(pwmvalue);
+  TimSetPwm(pwmvalue);
 }
 
 /**
@@ -46,7 +50,7 @@ void LaserExecuter::SetLaserPower(float Percent)
  */
 void LaserExecuter::SetLaserPower(uint16_t PwmValue)
 {
-  Tim1SetCCR2(PwmValue);
+  TimSetPwm(PwmValue);
 }
 
 /**
@@ -54,7 +58,7 @@ void LaserExecuter::SetLaserPower(uint16_t PwmValue)
  */
 void LaserExecuter::LaserOff()
 {
-  Tim1SetCCR2(0);
+  TimSetPwm(0);
 }
 
 /**
@@ -92,7 +96,7 @@ void LaserExecuter::SaveFocusHeight(uint8_t index, float height)
   Data[3] = (uint8_t)(intheight >> 16);
   Data[4] = (uint8_t)(intheight >> 8);
   Data[5] = (uint8_t)(intheight);
-  if(CanBusControlor.SendData(1, CAN_IDS_LASER, Data, 6) == true)
+  if(CanBusControlor.SendData(2, CAN_IDS_LASER, Data, 6) == true)
   {
     FocusHeight = height;
     LastSetIndex = index;
@@ -114,7 +118,7 @@ void LaserExecuter::SaveFocusHeight()
   Data[3] = (uint8_t)(intheight >> 16);
   Data[4] = (uint8_t)(intheight >> 8);
   Data[5] = (uint8_t)(intheight);
-  CanBusControlor.SendData(1, CAN_IDS_LASER, Data, 6);
+  CanBusControlor.SendData(2, CAN_IDS_LASER, Data, 6);
 }
 
 /**
@@ -127,9 +131,9 @@ bool LaserExecuter::LoadFocusHeight()
 
   Data[0] = LastSetIndex;
   Data[1] = 2;
-  if(CanBusControlor.SendData(1, CAN_IDS_LASER, Data, 2) == true)
+  if(CanBusControlor.SendData(2, CAN_IDS_LASER, Data, 2) == true)
   {
-    return CanBusControlor.WaitReply(1, CAN_IDS_LASER, Data, 2, 300);
+    return CanBusControlor.WaitReply(2, CAN_IDS_LASER, Data, 2, 300);
   }
   return false;
 }
@@ -152,6 +156,181 @@ void LaserExecuter::SavePlatformHeight(float height)
 void LaserExecuter::LoadPlatformHeight()
 {
   settings.load();
+}
+
+/**
+ *PackedProtocal:Pack up the data in protocal
+ */
+void LaserExecuter::PackedProtocal(uint8_t *pData, uint16_t len)
+{
+  uint16_t i;
+	uint16_t j;
+	uint32_t checksum;
+	i=0;
+	//包头
+	tmpBuff[i++] = 0xAA;
+	tmpBuff[i++] = 0x55;
+	//包长
+	tmpBuff[i++] = 0x00;
+	tmpBuff[i++] = 0x00;
+	//协议版本
+	tmpBuff[i++] = 0x00;
+	//包长效验
+	tmpBuff[i++] = 0x00;
+	//校验
+	tmpBuff[i++] = 0x00;
+	tmpBuff[i++] = 0x00;
+
+  while(len--)
+    tmpBuff[i++] = *pData++;
+
+  //重填包长
+	tmpBuff[2] = (uint8_t)((i - 8) >> 8);
+	tmpBuff[3] = (uint8_t)(i - 8);
+	tmpBuff[5] = tmpBuff[2] ^ tmpBuff[3];
+	//校验
+	checksum = 0;
+	for(j = 8;j<(i - 1);j = j + 2)
+		checksum += (tmpBuff[j] << 8) | tmpBuff[j + 1];
+
+	if((i - 8) % 2)
+		checksum += tmpBuff[i-1];
+	while(checksum > 0xffff)
+		checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
+	checksum = ~checksum;
+
+	tmpBuff[6] = checksum >> 8;
+	tmpBuff[7] = checksum;
+	
+	LASERSerial.write(tmpBuff, i);
+}
+
+
+/**
+ * ReadWifiStatus:Read wifi connection status from buildin wifi module
+ * para IP:The pointer to the IP buffer
+ * return:0 for connected, 1 for disconnect, -1 for wifi unexisting
+ */
+char LaserExecuter::ReadWifiStatus(char *IP)
+{
+  int c;
+  millis_t tmptick;
+  uint8_t i;
+  uint8_t j;
+  uint8_t buff[70];
+  
+  buff[0] = 0x03;
+  PackedProtocal(buff, 1);
+  tmptick = millis() + 500;
+  i = 0;
+
+  buff[2] = 0xff;
+  buff[3] = 0xff;
+  buff[5] = 0xff;
+  IP[0] = 0;
+  while(1)
+  {
+    if(millis() > tmptick)
+      return (char)-1;
+    do
+    {
+      c = LASERSerial.read();
+      if(c != -1)
+      {
+        if(i == 0)
+        {
+          if(c == 0xAA)
+            buff[i++] = c;
+        }
+        else if(i == 1)
+        {
+          if(c == 0x55)
+            buff[i++] = c;
+          else
+            i = 0;
+        }
+        //Check data length
+        else if(i == 6)
+        {
+          if((buff[2] ^ buff[3]) == buff[5])
+            buff[i++] = c;
+          else
+            i = 0;
+        }
+        //Continue receive date
+        else if(i > 6)
+        {
+          buff[i++] = c;
+        }
+        else
+        {
+          buff[i++] = c;
+        }
+      }
+    }while(c != -1);
+
+    //Data receive complete
+    if((i >= (buff[3] + 8)) && (i > 8))
+    {
+      uint32_t calCheck = 0;
+      uint32_t GetChecksum;
+      calCheck = 0;
+    	for(j = 8;j<(i - 1);j = j + 2)
+    		calCheck += (((uint16_t)buff[j] << 8) | buff[j + 1]);
+    	if((i - 8) % 2)
+    		calCheck += (uint8_t)buff[i-1];
+      SERIAL_ECHOLN(calCheck);
+    	while(calCheck > 0xffff)
+    		calCheck = ((calCheck >> 16) & 0xffff) + (calCheck & 0xffff);
+    	calCheck = (~calCheck) & 0xffff;
+      SERIAL_ECHOLN(calCheck);
+      GetChecksum = (uint32_t)((buff[6] << 8) | buff[7]);
+      SERIAL_ECHOLN(GetChecksum);
+      if(calCheck == GetChecksum)
+      {
+        for(i=0;i<16;i++)
+        {
+          if(buff[i+11] == 0)
+            break;
+          IP[i] = buff[i+11];
+        }
+        IP[i] = 0;
+        return (char)buff[i+10];
+      }
+      return (char)-1;
+    }
+  }
+}
+
+/**
+ * SetWifiParameter:Set wifi parameter
+ * para SSID:
+ * para Password:
+ */
+void LaserExecuter::SetWifiParameter(char *SSID, char *Password)
+{
+  uint8_t i;
+  uint8_t j;
+  uint8_t SendBuff[70];
+  
+  i = 0;
+  SendBuff[i++] = 0x01;
+  for(j=0;j<32;j++)
+  {
+    if(SSID[j] == 0)
+      break;
+    SendBuff[i++] = SSID[j];
+  }
+  SendBuff[i++] = 0;
+  
+  for(j=0;j<32;j++)
+  {
+    if(Password[j] == 0)
+      break;
+    SendBuff[i++] = Password[j];
+  }
+  SendBuff[i++] = 0;
+  PackedProtocal(SendBuff, i);
 }
 
 

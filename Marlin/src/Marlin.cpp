@@ -44,10 +44,14 @@
 #include "SnapScreen/Screen.h"
 #include "module/LaserExecuter.h"
 #include "module/statuscontrol.h"
+#include "module/periphdevice.h"
+
 
 #include "HAL/shared/Delay.h"
 
 #include "module/stepper_indirection.h"
+
+#include "HAL/HAL_GD32F1/HAL_breathlight_STM32F1.h"
 
 #ifdef ARDUINO
   #include <pins_arduino.h>
@@ -1156,8 +1160,16 @@ void setup() {
     mmu2.init();
   #endif
 
-  
+  #if PIN_EXISTS(POWER1_SUPPLY)
+    OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
+  #endif
+
+  #if PIN_EXISTS(POWER2_SUPPLY)
+    OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
+  #endif
   //USBH_Init(&USB_OTG_Core, USB_OTG_FS_CORE_ID,&USB_Host,&USBH_MSC_cb, &USR_cb);
+
+  BreathLightInit();
 }
 
 /**
@@ -1169,6 +1181,11 @@ void setup() {
  *  - Call inactivity manager
  */
 void loop() {
+  millis_t tmptick;
+  CanBusControlor.Init();
+  tmptick = millis();
+  endstops.CanPrepareAxis();
+
   while(true)
   {
     if(ExecuterHead.Detecte() == true)
@@ -1197,6 +1214,31 @@ void loop() {
       break;
     }
   }
+  //ExecuterHead.MachineType = MACHINE_TYPE_LASER;
+  //ExecuterHead.Laser.Init();
+  
+  while(0)
+  {
+    if((millis() - tmptick) > 1000)
+    {
+      tmptick = millis();
+      endstops.poll();
+     
+      endstops.M119();
+      
+      SERIAL_ECHOLN(Periph.IOLevel);   
+      //endstops.CanPrepareAxis();
+    }
+    if(CanBusControlor.TestBits != 0)
+    {
+      //SERIAL_ECHOLN(CanBusControlor.TestBits);
+      //CanBusControlor.TestBits = 0;
+    }
+    //endstops.CanPrepareAxis();
+    break;
+  }
+
+  
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
   #endif
@@ -1228,6 +1270,15 @@ void loop() {
         #endif
       }
     #endif // SDSUPPORT
+
+    if((millis() - tmptick) > 1000)
+    {
+      tmptick = millis();
+      //HMISERIAL.write("Heelo");
+      //SERIAL_ECHOLN(Periph.IOLevel);   
+      //endstops.CanPrepareAxis();
+    }
+    
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();
     endstops.event_handler();

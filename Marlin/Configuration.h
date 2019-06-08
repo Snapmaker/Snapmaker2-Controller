@@ -882,7 +882,7 @@
 // The number of probes to perform at each point.
 //   Set to 2 for a fast/slow probe, using the second probe result.
 //   Set to 3 or more for slow probes, averaging the results.
-//#define MULTIPLE_PROBING 2
+#define MULTIPLE_PROBING 2
 
 /**
  * Z probes require clearance when deploying, stowing, and moving between
@@ -956,7 +956,7 @@
  * Software machine size
  */
 #if NONE(SCARA, DELTA) && NONE(DUAL_X_CARRIAGE, Y_DUAL_STEPPER_DRIVERS, Z_DUAL_STEPPER_DRIVERS)
-  //#define SW_MACHINE_SIZE
+  #define SW_MACHINE_SIZE
 #endif
 
 
@@ -2153,8 +2153,8 @@
 #if ENABLED(HMISUPPORT)
 
   //Select HMI screen
-  #define HMI_LONG
-  //#define HMI_SC20W
+  //#define HMI_LONG
+  #define HMI_SC20W
 
   //Select Serial Port，Port:1-5 for Snapmaker
   #define HMI_SERIAL_PORT 2
@@ -2183,7 +2183,10 @@
 /**
  * Executer Can 
  */
-//#define EXECUTER_CANBUS_SUPPORT
+#define EXECUTER_CANBUS_SUPPORT
+#if ENABLED(EXECUTER_CANBUS_SUPPORT)
+  #define EXECUTER_CAN_NUM  2
+#endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
 
 /**
  * Executer Can 
@@ -2191,12 +2194,13 @@
 #define PERIPH_CANBUS_SUPPORT
 
 #if ENABLED(PERIPH_CANBUS_SUPPORT)
+  
   //#define CAN_ENDSTOP_X_MIN
   //#define CAN_ENDSTOP_Y_MIN
   //#define CAN_ENDSTOP_Z_MIN
-  //#define CAN_ENDSTOP_X_MAX
-  //#define CAN_ENDSTOP_Y_MAX
-  //#define CAN_ENDSTOP_Z_MAX
+  #define CAN_ENDSTOP_X_MAX
+  #define CAN_ENDSTOP_Y_MAX
+  #define CAN_ENDSTOP_Z_MAX
   #define CAN_ZMIN_PROBE
   //#define CAN_ENDSTOP_X2_MIN
   //#define CAN_ENDSTOP_Y2_MIN
@@ -2210,7 +2214,7 @@
   //#define CAN_FILAMENT4_RUNOUT
   //#define CAN_FILAMENT5_RUNOUT
   //#define CAN_FILAMENT6_RUNOUT
-  //#define CAN_FAN
+  #define CAN_FAN
   //#define CAN_ENCLOSE_FAN
   //#define CAN_ENCLOSE_LED
   //#define CAN_PROBE

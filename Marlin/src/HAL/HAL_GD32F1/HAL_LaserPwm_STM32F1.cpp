@@ -8,18 +8,20 @@
 #include "std_library/inc/stm32f10x_rcc.h"
 
 void Tim1PwmInit() {
-  //PWM  方式
 	TIM_DeInit(TIM1);
 
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
 	TIM_OCInitTypeDef TIM_OCInitStruct;
 	TIM_BDTRInitTypeDef TIM_BDTRInitStruct;
 
-  RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1 | RCC_APB2Periph_GPIOB | RCC_APB2Periph_AFIO, ENABLE);
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1 | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOE | RCC_APB2Periph_AFIO, ENABLE);
+  
 
 	//100HZ  ，255  Level
-	GPIO_PinRemapConfig(GPIO_PartialRemap_TIM1, ENABLE);
+	
 
+  #if(0)
+  GPIO_PinRemapConfig(GPIO_PartialRemap_TIM1, ENABLE);
   GPIO_InitTypeDef GPIO_InitStruct;
   GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF_PP;
   GPIO_InitStruct.GPIO_Pin = GPIO_Pin_0;
@@ -32,6 +34,15 @@ void Tim1PwmInit() {
   GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
 	GPIO_Init(GPIOB, &GPIO_InitStruct);
   GPIOB->BRR = GPIO_Pin_10;
+  #else
+
+  GPIO_PinRemapConfig(GPIO_FullRemap_TIM1, ENABLE);
+  GPIO_InitTypeDef GPIO_InitStruct;
+  GPIO_InitStruct.GPIO_Mode = GPIO_Mode_AF_PP;
+  GPIO_InitStruct.GPIO_Pin = GPIO_Pin_14;
+  GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(GPIOE, &GPIO_InitStruct);
+  #endif
 
 	TIM_TimeBaseInitStruct.TIM_ClockDivision = 0;
 	TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;
@@ -50,17 +61,33 @@ void Tim1PwmInit() {
 	TIM_BDTRInitStruct.TIM_Break = TIM_Break_Disable;
 	TIM_BDTRInitStruct.TIM_AutomaticOutput = TIM_AutomaticOutput_Enable;
 	TIM_BDTRConfig(TIM1, &TIM_BDTRInitStruct);
-	
+
+  #if(0)
 	TIM_OCStructInit(&TIM_OCInitStruct);
 	TIM_OCInitStruct.TIM_OCNIdleState = TIM_OCNIdleState_Reset;
 	TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
 	TIM_OCInitStruct.TIM_OCNPolarity = TIM_OCNPolarity_High;
 	TIM_OCInitStruct.TIM_OutputNState = TIM_OutputNState_Enable;
-	TIM_OCInitStruct.TIM_Pulse = 100;
+	TIM_OCInitStruct.TIM_Pulse = 0;
+  
 	TIM_OC2Init(TIM1, &TIM_OCInitStruct);
+  #else
+  TIM_OCStructInit(&TIM_OCInitStruct);
+	TIM_OCInitStruct.TIM_OCIdleState = TIM_OCIdleState_Reset;
+	TIM_OCInitStruct.TIM_OCMode = TIM_OCMode_PWM1;
+	TIM_OCInitStruct.TIM_OCPolarity = TIM_OCPolarity_High;
+	TIM_OCInitStruct.TIM_OutputState = TIM_OutputState_Enable;
+	TIM_OCInitStruct.TIM_Pulse = 0;
+  TIM_OC4Init(TIM1, &TIM_OCInitStruct);
+  #endif
 	TIM_CtrlPWMOutputs(TIM1, ENABLE);
 
 	TIM_Cmd(TIM1, ENABLE);
+
+  //Serial initialize
+  //USART_InitTypeDef USART_InitStruct;
+  //USART_InitStruct.
+  //USART_Init(USART3, &USART_InitStruct);
 }
 
 void Tim1SetCCR1(uint16_t Value)

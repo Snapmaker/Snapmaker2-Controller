@@ -80,7 +80,10 @@ volatile uint32_t Endstops::statefromcan = 0;
  */
 
 void Endstops::init() {
-
+  #if ENABLED(PERIPH_CANBUS_SUPPORT)
+    Periph.Init();
+  #endif
+  
   #if DISABLED(CAN_ENDSTOP_X_MIN)
     #if HAS_X_MIN
       #if ENABLED(ENDSTOPPULLUP_XMIN)
@@ -287,14 +290,18 @@ void Endstops::init() {
     #endif
   #endif
 
-  #if USES_Z_MIN_PROBE_ENDSTOP
-    #if ENABLED(ENDSTOPPULLUP_ZMIN_PROBE)
-      SET_INPUT_PULLUP(Z_MIN_PROBE_PIN);
-    #elif ENABLED(ENDSTOPPULLDOWN_ZMIN_PROBE)
-      SET_INPUT_PULLDOWN(Z_MIN_PROBE_PIN);
-    #else
-      SET_INPUT(Z_MIN_PROBE_PIN);
+  #if DISABLED(CAN_ZMIN_PROBE)
+    #if USES_Z_MIN_PROBE_ENDSTOP
+      #if ENABLED(ENDSTOPPULLUP_ZMIN_PROBE)
+        SET_INPUT_PULLUP(Z_MIN_PROBE_PIN);
+      #elif ENABLED(ENDSTOPPULLDOWN_ZMIN_PROBE)
+        SET_INPUT_PULLDOWN(Z_MIN_PROBE_PIN);
+      #else
+        SET_INPUT(Z_MIN_PROBE_PIN);
+      #endif
     #endif
+  #else
+    statefromcan |= (1<<Z_MIN_PROBE);
   #endif
 
   #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
@@ -309,7 +316,6 @@ void Endstops::init() {
       false
     #endif
   );
-
 } // Endstops::init
 
 // Called at ~1KHz from Temperature ISR: Poll endstop state if required
@@ -442,48 +448,77 @@ static void print_es_state(const bool is_hit, PGM_P const label=NULL) {
 void _O2 Endstops::M119() {
   SERIAL_ECHOLNPGM(MSG_M119_REPORT);
   #define ES_REPORT(S) print_es_state(READ(S##_PIN) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
-  #if HAS_X_MIN || defined(CAN_ENDSTOP_X_MIN)
+  #define ES_REPORT_CAN(S) print_es_state((Periph.IOLevel & _BV(S)) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
+  #if defined(CAN_ENDSTOP_X_MIN)
+    ES_REPORT_CAN(X_MIN);
+  #elif HAS_X_MIN
     ES_REPORT(X_MIN);
   #else
     SERIAL_ECHOLNPGM("X_MIN_PIN not existing");
   #endif
-  #if HAS_X2_MIN || defined(CAN_ENDSTOP_X2_MIN)
+  #if defined(CAN_ENDSTOP_X2_MIN)
+    ES_REPORT_CAN(X2_MIN);
+  #elif HAS_X2_MIN
     ES_REPORT(X2_MIN);
   #endif
-  #if HAS_X_MAX || defined(CAN_ENDSTOP_X_MAX)
+  #if defined(CAN_ENDSTOP_X_MAX)
+    ES_REPORT_CAN(X_MAX);
+  #elif HAS_X_MAX
     ES_REPORT(X_MAX);
   #endif
-  #if HAS_X2_MAX || defined(CAN_ENDSTOP_X2_MAX)
+  #if defined(CAN_ENDSTOP_X2_MAX)
+    ES_REPORT_CAN(X2_MAX);
+  #elif HAS_X2_MAX
     ES_REPORT(X2_MAX);
   #endif
-  #if HAS_Y_MIN || defined(CAN_ENDSTOP_Y_MIN)
+  #if defined(CAN_ENDSTOP_Y_MIN)
+    ES_REPORT_CAN(Y_MIN);
+  #elif HAS_Y_MIN
     ES_REPORT(Y_MIN);
   #endif
-  #if HAS_Y2_MIN || defined(CAN_ENDSTOP_Y2_MIN)
+  #if defined(CAN_ENDSTOP_Y2_MIN)
+    ES_REPORT_CAN(Y2_MIN);
+  #elif HAS_Y2_MIN
     ES_REPORT(Y2_MIN);
   #endif
-  #if HAS_Y_MAX || defined(CAN_ENDSTOP_Y_MAX)
+  #if defined(CAN_ENDSTOP_Y_MAX)
+    ES_REPORT_CAN(Y_MAX);
+  #elif HAS_Y_MAX
     ES_REPORT(Y_MAX);
   #endif
-  #if HAS_Y2_MAX || defined(CAN_ENDSTOP_Y2_MAX)
-    ES_REPORT(Y2_MAX);
+  #if defined(CAN_ENDSTOP_Y2_MAX)
+    ES_REPORT_CAN(Y2_MAX);
+  #elif HAS_Y2_MAX
+    ES_REPORT(Y_MAX);
   #endif
-  #if HAS_Z_MIN || defined(CAN_ENDSTOP_Z_MIN)
+  #if defined(CAN_ENDSTOP_Z_MIN)
+    ES_REPORT_CAN(Z_MIN);
+  #elif HAS_Z_MIN
     ES_REPORT(Z_MIN);
   #endif
-  #if HAS_Z2_MIN || defined(CAN_ENDSTOP_Z2_MIN)
+  #if defined(CAN_ENDSTOP_Z2_MIN)
+    ES_REPORT_CAN(Z2_MIN);
+  #elif HAS_Z2_MIN
     ES_REPORT(Z2_MIN);
   #endif
-  #if HAS_Z3_MIN || defined(CAN_ENDSTOP_Z3_MIN)
+  #if defined(CAN_ENDSTOP_Z3_MIN)
+    ES_REPORT_CAN(Z3_MIN);
+  #elif HAS_Z3_MIN
     ES_REPORT(Z3_MIN);
   #endif
-  #if HAS_Z_MAX || defined(CAN_ENDSTOP_Z_MAX)
+  #if defined(CAN_ENDSTOP_Z_MAX)
+    ES_REPORT_CAN(Z_MAX);
+  #elif HAS_Z_MAX
     ES_REPORT(Z_MAX);
   #endif
-  #if HAS_Z2_MAX || defined(CAN_ENDSTOP_Z2_MAX)
+  #if defined(CAN_ENDSTOP_Z2_MAX)
+    ES_REPORT_CAN(Z2_MAX);
+  #elif HAS_Z2_MAX
     ES_REPORT(Z2_MAX);
   #endif
-  #if HAS_Z3_MAX || defined(CAN_ENDSTOP_Z3_MAX)
+  #if defined(CAN_ENDSTOP_Z3_MAX)
+    ES_REPORT_CAN(Z3_MAX);
+  #elif HAS_Z3_MAX
     ES_REPORT(Z3_MAX);
   #endif
   #if USES_Z_MIN_PROBE_ENDSTOP
@@ -526,7 +561,7 @@ void _O2 Endstops::M119() {
 #define _ENDSTOP(AXIS, MINMAX) AXIS ##_## MINMAX
 #define _ENDSTOP_PIN(AXIS, MINMAX) AXIS ##_## MINMAX ##_PIN
 #define _ENDSTOP_INVERTING(AXIS, MINMAX) AXIS ##_## MINMAX ##_ENDSTOP_INVERTING
-#define _READ_PERIPH_BIT(AXIS, MINMAX) (Periph.IOLevel & (1<<_ENDSTOP(AXIS, MINMAX))?HIGH:LOW)
+#define _READ_PERIPH_BIT(AXIS, MINMAX) (Periph.IOLevel & _BV(_ENDSTOP(AXIS, MINMAX))?HIGH:LOW)
 // Check endstops - Could be called from Temperature ISR!
 #if DISABLED(SW_MACHINE_SIZE)
   void Endstops::update() {
@@ -540,7 +575,7 @@ void _O2 Endstops::M119() {
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
       #if ENABLED(CAN_ZMIN_PROBE)
-        if (G38_move) UPDATE_ENDSTOP_BIT_FROM_CAN(Z, MIN_PORBE);
+        if (G38_move) UPDATE_ENDSTOP_BIT(Z, MIN_PROBE);
       #else
         #if PIN_EXISTS(Z_MIN_PROBE)
           // If G38 command is active check Z_MIN_PROBE for ALL movement
@@ -841,9 +876,9 @@ void _O2 Endstops::M119() {
 
 #else
   void Endstops::update() {
-    #if !ENDSTOP_NOISE_THRESHOLD
-      if (!abort_enabled()) return;
-    #endif
+    //#if !ENDSTOP_NOISE_THRESHOLD
+    //  if (!abort_enabled()) return;
+    //#endif
 
     #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_PERIPH_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
     //#define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
@@ -851,7 +886,7 @@ void _O2 Endstops::M119() {
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
       #if ENABLED(CAN_ZMIN_PROBE)
-        if (G38_move) UPDATE_ENDSTOP_BIT_FROM_CAN(Z, MIN_PORBE);
+        if (G38_move) UPDATE_ENDSTOP_BIT(Z, MIN_PROBE);
       #else
         #if PIN_EXISTS(Z_MIN_PROBE)
           // If G38 command is active check Z_MIN_PROBE for ALL movement
@@ -1266,3 +1301,52 @@ void _O2 Endstops::M119() {
   }
 
 #endif // PINS_DEBUGGING
+
+#if ENABLED(EXECUTER_CANBUS_SUPPORT)
+  void Endstops::CanSendAxisIndex(EndstopEnum Axis) {
+    uint8_t Data[2];
+    char Reg[16];
+    uint32_t RegErr;
+
+    Data[0] = 0;
+    Data[1] = Axis;
+    CanBusControlor.SendData(2, CAN_IDS_SWTICH, Data, 2, &RegErr);
+    sprintf(Reg, "%08X", RegErr);
+    SERIAL_ECHOLN(Reg);
+  }
+
+  void Endstops::CanPrepareAxis() {
+    millis_t tmptick;
+    
+    WRITE(X_DIR_PIN, LOW);
+    WRITE(Y_DIR_PIN, LOW);
+    WRITE(Z_DIR_PIN, LOW);
+
+    tmptick = millis() + 2000;
+    while(tmptick > millis());
+    
+    //X AXIS
+    WRITE(X_DIR_PIN, HIGH);
+    CanSendAxisIndex(X_MAX);
+    WRITE(X_DIR_PIN, LOW);
+    tmptick = millis() + 100;
+    while(tmptick > millis());
+    
+    //Y AXIS
+    WRITE(Y_DIR_PIN, HIGH);
+    CanSendAxisIndex(Y_MAX);
+    WRITE(Y_DIR_PIN, LOW);
+    tmptick = millis() + 100;
+    while(tmptick > millis());
+      
+    //Z AXIS
+    
+    WRITE(Z_DIR_PIN, HIGH);
+    CanSendAxisIndex(Z_MAX);
+    WRITE(Z_DIR_PIN, LOW);
+    tmptick = millis() + 100;
+    while(tmptick > millis());
+    //SERIAL_ECHOLN("Axis Sent!\r\n");
+    
+  }
+#endif //ENABLED(EXECUTER_CANBUS_SUPPORT)

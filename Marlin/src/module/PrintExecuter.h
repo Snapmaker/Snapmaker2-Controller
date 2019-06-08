@@ -8,5 +8,8 @@ class PrintExecuter
 public:
   PrintExecuter(){};
   void Init();
+
+private:
+  void EStepperInit();
 };
 
