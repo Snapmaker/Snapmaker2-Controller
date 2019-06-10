@@ -28,6 +28,11 @@ extern long pCounter_X,pCounter_Y,pCounter_Z,pCounter_E;
 
 char tmpBuff[512];
 
+#define BYTES_TO_32BITS(buff, index) ((buff[index] << 24) | (buff[index + 1] << 16) | (buff[index + 2] << 8) | (buff[index + 3]))
+#define BYTES_TO_32BITS_WITH_INDEXMOVE(result, buff, N)  do{result = BYTES_TO_32BITS(buff, N); N = N + 4; }while(0)
+#define AXIS_MAX_POS(AXIS, BUFF, N) do{ AXIS##_MAX_POS = BYTES_TO_32BITS(BUFF, N) / 1000.0f; N = N + 4; }while(0)
+#define AXIS_DIR(AXIS, BUFF, N) do{ AXIS##_DIR = (int32_t)BYTES_TO_32BITS(BUFF, N)<0?-1:1; N = N + 4; }while(0) 
+#define AXIS_HOME_OFFSET(AXIS, BUFF, N) do{home_offset[AXIS] = BYTES_TO_32BITS(BUFF, N) / 1000.0f; N = N + 4; }while(0)
 
 //指令暂存缓冲，正确解析之后，指令存放在这里
 static char SendBuff[1024];
@@ -299,12 +304,13 @@ bool HMI_SC20::UpdateComplete(void)
 /********************************************************
 平自动调平处理
 *********************************************************/
-void HMI_SC20::HalfAutoCalibrate()
+uint8_t HMI_SC20::HalfAutoCalibrate()
 {
 	int j;
   int indexdir;
 	int indexx, indexy;
-	if(CMD_BUFF_EMPTY() == true)
+
+	if((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType))
 	{
     //请求执行头的开关状态
     
@@ -326,21 +332,27 @@ void HMI_SC20::HalfAutoCalibrate()
     indexx = 0;
     indexy = 0;
     indexdir = 1;
+    relative_mode = true;
 		for(j=0;j<(GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y);j++)
 		{
 			//Z  轴移动到13mm
-			do_blocking_move_to_z(7);
+			do_blocking_move_to_z(13);
 
 			//X  Y  移动到第i  个调平点
 			do_blocking_move_to_xy(_GET_MESH_X(indexx) - 11, _GET_MESH_Y(indexy) - 13, 70.0f);
-
-			Periph.StartLevelingCheck();
+      #if(1)
+      sprintf(tmpBuff, "G38.3 Z-10");
+      parser.parse(tmpBuff);
+      gcode.process_next_command();
+      #else
+      Periph.StartLevelingCheck();
+      gcode.process_next_command();
       do_blocking_move_to_z(current_position[Z_AXIS] - 11, 1.16f);
-
 			set_current_from_steppers_for_axis(ALL_AXES);
-			MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
 			Periph.StoplevelingCheck();
 			sync_plan_position();
+      #endif
+      MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
       //获取调平点索引值
 			indexx += indexdir;
       if(indexx == GRID_MAX_POINTS_X)
@@ -356,6 +368,7 @@ void HMI_SC20::HalfAutoCalibrate()
 			//发送进度
 			SettingReack(0x03, indexy * GRID_MAX_POINTS_X + indexx + 1);
 		}
+    relative_mode = false;
 
 		//Zoffset
 		do_blocking_move_to_z(7, 50);
@@ -369,18 +382,20 @@ void HMI_SC20::HalfAutoCalibrate()
 
 		//标置自动调平
 		CalibrateMethod = 1;
+    return 0;
 	}
+  return 1;
 }
 
 
 /****************************************************
 手动调平启动
 ***************************************************/
-void HMI_SC20::ManualCalibrateStart()
+uint8_t HMI_SC20::ManualCalibrateStart()
 {
 	int i,j;
 	//if((StepperSync == false) && (CMD_BUFF_EMPTY() == true))
-	if(CMD_BUFF_EMPTY() == true)
+	if((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType))
 	{
 		//请求执行头的开关状态
 		//CanRequestIOSwichStatus(0);
@@ -425,7 +440,9 @@ void HMI_SC20::ManualCalibrateStart()
 
 		//标置手动调平
 		CalibrateMethod = 2;
+    return 0;
 	}
+  return 1;
 }
 
 /****************************************************
@@ -433,93 +450,42 @@ void HMI_SC20::ManualCalibrateStart()
 ***************************************************/
 void HMI_SC20::ResizeMachine(char *pBuff)
 {
-	uint32_t u32Value;
-	int32_t int32Value;
 	uint16_t j;
 
 	//长宽高
 	j = 0;
 	//X
-	u32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	X_MAX_POS = u32Value / 1000.0f;
-	j = j + 4;
+	AXIS_MAX_POS(X, pBuff, j);
 	//Y
-	u32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	Y_MAX_POS = u32Value / 1000.0f;
-	j = j + 4;
+	AXIS_MAX_POS(Y, pBuff, j);
 	//Z
-	u32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	Z_MAX_POS = u32Value / 1000.0f;
-	j = j + 4;
+	AXIS_MAX_POS(Z, pBuff, j);
 
 	//回原点方向
 	//X
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	if(int32Value < 0)
-		X_HOME_DIR = -1;
-	else
-		X_HOME_DIR = 1;
-	j = j + 4;
-	
+	AXIS_DIR(X_HOME, pBuff, j);
 	//Y
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	if(int32Value < 0)
-		Y_HOME_DIR = -1;
-	else
-		Y_HOME_DIR = 1;
-	j = j + 4;
-	
+	AXIS_DIR(Y_HOME, pBuff, j);
 	//Z
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	if(int32Value < 0)
-		Z_HOME_DIR = -1;
-	else
-		Z_HOME_DIR = 1;
-  j = j + 4;
+	AXIS_DIR(Z_HOME, pBuff, j);
 
 	//电机方向
 	//X
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	if(int32Value < 0)
-		X_DIR = false;
-	else
-		X_DIR = true;
-	j = j + 4;
-	
+	AXIS_DIR(X, pBuff, j);
 	//Y
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	if(int32Value < 0)
-		Y_DIR = false;
-	else
-		Y_DIR = true;
-	j = j + 4;
-	
+	AXIS_DIR(Y, pBuff, j);
 	//Z
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	if(int32Value < 0)
-		Z_DIR = false;
-	else
-		Z_DIR = true;
-  j = j + 4;
-
+	AXIS_DIR(Z, pBuff, j);
 	//E
 	E_DIR = true;
-
+  
 	//Offset
 	//X
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	home_offset[X_AXIS] = int32Value / 1000.0f;
-	j = j + 4;
-
+	AXIS_HOME_OFFSET(X_AXIS, pBuff, j);
 	//Y
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	home_offset[Y_AXIS] = int32Value / 1000.0f;
-	j = j + 4;
-
+	AXIS_HOME_OFFSET(Y_AXIS, pBuff, j);
 	//Z
-	int32Value = (pBuff[j] << 24) | (pBuff[j + 1] << 16) | (pBuff[j + 2] << 8) | (pBuff[j + 3]);
-	home_offset[Z_AXIS] = int32Value / 1000.0f;
-	j = j + 4;
+	AXIS_HOME_OFFSET(Z_AXIS, pBuff, j);
 
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
@@ -599,7 +565,7 @@ void HMI_SC20::PollingCommand(void)
 				if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 				{
 					//行号
-					ID = (tmpBuff[9] << 24) | (tmpBuff[10] << 16) | (tmpBuff[11] << 8) | tmpBuff[12];
+					ID = BYTES_TO_32BITS(tmpBuff, 9);
 					//指令尾补0
 					j = cmdLen + 8;
 					tmpBuff[j] = 0;
@@ -626,7 +592,7 @@ void HMI_SC20::PollingCommand(void)
 				else
 				{
 					//行号
-					ID = (tmpBuff[9] << 24) | (tmpBuff[10] << 16) | (tmpBuff[11] << 8) | tmpBuff[12];
+					ID = BYTES_TO_32BITS(tmpBuff, 9);
 					//指令尾补0
 					j = tmpBuff[3] + 8;
 					tmpBuff[j] = 0;
@@ -943,37 +909,16 @@ void HMI_SC20::PollingCommand(void)
 				//设置尺寸
 				case 1:
 					ResizeMachine(&tmpBuff[10]);
-					
 				break;
 
 				//开启自动调平
 				case 2:
-					//3D  打印并开启调平传感器
-					//if((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (HeadProbeEnable == true))
-					if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-					{
-						HalfAutoCalibrate();
-						//应答
-						MarkNeedReack(0);
-					}
-					else
-					{
-						MarkNeedReack(1);
-					}
+					MarkNeedReack(HalfAutoCalibrate());
 				break;
 
 				//开启手动调平
 				case 4:
-					//3D  打印开启
-					if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-					{
-						ManualCalibrateStart();
-						MarkNeedReack(0);
-					}
-					else
-					{
-						MarkNeedReack(1);
-					}
+				  MarkNeedReack(ManualCalibrateStart());
 				break;
 
 				//移动到调平点
@@ -1016,7 +961,7 @@ void HMI_SC20::PollingCommand(void)
 
 				//Z  轴移动
 				case 6:
-					int32Value = (tmpBuff[10] << 24) | (tmpBuff[11] << 16) | (tmpBuff[12] << 8) | (tmpBuff[13]);
+          int32Value = BYTES_TO_32BITS(tmpBuff, 10);
           do_blocking_move_to_z(current_position[Z_AXIS] + int32Value, 20.0f);
 					MarkNeedReack(0);
 				break;
@@ -1051,7 +996,6 @@ void HMI_SC20::PollingCommand(void)
               	for(i=0;i<GRID_MAX_POINTS_Y;i++)
               	{
                   for(j=0;j<GRID_MAX_POINTS_X;j++)
-
                   {
                     sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[i * GRID_MAX_POINTS_X + j]);
                     parser.parse(tmpBuff);
@@ -1144,26 +1088,6 @@ void HMI_SC20::PollingCommand(void)
 				case 20:
 					SendMachineSize();
 				break;
-
-        //设置摄像头参数
-        case 21:
-          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-          {
-          }
-          else
-          {
-          }
-        break;
-
-        //读取摄像头参数
-        case 22:
-          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-          {
-          }
-          else
-          {
-          }
-        break;
           
 			}
 		}
@@ -1227,11 +1151,12 @@ void HMI_SC20::PollingCommand(void)
           break;
 
           case 0x03:
-            int32Value = (tmpBuff[10] << 24) | (tmpBuff[11] << 16) | (tmpBuff[12] << 8) | (tmpBuff[13]);
+            j = 10;
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fX = int32Value / 1000.0f;
-            int32Value = (tmpBuff[14] << 24) | (tmpBuff[15] << 16) | (tmpBuff[16] << 8) | (tmpBuff[17]);
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fY = int32Value / 1000.0f;
-            int32Value = (tmpBuff[18] << 24) | (tmpBuff[19] << 16) | (tmpBuff[20] << 8) | (tmpBuff[21]);
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fZ = int32Value / 1000.0f;
             do_blocking_move_to_xy(current_position[X_AXIS] + fX, current_position[Y_AXIS] + fY, 40);
             do_blocking_move_to_z(current_position[Z_AXIS] + fZ, 40);
@@ -1240,11 +1165,12 @@ void HMI_SC20::PollingCommand(void)
           break;
 
           case 0x04:
-            int32Value = (tmpBuff[10] << 24) | (tmpBuff[11] << 16) | (tmpBuff[12] << 8) | (tmpBuff[13]);
+            j = 10;
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fX = int32Value / 1000.0f;
-            int32Value = (tmpBuff[14] << 24) | (tmpBuff[15] << 16) | (tmpBuff[16] << 8) | (tmpBuff[17]);
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fY = int32Value / 1000.0f;
-            int32Value = (tmpBuff[18] << 24) | (tmpBuff[19] << 16) | (tmpBuff[20] << 8) | (tmpBuff[21]);
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fZ = int32Value / 1000.0f;
             do_blocking_move_to_xy(fX, fY, 40);
             do_blocking_move_to_z(fZ, 40);

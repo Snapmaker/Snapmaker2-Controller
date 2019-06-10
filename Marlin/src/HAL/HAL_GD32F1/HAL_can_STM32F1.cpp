@@ -216,7 +216,7 @@ bool CanSendShortPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_
       tmptick = millis();
       //while pending
       do {
-        if((millis() - tmptick) > 500)
+        if((millis() - tmptick) > 10)
           break;
         regtsr = CAN1->TSR & (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0);
         if(regtsr == (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0))
@@ -224,7 +224,7 @@ bool CanSendShortPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_
           *RegStatusValue = regtsr;
           return true;
         }
-        else if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
+        if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
           break;
       }while(true);
     }
