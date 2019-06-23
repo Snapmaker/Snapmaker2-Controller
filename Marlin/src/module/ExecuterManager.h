@@ -7,6 +7,7 @@
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
 #include "CanBus.h"
+#include "CanModule.h"
 #endif
 #include "CNCExecuter.h"
 #include "LaserExecuter.h"

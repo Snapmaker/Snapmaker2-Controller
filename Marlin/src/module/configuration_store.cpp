@@ -285,11 +285,6 @@ typedef struct SettingsDataStruct {
   #endif
 
   //
-  // Dummy, for align to 4bytes.there are 579 bytes above
-  //
-  //uint8_t reserved0;
-
-  //
   // Laser
   //
   float LaserPower;
@@ -306,7 +301,6 @@ typedef struct SettingsDataStruct {
     uint32_t X_HOME_DIR;
     uint32_t Y_HOME_DIR;
     uint32_t Z_HOME_DIR;
-    uint32_t DUMMY_HOME_DIR;
     float X_MAX_POS;
     float Y_MAX_POS;
     float Z_MAX_POS;
@@ -1122,13 +1116,6 @@ void MarlinSettings::postprocess() {
     #endif
 
     //
-    // Dummy, for align to 4bytes.there are 579 bytes above
-    //
-    //uint8_t reserved0;
-    //_FIELD_TEST(reserved0);
-    //EEPROM_WRITE(reserved0);
-
-    //
     // Laser
     //
     _FIELD_TEST(ExecuterHead.Laser.LastPercent);
@@ -1886,13 +1873,6 @@ void MarlinSettings::postprocess() {
       #endif
 
       //
-      // Dummy, for align to 4bytes.there are 579 bytes above
-      //
-      uint8_t reserved0;
-      //_FIELD_TEST(reserved0);
-      //EEPROM_READ(reserved0);
-
-      //
       // Laser power
       //
       _FIELD_TEST(ExecuterHead.Laser.LastPercent);
@@ -1904,13 +1884,6 @@ void MarlinSettings::postprocess() {
       // Software machine size
       //
       #if ENABLED(SW_MACHINE_SIZE)
-        //uint32_t DIR[XYZE];
-        //_FIELD_TEST(DIR);
-        //EEPROM_READ((DIR));
-        //X_DIR = DIR[X_AXIS]>0?true:false;
-        //Y_DIR = DIR[Y_AXIS]>0?true:false;
-        //Z_DIR = DIR[Z_AXIS]>0?true:false;
-        //E_DIR = DIR[E_AXIS]>0?true:false;
         _FIELD_TEST(X_DIR);
         EEPROM_READ(X_DIR);
         _FIELD_TEST(Y_DIR);
@@ -1920,11 +1893,6 @@ void MarlinSettings::postprocess() {
         _FIELD_TEST(E_DIR);
         EEPROM_READ(E_DIR);
 
-        //_FIELD_TEST(DIR);
-        //EEPROM_READ((DIR));
-        //X_HOME_DIR = DIR[X_AXIS]>0?1:-1;
-        //Y_HOME_DIR = DIR[Y_AXIS]>0?1:-1;
-        //Z_HOME_DIR = DIR[Z_AXIS]>0?1:-1;
         _FIELD_TEST(X_HOME_DIR);
         EEPROM_READ(X_HOME_DIR);
         _FIELD_TEST(Y_HOME_DIR);

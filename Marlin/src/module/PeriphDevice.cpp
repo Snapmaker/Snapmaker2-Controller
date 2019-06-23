@@ -6,6 +6,7 @@
 #include "periphdevice.h"
 #include "../HAL/HAL_GD32F1/HAL_exti_STM32F1.h"
 #include "CanBus.h"
+#include "CanModule.h"
 
 PeriphDevice Periph;
 
@@ -14,7 +15,7 @@ PeriphDevice Periph;
  */
 void PeriphDevice::Init()
 {
-  IOLevel = 0xffffffff;
+  
 }
 
 #if ENABLED(CAN_FAN)

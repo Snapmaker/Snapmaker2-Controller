@@ -48,15 +48,17 @@ bool ExecuterManager::Detecte()
     retry = 5;
     tmpTick = millis();
     Buff[0] = 0;
+    /*
     while(MachineType == MACHINE_TYPE_UNDEFINE) {
       if((millis() - tmpTick) > 500L) {
         tmpTick = millis();
         if(retry-- == 0)
           return MACHINE_TYPE_UNDEFINE;
-        if(CanBusControlor.SendData(2, CAN_IDS_BC, Buff, 1, &Err) == false)
+        if(CanBusControlor.SendData(2, CAN_IDS_BC, Buff, 1) == false)
           return MACHINE_TYPE_UNDEFINE;
       }
     }
+    */
     return MachineType;
   }
 

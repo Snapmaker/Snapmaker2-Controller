@@ -24,6 +24,7 @@
 typedef struct
 {
   uint32_t ID;
+  uint8_t IDType;
   uint8_t FrameType;
   uint8_t Data[8];
 }strCanData;
@@ -33,8 +34,9 @@ class CanBus
 public:
   CanBus(){}
   void Init();
-  bool SendData(uint8_t CanNum, uint32_t ID, uint8_t *pData, uint32_t Len);
-  bool SendData(uint8_t CanNum, uint32_t ID, uint8_t *pData, uint32_t Len, uint32_t *Err);
+  bool SendData(uint8_t CanNum, uint32_t ID, uint8_t *pData, int16_t Len);
+  //bool SendData(uint8_t CanNum, uint32_t ID, uint8_t *pData, int16_t Len, uint32_t *Err);
+  bool SendLongData(uint8_t CanNum, uint32_t ID, uint8_t *pData, int16_t Len);
   bool SendData(uint8_t CanNum, uint32_t ID, uint8_t Data0);
   bool SendData(uint8_t CanNum, uint32_t ID, uint8_t Data0, uint8_t Data1);
   bool SendData(uint8_t CanNum, uint32_t ID, uint8_t Data0, uint8_t Data1, uint8_t Data2);
@@ -45,15 +47,22 @@ public:
   bool SendData(uint8_t CanNum, uint32_t ID, uint8_t Data0, uint8_t Data1, uint8_t Data2, uint8_t Data3, uint8_t Data4, uint8_t Data5, uint8_t Data6, uint8_t Data7);
   bool WaitReply(uint8_t CanNum, uint32_t ID, uint8_t *pData, uint32_t Len, millis_t timeout);
   void CheckReplay(uint8_t CanNum, uint32_t ID);
+  uint16_t ProcessLongPacks(uint8_t *pBuff, uint16_t MaxLen);
 
 public:
-  uint32_t TestBits;
+  static uint32_t CurCommunicationID;
+  static uint8_t ReadRingBuff[1024];
+  static uint8_t ProcessBuff[524];
+  static uint8_t ReadHead;
+  static uint8_t ReadTail;
 
-private:
+public:
   millis_t waittick;
   uint8_t RequestReplyCAN;
   uint32_t RequestReplyID;
   bool RequestReplied;
+  uint32_t ModuleMacList[32];
+  uint8_t ModuleCount;
 };
 
 extern CanBus CanBusControlor;

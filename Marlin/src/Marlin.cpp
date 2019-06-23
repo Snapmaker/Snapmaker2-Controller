@@ -49,6 +49,7 @@
 
 #include "HAL/shared/Delay.h"
 
+
 #include "module/stepper_indirection.h"
 
 #include "HAL/HAL_GD32F1/HAL_breathlight_STM32F1.h"
@@ -1182,62 +1183,39 @@ void setup() {
  */
 void loop() {
   millis_t tmptick;
+  tmptick = millis() + 100;
+  while(tmptick > millis());
+  
   CanBusControlor.Init();
-  tmptick = millis();
-  endstops.CanPrepareAxis();
-
-  while(true)
+  CanModules.Init();
+  
+  //endstops.CanPrepareAxis();
+  while(ExecuterHead.MachineType == MACHINE_TYPE_UNDEFINE);
+  if(1)
   {
-    if(ExecuterHead.Detecte() == true)
-    {
-      if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-        HMI.ChangePage(PAGE_PRINT);
-      else
-        HMI.ChangePage(PAGE_CNC);
-      
-      if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-        SERIAL_ECHOLNPGM("Laser Module\r\n");
-        ExecuterHead.Laser.Init();
-      }
-      else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-        SERIAL_ECHOLNPGM("CNC Module\r\n");
-        ExecuterHead.CNC.Init();
-      }
-      else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
-        SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
-        ExecuterHead.Print3D.Init();
-      }
-      else {
-        SERIAL_ECHOLNPGM("Undefined Module\r\n");
-      }
-
-      break;
+    if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
+      HMI.ChangePage(PAGE_PRINT);
+    else
+      HMI.ChangePage(PAGE_CNC);
+    
+    if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+      SERIAL_ECHOLNPGM("Laser Module\r\n");
+      ExecuterHead.Laser.Init();
+    }
+    else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+      SERIAL_ECHOLNPGM("CNC Module\r\n");
+      ExecuterHead.CNC.Init();
+    }
+    else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+      SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
+      ExecuterHead.Print3D.Init();
+    }
+    else {
+      SERIAL_ECHOLNPGM("Undefined Module\r\n");
     }
   }
   //ExecuterHead.MachineType = MACHINE_TYPE_LASER;
   //ExecuterHead.Laser.Init();
-  
-  while(0)
-  {
-    if((millis() - tmptick) > 1000)
-    {
-      tmptick = millis();
-      endstops.poll();
-     
-      endstops.M119();
-      
-      SERIAL_ECHOLN(Periph.IOLevel);   
-      //endstops.CanPrepareAxis();
-    }
-    if(CanBusControlor.TestBits != 0)
-    {
-      //SERIAL_ECHOLN(CanBusControlor.TestBits);
-      //CanBusControlor.TestBits = 0;
-    }
-    //endstops.CanPrepareAxis();
-    break;
-  }
-
   
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();

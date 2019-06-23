@@ -64,9 +64,20 @@ void HMIScreen::Show(void)
  * para Gcode:the Gcode STRINGIFY
  * para EventID:the Gcode Eventid
  */
-void HMIScreen::SendGcode(char *GCode, uint8_t EventID)
-{
+void HMIScreen::SendGcode(char *GCode, uint8_t EventID) {
   SC20HMI.SendGcode(GCode, EventID);
+}
+
+void HMIScreen::SendMachineFaultFlag() {
+  SC20HMI.SendMachineStatus();
+}
+
+void HMIScreen::SendMachineStatusChange(uint8_t Status, uint8_t Result) {
+  SC20HMI.SendMachineStatusChange(Status, Result);
+}
+
+void HMIScreen::SendUpdateComplete(uint8_t Type) {
+  SC20HMI.SendUpdateComplete(Type);
 }
 #endif
 

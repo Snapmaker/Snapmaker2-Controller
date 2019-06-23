@@ -56,6 +56,7 @@ void PrintExecuter::EStepperInit()
   #endif
 
   SET_OUTPUT(E0_STEP_PIN);
+  SERIAL_ECHOLN("HH");
 }
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)

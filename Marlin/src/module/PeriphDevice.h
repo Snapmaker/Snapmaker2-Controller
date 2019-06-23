@@ -76,7 +76,6 @@ private:
 
 public:
   uint8_t IOSwitch;
-  uint32_t IOLevel;
 };
 
 extern PeriphDevice Periph;

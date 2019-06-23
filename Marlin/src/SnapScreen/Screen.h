@@ -16,10 +16,12 @@ class HMIScreen
       void SendMachineStatusChange(uint8_t, uint8_t);
       void SendMachineFaultFlag();
       void SendGcode(char *GCode, uint8_t EventID);
+      void SendUpdateComplete(uint8_t Type);
     #else
       FORCE_INLINE static void SendMachineStatusChange(uint8_t, uint8_t){}
       FORCE_INLINE static void SendMachineFaultFlag() {}
       FORCE_INLINE static void SendGcode(char *GCode, uint8_t EventID) {}
+      FORCE_INLINE static void SendUpdateComplete(uint8_t Type) {}
     #endif
 
     #if ENABLED(HMI_LONG)

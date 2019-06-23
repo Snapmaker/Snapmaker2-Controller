@@ -19,6 +19,97 @@ static inline uint32_t millis() {
 }
 
 /**
+ * CanInitFilter:Initialize the can bus filter
+ * para ID: The ID of the target
+ * para PortNum: The can bus port number, 1 or 2
+ */
+void CanInitFilter() {
+  uint32_t FilterValue;
+  uint32_t FilterMask;
+  uint32_t FilterID;
+  CAN_FilterInitTypeDef CAN_FilterInitStruct;
+  
+  CAN_SlaveStartBank(24);
+
+  //Extent and remote frame for collect modules
+  //FilterID = (1 << 28);
+  FilterID = 0;
+  FilterValue = CAN_ID_EXT | CAN_RTR_REMOTE | (FilterID << 3);
+  FilterMask = (1<<1) | (1<<2) | (FilterID << 3);
+  CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
+  CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
+  CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
+  CAN_FilterInitStruct.CAN_FilterFIFOAssignment = CAN_FIFO1;
+  CAN_FilterInitStruct.CAN_FilterIdHigh = (uint16_t)(FilterValue >> 16);
+  CAN_FilterInitStruct.CAN_FilterIdLow = (uint16_t)FilterValue;
+  CAN_FilterInitStruct.CAN_FilterMaskIdHigh = (uint16_t)(FilterMask >> 16);
+  CAN_FilterInitStruct.CAN_FilterMaskIdLow = (uint16_t)FilterMask;
+  //Can2
+  CAN_FilterInitStruct.CAN_FilterNumber = 24;
+  CAN_FilterInit(&CAN_FilterInitStruct);
+  //Can1
+  CAN_FilterInitStruct.CAN_FilterNumber = 0;
+  CAN_FilterInit(&CAN_FilterInitStruct);
+
+  //Extent and data frame for module long pack
+  FilterID = 0;
+  FilterValue = CAN_ID_EXT | CAN_RTR_DATA | (FilterID << 3);
+  FilterMask = (1<<1) | (1<<2) | (FilterID << 3);
+  CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
+  CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
+  CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
+  CAN_FilterInitStruct.CAN_FilterFIFOAssignment = CAN_FIFO1;
+  CAN_FilterInitStruct.CAN_FilterIdHigh = (uint16_t)(FilterValue >> 16);
+  CAN_FilterInitStruct.CAN_FilterIdLow = (uint16_t)FilterValue;
+  CAN_FilterInitStruct.CAN_FilterMaskIdHigh = (uint16_t)(FilterMask >> 16);
+  CAN_FilterInitStruct.CAN_FilterMaskIdLow = (uint16_t)FilterMask;
+  //Can2
+  CAN_FilterInitStruct.CAN_FilterNumber = 25;
+  CAN_FilterInit(&CAN_FilterInitStruct);
+  //Can1
+  CAN_FilterInitStruct.CAN_FilterNumber = 1;
+  CAN_FilterInit(&CAN_FilterInitStruct);
+
+  //Stander and data frame for fix id, 0-31
+  FilterID = 0x600;
+  FilterValue = CAN_ID_STD | CAN_RTR_DATA | (FilterID << 21);
+  FilterMask = (1<<1) | (1<<2) | (0x7E0 << 21);
+  CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
+  CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
+  CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
+  CAN_FilterInitStruct.CAN_FilterFIFOAssignment = CAN_FIFO0;
+  CAN_FilterInitStruct.CAN_FilterIdHigh = (uint16_t)(FilterValue >> 16);
+  CAN_FilterInitStruct.CAN_FilterIdLow = (uint16_t)FilterValue;
+  CAN_FilterInitStruct.CAN_FilterMaskIdHigh = (uint16_t)(FilterMask >> 16);
+  CAN_FilterInitStruct.CAN_FilterMaskIdLow = (uint16_t)FilterMask;
+  //Can2
+  CAN_FilterInitStruct.CAN_FilterNumber = 26;
+  CAN_FilterInit(&CAN_FilterInitStruct);
+  //Can1
+  CAN_FilterInitStruct.CAN_FilterNumber = 2;
+  CAN_FilterInit(&CAN_FilterInitStruct);
+
+  //Stander and data frame for dynamic id
+  FilterID = 0x600;
+  FilterValue = CAN_ID_STD | CAN_RTR_DATA | (FilterID << 21);
+  FilterMask = (1<<1) | (1<<2) | (0x600 << 21);
+  CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
+  CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
+  CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
+  CAN_FilterInitStruct.CAN_FilterFIFOAssignment = CAN_FIFO1;
+  CAN_FilterInitStruct.CAN_FilterIdHigh = (uint16_t)(FilterValue >> 16);
+  CAN_FilterInitStruct.CAN_FilterIdLow = (uint16_t)FilterValue;
+  CAN_FilterInitStruct.CAN_FilterMaskIdHigh = (uint16_t)(FilterMask >> 16);
+  CAN_FilterInitStruct.CAN_FilterMaskIdLow = (uint16_t)FilterMask;
+  //Can2
+  CAN_FilterInitStruct.CAN_FilterNumber = 27;
+  CAN_FilterInit(&CAN_FilterInitStruct);
+  //Can1
+  CAN_FilterInitStruct.CAN_FilterNumber = 3;
+  CAN_FilterInit(&CAN_FilterInitStruct);
+}
+
+/**
  * CanInit:Initialize the can bus
  * para ID: The ID of the target
  * para PortNum: The can bus port number, 1 or 2
@@ -65,7 +156,6 @@ void CanInit() {
   CAN_InitStruct.CAN_TTCM = DISABLE;
   CAN_InitStruct.CAN_TXFP = ENABLE;
 
-  CAN_SlaveStartBank(14);
   CAN_Init(CAN1, &CAN_InitStruct);
   CAN_ITConfig(CAN1, CAN_IT_FMP0, ENABLE);
   CAN_ITConfig(CAN1, CAN_IT_FMP1, ENABLE);
@@ -78,49 +168,40 @@ void CanInit() {
   CAN_ClearITPendingBit(CAN2, CAN_IT_FMP0);
   CAN_ClearITPendingBit(CAN2, CAN_IT_FMP1);
 
-  CAN_FilterInitTypeDef CAN_FilterInitStruct;
-  CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
-  CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_16bit;
-  CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
-  CAN_FilterInitStruct.CAN_FilterFIFOAssignment = CAN_FIFO0;
-  /*
-  CAN_FilterInitStruct.CAN_FilterIdHigh = (uint16)(0x500 << 5);
-  CAN_FilterInitStruct.CAN_FilterIdLow = 0x0000;
-  CAN_FilterInitStruct.CAN_FilterMaskIdHigh = (uint16)(0x700 << 5);
-  CAN_FilterInitStruct.CAN_FilterMaskIdLow = 0x0000;
-  */
-  CAN_FilterInitStruct.CAN_FilterIdHigh = (uint16)(0x000 << 5);
-  CAN_FilterInitStruct.CAN_FilterIdLow = 0x0000;
-  CAN_FilterInitStruct.CAN_FilterMaskIdHigh = (uint16)(0x000 << 5);
-  CAN_FilterInitStruct.CAN_FilterMaskIdLow = 0x0000;
-  //Can1
-  CAN_FilterInitStruct.CAN_FilterNumber = 0;
-  CAN_FilterInit(&CAN_FilterInitStruct);
-  //Can2
-  CAN_FilterInitStruct.CAN_FilterNumber = 14;
-  CAN_FilterInit(&CAN_FilterInitStruct);
-
   NVIC_InitTypeDef NVIC_InitStruct;
   NVIC_InitStruct.NVIC_IRQChannel = CAN2_RX0_IRQn;
   NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
-  NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 2;
+  NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 1;
   NVIC_InitStruct.NVIC_IRQChannelSubPriority = 2;
   NVIC_Init(&NVIC_InitStruct);
 
   NVIC_InitStruct.NVIC_IRQChannel = CAN1_RX0_IRQn;
   NVIC_Init(&NVIC_InitStruct);
+
+  NVIC_InitStruct.NVIC_IRQChannel = CAN2_RX1_IRQn;
+  NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 2;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 2;
+  NVIC_Init(&NVIC_InitStruct);
+
+  NVIC_InitStruct.NVIC_IRQChannel = CAN1_RX1_IRQn;
+  NVIC_Init(&NVIC_InitStruct);
+
+  CanInitFilter();
 }
 
+
 /**
- * CanSendShortPacked:Can bus send data
+ * CanSendPacked:Can bus send data
  * para ID: The ID of the target
+ * para IDType: The ID Type, standar(IDTYPE_STD) or externsion(IDTYPE_EXT)
  * para PortNum: The can bus port number, 1 or 2
  * para FrameType: The frame type,etc remote control or data
  * para pData: The pointer to the data
  * para DataLen: The count of the data to be send
  * return : true if success, or else false.  
  */
-bool CanSendShortPacked(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t DataLen, uint8_t *pData) {
+bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameType, uint8_t DataLen, uint8_t *pData) {
   CanTxMsg TxMessage;
   uint8_t retry;
   uint32_t tmptick;
@@ -139,22 +220,31 @@ bool CanSendShortPacked(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t
     TxMessage.RTR = CAN_RTR_REMOTE;
     TxMessage.DLC = 0;
   }
-  TxMessage.IDE = CAN_ID_STD;
-  TxMessage.StdId = ID;
+  if(IDTYPE_STDID == IDType)
+  {
+    TxMessage.IDE = CAN_ID_STD;
+    TxMessage.StdId = ID;
+  }
+  else
+  {
+    TxMessage.IDE = CAN_ID_EXT;
+    TxMessage.ExtId = ID;
+  }
 
-  retry = 100;
+  retry = 1;
   if(PortNum == 1) {
     while(retry--) {
       CAN_Transmit(CAN1, &TxMessage);
       tmptick = millis();
       //while pending
       do {
-        if((millis() - tmptick) > 200)
+        if((millis() - tmptick) > 10)
           break;
         regtsr = CAN1->TSR & (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0);
-        if(regtsr == (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0))
+        if(regtsr == (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0)) {
           return true;
-        else if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
+        }
+        if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
           break;
       }while(true);
     }
@@ -165,11 +255,12 @@ bool CanSendShortPacked(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t
       tmptick = millis();
       //while pending
       do {
-        if((millis() - tmptick) > 200)
+        if((millis() - tmptick) > 500)
           break;
         regtsr = CAN2->TSR & (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0);
-        if(regtsr == (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0))
+        if(regtsr == (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0)) {
           return true;
+        }
         else if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
           break;
       }while(true);
@@ -179,7 +270,7 @@ bool CanSendShortPacked(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t
 }
 
 /**
- * CanSendShortPacked:Can bus send data
+ * CanSendPacked:Can bus send data
  * para ID: The ID of the target
  * para PortNum: The can bus port number, 1 or 2
  * para FrameType: The frame type,etc remote control or data
@@ -187,7 +278,7 @@ bool CanSendShortPacked(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t
  * para DataLen: The count of the data to be send
  * return : true if success, or else false.  
  */
-bool CanSendShortPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t DataLen, uint8_t *pData, uint32_t *RegStatusValue) {
+bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t DataLen, uint8_t *pData, uint32_t *RegStatusValue) {
   CanTxMsg TxMessage;
   uint8_t retry;
   uint32_t tmptick;
@@ -261,36 +352,39 @@ bool CanSendShortPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_
  * para Len: The pointer to the Len
  * return : The filter index
  */
-uint8_t Canbus1ParseData(uint32_t *ID, uint8_t *FrameType, uint8_t *pData, uint8_t *Len) {
+uint8_t Canbus1ParseData(uint32_t *ID, uint8_t *IDType, uint8_t *FrameType, uint8_t *pData, uint8_t *Len, uint8_t FIFONum) {
   uint32_t IDE;
   uint8_t FMI;
 
-  IDE = (uint8_t)0x04 & CAN1->sFIFOMailBox[CAN_FIFO0].RIR;
+  IDE = (uint8_t)0x04 & CAN1->sFIFOMailBox[FIFONum].RIR;
   if (IDE == CAN_Id_Standard)
   {
-    *ID = (uint32_t)0x000007FF & (CAN1->sFIFOMailBox[CAN_FIFO0].RIR >> 21);
+    *ID = (uint32_t)0x000007FF & (CAN1->sFIFOMailBox[FIFONum].RIR >> 21);
+    *IDType = IDTYPE_STDID;
   }
   else
   {
-    *ID = (uint32_t)0x1FFFFFFF & (CAN1->sFIFOMailBox[CAN_FIFO0].RIR >> 3);
+    *ID = (uint32_t)0x1FFFFFFF & (CAN1->sFIFOMailBox[FIFONum].RIR >> 3);
+    *IDType = IDTYPE_EXTID;
   }
-  *FrameType = (uint8_t)0x02 & CAN1->sFIFOMailBox[CAN_FIFO0].RIR;
+  *FrameType = (uint8_t)0x02 & CAN1->sFIFOMailBox[FIFONum].RIR;
   /* Get the DLC */
-  *Len = (uint8_t)0x0F & CAN1->sFIFOMailBox[CAN_FIFO0].RDTR;
+  *Len = (uint8_t)0x0F & CAN1->sFIFOMailBox[FIFONum].RDTR;
   /* Get the FMI */
-  FMI = (uint8_t)0xFF & (CAN1->sFIFOMailBox[CAN_FIFO0].RDTR >> 8);
+  FMI = (uint8_t)0xFF & (CAN1->sFIFOMailBox[FIFONum].RDTR >> 8);
   /* Get the data field */
-  pData[0] = (uint8_t)0xFF & CAN1->sFIFOMailBox[CAN_FIFO0].RDLR;
-  pData[1] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[CAN_FIFO0].RDLR >> 8);
-  pData[2] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[CAN_FIFO0].RDLR >> 16);
-  pData[3] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[CAN_FIFO0].RDLR >> 24);
-  pData[4] = (uint8_t)0xFF & CAN1->sFIFOMailBox[CAN_FIFO0].RDHR;
-  pData[5] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[CAN_FIFO0].RDHR >> 8);
-  pData[6] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[CAN_FIFO0].RDHR >> 16);
-  pData[7] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[CAN_FIFO0].RDHR >> 24);
+  pData[0] = (uint8_t)0xFF & CAN1->sFIFOMailBox[FIFONum].RDLR;
+  pData[1] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[FIFONum].RDLR >> 8);
+  pData[2] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[FIFONum].RDLR >> 16);
+  pData[3] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[FIFONum].RDLR >> 24);
+  pData[4] = (uint8_t)0xFF & CAN1->sFIFOMailBox[FIFONum].RDHR;
+  pData[5] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[FIFONum].RDHR >> 8);
+  pData[6] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[FIFONum].RDHR >> 16);
+  pData[7] = (uint8_t)0xFF & (CAN1->sFIFOMailBox[FIFONum].RDHR >> 24);
 
   //only use FIFO0
-  CAN1->RF0R |= CAN_RF0R_RFOM0;
+  if(FIFONum == 0) CAN1->RF0R |= CAN_RF0R_RFOM0;
+  else CAN1->RF1R |= CAN_RF1R_RFOM1;
   return FMI;
 }
 
@@ -300,38 +394,44 @@ uint8_t Canbus1ParseData(uint32_t *ID, uint8_t *FrameType, uint8_t *pData, uint8
  * para FrameType: The pointer to save the frame type,etc remote control or data
  * para pData: The pointer to the data
  * para Len: The pointer to the Len
+ * para FIFONum: The FIFO number
  * return : The filter index
  */
-uint8_t Canbus2ParseData(uint32_t *ID, uint8_t *FrameType, uint8_t *pData, uint8_t *Len) {
+uint8_t Canbus2ParseData(uint32_t *ID, uint8_t *IDType, uint8_t *FrameType, uint8_t *pData, uint8_t *Len, uint8_t FIFONum) {
   uint32_t IDE;
   uint8_t FMI;
 
-  IDE = (uint8_t)0x04 & CAN2->sFIFOMailBox[CAN_FIFO0].RIR;
+  IDE = (uint8_t)0x04 & CAN2->sFIFOMailBox[FIFONum].RIR;
   if (IDE == CAN_Id_Standard)
   {
-    *ID = (uint32_t)0x000007FF & (CAN2->sFIFOMailBox[CAN_FIFO0].RIR >> 21);
+    *ID = (uint32_t)0x000007FF & (CAN2->sFIFOMailBox[FIFONum].RIR >> 21);
+    *IDType = IDTYPE_STDID;
   }
   else
   {
-    *ID = (uint32_t)0x1FFFFFFF & (CAN2->sFIFOMailBox[CAN_FIFO0].RIR >> 3);
+    *ID = (uint32_t)0x1FFFFFFF & (CAN2->sFIFOMailBox[FIFONum].RIR >> 3);
+    *IDType = IDTYPE_EXTID;
   }
-  *FrameType = (uint8_t)0x02 & CAN2->sFIFOMailBox[CAN_FIFO0].RIR;
+  *FrameType = (uint8_t)0x02 & CAN2->sFIFOMailBox[FIFONum].RIR;
   /* Get the DLC */
-  *Len = (uint8_t)0x0F & CAN2->sFIFOMailBox[CAN_FIFO0].RDTR;
+  *Len = (uint8_t)0x0F & CAN2->sFIFOMailBox[FIFONum].RDTR;
   /* Get the FMI */
-  FMI = (uint8_t)0xFF & (CAN2->sFIFOMailBox[CAN_FIFO0].RDTR >> 8);
+  FMI = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDTR >> 8);
   /* Get the data field */
-  pData[0] = (uint8_t)0xFF & CAN2->sFIFOMailBox[CAN_FIFO0].RDLR;
-  pData[1] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[CAN_FIFO0].RDLR >> 8);
-  pData[2] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[CAN_FIFO0].RDLR >> 16);
-  pData[3] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[CAN_FIFO0].RDLR >> 24);
-  pData[4] = (uint8_t)0xFF & CAN2->sFIFOMailBox[CAN_FIFO0].RDHR;
-  pData[5] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[CAN_FIFO0].RDHR >> 8);
-  pData[6] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[CAN_FIFO0].RDHR >> 16);
-  pData[7] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[CAN_FIFO0].RDHR >> 24);
+  pData[0] = (uint8_t)0xFF & CAN2->sFIFOMailBox[FIFONum].RDLR;
+  pData[1] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDLR >> 8);
+  pData[2] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDLR >> 16);
+  pData[3] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDLR >> 24);
+  pData[4] = (uint8_t)0xFF & CAN2->sFIFOMailBox[FIFONum].RDHR;
+  pData[5] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDHR >> 8);
+  pData[6] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDHR >> 16);
+  pData[7] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDHR >> 24);
 
   //Only use FIFO0
-  CAN2->RF0R |= CAN_RF0R_RFOM0;
+  if(FIFONum == 0)
+    CAN2->RF0R |= CAN_RF0R_RFOM0;
+  else
+    CAN2->RF1R |= CAN_RF1R_RFOM1;
   return FMI;
 }
 

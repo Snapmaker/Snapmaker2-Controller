@@ -448,7 +448,7 @@ static void print_es_state(const bool is_hit, PGM_P const label=NULL) {
 void _O2 Endstops::M119() {
   SERIAL_ECHOLNPGM(MSG_M119_REPORT);
   #define ES_REPORT(S) print_es_state(READ(S##_PIN) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
-  #define ES_REPORT_CAN(S) print_es_state((Periph.IOLevel & _BV(S)) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
+  #define ES_REPORT_CAN(S) print_es_state((CanModules.Endstop & _BV(S)) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
   #if defined(CAN_ENDSTOP_X_MIN)
     ES_REPORT_CAN(X_MIN);
   #elif HAS_X_MIN
@@ -561,7 +561,7 @@ void _O2 Endstops::M119() {
 #define _ENDSTOP(AXIS, MINMAX) AXIS ##_## MINMAX
 #define _ENDSTOP_PIN(AXIS, MINMAX) AXIS ##_## MINMAX ##_PIN
 #define _ENDSTOP_INVERTING(AXIS, MINMAX) AXIS ##_## MINMAX ##_ENDSTOP_INVERTING
-#define _READ_PERIPH_BIT(AXIS, MINMAX) (Periph.IOLevel & _BV(_ENDSTOP(AXIS, MINMAX))?HIGH:LOW)
+#define _READ_MODULE_BIT(AXIS, MINMAX) (CanModules.Endstop & _BV(_ENDSTOP(AXIS, MINMAX))?HIGH:LOW)
 // Check endstops - Could be called from Temperature ISR!
 #if DISABLED(SW_MACHINE_SIZE)
   void Endstops::update() {
@@ -569,7 +569,7 @@ void _O2 Endstops::M119() {
       if (!abort_enabled()) return;
     #endif
 
-    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_PERIPH_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
+    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
     //#define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
     #define COPY_LIVE_STATE(SRC_BIT, DST_BIT) SET_BIT_TO(live_state, DST_BIT, TEST(live_state, SRC_BIT))
 
@@ -880,7 +880,7 @@ void _O2 Endstops::M119() {
       if (!abort_enabled()) return;
     #endif
 
-    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_PERIPH_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
+    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
     //#define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
     #define COPY_LIVE_STATE(SRC_BIT, DST_BIT) SET_BIT_TO(live_state, DST_BIT, TEST(live_state, SRC_BIT))
 
@@ -1304,6 +1304,7 @@ void _O2 Endstops::M119() {
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
   void Endstops::CanSendAxisIndex(EndstopEnum Axis) {
+    /*
     uint8_t Data[2];
     char Reg[16];
     uint32_t RegErr;
@@ -1311,8 +1312,9 @@ void _O2 Endstops::M119() {
     Data[0] = 0;
     Data[1] = Axis;
     CanBusControlor.SendData(2, CAN_IDS_SWTICH, Data, 2, &RegErr);
-    sprintf(Reg, "%08X", RegErr);
+    sprintf(Reg, "%08X", (unsigned int)RegErr);
     SERIAL_ECHOLN(Reg);
+    */
   }
 
   void Endstops::CanPrepareAxis() {

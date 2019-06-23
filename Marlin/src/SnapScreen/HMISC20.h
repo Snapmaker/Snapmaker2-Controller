@@ -12,8 +12,6 @@ public:
   HMI_SC20(){};
   void PollingCommand();
   void SendGcode(char *GCode, uint8_t EventID);
-
-  void SendBreakPointLine();
   void SendChDirResult(uint8_t Result);
   void SendMachineStatusChange(uint8_t Status, uint8_t Result);
   void SendMachineFaultFlag();
@@ -22,9 +20,9 @@ public:
   
   void SendStartPrintReack(uint8_t Result);
   void BuffFlush(void);
-  void SettingReack(uint8_t OP_ID, uint8_t Result);
+  void SendHalfCalibratePoint(uint8_t Opcode, uint8_t Index);
   void SendMachineSize();
-  void SendLaserFocus(uint8_t OpCode);
+  void SendLaserFocus(uint8_t OpCode, float Height);
   void SendProgressPercent(uint8_t Percent);
   void SendPowerPanicResume(uint8_t OpCode, uint8_t Result);
   void SendFaultClearReack();
@@ -32,11 +30,14 @@ public:
   void SendUpdatePackRequest(uint16_t PackRequested);
   void SendUpdateCompleteReack(uint16_t Resultl);
   void SendStartUpdateReack(uint8_t Result);
-  bool UpdateComplete(void);
+  bool UpdateDownloadComplete(void);
+  void SendUpdateComplete(uint8_t Type);
+  void SendUpdateStatus(uint8_t Status);
   void UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen);
   void StartUpdate(void);
+  void RequestFirmwareVersion(void);
+  void CheckFirmwareVersion(char *pNewVersion);
 
-  void SendContinuePrint();
   #if ENABLED(SDSUPPORT)
    void SendCurrentUDiskPath(uint8_t Result);
    void SendInitUdisk(uint8_t Result);
@@ -50,7 +51,7 @@ private:
   uint8_t ManualCalibrateStart();
   void ResizeMachine(char *pBuff);
   void EnterLaserFocusSetting();
-  void SendWifiIP(uint8_t OpCode, uint8_t Result, char *IP);
+  void SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PWD, char * IP);
   void PackedProtocal(char *pData, uint16_t len);
   void SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result);
 

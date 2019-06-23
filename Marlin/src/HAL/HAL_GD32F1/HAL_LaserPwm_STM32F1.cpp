@@ -7,6 +7,9 @@
 #include "std_library/inc/stm32f10x_tim.h"
 #include "std_library/inc/stm32f10x_rcc.h"
 
+/**
+ *Tim1PwmInit:Initialize Tim1 for laser pwm
+ */
 void Tim1PwmInit() {
 	TIM_DeInit(TIM1);
 
@@ -16,10 +19,7 @@ void Tim1PwmInit() {
 
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1 | RCC_APB2Periph_GPIOB | RCC_APB2Periph_GPIOE | RCC_APB2Periph_AFIO, ENABLE);
   
-
 	//100HZ  ，255  Level
-	
-
   #if(0)
   GPIO_PinRemapConfig(GPIO_PartialRemap_TIM1, ENABLE);
   GPIO_InitTypeDef GPIO_InitStruct;
