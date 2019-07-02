@@ -145,6 +145,7 @@ Marlin/*/readme.txt
 Marlin/*/*/readme.txt
 Marlin/*/*/*/readme.txt
 Marlin/*/*/*/*/readme.txt
+snapmaker/scripts/env*.txt
 
 #Visual Studio
 *.sln
