@@ -20,9 +20,6 @@
  *
  */
 
-#ifndef __GD32F1__
-  #error "Oops! Select an GD32F1 board in 'Tools > Board.'"
-#endif
 
 /**
  * 21017 Victor Perez Marlin for stm32f1 test
