@@ -24,7 +24,7 @@
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
 
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
-char tmpBuff[512];
+char tmpBuff[1024];
 
 #define BYTES_TO_32BITS(buff, index) ((buff[index] << 24) | (buff[index + 1] << 16) | (buff[index + 2] << 8) | (buff[index + 3]))
 #define BYTES_TO_32BITS_WITH_INDEXMOVE(result, buff, N) do{result = BYTES_TO_32BITS(buff, N); N = N + 4; }while(0)
@@ -223,16 +223,16 @@ void HMI_SC20::RequestFirmwareVersion(void)
   uint16_t i;
   char Version[33];
   
-  Address = FLASH_BOOT_PARA;
+  Address = FLASH_BOOT_PARA + 2048;
   for(i=0;i<32;i++)
     Version[i] = *((char*)Address++);
-  Version[32] = 0;
+  Version[31] = 0;
   
   i = 0;
 
   tmpBuff[i++] = 0xAA;
   tmpBuff[i++] = 3;
-  for(int j=0;j<33;j++) {
+  for(int j=0;j<32;j++) {
     tmpBuff[i++] = Version[j];
     if(Version[j] == 0) break;
   }
@@ -241,7 +241,7 @@ void HMI_SC20::RequestFirmwareVersion(void)
 }
 
 /********************************************************
-固件版本对比，并上报需不需要升级
+固件版本对比，并上报需不需要升级,Result为1表示需要升级
 *********************************************************/
 void HMI_SC20::CheckFirmwareVersion(char *pNewVersion)
 {
@@ -251,7 +251,7 @@ void HMI_SC20::CheckFirmwareVersion(char *pNewVersion)
   char Version[33];
 
   Result = 0;
-  Address = FLASH_BOOT_PARA;
+  Address = FLASH_BOOT_PARA + 2048;
   for(i=0;i<32;i++)
     Version[i] = *((char*)Address++);
   Version[32] = 0;
@@ -260,7 +260,7 @@ void HMI_SC20::CheckFirmwareVersion(char *pNewVersion)
       Result = 1;
       break;
     }
-    if(Version[i] == pNewVersion[i] == 0) break;
+    if((Version[i] == pNewVersion[i]) && (Version[i]) == 0) break;
   }
   
   i = 0;
@@ -293,7 +293,7 @@ void HMI_SC20::StartUpdate(void)
   //擦除升级内容
   Pages = MARLIN_CODE_SIZE / 2048;
   Address = FLASH_UPDATE_CONTENT;
-  for (int i = 0; i < 128; i++) {
+  for (int i = 0; i < Pages; i++) {
     FLASH_ErasePage(Address);
     Address += 2048;
   }
@@ -316,14 +316,13 @@ void HMI_SC20::UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen)
   uint16_t maxpack;
 
   Packindex = (uint16_t) ((pBuff[0] << 8) | pBuff[1]);
-  maxpack = (MARLIN_CODE_SIZE + UPDATE_CONTENT_INFO_SIZE) / 512;
-
+  maxpack = MARLIN_CODE_SIZE / 512;
   //暂定500包，即250K
   if ((Packindex < maxpack) && (UpdateInProgress == 1) && (Packindex == UpdatePackRequest)) {
     //减去包序号2个字节
     DataLen = DataLen - 2;
     UpdateDataSize = Packindex * 512 + DataLen;
-    Address = FLASH_UPDATE_CONTENT_INFO + Packindex * 512;
+    Address = FLASH_UPDATE_CONTENT + Packindex * 512;
     if ((DataLen % 2) != 0) DataLen++;
     FLASH_Unlock();
     for (int i = 0; i < DataLen; i = i + 2) {
@@ -342,11 +341,16 @@ void HMI_SC20::UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen)
 *********************************************************/
 bool HMI_SC20::UpdateDownloadComplete(void)
 {
+  uint32_t Address;
   if (UpdateDataSize == 0) {
     return false;
-    //Init the watch dog to reboot system
-    WatchDogInit();
   } else {
+    //Init the watch dog to reboot system
+    Address = FLASH_UPDATE_CONTENT_INFO;
+    FLASH_Unlock();
+    FLASH_ProgramWord(Address, 0xaa55ee11);
+    FLASH_Lock();
+    WatchDogInit();
     return true;
   }
 }
@@ -1209,7 +1213,7 @@ void HMI_SC20::PollingCommand(void)
           //Read wifi connection status
           case 0x02:
             BuildinWifiIP[0] = 0;
-            result = ExecuterHead.Laser.ReadWifiStatus(BuildinWifiIP);
+            result = ExecuterHead.Laser.ReadWifiStatus(SSID, Password, BuildinWifiIP);
             SERIAL_ECHOLNPAIR("IP:", BuildinWifiIP);
             if (result == 1) SendWifiIP(0x02, 0, SSID, Password, BuildinWifiIP);
             else MarkNeedReack(result);
@@ -1249,6 +1253,7 @@ void HMI_SC20::PollingCommand(void)
     }
     //升级
     else if (eventId == 0xA9) {
+      //SERIAL_ECHOLN(OpCode);
       switch (OpCode)
       {
         //启动升级
@@ -1256,6 +1261,7 @@ void HMI_SC20::PollingCommand(void)
           StartUpdate();
           MarkNeedReack(0);
           SendUpdatePackRequest(UpdatePackRequest);
+          SERIAL_ECHOLN("Start Update");
           break;
 
         //升级包数据
@@ -1360,14 +1366,17 @@ void HMI_SC20::SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PW
     if (SSID[j] == 0) break;
     tmpBuff[i++] = SSID[j];
   }
+  tmpBuff[i++] = 0;
   for (int j = 0; j < 31; j++) {
     if (PWD[j] == 0) break;
     tmpBuff[i++] = PWD[j];
   }
+  tmpBuff[i++] = 0;
   for (int j = 0; j < 16; j++) {
     tmpBuff[i++] = IP[j];
     if (IP[j] == 0) break;
   }
+  tmpBuff[i++] = 0;
   PackedProtocal(tmpBuff, i);
 }
 

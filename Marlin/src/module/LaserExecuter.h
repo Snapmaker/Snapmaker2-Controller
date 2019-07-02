@@ -31,7 +31,7 @@ public:
     static void SaveFocusHeight() {}
     static bool LoadFocusHeight() { return false; }
   #endif
-  char ReadWifiStatus(char *IP);
+  char ReadWifiStatus(char *SSID, char *Password, char *IP);
   void SetWifiParameter(char *SSID, char *Password);
 
 private:

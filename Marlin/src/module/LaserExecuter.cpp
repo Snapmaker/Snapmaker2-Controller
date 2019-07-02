@@ -211,13 +211,14 @@ void LaserExecuter::PackedProtocal(uint8_t *pData, uint16_t len)
  * para IP:The pointer to the IP buffer
  * return:0 for connected, 1 for disconnect, -1 for wifi unexisting
  */
-char LaserExecuter::ReadWifiStatus(char *IP)
+char LaserExecuter::ReadWifiStatus(char *SSID, char *Password, char *IP)
 {
   int c;
   millis_t tmptick;
-  uint8_t i;
-  uint8_t j;
+  uint16_t i;
+  uint16_t j;
   uint8_t buff[70];
+  char v;
   
   buff[0] = 0x03;
   PackedProtocal(buff, 1);
@@ -279,23 +280,43 @@ char LaserExecuter::ReadWifiStatus(char *IP)
     		calCheck += (((uint16_t)buff[j] << 8) | buff[j + 1]);
     	if((i - 8) % 2)
     		calCheck += (uint8_t)buff[i-1];
-      SERIAL_ECHOLN(calCheck);
     	while(calCheck > 0xffff)
     		calCheck = ((calCheck >> 16) & 0xffff) + (calCheck & 0xffff);
     	calCheck = (~calCheck) & 0xffff;
-      SERIAL_ECHOLN(calCheck);
       GetChecksum = (uint32_t)((buff[6] << 8) | buff[7]);
+      SERIAL_ECHOLN(calCheck);
       SERIAL_ECHOLN(GetChecksum);
       if(calCheck == GetChecksum)
       {
+        j = 11;
         for(i=0;i<16;i++)
         {
-          if(buff[i+11] == 0)
+          v = buff[j++];
+          if(v == 0)
             break;
-          IP[i] = buff[i+11];
+          SSID[i] = v;
+        }
+        SSID[i] = 0;
+
+        for(i=0;i<31;i++)
+        {
+          v = buff[j++];
+          if(v == 0)
+            break;
+          Password[i] = v;
+        }
+        Password[i] = 0;
+
+        for(i=0;i<31;i++)
+        {
+          v = buff[j++];
+          if(v == 0)
+            break;
+          IP[i] = v;
         }
         IP[i] = 0;
-        return (char)buff[i+10];
+        
+        return (char)buff[10];
       }
       return (char)-1;
     }

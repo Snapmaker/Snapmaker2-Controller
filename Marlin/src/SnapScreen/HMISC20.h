@@ -62,7 +62,7 @@ private:
   uint8_t CalibrateMethod;
   uint8_t HalfAutoCalibrateState;
   uint8_t HMICommandSave;
-  uint8_t ReadBuff[256];
+  uint8_t ReadBuff[1024];
   uint16_t ReadTail;
   uint16_t ReadHead;
   uint32_t UpdateDataSize;

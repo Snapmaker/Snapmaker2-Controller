@@ -13,9 +13,7 @@ ExecuterManager ExecuterHead;
  */
 void ExecuterManager::Init()
 {
-  #if ENABLED(EXECUTER_CANBUS_SUPPORT)
-  CanBusControlor.Init();
-  #endif
+  MachineType = MACHINE_TYPE_UNDEFINE;
 }
 
 /**

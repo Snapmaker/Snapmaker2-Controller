@@ -53,8 +53,8 @@ public:
   static uint32_t CurCommunicationID;
   static uint8_t ReadRingBuff[1024];
   static uint8_t ProcessBuff[524];
-  static uint8_t ReadHead;
-  static uint8_t ReadTail;
+  static uint16_t ReadHead;
+  static uint16_t ReadTail;
 
 public:
   millis_t waittick;

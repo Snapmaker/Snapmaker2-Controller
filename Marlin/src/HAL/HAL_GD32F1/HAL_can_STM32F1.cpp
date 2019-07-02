@@ -33,7 +33,7 @@ void CanInitFilter() {
 
   //Extent and remote frame for collect modules
   //FilterID = (1 << 28);
-  FilterID = 0;
+  FilterID = 1;
   FilterValue = CAN_ID_EXT | CAN_RTR_REMOTE | (FilterID << 3);
   FilterMask = (1<<1) | (1<<2) | (FilterID << 3);
   CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
@@ -52,7 +52,7 @@ void CanInitFilter() {
   CAN_FilterInit(&CAN_FilterInitStruct);
 
   //Extent and data frame for module long pack
-  FilterID = 0;
+  FilterID = 1;
   FilterValue = CAN_ID_EXT | CAN_RTR_DATA | (FilterID << 3);
   FilterMask = (1<<1) | (1<<2) | (FilterID << 3);
   CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
@@ -208,7 +208,7 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   uint32_t regtsr;
 
   if(DataLen > 8)
-    return false;
+  return false;
 
   if(FrameType == FRAME_DATA) {
     TxMessage.RTR = CAN_RTR_DATA;

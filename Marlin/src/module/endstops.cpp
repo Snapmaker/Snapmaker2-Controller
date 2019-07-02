@@ -877,7 +877,7 @@ void _O2 Endstops::M119() {
 #else
   void Endstops::update() {
     #if !ENDSTOP_NOISE_THRESHOLD
-      if (!abort_enabled()) return;
+      //if (!abort_enabled()) return;
     #endif
 
     #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))

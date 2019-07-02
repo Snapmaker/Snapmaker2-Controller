@@ -15,9 +15,10 @@ public:
   void PrepareLinearModules(void);
   void PrepareExecuterModules(void);
   bool Update(uint8_t CanNum, uint32_t ID, char *Version);
+  void EraseUpdatePack(void);
   bool LoadUpdatePack(uint16_t Packindex, uint8_t *pData);
-  bool LoadUpdateInfo(char *Version, uint16_t *StartID, uint16_t *EndID);
-  bool UpdateModule(uint8_t CanNum, uint32_t ID, char *Version);
+  bool LoadUpdateInfo(char *Version, uint16_t *StartID, uint16_t *EndID, uint32_t *Flag);
+  bool UpdateModule(uint8_t CanNum, uint32_t ID, char *Version, uint32_t Flag);
   void UpdateProcess(void);
   uint8_t GetUpdateStatus() {return UpdateStatus;}
   

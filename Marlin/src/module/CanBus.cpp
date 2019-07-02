@@ -60,8 +60,8 @@ const strFuncID2Fun CanFunctionTable[] = {
 uint32_t CanBus::CurCommunicationID = 0xffffffff;
 uint8_t CanBus::ReadRingBuff[1024] = {0};
 uint8_t CanBus::ProcessBuff[524] = {0};
-uint8_t CanBus::ReadHead = 0;
-uint8_t CanBus::ReadTail = 0;
+uint16_t CanBus::ReadHead = 0;
+uint16_t CanBus::ReadTail = 0;
 
 #define ProtocalParse(tmplen, srctail, tmptail, srcbuff, destbuff, commandlen) do { \
     commandlen = -1; \
@@ -123,8 +123,8 @@ void CanBus::Init() {
  * return: The real length have received
  */
 uint16_t CanBus::ProcessLongPacks(uint8_t *pBuff, uint16_t MaxLen) {
-  uint8_t tmptail;
-  uint8_t tmphead;
+  uint16_t tmptail;
+  uint16_t tmphead;
   uint16_t tmplen;
   int16_t DataLen;
   uint16_t i;
@@ -214,7 +214,7 @@ bool CanBus::SendLongData(uint8_t CanNum, uint32_t ID, uint8_t *pData, int16_t L
   uint8_t packlen;
   bool Err;
 
-  ID &= ~(1<<28);
+  ID &= ~(1<<0);
   
   Err = false;
   i = 0;
@@ -297,10 +297,9 @@ void __irq_can2_rx0(void) {
   uint8_t Len;
   uint8_t FMI;
   FMI = Canbus2ParseData(&tmpData.ID, &tmpData.IDType, &tmpData.FrameType, tmpData.Data, &Len, 0);  
-  SERIAL_ECHOLN(FMI);
   if(FMI == 0) {
     tmpData.ID &= 0x1ff;
-    SERIAL_ECHOLN(tmpData.ID);
+    //SERIAL_ECHOLN(tmpData.ID);
     if(tmpData.ID <= 18) { //For Axis endstop
       Buff[0] = (uint8_t)(tmpData.ID >> 8);
       Buff[1] = (uint8_t)(tmpData.ID);

@@ -48,7 +48,7 @@
 
 
 #include "HAL/shared/Delay.h"
-
+#include <EEPROM.h>
 
 #include "module/stepper_indirection.h"
 
@@ -1162,15 +1162,38 @@ void setup() {
   #endif
 
   #if PIN_EXISTS(POWER1_SUPPLY)
+    OUT_WRITE(POWER1_SUPPLY_PIN, LOW);
+  #endif
+
+  #if PIN_EXISTS(POWER2_SUPPLY)
+    OUT_WRITE(POWER2_SUPPLY_PIN, LOW);
+  #endif
+
+  millis_t tmptick;
+  tmptick = millis() + 500;
+  while(tmptick > millis());
+
+  #if PIN_EXISTS(POWER1_SUPPLY)
     OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
   #endif
 
   #if PIN_EXISTS(POWER2_SUPPLY)
     OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
   #endif
-  //USBH_Init(&USB_OTG_Core, USB_OTG_FS_CORE_ID,&USB_Host,&USBH_MSC_cb, &USR_cb);
 
   BreathLightInit();
+}
+
+/**
+ * Check Update Flag
+ */
+void CheckUpdateFlag(void)
+{
+  uint32_t Address;
+  FLASH_Unlock();
+  Address = FLASH_UPDATE_CONTENT_INFO;
+  FLASH_ErasePage(Address);
+  FLASH_Lock();
 }
 
 /**
@@ -1183,11 +1206,12 @@ void setup() {
  */
 void loop() {
   millis_t tmptick;
-  tmptick = millis() + 100;
+  tmptick = millis() + 300;
   while(tmptick > millis());
-  
+  ExecuterHead.Init();
   CanBusControlor.Init();
   CanModules.Init();
+  CheckUpdateFlag();
   
   //endstops.CanPrepareAxis();
   while(ExecuterHead.MachineType == MACHINE_TYPE_UNDEFINE);
