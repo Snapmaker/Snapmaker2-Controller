@@ -31,14 +31,14 @@
   #define HAL_PLATFORM HAL_TEENSY35_36
 #elif defined(TARGET_LPC1768)
   #define HAL_PLATFORM HAL_LPC1768
+#elif defined(TARGET_GD32F1)
+  #define HAL_PLATFORM HAL_GD32F1
 #elif defined(__STM32F1__) || defined(TARGET_STM32F1)
   #define HAL_PLATFORM HAL_STM32F1
 #elif defined(STM32GENERIC) && defined(STM32F4)
   #define HAL_PLATFORM HAL_STM32F4
 #elif defined(STM32GENERIC) && defined(STM32F7)
   #define HAL_PLATFORM HAL_STM32F7
-#elif defined(ARDUINO_ARCH_STM32)
-  #define HAL_PLATFORM HAL_GD32F1
 #elif defined(ARDUINO_ARCH_ESP32)
   #define HAL_PLATFORM HAL_ESP32
 #elif defined(__PLAT_LINUX__)
