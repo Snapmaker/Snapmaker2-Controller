@@ -33,7 +33,6 @@ void PeriphDevice::SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value
   Data[1] = DelayTime;
   Data[2] = s_value;
   FanSpeed[index] = s_value;
-  CanBusControlor.SendData(1, CAN_IDS_FAN, Data, 3);
 }
 #endif
 

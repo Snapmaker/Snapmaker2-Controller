@@ -96,11 +96,7 @@ void LaserExecuter::SaveFocusHeight(uint8_t index, float height)
   Data[3] = (uint8_t)(intheight >> 16);
   Data[4] = (uint8_t)(intheight >> 8);
   Data[5] = (uint8_t)(intheight);
-  if(CanBusControlor.SendData(2, CAN_IDS_LASER, Data, 6) == true)
-  {
-    FocusHeight = height;
-    LastSetIndex = index;
-  }
+
 }
 
 /**
@@ -118,7 +114,7 @@ void LaserExecuter::SaveFocusHeight()
   Data[3] = (uint8_t)(intheight >> 16);
   Data[4] = (uint8_t)(intheight >> 8);
   Data[5] = (uint8_t)(intheight);
-  CanBusControlor.SendData(2, CAN_IDS_LASER, Data, 6);
+  
 }
 
 /**
@@ -131,11 +127,7 @@ bool LaserExecuter::LoadFocusHeight()
 
   Data[0] = LastSetIndex;
   Data[1] = 2;
-  if(CanBusControlor.SendData(2, CAN_IDS_LASER, Data, 2) == true)
-  {
-    return CanBusControlor.WaitReply(2, CAN_IDS_LASER, Data, 2, 300);
-  }
-  return false;
+ 
 }
 #endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
 

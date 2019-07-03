@@ -35,7 +35,7 @@ void CanInitFilter() {
   //FilterID = (1 << 28);
   FilterID = 1;
   FilterValue = CAN_ID_EXT | CAN_RTR_REMOTE | (FilterID << 3);
-  FilterMask = (1<<1) | (1<<2) | (FilterID << 3);
+  FilterMask = (1<<1) | (1<<2) | (1 << 3);
   CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
   CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
   CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
@@ -54,7 +54,7 @@ void CanInitFilter() {
   //Extent and data frame for module long pack
   FilterID = 1;
   FilterValue = CAN_ID_EXT | CAN_RTR_DATA | (FilterID << 3);
-  FilterMask = (1<<1) | (1<<2) | (FilterID << 3);
+  FilterMask = (1<<1) | (1<<2) | (1 << 3);
   CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
   CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
   CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
@@ -427,11 +427,9 @@ uint8_t Canbus2ParseData(uint32_t *ID, uint8_t *IDType, uint8_t *FrameType, uint
   pData[6] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDHR >> 16);
   pData[7] = (uint8_t)0xFF & (CAN2->sFIFOMailBox[FIFONum].RDHR >> 24);
 
-  //Only use FIFO0
-  if(FIFONum == 0)
-    CAN2->RF0R |= CAN_RF0R_RFOM0;
-  else
-    CAN2->RF1R |= CAN_RF1R_RFOM1;
+  //
+  if(FIFONum == 0) CAN2->RF0R |= CAN_RF0R_RFOM0;
+  else CAN2->RF1R |= CAN_RF1R_RFOM1;
   return FMI;
 }
 

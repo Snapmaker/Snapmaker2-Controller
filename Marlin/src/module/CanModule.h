@@ -23,6 +23,8 @@ public:
   uint8_t GetUpdateStatus() {return UpdateStatus;}
   
   int UpdateEndstops(uint8_t *pBuff);
+  int UpdateTemperature(uint8_t *pBuff);
+  int UpdateCNCRPM(uint8_t *pBuff);
   int SetExecuterFan1(uint8_t Speed);
   int SetExecuterFan2(uint8_t Speed);
   int SetExecuterTemperature(uint16_t TargetTemperature);
@@ -39,6 +41,11 @@ public:
   uint8_t UpdateStatus;
 
 private:
+  uint32_t MacIDofFuncID[128];
+  uint16_t MsgIDTable[512];
+  uint16_t FuncIDList[128];
+  uint16_t FuncIDPriority[128];
+  uint16_t MsgIDCount;
   uint8_t SendBuff[256];
   uint8_t RecvBuff[256];
 };

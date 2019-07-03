@@ -72,7 +72,7 @@ bool ExecuterManager::Detecte()
     Data[0] = index & 0x3F;
     Data[1] = (uint8_t)(temperature >> 8);
     Data[2] = (uint8_t)temperature;
-    CanBusControlor.SendData(2, CAN_IDS_TEMP_CONTROL, Data, 3);
+    
     SERIAL_ECHOLN("Set Tamp");
   }
 
@@ -90,7 +90,7 @@ bool ExecuterManager::Detecte()
     Data[2] = 0;
     Data[3] = s_value;
     FanSpeed[index] = s_value;
-    CanBusControlor.SendData(2, CAN_IDS_FAN, Data, 4);
+    
   }
 #else
 

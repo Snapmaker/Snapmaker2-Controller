@@ -1259,18 +1259,20 @@ void HMI_SC20::PollingCommand(void)
         //启动升级
         case 0:
           StartUpdate();
-          MarkNeedReack(0);
+          SendGeneralReack((eventId + 1), OpCode, 0);
           SendUpdatePackRequest(UpdatePackRequest);
           SERIAL_ECHOLN("Start Update");
           break;
 
         //升级包数据
         case 1:
+          SERIAL_ECHOLN("Update Pack");
           UpdatePackProcess((uint8_t *) &tmpBuff[10], cmdLen - 2);
           break;
 
         //升级结束
         case 2:
+          SERIAL_ECHOLN("End Update");
           if (UpdateDownloadComplete() == true) MarkNeedReack(0);
           else MarkNeedReack(1);
           break;

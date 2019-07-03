@@ -6,28 +6,7 @@
 #ifndef _CANBUS_H_
 #define _CANBUS_H_
 
-#define EXECUTER_CAN  1
-#define LINEAR_MODULE_CAN 1
-#define EXTERN_CAN    2
-#define WHEEL_CAN     2
-
-#define CAN_IDS_BC   0x500
-#define CAN_IDS_TEMP_CONTROL  0x501
-#define CAN_IDS_FAN 0x502
-#define CAN_IDS_SWTICH 0x503
-#define CAN_IDS_LASER 0x504
-#define CAN_IDS_DCMOTOR  0x505
-#define CAN_IDS_LIGHT  0x506
-#define CAN_IDS_JODPANEL 0x507
-#define CAN_IDS_CAMERA 0x508
-
-typedef struct
-{
-  uint32_t ID;
-  uint8_t IDType;
-  uint8_t FrameType;
-  uint8_t Data[8];
-}strCanData;
+#include "CanDefines.h"
 
 class CanBus
 {
@@ -51,7 +30,7 @@ public:
 
 public:
   static uint32_t CurCommunicationID;
-  static uint8_t ReadRingBuff[1024];
+  static uint8_t ReadRingBuff[2048];
   static uint8_t ProcessBuff[524];
   static uint16_t ReadHead;
   static uint16_t ReadTail;

@@ -53,12 +53,8 @@ const strCanMsgMap CanMsgTable[] = {
   {21, 6, 0}, //Laser
 };
 
-const strFuncID2Fun CanFunctionTable[] = {
-  {&CanModule::UpdateEndstops, 0},
-};
-
 uint32_t CanBus::CurCommunicationID = 0xffffffff;
-uint8_t CanBus::ReadRingBuff[1024] = {0};
+uint8_t CanBus::ReadRingBuff[2048] = {0};
 uint8_t CanBus::ProcessBuff[524] = {0};
 uint16_t CanBus::ReadHead = 0;
 uint16_t CanBus::ReadTail = 0;
@@ -133,7 +129,8 @@ uint16_t CanBus::ProcessLongPacks(uint8_t *pBuff, uint16_t MaxLen) {
   tmplen = (tmphead + sizeof(ReadRingBuff) - tmptail) % sizeof(ReadRingBuff);
   ProtocalParse(tmplen, ReadTail, tmptail, ReadRingBuff, ProcessBuff, DataLen);
   if(DataLen > 0) {
-    for(i=0;(i < DataLen) && (i < MaxLen);i++)
+    DataLen = DataLen>MaxLen?MaxLen : DataLen;
+    for(i=0;i<DataLen;i++)
       pBuff[i] = ProcessBuff[i + 8];
     return i;
     /*
@@ -306,15 +303,14 @@ void __irq_can2_rx0(void) {
       Buff[2] = tmpData.Data[0];
       CanModules.UpdateEndstops(Buff);
     } else {
-      switch(tmpData.ID) {
-        
-        case CAN_IDS_TEMP_CONTROL:
-          if(tmpData.Data[0] < 5) {
-            ExecuterHead.temp_hotend[tmpData.Data[1]] = (uint16_t)((tmpData.Data[2] << 8) | tmpData.Data[3]);
-            ExecuterHead.CanTempMeasReady = true;
-          }
-        break;
+      #if(0)
+      for(int i=0;i<sizeof(CanFunctionTable) / sizeof(CanFunctionTable[0]);i++) {
+        if(CanFunctionTable[i].FuncID == tmpData.ID) {
+          CanFunctionTable[i].pFun(tmpData.Data);
+          break;
+        }
       }
+      #endif
     }
   } else {
   }

@@ -26,39 +26,6 @@ CanModule CanModules;
 #define MODULE_LIGHT 6
 #define MODULE_AIRCONDITIONER 7
 
-enum
-{
-  CMD_T_CONFIG = 0,
-  CMD_R_CONFIG_REACK,
-  CMD_T_REQUEST_FUNCID,
-  CMD_R_REPORT_FUNCID,
-  CMD_T_CONFIG_FUNCID,
-  CMD_R_CONFIG_FUNCID_REACK,
-  CMD_T_UPDATE_REQUEST, //6
-  CMD_R_UPDATE_REQUEST_REACK,
-  CMD_T_UPDATE_PACKDATA,
-  CMD_R_UPDATE_PACK_REQUEST,
-  CMD_T_UPDATE_END,
-};
-
-typedef enum {
-    FUNC_REPORT_LIMIT          ,
-    FUNC_STEP_CTRL_ID          ,
-    FUNC_SET_MOTOR_SPEED_ID    ,
-    FUNC_REPORT_MOTOR_SPEED_ID ,
-    FUNC_REPORT_TEMPEARTURE_ID ,
-    FUNC_SET_TEMPEARTURE_ID    ,
-    FUNC_FAN_ID                ,
-    FUNC_FAN2_ID               ,
-    FUNC_REPORT_PROBE          ,
-    FUNC_SET_PID               ,
-    FUNC_REPORT_CUT            ,
-    FUNC_REPORT_MOTOR_SPEED    ,
-    FUNC_SET_MOTOR_SPEED       ,
-    FUNC_SET_CAMERA_POWER      ,
-}FUNC_ID_E;
-
-
 
 #define MAKE_ID(MID)  ((MID << 20) & MODULE_MASK_BITS)
 
@@ -127,9 +94,10 @@ void CanModule::PrepareLinearModules(void) {
   uint32_t tmptick;
   uint32_t i;
   uint32_t j;
-  uint16_t FuncID[9];
+  uint16_t tmpFuncID[9];
   uint8_t LinearAxisMark[9];
   uint8_t CanNum = 2;
+  bool prepared;
   uint8_t Buff[3] = {CMD_T_CONFIG, 0x00, 0x00};
   int Pins[3] = {X_DIR_PIN, Y_DIR_PIN, Z_DIR_PIN};
   
@@ -138,30 +106,32 @@ void CanModule::PrepareLinearModules(void) {
   WRITE(Z_DIR_PIN, LOW);
   
   for(i=0;i<LinearModuleCount;i++) {
+    prepared = false;
     for(j=0;j<3;j++) {
       Buff[1] = j;
-      Buff[2] = (j==2)?1:0;
       WRITE(Pins[j], HIGH);
-      CanBusControlor.SendLongData(CanNum, LinearModuleID[i], Buff, 3);
-      tmptick = millis() + 100;
-      while(tmptick > millis());
-      WRITE(Pins[j], LOW);
-    }
-    tmptick = millis() + 200;
-    while(tmptick > millis()) {
-      if(CanBusControlor.ProcessLongPacks(RecvBuff, 5) == 5) {
-        if(RecvBuff[0] == CMD_R_CONFIG_REACK) {
-          LinearAxisMark[i] = RecvBuff[1];
-          //Axis Endstop describe,etc 0-2:xyz 3:probe min 4-6:xyz max
-          LinearModuleAxis[i] = RecvBuff[1] + 4;
-          LinearModuleLength[i] = (RecvBuff[2] << 8) | RecvBuff[3];
-          //Limit position
-          //RecvBuff[4];
-
-          SERIAL_ECHOLNPAIR("Length:", LinearModuleLength[i], " Axis:", LinearAxisMark[i]);
+      CanBusControlor.SendLongData(CanNum, LinearModuleID[i], Buff, 2);
+      tmptick = millis() + 500;
+      while(tmptick > millis()) {
+        if(CanBusControlor.ProcessLongPacks(RecvBuff, 5) == 5) {
+          if(RecvBuff[0] == CMD_R_CONFIG_REACK) {
+            if(RecvBuff[1] == 1) {
+              LinearAxisMark[i] = j;
+              //Axis Endstop describe,etc 0-2:xyz 3:probe min 4-6:xyz max
+              LinearModuleAxis[i] = j + 4;
+              LinearModuleLength[i] = (RecvBuff[2] << 8) | RecvBuff[3];
+              prepared = true;
+              //Limit position
+              //RecvBuff[4];
+              SERIAL_ECHOLNPAIR("Length:", LinearModuleLength[i], " Axis:", LinearAxisMark[i]);
+            }
+          }
+          break;
         }
-        break;
       }
+      WRITE(Pins[j], LOW);
+      if(prepared == true)
+        break;
     }
   }
 
@@ -171,12 +141,12 @@ void CanModule::PrepareLinearModules(void) {
     SendBuff[1] = 0;
     CanBusControlor.SendLongData(CanNum, LinearModuleID[i], SendBuff, 2);
     tmptick = millis() + 100;
-    FuncID[i] = 0xffff;
+    tmpFuncID[i] = 0xffff;
     while(tmptick > millis()) {
       if(CanBusControlor.ProcessLongPacks(RecvBuff, 4) == 4) {
         if(RecvBuff[0] == CMD_R_REPORT_FUNCID) {
-          FuncID[i] = (RecvBuff[2] << 8) | RecvBuff[3];
-          SERIAL_ECHOLNPAIR("MacIC:", LinearModuleID[i], " FuncID:", FuncID[i]);
+          tmpFuncID[i] = (RecvBuff[2] << 8) | RecvBuff[3];
+          SERIAL_ECHOLNPAIR("MacIC:", LinearModuleID[i], " FuncID:", tmpFuncID[i]);
         }
         break;
       }
@@ -191,12 +161,13 @@ void CanModule::PrepareLinearModules(void) {
   SendBuff[1] = 0x01;
   for(i=0;i<LinearModuleCount;i++) {
     //Check if the max count of each axis reach 3 and if the FuncID is 0x0000
-    if((LinearAxisMark[i] < 3) && (AxisLinearCount[LinearAxisMark[i]] < 3) && (FuncID[i] == FUNC_REPORT_LIMIT)) {
+    if((LinearAxisMark[i] < 3) && (AxisLinearCount[LinearAxisMark[i]] < 3) && (tmpFuncID[i] == FUNC_REPORT_LIMIT)) {
       SendBuff[2] = 0;
       //Temporary for max endstops, example:first x axis is 0+3+0, the second x axis is 0+3+6 
       SendBuff[3] = LinearAxisMark[i] + 3 + AxisLinearCount[LinearAxisMark[i]] * 6;
-      SendBuff[4] = (uint8_t)(FuncID[i] >> 8);
-      SendBuff[5] = (uint8_t)(FuncID[i]);
+      SendBuff[4] = (uint8_t)(tmpFuncID[i] >> 8);
+      SendBuff[5] = (uint8_t)(tmpFuncID[i]);
+      MsgIDTable[LinearAxisMark[i] + 3 + AxisLinearCount[LinearAxisMark[i]] * 6] = tmpFuncID[i];
       //Axis count add 1
       AxisLinearCount[LinearAxisMark[i]]++;
       LinearModuleMsgID[i] = SendBuff[3];
@@ -204,85 +175,142 @@ void CanModule::PrepareLinearModules(void) {
       SERIAL_ECHOLN(LinearAxisMark[i]);
     }
   }
+  //Reserved 20 for high response
+  MsgIDCount = 20;
 }
 
 /**
  *PrepareExecuterModules:Prepare for Executer module
  */
 void CanModule::PrepareExecuterModules(void) {
-  uint32_t tmptick;
+  millis_t tmptick;
   uint32_t i;
   uint32_t j;
-  uint8_t RecvBuff[3];
-  uint16_t FuncID[9];
+  int m;
+  int k;
+  uint16_t FuncIDCount;
   uint8_t ExecuterMark[6];
   uint8_t Buff[3] = {CMD_T_CONFIG, 0x00, 0x00};
   uint8_t CanNum = 2;
-  int32_t Pins[] = {E0_DIR_PIN};
+  int Pins[] = {E0_DIR_PIN};
  
   WRITE(E0_DIR_PIN, LOW);
 
   for(i=0;i<ExecuterCount;i++) {
     for(j=0;j<sizeof(Pins) / sizeof(Pins[0]);j++) {
       WRITE(Pins[j], HIGH);
-      CanBusControlor.SendLongData(2, ExecuterID[i], Buff, 3);
-      WRITE(Pins[j], LOW);
-    }
-    tmptick = millis() + 100;
-    //Unsed in current hardware design
-    ExecuterMark[i] = 0xff;
-    while(tmptick > millis())
-    {
-      if(CanBusControlor.ProcessLongPacks(RecvBuff, 3) == 3)
+      CanBusControlor.SendLongData(CanNum, ExecuterID[i], Buff, 3);
+      
+      tmptick = millis() + 100;
+      //Unsed in current hardware design
+      ExecuterMark[i] = 0xff;
+      while(tmptick > millis())
       {
-        if(RecvBuff[0] == CMD_R_CONFIG_REACK) ExecuterMark[i] = RecvBuff[1];
-        break;
+        if(CanBusControlor.ProcessLongPacks(RecvBuff, 20) == 2)
+        {
+          if(RecvBuff[0] == CMD_R_CONFIG_REACK) ExecuterMark[i] = RecvBuff[1];
+          //SERIAL_ECHOLNPAIR("Executer Mark:", ExecuterMark[i]);
+          break;
+        }
       }
+      WRITE(Pins[j], LOW);
+      if(ExecuterMark[i] != 0xff) break;
     }
   }
 
   //Get Executer module function ID
-  /*
+  #if(1)
+  FuncIDCount = 0;
   for(i=0;i<ExecuterCount;i++) {
     SendBuff[0] = CMD_T_REQUEST_FUNCID;
     SendBuff[1] = 0;
     CanBusControlor.SendLongData(CanNum, ExecuterID[i], SendBuff, 2);
-    tmptick = millis() + 100;
-    FuncID[i] = 0xffff;
+    tmptick = millis() + 500;
     while(tmptick > millis()) {
-      j = CanBusControlor.ProcessLongPacks(RecvBuff, 128); 
-      if(j > 4) {
+      if(CanBusControlor.ProcessLongPacks(RecvBuff, 10) >= 10) {
+        SERIAL_ECHOLN("S2");
         if(RecvBuff[0] == CMD_R_REPORT_FUNCID) {
-          int m;
-          int n = 0;
-          for(m=2;m<j;m=m+2) {
-            FuncID[n++] = (RecvBuff[m] << 8) | RecvBuff[m + 1];
-            //SERIAL_ECHOLNPAIR("MacIC:", ExecuterID[i], " FuncID:", FuncID[n - 1]);
+          m = 2;
+          for(k=0;k<RecvBuff[1];k++) {
+            FuncIDList[FuncIDCount] = (RecvBuff[m] << 8) | RecvBuff[m + 1];
+            MacIDofFuncID[FuncIDCount] = ExecuterID[i];
+            m = m + 2;
+            FuncIDCount++;
           }
         }
         break;
       }
     }
   }
-  */
+  #endif
 
-  //Bind Function ID with the message ID
-  /*
-  SendBuff[0] = CMD_T_CONFIG_FUNCID;
-  SendBuff[1] = 0x01;
-  for(i=0;i<ExecuterCount;i++) {
-    SendBuff[2] = 0;
-    SendBuff[3] = 0;
-    SendBuff[4] = (uint8_t)(FuncID[i] >> 8);
-    SendBuff[5] = (uint8_t)(FuncID[i]);
-    LinearModuleMsgID[i] = SendBuff[3];
-    CanBusControlor.SendLongData(CanNum, ExecuterID[i], SendBuff, 6);
+  SERIAL_ECHOLN("Get FuncID of Executer End");
+  for(i=0;i<FuncIDCount;i++) {
+    SERIAL_ECHOLNPAIR("FuncID:", FuncIDList[i]);
   }
-  */
+
+  tmptick = millis() + 200;
+  while(tmptick > millis());
+
+  //Get Priority from table
+  for(i=0;i<FuncIDCount;i++) {
+    FuncIDPriority[i] = 15;
+    for(j=0;j<sizeof(PriorityTable) / sizeof(PriorityTable[0]);j++)
+    if(PriorityTable[j][0] == FuncIDList[i]) {
+      FuncIDPriority[i] = PriorityTable[j][1]; 
+      break;
+    }
+  }
+
+  //Sort
+  uint32_t tmpswapvalue;
+  if(FuncIDCount > 1)
+  {
+    for(i=0;i<(FuncIDCount - 1);i++) {
+      for(j=(i + 1);j<FuncIDCount;j++) {
+        if(FuncIDPriority[i] > FuncIDPriority[j]) {
+          tmpswapvalue = FuncIDPriority[i];
+          FuncIDPriority[i] = FuncIDPriority[j];
+          FuncIDPriority[j] = tmpswapvalue;
+          tmpswapvalue = FuncIDList[i];
+          FuncIDList[i] = FuncIDList[j];
+          FuncIDList[j] = tmpswapvalue;
+          tmpswapvalue = MacIDofFuncID[i];
+          MacIDofFuncID[i] = MacIDofFuncID[j];
+          MacIDofFuncID[j] = tmpswapvalue;
+        }
+      }
+    }
+  }
+
+  //Fill MsgID Table
+  for(i=0;i<FuncIDCount;i++)
+    MsgIDTable[MsgIDCount++] = FuncIDList[i];
+  //
+  //Bind Function ID with the message ID
+  SendBuff[0] = CMD_T_CONFIG_FUNCID;
+  for(i=0;i<ExecuterCount;i++) {
+    SendBuff[1] = 0x00;
+    k = 2;
+    for(j=0;j<FuncIDCount;j++) {
+      if(ExecuterID[i] == MacIDofFuncID[j]) {        
+        SendBuff[k++] = (uint8_t)(j >> 8);
+        SendBuff[k++] = (uint8_t)(j);
+        SendBuff[k++] = (uint8_t)(FuncIDList[i] >> 8);
+        SendBuff[k++] = (uint8_t)(FuncIDList[i]);
+        SendBuff[1]++;
+      }
+    }    
+    CanBusControlor.SendLongData(CanNum, MacIDofFuncID[i], SendBuff, k);
+  }
+
+  for(i=0;i<MsgIDCount;i++) {
+    SERIAL_ECHOLNPAIR("FuncID:", MsgIDTable[i]);
+  }
 
   if((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_PRINT)) ExecuterHead.MachineType = MACHINE_TYPE_3DPRINT;
-  else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_CNC)) && (ExecuterMark[j] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_CNC;
-  else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_LASER)) && (ExecuterMark[j] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_LASER;
+  else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_CNC)) && (ExecuterMark[0] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_CNC;
+  else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_LASER)) && (ExecuterMark[0] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_LASER;
 }
 
 /**
@@ -365,7 +393,7 @@ bool CanModule::UpdateModule(uint8_t CanNum, uint32_t ID, char *Version, uint32_
   int err;
 
   SERIAL_ECHOLNPAIR("Module Start Update:" , ID);
-  tmptick = millis() + 1000;
+  tmptick = millis() + 50;
   while(tmptick > millis());
 
   //Step1:send update version
@@ -398,9 +426,6 @@ bool CanModule::UpdateModule(uint8_t CanNum, uint32_t ID, char *Version, uint32_
   }
 
   //Step2:send update content
-  //Delay for waiting the module reboot
-  tmptick = millis() + 100;
-  while(tmptick > millis());
   tmptick = millis() + 2000;
   while(1) {
     if(CanBusControlor.ProcessLongPacks(RecvBuff, 4) == 4) {
@@ -421,8 +446,12 @@ bool CanModule::UpdateModule(uint8_t CanNum, uint32_t ID, char *Version, uint32_
         tmptick = millis() + 200;
       }
     }
+    if(millis() > tmptick) {
+      SERIAL_ECHOLNPAIR("Module Update Fail:" , ID);
+      return false;
+    }
   }
-  tmptick = millis() + 200;
+  tmptick = millis() + 20;
   while(tmptick > millis());
   SERIAL_ECHOLNPAIR("Module Update Complete:" , ID);
 
@@ -478,6 +507,23 @@ int CanModule::UpdateEndstops(uint8_t *pBuff) {
       break;
     }
   }
+  return 0;
+}
+
+/**
+ *UpdateTemperature:Update temperature from can
+ */
+int CanModule::UpdateTemperature(uint8_t *pBuff) {
+  ExecuterHead.temp_hotend[0] = (pBuff[0] << 8) | pBuff[1];
+  ExecuterHead.CanTempMeasReady = true;
+  return 0;
+}
+
+/**
+ *UpdateCNCRPM:Update CNC RPM from can
+ */
+int CanModule::UpdateCNCRPM(uint8_t *pBuff) {
+  ExecuterHead.CNC.RPM = (pBuff[0] << 8) | pBuff[1];
   return 0;
 }
 
