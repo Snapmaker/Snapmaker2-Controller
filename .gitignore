@@ -37,7 +37,6 @@ applet/
 *.rej
 *.bak
 *.idea
-*.s
 *.i
 *.ii
 *.swp
