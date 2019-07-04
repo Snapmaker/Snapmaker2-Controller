@@ -103,65 +103,7 @@ def add_upload_protocol_defines(board, upload_protocol):
 
 
 def get_linker_script(board, mcu, upload_protocol):
-    if upload_protocol == "dfu":
-        boards_with_boot_20 = (
-            "genericSTM32F103C",
-            "genericSTM32F103T",
-            "maple_mini_b20",
-            "hytiny_stm32f103t"
-        )
-
-        if any(b in board for b in boards_with_boot_20):
-            return "bootloader_20.ld"
-        elif board.startswith("genericSTM32F103R"):
-            return "bootloader.ld"
-        elif board.startswith("genericSTM32F103V"):
-            return "stm32f103veDFU.ld"
-        elif board.startswith("genericSTM32F103Z"):
-            return "stm32f103z_dfu.ld"
-        elif board == "maple_ret6":
-            return "stm32f103re-bootloader.ld"
-
-    elif upload_protocol == "hid":
-        # a rare case only one board
-        if board.startswith("genericSTM32F103C"):
-            return "hid_bootloader.ld"
-        else:
-            sys.stderr.write(
-                "%s doesn't support uploading using HID method\n" % board)
-            env.Exit(1)
-    else:
-        # Any other upload protocol
-        specific_scripts = (
-            "snapmaker1_v1"
-        )
-
-        flash_scripts = (
-            "maple",
-            "mapleMini",
-            "microduino32_flash"
-        )
-
-        jtag_scripts = (
-            "nucleo_f103rb",
-            "genericSTM32F103CB",
-            "genericSTM32F103TB",
-            "disco_f100rb",
-            "hytiny_stm32f103t"
-        )
-
-        if any(b in board for b in specific_scripts):
-            return "%s.ld" % mcu[0:10]
-        elif any(b in board for b in flash_scripts):
-            return "flash.ld"
-        elif any(b in board for b in jtag_scripts):
-            return "jtag.ld"
-        elif board == "genericSTM32F103C8":
-            return "jtag_c8.ld"
-        elif board == "genericSTM32F103T8":
-            return "jtag_t8.ld"
-
-    return "flash.ld"
+    return "%s.ld" % mcu[0:10]
 
 
 def configure_error_led(board):
