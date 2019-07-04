@@ -45,7 +45,7 @@ static spi_dev spi2 = SPI_DEV(2);
 spi_dev *SPI1 = &spi1;
 spi_dev *SPI2 = &spi2;
 
-#if defined(STM32_HIGH_DENSITY) || defined(STM32_XL_DENSITY)
+#if defined(STM32_HIGH_DENSITY) || defined(STM32_XL_DENSITY) || (STM32_F1_LINE == STM32_F1_LINE_CONNECTIVITY)
 static spi_dev spi3 = SPI_DEV(3);
 spi_dev *SPI3 = &spi3;
 #endif

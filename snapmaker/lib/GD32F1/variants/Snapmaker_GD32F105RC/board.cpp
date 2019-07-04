@@ -195,7 +195,7 @@ extern const uint8 boardUsedPins[BOARD_NR_USED_PINS] __FLASH__ = {
 #else
 	DEFINE_HWSERIAL(Serial, 1);
 	DEFINE_HWSERIAL(Serial1, 2);
-	//DEFINE_HWSERIAL(Serial2, 3);
+	DEFINE_HWSERIAL(Serial2, 3);
 	//DEFINE_HWSERIAL_UART(Serial3, 4);
 	//DEFINE_HWSERIAL_UART(Serial4, 5);
 #endif
