@@ -465,6 +465,8 @@ class Stepper {
     // Set direction bits for all steppers
     static void set_directions();
 
+    block_t *get_current_block() { return current_block; }
+
   private:
 
     // Set the current position in steps

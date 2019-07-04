@@ -10,15 +10,15 @@
 #define TRIGGLE_STAT_STOP   2
 #define TRIGGLE_STAT_RESUME 3
 
-#define FAULT_FLAG_HEATER0	1
-#define FAULT_FLAG_BED		(1<<1)
-#define FAULT_FLAG_LOAD		(1<<2)
-#define FAULT_FLAG_FILAMENT	(1<<3)
-#define FAULT_FLAG_HEATFAIL	(1<<4)
-#define FAULT_FLAG_FILAMENT_SENSOR	(1<<5)
-#define FAULT_FLAG_POWERPANIC	(1<<6)
-#define FAULT_FLAG_LASER_EEPROM	(1<<7)
-
+#define FAULT_FLAG_HEATER0	          1
+#define FAULT_FLAG_BED		            (1<<1)
+#define FAULT_FLAG_LOAD		            (1<<2)
+#define FAULT_FLAG_FILAMENT	          (1<<3)
+#define FAULT_FLAG_HEATFAIL	          (1<<4)
+#define FAULT_FLAG_FILAMENT_SENSOR	  (1<<5)
+#define FAULT_FLAG_POWERPANIC	        (1<<6)
+#define FAULT_FLAG_LASER_EEPROM	      (1<<7)
+#define FAULT_FLAG_INVALID_PPD        (1<<8)    /* invalid power panic data */
 
 //终止触发源
 typedef enum
@@ -68,6 +68,9 @@ public:
 
 private:
   void InterruptAllCommand();
+  void inline resume_3dp(void);
+  void inline resume_cnc(void);
+  void inline resume_laser(void);
   
 public:
   uint8_t CurrentStatus = STAT_IDLE;

@@ -826,12 +826,14 @@ void HMI_SC20::PollingCommand(void)
 
       //请求打印进度
       else if (StatuID == 0x09) {
+      #if (BAORD_VER == BOARD_SNAPMAKER2_v1)
         //文件打开
         if (card.isFileOpen() == true) //更新最后进度
           card.LastPercent = card.percentDone();
 
         //发送进度
         SendProgressPercent(card.LastPercent);
+      #endif
       }
 
       //清除断电续打数据

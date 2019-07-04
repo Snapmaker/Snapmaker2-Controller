@@ -16,6 +16,7 @@
 #include "StatusControl.h"
 #include "PowerPanic.h"
 #include "printcounter.h"
+#include "stepper.h"
 
 StatusControl SystemStatus;
 
@@ -25,7 +26,7 @@ StatusControl SystemStatus;
  */
 void StatusControl::Init()
 {
- 
+
 }
 
 /**
@@ -55,9 +56,11 @@ bool StatusControl::PauseTriggle(PausePrintType type)
     switch(type) {
       case FilamentFaultPause:
         CRITICAL_SECTION_START;
+      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
   			//U盘打印
         if(GetCurrentPrinterStatus() == STAT_RUNNING)
           card.pauseSDPrint();
+      #endif
         SetSystemFaultBit(FAULT_FLAG_FILAMENT);
         InterruptAllCommand();
         if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
@@ -70,21 +73,25 @@ bool StatusControl::PauseTriggle(PausePrintType type)
         //PowerPanicData.Data.PrintFeedRate = pBlock->PrintFeedRate;
         CRITICAL_SECTION_END;
       break;
-      
+
       case DoorOpenPause:
+      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
         //U盘打印
         if(GetCurrentPrinterStatus() == STAT_RUNNING)
           card.pauseSDPrint();
+      #endif
         InterruptAllCommand();
       break;
 
       case ManualPause:
+      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
         //U盘打印
         if(GetCurrentPrinterStatus() == STAT_RUNNING)
           card.pauseSDPrint();
+      #endif
         InterruptAllCommand();
       break;
-      
+
       default:
       break;
     }
@@ -104,23 +111,29 @@ bool StatusControl::StopTriggle(StopPrintType type)
   if((CurrentStatus != STAT_IDLE) && (TriggleStat == TRIGGLE_STAT_IDLE)) {
     switch(type) {
       case EndPrint:
+      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
         //U盘打印
         if(GetCurrentPrinterStatus() == STAT_RUNNING)
           card.pauseSDPrint();
+      #endif
         InterruptAllCommand();
       break;
 
       case ManualStop:
+        #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
         //U盘打印
         if(GetCurrentPrinterStatus() == STAT_RUNNING)
           card.pauseSDPrint();
+        #endif
         InterruptAllCommand();
       break;
 
       case PowerPanicStop:
+      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
         //U盘打印
         if(GetCurrentPrinterStatus() == STAT_RUNNING)
           card.pauseSDPrint();
+      #endif
         InterruptAllCommand();
       break;
 
@@ -140,6 +153,8 @@ bool StatusControl::StopTriggle(StopPrintType type)
  */
 void StatusControl::PauseProcess()
 {
+  block_t *current_blk;
+
   if(TriggleStat == TRIGGLE_STAT_PAUSE) {
     TriggleStat = TRIGGLE_STAT_IDLE;
     if((PauseType == ManualPause) || (PauseType == FilamentFaultPause) || (PauseType == DoorOpenPause) || (PauseType == ExecuterLostPause))  {
@@ -149,93 +164,57 @@ void StatusControl::PauseProcess()
 			else
 				CurrentStatus = STAT_PAUSE;
 
-			//保存温度
-			for(int i=0;i<HOTENDS;i++)		
-				PowerPanicData.Data.HeaterTamp[i] = thermalManager.temp_hotend[i].current;
+      // disable all interrupt, then stepper will be stopped
+      DISABLE_ISRS();
 
-			//热床温度
-			PowerPanicData.Data.BedTamp = thermalManager.temp_bed.current;
-			//风扇速度 
-			
-			for(int i=0;i<FAN_COUNT;i++)
-			  PowerPanicData.Data.FanSpeed[i] = Periph.GetFanSpeed(i);
-			//机型保存
-			PowerPanicData.Data.MachineType = ExecuterHead.MachineType;
+      stepper.quick_stop();
+      set_current_from_steppers_for_axis(ALL_AXES);
 
-			//标置有效
-			PowerPanicData.Data.Valid = 1;
+      current_blk = stepper.get_current_block();
+      if (current_blk) {
+        PowerPanicData.Data.FilePosition = current_blk->filePos;
+      }
 
-			//文件名
-			if(PowerPanicData.Data.GCodeSource == GCODE_SOURCE_UDISK)
-			{
-				strcpy(PowerPanicData.Data.FileName, card.filename);
-			}
-			else
-			{
-				PowerPanicData.Data.FileName[0] = 0;
-			}
-			
-			sync_plan_position();
+      planner.clear_block_buffer();
+      clear_command_queue();
 
-			//坐标
-			for(int i=0;i<NUM_AXIS;i++)
-				PowerPanicData.Data.PositionData[i] = current_position[i];
+      print_job_timer.pause();
 
-			//上报状态
-			if(PauseType == FilamentFaultPause)
+      // save panic data to buffer
+			PowerPanicData.saveWork();
+
+      ENABLE_ISRS();
+
+      //上报状态
+  		if(PauseType == FilamentFaultPause)
 				HMI.SendMachineFaultFlag();
-      
-			if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-			{
-				//回抽
-				if(thermalManager.temp_hotend[0].current > 180)
-				{
-					//切换到相对坐标模式
-					relative_mode = true;
-					current_position[E_AXIS] -= 4;
-					line_to_current_position(40);
-					planner.synchronize();
-					while(planner.movesplanned()) thermalManager.manage_heater();
-				}
-				
-				//切换到绝对坐标模式
-				relative_mode = false;
-        
-				if(all_axes_known != false)
-				{
-					//Z轴抬升30  
-					do_blocking_move_to_z(current_position[Z_AXIS] + 30, 10);
-					//X  轴走到限位开关位置
-          do_blocking_move_to_x(0, 35);
-					//Y  轴走到最大位置
-					do_blocking_move_to_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
-				}
-				//切换到主界面
-				HMI.ChangePage(PAGE_PRINT);
-				//关闭断料检测
-				Periph.StopFilamentCheck();
-			}
-			else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType)
-			{
-        do_blocking_move_to_z(current_position[Z_AXIS] + 30, 10);
-				while(planner.movesplanned())thermalManager.manage_heater();
 
-				//走到工件原点
-				do_blocking_move_to_xy(0, 0, 50);
+      // move to stop point
+      PowerPanicData.towardStopPoint();
 
-				//关闭电机
-				ExecuterHead.CNC.SetCNCPower(0);
-				//切换到主界面
-				HMI.ChangePage(PAGE_CNC);
-			}
-			//激光
-			else
-			{
-				//切换到主界面
-				HMI.ChangePage(PAGE_LASER);
-				//启动检测
-				Periph.StartDoorCheck();
-			}
+      // switch to rellated pages in HMI
+      switch(ExecuterHead.MachineType) {
+        case MACHINE_TYPE_3DPRINT:
+          //切换到主界面
+          HMI.ChangePage(PAGE_PRINT);
+          //关闭断料检测
+          Periph.StopFilamentCheck();
+          break;
+
+        case MACHINE_TYPE_CNC:
+        	HMI.ChangePage(PAGE_CNC);
+          break;
+
+        case MACHINE_TYPE_LASER:
+          //切换到主界面
+          HMI.ChangePage(PAGE_LASER);
+          //启动检测
+          Periph.StartDoorCheck();
+          break;
+
+        default:
+          break;
+      }
 
 			//回应上位机
 			if((HMI.RequestStatus == STAT_PAUSE) || (HMI.RequestStatus == STAT_PAUSE_ONLINE))
@@ -244,7 +223,7 @@ void StatusControl::PauseProcess()
 			}
 			//清除标志
 			HMI.RequestStatus = STAT_IDLE;
-			
+
 			//清除标置
 			PauseType = NonePause;
 		}
@@ -259,39 +238,35 @@ void StatusControl::StopProcess()
   if(TriggleStat == TRIGGLE_STAT_STOP) {
     TriggleStat = TRIGGLE_STAT_IDLE;
     if(StopType == ManualStop) {
-      if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {			        
-				if(all_axes_known() != false) {
-					//Z轴抬升30  
-					do_blocking_move_to_z(current_position[Z_AXIS] + 30, 10);
-					//X  轴走到限位开关位置
-          do_blocking_move_to_x(0, 35);
-					//Y  轴走到最大位置
-					do_blocking_move_to_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
-				}
-				//切换到主界面
-				HMI.ChangePage(PAGE_PRINT);
-				//关闭断料检测
-				Periph.StopFilamentCheck();
-			}
-			else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-        do_blocking_move_to_z(current_position[Z_AXIS] + 30, 10);
-				while(planner.movesplanned())thermalManager.manage_heater();
 
-				//走到工件原点
-				do_blocking_move_to_xy(0, 0, 50);
+      quickstop_stepper();
 
-				//关闭电机
-				ExecuterHead.CNC.SetCNCPower(0);
-				//切换到主界面
-				HMI.ChangePage(PAGE_CNC);
-			}
-			//激光
-			else {
-				//切换到主界面
-				HMI.ChangePage(PAGE_LASER);
-				//启动检测
-				Periph.StartDoorCheck();
-			}
+      // move to stop point
+      PowerPanicData.towardStopPoint();
+
+      // switch to rellated pages in HMI
+      switch(ExecuterHead.MachineType) {
+        case MACHINE_TYPE_3DPRINT:
+          //切换到主界面
+          HMI.ChangePage(PAGE_PRINT);
+          //关闭断料检测
+          Periph.StopFilamentCheck();
+          break;
+
+        case MACHINE_TYPE_CNC:
+        	HMI.ChangePage(PAGE_CNC);
+          break;
+
+        case MACHINE_TYPE_LASER:
+          //切换到主界面
+          HMI.ChangePage(PAGE_LASER);
+          //启动检测
+          Periph.StartDoorCheck();
+          break;
+
+        default:
+          break;
+      }
 
 			//回应上位机
 			if((HMI.RequestStatus == STAT_PAUSE) || (HMI.RequestStatus == STAT_PAUSE_ONLINE)) {
@@ -299,7 +274,7 @@ void StatusControl::StopProcess()
 			}
 			//清除标志
 			HMI.RequestStatus = STAT_IDLE;
-			
+
 			//清除标置
 			PauseType = NonePause;
       //状态切换
@@ -308,11 +283,124 @@ void StatusControl::StopProcess()
   }
 }
 
+
+/*
+ * follow functions are used to resume work
+ */
+#if ENABLED(VARIABLE_G0_FEEDRATE)
+  extern float saved_g0_feedrate_mm_s;
+  extern float saved_g1_feedrate_mm_s;
+#endif
+#define RESUME_PROCESS_CMD_SIZE 40
+
+static void restore_xyz(void) {
+
+  char cmd[RESUME_PROCESS_CMD_SIZE] = {0};
+
+  // restore X, Y
+  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 X%.2f Y%.2f F4000",
+      PowerPanicData.Data.PositionData[X_AXIS], PowerPanicData.Data.PositionData[Y_AXIS]);
+  parser.parse(cmd);
+  gcode.process_parsed_command();
+  planner.synchronize();
+
+  // restore Z
+  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F4000", PowerPanicData.Data.PositionData[Z_AXIS]);
+  parser.parse(cmd);
+  gcode.process_parsed_command();
+  planner.synchronize();
+}
+
+void inline StatusControl::resume_3dp(void) {
+  enable_all_steppers();
+
+  // pre-extrude
+  relative_mode = true;
+
+  parser.parse("G0 E15 F800");
+  gcode.process_parsed_command();
+
+  parser.parse("G0 E-4 F2400");
+  gcode.process_parsed_command();
+
+  planner.synchronize();
+
+  relative_mode = false;
+
+  // sync E position
+  current_position[E_AXIS] = PowerPanicData.Data.PositionData[E_AXIS];
+  sync_plan_position_e();
+
+  restore_xyz();
+
+  // switch printing page
+  HMI.ChangePage(PAGE_PRINT);
+
+  // enable filament runout
+  Periph.StartFilamentCheck();
+}
+
+
+void inline StatusControl::resume_cnc(void) {
+  // enable CNC motor
+
+  restore_xyz();
+
+  HMI.ChangePage(PAGE_CNC);
+}
+
+void inline StatusControl::resume_laser(void) {
+  HMI.ChangePage(PAGE_LASER);
+
+  // enable door check
+  Periph.StartDoorCheck();
+}
+
 /**
  * Resume Pause
  */
 void StatusControl::PauseResume()
 {
+  if (TriggleStat != TRIGGLE_STAT_RESUME)
+    return;
+
+  if (CurrentStatus != STAT_PAUSE_ONLINE || CurrentStatus != STAT_PAUSE)
+    return;
+
+  TriggleStat = TRIGGLE_STAT_IDLE;
+
+  switch(ExecuterHead.MachineType) {
+  case MACHINE_TYPE_3DPRINT:
+    resume_3dp();
+    break;
+
+  case MACHINE_TYPE_CNC:
+    resume_cnc();
+    break;
+
+  case MACHINE_TYPE_LASER:
+    resume_laser();
+    break;
+
+  default:
+    break;
+  }
+
+  // restore speed
+  saved_g0_feedrate_mm_s = PowerPanicData.Data.TravelFeedRate;
+  saved_g1_feedrate_mm_s = PowerPanicData.Data.PrintFeedRate;
+
+  // clear command queue
+  clear_command_queue();
+
+  // resume stopwatch
+  if (print_job_timer.isPaused()) print_job_timer.start();
+
+  // status change
+  if (CurrentStatus == STAT_PAUSE_ONLINE)
+    CurrentStatus = STAT_RUNNING_ONLINE;
+  else
+    CurrentStatus = STAT_RUNNING;
 }
 
 /**

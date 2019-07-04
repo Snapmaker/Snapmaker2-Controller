@@ -46,6 +46,7 @@
 #include "module/statuscontrol.h"
 #include "module/periphdevice.h"
 #include "libs/GenerialFunctions.h"
+#include "module/PowerPanic.h"
 
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
@@ -996,6 +997,9 @@ void setup() {
   // This also updates variables in the planner, elsewhere
   (void)settings.load();
 
+  // init power panic handler and load data from flash
+  PowerPanicData.init();
+
   #if HAS_M206_COMMAND
     // Initialize current position based on home_offset
     LOOP_XYZ(a) current_position[a] += home_offset[a];
@@ -1293,6 +1297,7 @@ void loop() {
     
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();
+    PowerPanicData.process();
     endstops.event_handler();
     SystemStatus.StopProcess();
     SystemStatus.PauseProcess();
