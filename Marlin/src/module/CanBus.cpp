@@ -79,7 +79,7 @@ uint16_t CanBus::ReadTail = 0;
       uint16_t myindex; \
       uint32_t checksum; \
       commandlen = (uint16_t) ((cmdLen0 << 8) | cmdLen1); \
-      if ((((commandlen >> 8) & 0xff) ^ (commandlen & 0xff)) != srcbuff[(tmptail + 5) % sizeof(srcbuff)]) { \
+      if ((cmdLen0 ^ cmdLen1) != srcbuff[(tmptail + 5) % sizeof(srcbuff)]) { \
         tmptail = (tmptail + 2) % sizeof(srcbuff); \
         tmplen = tmplen - 2; \
         srctail = tmptail; \
@@ -98,6 +98,10 @@ uint16_t CanBus::ReadTail = 0;
         checksum = ~checksum; \
         if ((uint16_t)checksum != (uint16_t) ((destbuff[6] << 8) | destbuff[7])) commandlen = -1; \
         else commandlen = commandlen; \
+        break; \
+      } \
+      else { \
+        commandlen = -1; \
         break; \
       } \
     } \

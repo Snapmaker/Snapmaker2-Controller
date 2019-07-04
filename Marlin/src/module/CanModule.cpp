@@ -225,9 +225,9 @@ void CanModule::PrepareExecuterModules(void) {
     SendBuff[0] = CMD_T_REQUEST_FUNCID;
     SendBuff[1] = 0;
     CanBusControlor.SendLongData(CanNum, ExecuterID[i], SendBuff, 2);
-    tmptick = millis() + 500;
+    tmptick = millis() + 2500;
     while(tmptick > millis()) {
-      if(CanBusControlor.ProcessLongPacks(RecvBuff, 10) >= 10) {
+      if(CanBusControlor.ProcessLongPacks(RecvBuff, 128) >= 4) {
         SERIAL_ECHOLN("S2");
         if(RecvBuff[0] == CMD_R_REPORT_FUNCID) {
           m = 2;
