@@ -32,10 +32,11 @@ public:
     static bool LoadFocusHeight() { return false; }
   #endif
   char ReadWifiStatus(char *SSID, char *Password, char *IP);
-  void SetWifiParameter(char *SSID, char *Password);
+  char SetWifiParameter(char *SSID, char *Password);
 
 private:
   void PackedProtocal(uint8_t *pData, uint16_t len);
+  char GetReply(uint8_t *Buff, millis_t Timeout);
 
 public:
   float LastPercent;
@@ -44,6 +45,6 @@ public:
   
 private:
   uint8_t LastSetIndex;
-  char tmpBuff[128];
+  uint8_t tmpBuff[128];
 };
 

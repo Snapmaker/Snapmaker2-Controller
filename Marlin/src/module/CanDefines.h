@@ -30,23 +30,25 @@ enum
   CMD_T_UPDATE_END,
 };
 
-//FuncID defines
+// FuncID defines
 typedef enum {
-    FUNC_REPORT_LIMIT          ,
-    FUNC_STEP_CTRL             ,
-    FUNC_SET_MOTOR_SPEED       ,
-    FUNC_REPORT_MOTOR_SPEED    ,
-    FUNC_REPORT_TEMPEARTURE    ,
-    FUNC_SET_TEMPEARTURE       ,
-    FUNC_SET_FAN               ,
-    FUNC_SET_FAN2              ,
-    FUNC_REPORT_PROBE          ,
-    FUNC_SET_PID               ,
-    FUNC_REPORT_CUT            ,
-    FUNC_SET_CAMERA_POWER      ,
-    FUNC_SET_LASER_FOCUS       ,
-    FUNC_REPORT_LASER_FOCUS    ,
+  FUNC_REPORT_LIMIT          ,
+  FUNC_REPORT_PROBE          ,
+  FUNC_REPORT_CUT            ,
+  FUNC_SET_STEP_CTRL         ,
+  FUNC_SET_MOTOR_SPEED       ,
+  FUNC_REPORT_MOTOR_SPEED    ,
+  FUNC_REPORT_TEMPEARTURE    ,
+  FUNC_SET_TEMPEARTURE       ,
+  FUNC_SET_FAN               ,
+  FUNC_SET_FAN2              ,
+  FUNC_SET_PID               ,
+  FUNC_SET_CAMERA_POWER      ,
+  FUNC_SET_LASER_FOCUS       ,
+  FUNC_REPORT_LASER_FOCUS    ,    
+  FUNC_SET_LIGHT_COLOR       ,
 }FUNC_ID_E;
+
 
 //Priority Table for attributing the priority of the FuncID
 const uint16_t PriorityTable[][2] = {

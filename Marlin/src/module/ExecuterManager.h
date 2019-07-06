@@ -30,9 +30,7 @@ public:
   #endif
   
 private:
-  #if ENABLED(EXECUTER_CANBUS_SUPPORT)
-    uint8_t GetMachineTypeFromCAN(void);
-  #else
+  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
     uint8_t GetMachineTypeFromTemperature(void);
   #endif
 

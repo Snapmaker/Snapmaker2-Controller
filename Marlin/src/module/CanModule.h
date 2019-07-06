@@ -25,10 +25,7 @@ public:
   int UpdateEndstops(uint8_t *pBuff);
   int UpdateTemperature(uint8_t *pBuff);
   int UpdateCNCRPM(uint8_t *pBuff);
-  int SetExecuterFan1(uint8_t Speed);
-  int SetExecuterFan2(uint8_t Speed);
-  int SetExecuterTemperature(uint16_t TargetTemperature);
-
+  int SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff);
 public:
   uint32_t ExecuterID[6];
   uint32_t LinearModuleID[9];
@@ -38,11 +35,12 @@ public:
   uint8_t ExecuterCount;
   uint8_t LinearModuleCount;
   uint32_t Endstop;
+  uint32_t tmpEndstopBits;
   uint8_t UpdateStatus;
+  uint16_t MsgIDTable[512];
 
 private:
   uint32_t MacIDofFuncID[128];
-  uint16_t MsgIDTable[512];
   uint16_t FuncIDList[128];
   uint16_t FuncIDPriority[128];
   uint16_t MsgIDCount;

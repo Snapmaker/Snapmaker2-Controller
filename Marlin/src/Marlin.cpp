@@ -1206,6 +1206,11 @@ void CheckUpdateFlag(void)
  */
 void loop() {
   millis_t tmptick;
+  
+  #if ENABLED(SW_MACHINE_SIZE)
+    UpdateMachineDefines();
+  #endif
+  
   tmptick = millis() + 300;
   while(tmptick > millis());
   ExecuterHead.Init();
@@ -1240,18 +1245,15 @@ void loop() {
   }
   //ExecuterHead.MachineType = MACHINE_TYPE_LASER;
   //ExecuterHead.Laser.Init();
-  
-  #if ENABLED(SW_MACHINE_SIZE)
-    UpdateMachineDefines();
-  #endif
+ 
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     SERIAL_ECHOLN("grid manual");
     bilinear_grid_manual(LEFT_PROBE_BED_POSITION, FRONT_PROBE_BED_POSITION, (X_MAX_POS - X_MIN_POS - 10), (Y_MAX_POS - Y_MIN_POS - 10));
   #endif
   
-
   for (;;) {
 
+    #if(0)
     #if ENABLED(SDSUPPORT)
       card.checkautostart();
 
@@ -1272,14 +1274,7 @@ void loop() {
         #endif
       }
     #endif // SDSUPPORT
-
-    if((millis() - tmptick) > 1000)
-    {
-      tmptick = millis();
-      //HMISERIAL.write("Heelo");
-      //SERIAL_ECHOLN(Periph.IOLevel);   
-      //endstops.CanPrepareAxis();
-    }
+    #endif
     
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();

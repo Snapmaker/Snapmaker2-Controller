@@ -5,6 +5,7 @@
 #include "../module/configuration_store.h"
 #include "LaserExecuter.h"
 #include "CanBus.h"
+#include "CanDefines.h"
 
 static const uint16_t LaserPowerTable[]=
 {
@@ -108,13 +109,12 @@ void LaserExecuter::SaveFocusHeight()
   uint32_t intheight;
   intheight = FocusHeight * 1000;
 
-  Data[0] = LastSetIndex;
-  Data[1] = 0;
-  Data[2] = (uint8_t)(intheight >> 24);
-  Data[3] = (uint8_t)(intheight >> 16);
-  Data[4] = (uint8_t)(intheight >> 8);
-  Data[5] = (uint8_t)(intheight);
-  
+  Data[0] = 0;
+  Data[1] = (uint8_t)(intheight >> 24);
+  Data[2] = (uint8_t)(intheight >> 16);
+  Data[3] = (uint8_t)(intheight >> 8);
+  Data[4] = (uint8_t)(intheight);
+  CanModules.SetFunctionValue(2, FUNC_SET_LASER_FOCUS, Data);
 }
 
 /**
@@ -125,9 +125,8 @@ bool LaserExecuter::LoadFocusHeight()
 {
   uint8_t Data[3];
 
-  Data[0] = LastSetIndex;
-  Data[1] = 2;
- 
+  Data[0] = 1;
+  CanModules.SetFunctionValue(2, FUNC_SET_LASER_FOCUS, Data);
 }
 #endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
 
@@ -197,122 +196,112 @@ void LaserExecuter::PackedProtocal(uint8_t *pData, uint16_t len)
 	LASERSerial.write(tmpBuff, i);
 }
 
+/**
+ * ReadWifiStatus:Read wifi connection status from buildin wifi module
+ * para IP:The pointer to the IP buffer
+ * return:0 for connected, 1 for disconnect, -1 for wifi unexisting
+ */
+char LaserExecuter::GetReply(uint8_t *Buff, millis_t Timeout) {
+  
+  int c;
+  millis_t tmptick;
+  uint16_t i;
+  uint16_t j;
+  uint16_t DataLen;
+  uint32_t GetChecksum;
+  uint32_t calCheck = 0;
+  
+  tmptick = millis() + Timeout;
+  i = 0;
+  while(1) {
+    if(millis() > tmptick)
+      return (char)-1;
+    do {
+      c = LASERSerial.read();
+      if(c != -1) {
+        if(i == 0) {
+          if(c == 0xAA) Buff[i++] = c;
+        }
+        else if(i == 1) {
+          if(c == 0x55) Buff[i++] = c;
+          else i = 0;
+        }
+        //Check data length
+        else if(i == 6) {
+          if((Buff[2] ^ Buff[3]) == Buff[5]) Buff[i++] = c;
+          else i = 0;
+        }
+        //Continue receive date
+        else if(i > 6) Buff[i++] = c;
+        else Buff[i++] = c;
+      }
+    }while(c != -1);
+    
+    if(i > 8) {
+      DataLen = ((uint16_t)Buff[2] << 8) | Buff[3];
+      if((DataLen + 8) <= i) {
+        calCheck = 0;
+      	for(j = 8;j<(DataLen + 8 - 1);j = j + 2)
+      		calCheck += (((uint16_t)Buff[j] << 8) | Buff[j + 1]);
+      	if((DataLen - 8) % 2)
+      		calCheck += (uint8_t)Buff[DataLen + 8 -1];
+      	while(calCheck > 0xffff)
+      		calCheck = ((calCheck >> 16) & 0xffff) + (calCheck & 0xffff);
+      	calCheck = (~calCheck) & 0xffff;
+        GetChecksum = (uint32_t)((Buff[6] << 8) | Buff[7]);
+        SERIAL_ECHOLN(calCheck);
+        SERIAL_ECHOLN(GetChecksum);
+        if(calCheck == GetChecksum) return 0;
+      }
+    }
+  }
+  return (char)-1;
+}
+
 
 /**
  * ReadWifiStatus:Read wifi connection status from buildin wifi module
  * para IP:The pointer to the IP buffer
  * return:0 for connected, 1 for disconnect, -1 for wifi unexisting
  */
-char LaserExecuter::ReadWifiStatus(char *SSID, char *Password, char *IP)
-{
+char LaserExecuter::ReadWifiStatus(char *SSID, char *Password, char *IP) {
   int c;
-  millis_t tmptick;
   uint16_t i;
   uint16_t j;
   uint8_t buff[70];
-  char v;
-  
+  uint8_t v;
+
+  LASERSerial.flush();
   buff[0] = 0x03;
   PackedProtocal(buff, 1);
-  tmptick = millis() + 500;
-  i = 0;
-
-  buff[2] = 0xff;
-  buff[3] = 0xff;
-  buff[5] = 0xff;
-  IP[0] = 0;
-  while(1)
-  {
-    if(millis() > tmptick)
-      return (char)-1;
-    do
-    {
-      c = LASERSerial.read();
-      if(c != -1)
-      {
-        if(i == 0)
-        {
-          if(c == 0xAA)
-            buff[i++] = c;
-        }
-        else if(i == 1)
-        {
-          if(c == 0x55)
-            buff[i++] = c;
-          else
-            i = 0;
-        }
-        //Check data length
-        else if(i == 6)
-        {
-          if((buff[2] ^ buff[3]) == buff[5])
-            buff[i++] = c;
-          else
-            i = 0;
-        }
-        //Continue receive date
-        else if(i > 6)
-        {
-          buff[i++] = c;
-        }
-        else
-        {
-          buff[i++] = c;
-        }
+  if(GetReply(buff, 1500) == 0) {
+    if((buff[8] == 4) && (buff[9] == 0)) {
+      j = 11;
+      for(i=0;i<32;i++) {
+        v = buff[j++];
+        if(v == 0) break;
+        SSID[i] = v;
       }
-    }while(c != -1);
+      SSID[i] = 0;
 
-    //Data receive complete
-    if((i >= (buff[3] + 8)) && (i > 8))
-    {
-      uint32_t calCheck = 0;
-      uint32_t GetChecksum;
-      calCheck = 0;
-    	for(j = 8;j<(i - 1);j = j + 2)
-    		calCheck += (((uint16_t)buff[j] << 8) | buff[j + 1]);
-    	if((i - 8) % 2)
-    		calCheck += (uint8_t)buff[i-1];
-    	while(calCheck > 0xffff)
-    		calCheck = ((calCheck >> 16) & 0xffff) + (calCheck & 0xffff);
-    	calCheck = (~calCheck) & 0xffff;
-      GetChecksum = (uint32_t)((buff[6] << 8) | buff[7]);
-      SERIAL_ECHOLN(calCheck);
-      SERIAL_ECHOLN(GetChecksum);
-      if(calCheck == GetChecksum)
-      {
-        j = 11;
-        for(i=0;i<16;i++)
-        {
-          v = buff[j++];
-          if(v == 0)
-            break;
-          SSID[i] = v;
-        }
-        SSID[i] = 0;
-
-        for(i=0;i<31;i++)
-        {
-          v = buff[j++];
-          if(v == 0)
-            break;
-          Password[i] = v;
-        }
-        Password[i] = 0;
-
-        for(i=0;i<31;i++)
-        {
-          v = buff[j++];
-          if(v == 0)
-            break;
-          IP[i] = v;
-        }
-        IP[i] = 0;
-        
-        return (char)buff[10];
+      for(i=0;i<32;i++) {
+        v = buff[j++];
+        if(v == 0) break;
+        Password[i] = v;
       }
-      return (char)-1;
+      Password[i] = 0;
+
+      for(i=0;i<15;i++) {
+        v = buff[j++];
+        if(v == 0) break;
+        IP[i] = v;
+      }
+      IP[i] = 0;
+      if(buff[10] == 1) return 0;
+      else return (char)-1;
     }
   }
+  return (char)-1;
 }
 
 /**
@@ -320,30 +309,34 @@ char LaserExecuter::ReadWifiStatus(char *SSID, char *Password, char *IP)
  * para SSID:
  * para Password:
  */
-void LaserExecuter::SetWifiParameter(char *SSID, char *Password)
+char LaserExecuter::SetWifiParameter(char *SSID, char *Password)
 {
   uint8_t i;
   uint8_t j;
-  uint8_t SendBuff[70];
+  uint8_t Buff[90];
   
   i = 0;
-  SendBuff[i++] = 0x01;
+  Buff[i++] = 0x01;
   for(j=0;j<32;j++)
   {
     if(SSID[j] == 0)
       break;
-    SendBuff[i++] = SSID[j];
+    Buff[i++] = SSID[j];
   }
-  SendBuff[i++] = 0;
+  Buff[i++] = 0;
   
   for(j=0;j<32;j++)
   {
     if(Password[j] == 0)
       break;
-    SendBuff[i++] = Password[j];
+    Buff[i++] = Password[j];
   }
-  SendBuff[i++] = 0;
-  PackedProtocal(SendBuff, i);
+  Buff[i++] = 0;
+  PackedProtocal(Buff, i);
+  if(GetReply(Buff, 500) == 0) {
+    if((Buff[8] == 0x02) && (Buff[9] == 0)) return 0;
+  }
+  return (char)-1;
 }
 
 

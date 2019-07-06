@@ -1204,10 +1204,8 @@ void HMI_SC20::PollingCommand(void)
             }
             Password[31] = 0;
             SERIAL_ECHOLNPAIR("SSID:", SSID, " PWD:", Password);
-            ExecuterHead.Laser.SetWifiParameter(SSID, Password);
-
-            //应答
-            MarkNeedReack(0);
+            if(ExecuterHead.Laser.SetWifiParameter(SSID, Password) == 0) MarkNeedReack(0);
+            else MarkNeedReack(1);
             break;
 
           //Read wifi connection status
@@ -1215,7 +1213,7 @@ void HMI_SC20::PollingCommand(void)
             BuildinWifiIP[0] = 0;
             result = ExecuterHead.Laser.ReadWifiStatus(SSID, Password, BuildinWifiIP);
             SERIAL_ECHOLNPAIR("IP:", BuildinWifiIP);
-            if (result == 1) SendWifiIP(0x02, 0, SSID, Password, BuildinWifiIP);
+            if (result == 0) SendWifiIP(0x02, 0, SSID, Password, BuildinWifiIP);
             else MarkNeedReack(result);
             break;
 

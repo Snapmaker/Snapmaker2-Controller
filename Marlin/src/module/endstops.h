@@ -43,7 +43,9 @@ enum EndstopEnum : char {
   Z2_MIN,
   Z2_MAX,
   Z3_MIN,
-  Z3_MAX
+  Z3_MAX,
+  FILAMENT1=19,
+  FILAMENT2=20
 };
 
 class Endstops {

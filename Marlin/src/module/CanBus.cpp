@@ -9,49 +9,31 @@
 #include "ExecuterManager.h"
 #include "Periphdevice.h"
 #include "CanBus.h"
+#include "../libs/GenerialFunctions.h"
 
 CanBus CanBusControlor;
 
-typedef int(CanModule::*FunPointer)(uint8_t*);
-typedef struct
-{
-  FunPointer pFun;
-  uint16_t FuncID;
-}strFuncID2Fun;
+typedef int(*FunPointer)(uint8_t*);
 
-typedef struct
+const FunPointer CanFuns[] =
 {
-  uint16_t MsgID;
-  uint16_t FuncID;
-  uint16_t Priority;
-}strCanMsgMap;
-
-const strCanMsgMap CanMsgTable[] = {
-  {0, 0, 0},  //X Min
-  {1, 0, 0},  //Y Min
-  {2, 0, 0},  //Z Min
-  {3, 0, 0},  //X Max
-  {4, 0, 0},  //Y Max
-  {5, 0, 0},  //Z Max
-  {6, 0, 0},  //X2 Min
-  {7, 0, 0},  //Y2 Min
-  {8, 0, 0},  //Z2 Min
-  {9, 0, 0},  //X2 Max
-  {10, 0, 0}, //Y2 Max
-  {11, 0, 0}, //Z2 Max
-  {12, 0, 0}, //X3 Min
-  {13, 0, 0}, //Y3 Min
-  {14, 0, 0}, //Z3 Min
-  {15, 0, 0}, //X3 Max
-  {16, 0, 0}, //Y3 Max
-  {17, 0, 0}, //Z3 Max
-  {18, 6, 0}, //Probe Z
-  {19, 7, 0}, //3Dprint HEATER
-  {20, 8, 0}, //3Dprint FAN1
-  {21, 9, 0}, //3Dprint FAN2
-  {20, 6, 0}, //CNC
-  {21, 6, 0}, //Laser
+  LimitReport,
+  ProbeReport,
+  FilamentSensorReport,
+  NoopFunc,
+  NoopFunc,
+  CNCRpmReport,
+  TempReport,
+  NoopFunc,           //Set Temperature
+  NoopFunc,           //Set FAN
+  NoopFunc,           //Set FAN2
+  NoopFunc,           //Set PID
+  NoopFunc,           //Set Camera Power
+  NoopFunc,           //Set Laser Focus
+  LaserFocusReport,
+  NoopFunc
 };
+
 
 uint32_t CanBus::CurCommunicationID = 0xffffffff;
 uint8_t CanBus::ReadRingBuff[2048] = {0};
@@ -301,20 +283,13 @@ void __irq_can2_rx0(void) {
   if(FMI == 0) {
     tmpData.ID &= 0x1ff;
     //SERIAL_ECHOLN(tmpData.ID);
-    if(tmpData.ID <= 18) { //For Axis endstop
+    if(tmpData.ID < 20) { //For Axis endstop
       Buff[0] = (uint8_t)(tmpData.ID >> 8);
       Buff[1] = (uint8_t)(tmpData.ID);
       Buff[2] = tmpData.Data[0];
       CanModules.UpdateEndstops(Buff);
     } else {
-      #if(0)
-      for(int i=0;i<sizeof(CanFunctionTable) / sizeof(CanFunctionTable[0]);i++) {
-        if(CanFunctionTable[i].FuncID == tmpData.ID) {
-          CanFunctionTable[i].pFun(tmpData.Data);
-          break;
-        }
-      }
-      #endif
+      CanFuns[CanModules.MsgIDTable[tmpData.ID]](tmpData.Data);
     }
   } else {
   }

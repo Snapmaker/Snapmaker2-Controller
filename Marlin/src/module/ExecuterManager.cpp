@@ -5,6 +5,7 @@
 #include "configuration_store.h"
 #include "ExecuterManager.h"
 #include "CanBus.h"
+#include "CanDefines.h"
 
 ExecuterManager ExecuterHead;
 
@@ -22,9 +23,7 @@ void ExecuterManager::Init()
  */
 bool ExecuterManager::Detecte()
 {
-  #if ENABLED(EXECUTER_CANBUS_SUPPORT)
-    MachineType = GetMachineTypeFromCAN();
-  #else
+  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
     MachineType = GetMachineTypeFromTemperature();
   #endif
   return (MachineType != MACHINE_TYPE_UNDEFINE);
@@ -32,34 +31,6 @@ bool ExecuterManager::Detecte()
 
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
-  /**
-   * Get machine type from Can Bus
-   * return   One of MACHINE_TYPE_CNC,MACHINE_TYPE_LASER,MACHINE_TYPE_3DPRINT
-   */
-  uint8_t ExecuterManager::GetMachineTypeFromCAN(void)
-  {
-    uint32_t Err;
-    uint8_t retry;
-    millis_t tmpTick;
-    MachineType = MACHINE_TYPE_UNDEFINE;
-    uint8_t Buff[4];
-    retry = 5;
-    tmpTick = millis();
-    Buff[0] = 0;
-    /*
-    while(MachineType == MACHINE_TYPE_UNDEFINE) {
-      if((millis() - tmpTick) > 500L) {
-        tmpTick = millis();
-        if(retry-- == 0)
-          return MACHINE_TYPE_UNDEFINE;
-        if(CanBusControlor.SendData(2, CAN_IDS_BC, Buff, 1) == false)
-          return MACHINE_TYPE_UNDEFINE;
-      }
-    }
-    */
-    return MachineType;
-  }
-
   /**
    * SetTemperature:Set temperature 
    * para index:executer index
@@ -69,11 +40,11 @@ bool ExecuterManager::Detecte()
   {
     uint8_t Data[3];
 
-    Data[0] = index & 0x3F;
-    Data[1] = (uint8_t)(temperature >> 8);
-    Data[2] = (uint8_t)temperature;
+    Data[0] = (uint8_t)(temperature >> 8);
+    Data[1] = (uint8_t)temperature;
     
     SERIAL_ECHOLN("Set Tamp");
+    CanModules.SetFunctionValue(2, FUNC_SET_TEMPEARTURE, Data);
   }
 
   /**
@@ -86,11 +57,10 @@ bool ExecuterManager::Detecte()
     uint8_t Data[8];
 
     Data[0] = 0;
-    Data[1] = index;
-    Data[2] = 0;
-    Data[3] = s_value;
+    Data[1] = s_value;
     FanSpeed[index] = s_value;
-    
+    if(index == 0) CanModules.SetFunctionValue(2, FUNC_SET_FAN, Data);
+    else if(index == 1) CanModules.SetFunctionValue(2, FUNC_SET_FAN2, Data);
   }
 #else
 

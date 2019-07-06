@@ -448,7 +448,7 @@ static void print_es_state(const bool is_hit, PGM_P const label=NULL) {
 void _O2 Endstops::M119() {
   SERIAL_ECHOLNPGM(MSG_M119_REPORT);
   #define ES_REPORT(S) print_es_state(READ(S##_PIN) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
-  #define ES_REPORT_CAN(S) print_es_state((CanModules.Endstop & _BV(S)) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
+  #define ES_REPORT_CAN(S) print_es_state(((CanModules.Endstop & _BV(S)) == 0) == S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
   #if defined(CAN_ENDSTOP_X_MIN)
     ES_REPORT_CAN(X_MIN);
   #elif HAS_X_MIN
@@ -522,7 +522,11 @@ void _O2 Endstops::M119() {
     ES_REPORT(Z3_MAX);
   #endif
   #if USES_Z_MIN_PROBE_ENDSTOP
-    print_es_state(READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
+    #if defined(CAN_ZMIN_PROBE)
+      print_es_state(((CanModules.Endstop & _BV(Z_MIN_PROBE)) == 0) == Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
+    #else
+      print_es_state(READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
+    #endif
   #endif
   #if HAS_FILAMENT_SENSOR
     #if NUM_RUNOUT_SENSORS == 1
