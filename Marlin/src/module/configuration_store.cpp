@@ -301,6 +301,7 @@ typedef struct SettingsDataStruct {
     uint32_t X_HOME_DIR;
     uint32_t Y_HOME_DIR;
     uint32_t Z_HOME_DIR;
+    uint32_t DUMMY_HOME_DIR;
     float X_MAX_POS;
     float Y_MAX_POS;
     float Z_MAX_POS;
@@ -1884,21 +1885,19 @@ void MarlinSettings::postprocess() {
       // Software machine size
       //
       #if ENABLED(SW_MACHINE_SIZE)
-        _FIELD_TEST(X_DIR);
-        EEPROM_READ(X_DIR);
-        _FIELD_TEST(Y_DIR);
-        EEPROM_READ(Y_DIR);
-        _FIELD_TEST(Z_DIR);
-        EEPROM_READ(Z_DIR);
-        _FIELD_TEST(E_DIR);
-        EEPROM_READ(E_DIR);
+        uint32_t DIR[4];
+        _FIELD_TEST(DIR);
+        EEPROM_READ(DIR);
+        X_DIR = DIR[X_AXIS] > 0;
+        Y_DIR = DIR[Y_AXIS] > 0;
+        Z_DIR = DIR[Z_AXIS] > 0;
+        E_DIR = DIR[E_AXIS] > 0;
 
-        _FIELD_TEST(X_HOME_DIR);
-        EEPROM_READ(X_HOME_DIR);
-        _FIELD_TEST(Y_HOME_DIR);
-        EEPROM_READ(Y_HOME_DIR);
-        _FIELD_TEST(Z_HOME_DIR);
-        EEPROM_READ(Z_HOME_DIR);
+        _FIELD_TEST(DIR);
+        EEPROM_READ(DIR);
+        X_HOME_DIR = (DIR[X_AXIS] >0)?1:-1;
+        Y_HOME_DIR = (DIR[Y_AXIS] >0)?1:-1;
+        Z_HOME_DIR = (DIR[Z_AXIS] >0)?1:-1;
 
         _FIELD_TEST(X_MAX_POS);
         EEPROM_READ(X_MAX_POS);

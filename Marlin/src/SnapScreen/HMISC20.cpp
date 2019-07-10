@@ -19,6 +19,7 @@
 #include "../module/LaserExecuter.h"
 #include "../module/CNCexecuter.h"
 #include "../module/PeriphDevice.h"
+#include "../module/Probe.h"
 #include <EEPROM.h>
 #include "HMISC20.h"
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
@@ -400,7 +401,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     thermalManager.disable_all_heaters();
     strcpy(tmpBuff, "G28");
     parser.parse(tmpBuff);
-    gcode.process_next_command();
+    gcode.process_parsed_command();
     while (planner.movesplanned());
     set_bed_leveling_enabled(false);
 
@@ -418,25 +419,9 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
       //Z  轴移动到13mm
       do_blocking_move_to_z(13);
 
-      //X  Y  移动到第i  个调平点
-      do_blocking_move_to_xy(_GET_MESH_X(indexx) - 11, _GET_MESH_Y(indexy) - 13, 70.0f);
-
-#if (1)
-      sprintf(tmpBuff, "G38.3 Z-10");
-      parser.parse(tmpBuff);
-      gcode.process_next_command();
-
-#else
-
-      Periph.StartLevelingCheck();
-      gcode.process_next_command();
-      do_blocking_move_to_z(current_position[Z_AXIS] -11, 1.16f);
-      set_current_from_steppers_for_axis(ALL_AXES);
-      Periph.StoplevelingCheck();
-      sync_plan_position();
-#endif
-
-      MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
+      MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = probe_pt(_GET_MESH_X(indexx), _GET_MESH_Y(indexy), PROBE_PT_RAISE, 2);
+      //MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
+      SERIAL_ECHOLNPAIR("Z Value:", MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx]);
 
       //获取调平点索引值
       indexx += indexdir;
@@ -486,7 +471,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     thermalManager.disable_all_heaters();
     strcpy(tmpBuff, "G28");
     parser.parse(tmpBuff);
-    gcode.process_next_command();
+    gcode.process_parsed_command();
     while (planner.movesplanned());
     set_bed_leveling_enabled(false);
 
@@ -598,7 +583,7 @@ void HMI_SC20::EnterLaserFocusSetting()
   //回原点
   strcpy(strCmd, "G28 Z");
   parser.parse(tmpBuff);
-  gcode.process_next_command();
+  gcode.process_parsed_command();
 
   //走到特定高度
   do_blocking_move_to_z(20.0f);
@@ -718,7 +703,7 @@ void HMI_SC20::PollingCommand(void)
               //Z  轴回原点
               strcpy(tmpBuff, "G28 Z");
               parser.parse(tmpBuff);
-              gcode.process_next_command();
+              gcode.process_parsed_command();
             }
 
             //走到工件坐标
@@ -1056,7 +1041,6 @@ void HMI_SC20::PollingCommand(void)
                   gcode.process_parsed_command();
                 }
               }
-
               //保存数据
               settings.save();
             }
@@ -1074,7 +1058,6 @@ void HMI_SC20::PollingCommand(void)
                     gcode.process_parsed_command();
                   }
                 }
-
                 //保存数据
                 settings.save();
               }
@@ -1083,7 +1066,7 @@ void HMI_SC20::PollingCommand(void)
             //回原点
             strcpy(tmpBuff, "G28");
             parser.parse(tmpBuff);
-            gcode.process_next_command();
+            gcode.process_parsed_command();
 
             //切换到绝对位置模式
             relative_mode = false;
@@ -1106,7 +1089,7 @@ void HMI_SC20::PollingCommand(void)
             settings.load();
             strcpy(tmpBuff, "G28");
             parser.parse(tmpBuff);
-            gcode.process_next_command();
+            gcode.process_parsed_command();
             HMICommandSave = 0;
 
             //切换到绝对位置模式
@@ -1144,7 +1127,7 @@ void HMI_SC20::PollingCommand(void)
           //全部回原点
           strcpy(tmpBuff, "G28");
           parser.parse(tmpBuff);
-          gcode.process_next_command();
+          gcode.process_parsed_command();
 
           //调平数据失效
           set_bed_leveling_enabled(false);
@@ -1175,7 +1158,7 @@ void HMI_SC20::PollingCommand(void)
         case 0x01:
           strcpy(tmpBuff, "G28 Z");
           parser.parse(tmpBuff);
-          gcode.process_next_command();
+          gcode.process_parsed_command();
 
           //调平数据失效
           set_bed_leveling_enabled(false);

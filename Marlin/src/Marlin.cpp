@@ -45,7 +45,7 @@
 #include "module/LaserExecuter.h"
 #include "module/statuscontrol.h"
 #include "module/periphdevice.h"
-
+#include "libs/GenerialFunctions.h"
 
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
@@ -836,6 +836,7 @@ void minkill() {
       #if ENABLED(USE_WATCHDOG)
         watchdog_reset();
       #endif
+      break;
     } // Wait for reset
 
   #endif // !HAS_KILL
@@ -1169,6 +1170,12 @@ void setup() {
     OUT_WRITE(POWER2_SUPPLY_PIN, LOW);
   #endif
 
+  #if PIN_EXISTS(SCREEN_DET)
+    SET_INPUT_PULLUP(SCREEN_DET_PIN);
+    if(READ(SCREEN_DET_PIN)) SERIAL_ECHOLN("Screen Unplugged!");
+    else SERIAL_ECHOLN("Screen Plugged!");
+  #endif
+
   millis_t tmptick;
   tmptick = millis() + 500;
   while(tmptick > millis());
@@ -1275,6 +1282,14 @@ void loop() {
       }
     #endif // SDSUPPORT
     #endif
+    if(CanDebugLen > 0) {
+      SERIAL_ECHOLN("");
+      for(int i=0;i<CanDebugLen;i++)
+      {
+        SERIAL_ECHO(Value8BitToString(CanDebugBuff[i]));
+        SERIAL_ECHO(" ");
+      }
+    }
     
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();

@@ -289,7 +289,12 @@ void __irq_can2_rx0(void) {
       Buff[2] = tmpData.Data[0];
       CanModules.UpdateEndstops(Buff);
     } else {
-      CanFuns[CanModules.MsgIDTable[tmpData.ID]](tmpData.Data);
+      if(tmpData.ID == 511) {
+        CanDebug(tmpData.Data, Len);
+      }
+      else {
+        CanFuns[CanModules.MsgIDTable[tmpData.ID]](tmpData.Data);
+      }
     }
   } else {
   }

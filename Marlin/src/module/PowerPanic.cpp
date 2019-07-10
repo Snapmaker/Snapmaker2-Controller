@@ -34,9 +34,9 @@ PowerPanic PowerPanicData;
 #define process_cmd_imd(str) do{parser.parse(str), _
                                 gcode.process_parsed_command( _
                                 false \
-                                );}while(0);
+                                );}while(0)
 #else
-#define process_cmd_imd(str) do{parser.parse(str), gcode.process_parsed_command( );}while(0);
+#define process_cmd_imd(str) do{parser.parse(str), gcode.process_parsed_command( );}while(0)
 #endif
                                 
  /**

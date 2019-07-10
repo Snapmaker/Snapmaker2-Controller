@@ -113,6 +113,10 @@
 //
 #define POWER2_SUPPLY_PIN PB2
 
+//
+// Power2 supply, for eed and extern
+//
+#define SCREEN_DET_PIN PD14
 
 //
 // LCD Pins

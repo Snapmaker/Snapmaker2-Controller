@@ -25,6 +25,8 @@
 #include "../module/ExecuterManager.h"
 #include "../module/endstops.h"
 
+
+
 static char ValueString[12]; 
 
 char* Value32BitToString(uint32_t Value) {
@@ -79,6 +81,16 @@ int LaserFocusReport(uint8_t *pBuff) {
 }
 
 int NoopFunc(uint8_t *pBuff) {
+  return 0;
+}
+
+uint8_t CanDebugBuff[32];
+uint8_t CanDebugLen;
+int CanDebug(uint8_t *pBuff, uint8_t Len) {
+  CanDebugLen = 0;
+  for(int i=0;i<Len;i++) {
+    CanDebugBuff[CanDebugLen++] = pBuff[i];
+  }
   return 0;
 }
 

@@ -127,6 +127,7 @@ bool LaserExecuter::LoadFocusHeight()
 
   Data[0] = 1;
   CanModules.SetFunctionValue(2, FUNC_SET_LASER_FOCUS, Data);
+  return 0;
 }
 #endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
 

@@ -105,7 +105,6 @@ class Endstops {
      * Are endstops or the probe set to abort the move?
      */
     FORCE_INLINE static bool abort_enabled() {
-      z_probe_enabled = true;
       return (enabled
         #if HAS_BED_PROBE
           || z_probe_enabled

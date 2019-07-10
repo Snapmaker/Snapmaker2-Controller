@@ -43,7 +43,7 @@ extern __weak usart_dev* __lm_enable_error_usart(void);
  * ASSERT() will also throb() an LED connected to that port and pin.
  */
 #if defined(ERROR_LED_PORT) && defined(ERROR_LED_PIN)
-#define HAVE_ERROR_LED
+//#define HAVE_ERROR_LED
 #endif
 
 /* (Called from exc.S with global interrupts disabled.) */

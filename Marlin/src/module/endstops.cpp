@@ -781,7 +781,7 @@ void _O2 Endstops::M119() {
       } \
     }while(0)
 
-    #if ENABLED(G38_PROBE_TARGET) && PIN_EXISTS(Z_MIN_PROBE) && !(CORE_IS_XY || CORE_IS_XZ)
+    #if ENABLED(G38_PROBE_TARGET) && (PIN_EXISTS(Z_MIN_PROBE) || (ENABLED(CAN_ZMIN_PROBE))) && !(CORE_IS_XY || CORE_IS_XZ)
       #if ENABLED(G38_PROBE_AWAY)
         #define _G38_OPEN_STATE (G38_move >= 4)
       #else
@@ -1097,6 +1097,21 @@ void _O2 Endstops::M119() {
       } \
     }while(0)
 
+    #if ENABLED(G38_PROBE_TARGET) && (PIN_EXISTS(Z_MIN_PROBE) || (ENABLED(CAN_ZMIN_PROBE))) && !(CORE_IS_XY || CORE_IS_XZ)
+      #if ENABLED(G38_PROBE_AWAY)
+        #define _G38_OPEN_STATE (G38_move >= 4)
+      #else
+        #define _G38_OPEN_STATE LOW
+      #endif
+      // If G38 command is active check Z_MIN_PROBE for ALL movement
+      if (G38_move && TEST_ENDSTOP(_ENDSTOP(Z, MIN_PROBE)) != _G38_OPEN_STATE) {
+             if (stepper.axis_is_moving(X_AXIS)) { _ENDSTOP_HIT(X, MIN); planner.endstop_triggered(X_AXIS); }
+        else if (stepper.axis_is_moving(Y_AXIS)) { _ENDSTOP_HIT(Y, MIN); planner.endstop_triggered(Y_AXIS); }
+        else if (stepper.axis_is_moving(Z_AXIS)) { _ENDSTOP_HIT(Z, MIN); planner.endstop_triggered(Z_AXIS); }
+        G38_did_trigger = true;
+      }
+    #endif
+
     // Now, we must signal, after validation, if an endstop limit is pressed or not
     if (stepper.axis_is_moving(X_AXIS)) {
       if (stepper.motor_direction(X_AXIS_HEAD)) { // -direction
@@ -1151,7 +1166,7 @@ void _O2 Endstops::M119() {
             #if ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
               if (z_probe_enabled) PROCESS_ENDSTOP(Z, MIN);
             #elif USES_Z_MIN_PROBE_ENDSTOP
-              if (!z_probe_enabled) PROCESS_ENDSTOP(Z, MIN);
+              if (!z_probe_enabled) PROCESS_ENDSTOP(Z, MIN_PROBE);
             #else
               PROCESS_ENDSTOP(Z, MIN);
             #endif

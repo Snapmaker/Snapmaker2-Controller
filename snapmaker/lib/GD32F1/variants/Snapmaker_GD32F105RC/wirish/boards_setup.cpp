@@ -109,8 +109,6 @@ namespace wirish {
 
         __weak void board_setup_gpio(void) {
             gpio_init_all();
-            gpio_set_mode(GPIOA, 5, (gpio_pin_mode)1);
-            gpio_write_bit(GPIOA, 5, false);
         }
 
         __weak void board_setup_usb(void) {

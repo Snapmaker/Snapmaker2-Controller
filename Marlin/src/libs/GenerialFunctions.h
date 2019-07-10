@@ -34,6 +34,9 @@ int FilamentSensorReport(uint8_t *pBuff);
 int CNCRpmReport(uint8_t *pBuff);
 int LaserFocusReport(uint8_t *pBuff);
 int NoopFunc(uint8_t *pBuff);
+int CanDebug(uint8_t *pBuff, uint8_t Len);
 
 
+extern uint8_t CanDebugBuff[32];
+extern uint8_t CanDebugLen;
 

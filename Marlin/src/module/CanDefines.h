@@ -62,7 +62,7 @@ const uint16_t PriorityTable[][2] = {
   {FUNC_SET_TEMPEARTURE,          15},
   {FUNC_SET_MOTOR_SPEED,          15},
   {FUNC_SET_PID,                  15},
-  {FUNC_SET_FAN,                  12},
+  {FUNC_SET_FAN,                  0},
   {FUNC_SET_FAN2,                 15},
   {FUNC_SET_CAMERA_POWER,         0},
   {FUNC_SET_LASER_FOCUS,          10},

@@ -297,6 +297,7 @@ void CanModule::PrepareExecuterModules(void) {
         SendBuff[k++] = (uint8_t)(m);
         SendBuff[k++] = (uint8_t)(FuncIDList[j] >> 8);
         SendBuff[k++] = (uint8_t)(FuncIDList[j]);
+        SERIAL_ECHOLNPAIR("MsgID:", m, "-FuncID:", FuncIDList[j]);
         SendBuff[1]++;
         m++;
       }
@@ -305,7 +306,7 @@ void CanModule::PrepareExecuterModules(void) {
   }
 
   for(i=20;i<MsgIDCount;i++) {
-    SERIAL_ECHOLNPAIR("FuncID:", MsgIDTable[i]);
+    //SERIAL_ECHOLNPAIR("MsgID:", i, "-FuncID:", MsgIDTable[i]);
   }
 
   if((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_PRINT)) ExecuterHead.MachineType = MACHINE_TYPE_3DPRINT;
@@ -519,16 +520,21 @@ int CanModule::UpdateEndstops(uint8_t *pBuff) {
 }
 
 /**
- *SetFunctionValue:Post Value to the specific Function ID Modules
+ * SetFunctionValue:Post Value to the specific Function ID Modules
+ * Para CanNum:The Can port number
+ * Para FuncID:
+ * Para pBuff:The Pointer of the data to be sent
+ * Para Len:The length of the data,nomore than 8
  */
-int CanModule::SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff) {
+int CanModule::SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff, uint8_t Len) {
   int i;
   for(i=0;i<MsgIDCount;i++) {
     if(MsgIDTable[i] == FuncID) {
-      CanSendPacked(i, IDTYPE_STDID, CanNum, FRAME_DATA, 8, pBuff);
+      CanSendPacked(i, IDTYPE_STDID, CanNum, FRAME_DATA, Len, pBuff);
       break;
     }
   }
+  return 0;
 }
 
 

@@ -26,6 +26,7 @@ public:
   int UpdateTemperature(uint8_t *pBuff);
   int UpdateCNCRPM(uint8_t *pBuff);
   int SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff);
+  int SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff, uint8_t Len);
 public:
   uint32_t ExecuterID[6];
   uint32_t LinearModuleID[9];
