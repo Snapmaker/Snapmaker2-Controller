@@ -47,6 +47,7 @@
 #include "module/periphdevice.h"
 #include "libs/GenerialFunctions.h"
 #include "module/PowerPanic.h"
+#include "snap_module/lightbar.h"
 
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
@@ -1193,6 +1194,8 @@ void setup() {
   #endif
 
   BreathLightInit();
+
+  lightbar.init();
 }
 
 /**
