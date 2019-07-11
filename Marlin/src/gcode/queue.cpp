@@ -33,6 +33,7 @@
 #include "../module/temperature.h"
 #include "../SnapScreen/Screen.h"
 #include "../Marlin.h"
+#include "../module/StatusControl.h"
 
 #if ENABLED(PRINTER_EVENT_LEDS)
   #include "../feature/leds/printer_event_leds.h"
@@ -866,6 +867,7 @@ void get_available_commands() {
   // if any immediate commands remain, don't get other commands yet
   if (drain_injected_commands_P()) return;
 
+  if (SystemStatus.GetCurrentPrinterStatus() != STAT_IDLE)
   get_serial_commands();
 
   #if ENABLED(SDSUPPORT)

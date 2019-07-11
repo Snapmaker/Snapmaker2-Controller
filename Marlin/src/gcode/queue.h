@@ -48,7 +48,7 @@ extern uint8_t commands_in_queue, // Count of commands in the queue
                cmd_queue_index_r; // Ring buffer read position
 
 extern char command_queue[BUFSIZE][MAX_CMD_SIZE];
-
+extern uint32_t CommandLine[BUFSIZE];
 /*
  * The port that the command was received on
  */

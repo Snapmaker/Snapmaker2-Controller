@@ -157,6 +157,8 @@ typedef struct block_t {
 
   uint32_t segment_time_us;
 
+  uint32_t filePos;                       // position of gcode of this block in the file
+
 } block_t;
 
 #define HAS_POSITION_FLOAT ANY(LIN_ADVANCE, SCARA_FEEDRATE_SCALING, GRADIENT_MIX)
@@ -750,10 +752,10 @@ class Planner {
       }
     }
 
-    /**
-     * Does the buffer have any blocks queued?
-     */
-    FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != block_buffer_tail); }
+/**
+ * Does the buffer have any blocks queued?
+ */
+FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != block_buffer_tail); }
 
     /**
      * The current block. NULL if the buffer is empty.

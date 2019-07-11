@@ -31,6 +31,17 @@
 // Ignore temp readings during develpment.
 #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 
+
+enum BoardVer {
+  BOARD_SNAPMAKER1 = 0,
+  BOARD_SNAPMAKER2_V1,
+  BOARD_SNAPMAKER2_V2,
+
+  BOARD_INVALID
+};
+
+#define BOARD_VER     BOARD_SNAPMAKER2_V2
+
 //
 // Limit Switches
 //
@@ -104,6 +115,11 @@
 #define FIL_RUNOUT_PIN  PD0
 
 //
+// Power 0 supply, for HMI
+//
+#define POWER0_SUPPLY_PIN PB0
+
+//
 // Power1 supply, for motor and extruder
 //
 #define POWER1_SUPPLY_PIN PB1
@@ -113,11 +129,16 @@
 //
 #define POWER2_SUPPLY_PIN PB2
 
-//
-// Power2 supply, for eed and extern
-//
 #define SCREEN_DET_PIN PD14
 
+#define POWER_SUPPLY_OFF  LOW
+#define POWER_SUPPLY_ON   HIGH
+
+//
+// to detect power loss
+//
+#define POWER_DETECT_PIN PE0
+#define POWER_LOSS_STATE LOW
 //
 // LCD Pins
 //

@@ -39,7 +39,9 @@
 #include <stdint.h>
 #include <util/atomic.h>
 #include <Arduino.h>
-
+#include <libmaple/usart.h>
+#include <libmaple/dma.h>
+#include <HardwareSerial.h>
 // --------------------------------------------------------------------------
 // Includes
 // --------------------------------------------------------------------------

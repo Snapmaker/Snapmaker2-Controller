@@ -1692,6 +1692,9 @@ bool Planner::_buffer_steps(const int32_t (&target)[XYZE]
     return true;
   }
 
+  // record the gcode line number in its block, then we can use in power-loss data recording
+  block->filePos = CommandLine[cmd_queue_index_r];
+
   // If this is the first added movement, reload the delay, otherwise, cancel it.
   if (block_buffer_head == block_buffer_tail) {
     // If it was the first queued block, restart the 1st block delivery delay, to
