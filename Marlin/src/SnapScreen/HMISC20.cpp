@@ -378,7 +378,7 @@ void HMI_SC20::SendUpdateStatus(uint8_t Status)
   int i;
   
   i = 0;
-  tmpBuff[i++] = 0xAA;
+  tmpBuff[i++] = EID_UPGRADE_RESP;
   tmpBuff[i++] = 5;
   tmpBuff[i++] = Status;
   PackedProtocal(tmpBuff, i);
@@ -617,7 +617,7 @@ void HMI_SC20::PollingCommand(void)
     OpCode = tmpBuff[9];
 
     //上位指令调试
-    if (eventId == 0x01) {
+    if (eventId == EID_GCODE_REQ) {
       Periph.EncloseLedOn();
 
       //指令尾补0
@@ -627,7 +627,7 @@ void HMI_SC20::PollingCommand(void)
     }
 
     //GCode  打印
-    else if (eventId == 0x03) {
+    else if (eventId == EID_FILE_GCODE_REQ) {
       Periph.EncloseLedOn();
 
       //获取当前状态
@@ -672,7 +672,7 @@ void HMI_SC20::PollingCommand(void)
     }
 
     //状态上报
-    else if (eventId == 0x07) {
+    else if (eventId == EID_STATUS_REQ) {
       uint8_t StatuID;
       StatuID = tmpBuff[9];
 
@@ -967,7 +967,7 @@ void HMI_SC20::PollingCommand(void)
     }
 
     //操作指令
-    else if (eventId == 0x09) {
+    else if (eventId == EID_SETTING_REQ) {
       switch (OpCode)
       {
         //设置尺寸
@@ -1153,7 +1153,7 @@ void HMI_SC20::PollingCommand(void)
       }
     }
     //Movement Request
-    else if (eventId == 0x0b) {
+    else if (eventId == EID_MOVEMENT_REQ) {
       switch (OpCode)
       {
         //激光回原点应答
@@ -1171,7 +1171,7 @@ void HMI_SC20::PollingCommand(void)
       }
     }
     //WIFI
-    else if (eventId == 0x0D) {
+    else if (eventId == EID_LAS_CAM_OP_REQ) {
       if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
         switch (OpCode)
         {
@@ -1235,7 +1235,7 @@ void HMI_SC20::PollingCommand(void)
       }
     }
     //升级
-    else if (eventId == 0xA9) {
+    else if (eventId == EID_UPGRADE_REQ) {
       //SERIAL_ECHOLN(OpCode);
       switch (OpCode)
       {
@@ -1293,7 +1293,7 @@ void HMI_SC20::SendProgressPercent(uint8_t Percent)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x08;
+  tmpBuff[i++] = EID_STATUS_RESP;
 
   //行号
   tmpBuff[i++] = 0x09;
@@ -1318,7 +1318,7 @@ void HMI_SC20::SendPowerPanicResume(uint8_t OpCode, uint8_t Result)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x08;
+  tmpBuff[i++] = EID_STATUS_RESP;
 
   //Operation ID
   tmpBuff[i++] = OpCode;
@@ -1340,7 +1340,7 @@ void HMI_SC20::SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PW
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x0E;
+  tmpBuff[i++] = EID_LAS_CAM_OP_RESP;
 
   //Operation ID
   tmpBuff[i++] = OpCode;
@@ -1376,7 +1376,7 @@ void HMI_SC20::SendLaserFocus(uint8_t OpCode, float Height)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x0a;
+  tmpBuff[i++] = EID_SETTING_RESP;
 
   //获取尺寸
   tmpBuff[i++] = OpCode;
@@ -1400,7 +1400,7 @@ void HMI_SC20::SendMachineSize()
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x0a;
+  tmpBuff[i++] = EID_SETTING_RESP;
 
   //获取尺寸
   tmpBuff[i++] = 20;
@@ -1481,7 +1481,7 @@ void HMI_SC20::SendBreakPointData()
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x08;
+  tmpBuff[i++] = EID_STATUS_RESP;
   tmpBuff[i++] = 0x08;
   tmpBuff[i++] = PowerPanicData.Data.Valid;
   tmpBuff[i++] = PowerPanicData.Data.GCodeSource;
@@ -1526,7 +1526,7 @@ void HMI_SC20::SendMachineStatusChange(uint8_t Status, uint8_t Result)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x08;
+  tmpBuff[i++] = EID_STATUS_RESP;
 
   //目前状态
   tmpBuff[i++] = Status;
@@ -1548,7 +1548,7 @@ void HMI_SC20::SendMachineStatus()
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x08;
+  tmpBuff[i++] = EID_STATUS_RESP;
 
   //同步状态
   tmpBuff[i++] = 0x01;
