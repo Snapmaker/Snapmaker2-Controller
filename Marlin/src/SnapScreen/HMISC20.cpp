@@ -1010,27 +1010,7 @@ void HMI_SC20::PollingCommand(void)
             PointIndex = tmpBuff[10] -1;
             do_blocking_move_to_z(current_position[Z_AXIS] +5, 30);
             do_blocking_move_to_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X), _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), 60.0f);
-
-            //使能调平传感器
-            if (Periph.LevelingSensorValid() == true) {
-              //启动探头触发
-              Periph.StartLevelingCheck();
-
-              //走到-5  位置
-              do_blocking_move_to_z(-5.0, 0.2);
-
-              //关闭探头触发
-              Periph.StoplevelingCheck();
-
-              //更新Z  轴坐标
-              set_current_from_steppers_for_axis(ALL_AXES);
-              sync_plan_position();
-            }
-
-            //禁能调平传感器
-            else {
-              do_blocking_move_to_z(current_position[Z_AXIS] -5, 0.2);
-            }
+            do_blocking_move_to_z(current_position[Z_AXIS] -5, 0.2);
             MarkNeedReack(0);
           }
           break;
@@ -1131,7 +1111,7 @@ void HMI_SC20::PollingCommand(void)
         //设置激光Z  轴高度
         case 11:
           ExecuterHead.Laser.SetLaserPower(0.0f);
-          ExecuterHead.Laser.SaveFocusHeight(0, current_position[Z_AXIS]);
+          ExecuterHead.Laser.SaveFocusHeight(current_position[Z_AXIS]);
           ExecuterHead.Laser.LoadFocusHeight();
           MarkNeedReack(0);
           break;
