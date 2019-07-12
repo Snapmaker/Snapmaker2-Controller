@@ -92,6 +92,10 @@ void GCodeParser::reset() {
   #endif
 }
 
+void GCodeParser::parse(const char *p) {
+  parse((char*)p);
+}
+
 // Populate all fields by parsing a single line of GCode
 // 58 bytes of SRAM are used to speed up seen/value
 void GCodeParser::parse(char *p) {

@@ -141,30 +141,4 @@ void PeriphDevice::EncloseLedOff()
 }
 #endif
 
-/**
- * LevelingSensorValid:Check the bed leveling sensor valid
- * return: true for valid
- */
-bool PeriphDevice::LevelingSensorValid()
-{
-  if(LevelingSensorExisted() == false)
-    return false;
-  if(IOSwitch & PERIPH_IOSW_BLS)
-    return true;
-  else
-    return false;
-}
-
-/**
- * LevelingSensorValid:Check the bed leveling sensor valid
- * return: true for valid
- */
-bool PeriphDevice::LevelingSensorExisted()
-{
-  #if ENABLED(BED_LEVELING_SENSOR)
-    return true;
-  #else
-    return false;
-  #endif
-}
 

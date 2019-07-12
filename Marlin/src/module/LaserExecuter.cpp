@@ -85,19 +85,18 @@ void LaserExecuter::SetLaserLowPower()
  * SaveFocusHeight:Save the focus height
  * para height:the height of focus
  */
-void LaserExecuter::SaveFocusHeight(uint8_t index, float height)
+void LaserExecuter::SaveFocusHeight(float height)
 {
   uint8_t Data[8];
   uint32_t intheight;
   intheight = height * 1000;
 
-  Data[0] = index;
-  Data[1] = 0;
-  Data[2] = (uint8_t)(intheight >> 24);
-  Data[3] = (uint8_t)(intheight >> 16);
-  Data[4] = (uint8_t)(intheight >> 8);
-  Data[5] = (uint8_t)(intheight);
-
+  Data[0] = 0;
+  Data[1] = (uint8_t)(intheight >> 24);
+  Data[2] = (uint8_t)(intheight >> 16);
+  Data[3] = (uint8_t)(intheight >> 8);
+  Data[4] = (uint8_t)(intheight);
+  CanModules.SetFunctionValue(2, FUNC_SET_LASER_FOCUS, Data);
 }
 
 /**
@@ -125,8 +124,8 @@ bool LaserExecuter::LoadFocusHeight()
 {
   uint8_t Data[3];
 
-  Data[0] = 1;
-  CanModules.SetFunctionValue(2, FUNC_SET_LASER_FOCUS, Data);
+  Data[0] = 0;
+  CanModules.SetFunctionValue(2, FUNC_REPORT_LASER_FOCUS, Data, 1);
   return 0;
 }
 #endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
@@ -266,7 +265,6 @@ char LaserExecuter::GetReply(uint8_t *Buff, millis_t Timeout) {
  * return:0 for connected, 1 for disconnect, -1 for wifi unexisting
  */
 char LaserExecuter::ReadWifiStatus(char *SSID, char *Password, char *IP) {
-  int c;
   uint16_t i;
   uint16_t j;
   uint8_t buff[70];

@@ -23,7 +23,7 @@ public:
   void SavePlatformHeight(float height);
   void LoadPlatformHeight();
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)
-    void SaveFocusHeight(uint8_t index, float height);
+    void SaveFocusHeight(float height);
     void SaveFocusHeight();
     bool LoadFocusHeight();
   #else
