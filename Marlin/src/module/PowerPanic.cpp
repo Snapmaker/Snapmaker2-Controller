@@ -276,8 +276,9 @@ void PowerPanic::save(void)
 	uint32_t u32data;
 	uint8_t *pBuff;
 
-	//记录大小
-	RecordSize = (sizeof(strPowerPanicSave) + 8);
+  //记录大小
+  RecordSize = (sizeof(strPowerPanicSave) + 8);
+  pBuff = (uint8_t *)&Data;
 
 	//写一半标识
 	addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
@@ -420,7 +421,7 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
       //HMI_SendPowerPanicResume(0x0c, 0);
       //风扇开启
       for (int i = 0; i < PP_FAN_COUNT; i++) {
-        sprintf(tmpBuff, "M106 P%d S%0.2f", i, tmpPowerPanicData.FanSpeed);
+        sprintf(tmpBuff, "M106 P%d S%d", i, tmpPowerPanicData.FanSpeed[i]);
         process_cmd_imd(tmpBuff);
       }
 
