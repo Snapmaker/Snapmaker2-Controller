@@ -23,6 +23,7 @@
 #include <EEPROM.h>
 #include "HMISC20.h"
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
+#include "../snap_module/lightbar.h"
 
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
 char tmpBuff[1024];
@@ -728,6 +729,8 @@ void HMI_SC20::PollingCommand(void)
 
           //屏幕锁定
           HMICommandSave = 1;
+
+          lightbar.set_state(LB_STATE_WORKING);
         }
       }
 
@@ -739,11 +742,13 @@ void HMI_SC20::PollingCommand(void)
           HmiRequestStatus = STAT_PAUSE;
           if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) ExecuterHead.Laser.SetLaserPower(0.0f);
           SystemStatus.PauseTriggle(ManualPause);
+          lightbar.set_state(LB_STATE_STANDBY);
         }
         else if (CurStatus == STAT_RUNNING_ONLINE) {
           HmiRequestStatus = STAT_PAUSE_ONLINE;
           if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) ExecuterHead.Laser.SetLaserPower(0.0f);
           SystemStatus.PauseTriggle(ManualPause);
+          lightbar.set_state(LB_STATE_STANDBY);
         }
       }
 
@@ -783,6 +788,8 @@ void HMI_SC20::PollingCommand(void)
           //清除故障标志
           SystemStatus.ClearSystemFaultBit(FAULT_FLAG_FILAMENT);
           HmiRequestStatus = STAT_RUNNING;
+
+          lightbar.set_state(LB_STATE_WORKING);
         }
 
         //连机打印
@@ -792,6 +799,8 @@ void HMI_SC20::PollingCommand(void)
           //清除故障标志
           SystemStatus.ClearSystemFaultBit(FAULT_FLAG_FILAMENT);
           HmiRequestStatus = STAT_RUNNING_ONLINE;
+
+          lightbar.set_state(LB_STATE_WORKING);
         }
       }
 
@@ -804,6 +813,8 @@ void HMI_SC20::PollingCommand(void)
 
           //清除断电有效标置
           PowerPanicData.Data.Valid = 0;
+
+          lightbar.set_state(LB_STATE_STANDBY);
         }
       }
 
@@ -816,6 +827,7 @@ void HMI_SC20::PollingCommand(void)
 
           //清除断电有效标置
           PowerPanicData.Data.Valid = 0;
+          lightbar.set_state(LB_STATE_FINISH);
         }
       }
 
@@ -1275,6 +1287,9 @@ void HMI_SC20::PollingCommand(void)
           SendUpdateStatus(CanModules.GetUpdateStatus());
           break;
       }
+    }
+    else if (eventId == EID_ADDON_OP_REQ) {
+      lightbar.cmd_handle(tmpBuff);
     }
     if (GenReack == true) SendGeneralReack((eventId + 1), OpCode, Result);
 
