@@ -8,11 +8,17 @@
 
 // define some colors are in common use
 // it is in R G B sequence
+// Brightness is 100%
 #define WHITE       255, 255, 255
-#define RED         128, 0, 0
-#define YELLOW      128, 128, 0
-#define GREEN       0, 128, 0
-#define ORANGE      128, 64, 0
+#define RED         255, 0, 0
+#define YELLOW      255, 255, 0
+#define GREEN       0, 255, 0
+#define ORANGE      255, 128, 0
+
+// default brightness for status is 50%
+#define DEFAULT_STATUS_BRIGHTNESS   (50)
+
+#define MAX_BRIGHTNESS  (100)
 
 #define COLOR_STANBY    YELLOW
 #define COLOR_ERROR     RED
@@ -50,6 +56,9 @@ private:
   uint8_t mode_;
   uint8_t door_sta_;
   uint8_t online_;
+
+  uint8_t br_light_;
+  uint8_t br_status_;
   // change color per new state
   uint8_t FORCE_INLINE set_led_per_state();
 
@@ -73,6 +82,8 @@ public:
   uint8_t set_door_sta(uint8_t ds);
 
   uint8_t cmd_handle(char *cmd);
+
+  uint8_t set_brightness(uint8_t br, uint8_t mode);
 };
 
 extern LightBar lightbar;

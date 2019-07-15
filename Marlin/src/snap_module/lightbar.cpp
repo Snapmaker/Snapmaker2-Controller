@@ -6,13 +6,28 @@ LightBar lightbar;
 /*
  * set the light bar color
  * param:
- *  r - brightness of red
- *  g - brightness of green
- *  b - brightness of blue
+ *  r - red
+ *  g - green
+ *  b - blue
+ *  br - brightness for all, 0 - 100
+ *       0 indicates turn off, 100 indicates max
  * return:
- *  0 - su
+ *  0 - error code
  */
 uint8_t LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
+  uint8_t br;
+
+  if (mode_ == LB_MODE_LIGHTING)
+    br = br_light_;
+  else
+    br = br_status_;
+
+  r = (uint8_t)((r * br) / 100);
+  g = (uint8_t)((g * br) / 100);
+  b = (uint8_t)((b * br) / 100);
+
+  // TODO: need to send r,g,b to lightbar module by CAN
+
   return 0;
 }
 
@@ -33,6 +48,9 @@ void LightBar::init() {
   state_ = LB_STATE_STANDBY;
   mode_ = LB_MODE_STATUS;
   door_sta_ = LB_DOORSTA_CLOSE;
+
+  br_light_ = 100;
+  br_status_ = DEFAULT_STATUS_BRIGHTNESS;
 
   if (check_online() != E_SUCCESS)
     online_ = 0;
@@ -101,7 +119,7 @@ uint8_t LightBar::set_mode(uint8_t m) {
 
   case LB_MODE_LIGHTING:
     ret = set_led(COLOR_LIGHTING);
-    break;  
+    break;
 
   default:
     break;
@@ -129,7 +147,7 @@ uint8_t LightBar::set_state(uint8_t s) {
   if (s > LB_STATE_INVALID)
     return E_PARAM;
 
-  /* even though current mode is LB_MODE_LBING, if new error happened, 
+  /* even though current mode is LB_MODE_LBING, if new error happened,
    * we need to set the mode to LB_MODE_STATUS, and show error color to users.
    * otherwise we just save state for other new system state
    */
@@ -142,7 +160,7 @@ uint8_t LightBar::set_state(uint8_t s) {
       ret = set_led(COLOR_ERROR);
       if (ret  != E_SUCCESS)
         return ret;
-    }    
+    }
 
     return E_SUCCESS;
   }
@@ -204,13 +222,33 @@ uint8_t LightBar::set_door_sta(uint8_t ds) {
   return E_SUCCESS;
 }
 
-/* when door state is changed, need to call this API to sync with light
+/* I will handle the command come from screen to control light bar
  * param:
- *    ds - the new door state
+ *    cmd - command come from screen
  * return:
  *    see error code defination
  */
 uint8_t LightBar::cmd_handle(char *cmd) {
 
   return 0;
+}
+
+/* set the brightness
+ * param:
+ *    br   - new brightness
+ *    mode - which mode of brightness will be set
+ * return:
+ *    see error code defination
+ */
+uint8_t LightBar::set_brightness(uint8_t br, uint8_t mode) {
+  if (br > MAX_BRIGHTNESS)
+    return E_PARAM;
+
+  if (mode >= LB_MODE_INVALID)
+    return E_PARAM;
+
+  if (mode == LB_MODE_LIGHTING)
+    br_light_ = br;
+  else
+    br_status_ = br;
 }
