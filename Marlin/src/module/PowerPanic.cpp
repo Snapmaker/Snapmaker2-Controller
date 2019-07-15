@@ -1003,8 +1003,11 @@ void PowerPanic::towardStopPoint(void) {
     if(thermalManager.temp_hotend[0].current > 180) {
         current_position[E_AXIS] -= 4;
         line_to_current_position(40);
-        planner.synchronize();
-        while(planner.movesplanned()) thermalManager.manage_heater();
+        while(planner.movesplanned()) {
+          // only we are not in powerloss, then do other things
+          if (!powerloss)
+            thermalManager.manage_heater();
+        }
       }
 
       if(all_axes_known != false) {
@@ -1024,11 +1027,12 @@ void PowerPanic::towardStopPoint(void) {
     //关闭电机
     ExecuterHead.CNC.SetCNCPower(0);
 
-    if (powerloss)
-      do_blocking_move_to_z(current_position[Z_AXIS] + 5, 10);
-    else
-      do_blocking_move_to_z(current_position[Z_AXIS] + 30, 10);
-    while(planner.movesplanned())thermalManager.manage_heater();
+    do_blocking_move_to_z(current_position[Z_AXIS] + 30, 10);
+    while(planner.movesplanned()) {
+      // only we are not in powerloss, then do other things
+      if (!powerloss)
+        thermalManager.manage_heater();
+    }
 
     //走到工件原点
     do_blocking_move_to_xy(0, 0, 50);
