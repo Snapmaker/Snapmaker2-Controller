@@ -613,7 +613,7 @@ void HMI_SC20::PollingCommand(void)
   uint8_t CurStatus;
   bool GenReack = false;
   uint8_t eventId, OpCode, Result;
-#define MarkNeedReack(R) do{GenReack = true; Result = R;}while(0)
+  #define MarkNeedReack(R) do{GenReack = true; Result = R;}while(0)
   i = GetCommand((unsigned char *) tmpBuff);
   if (i == (short) - 1) {
   }
@@ -626,8 +626,6 @@ void HMI_SC20::PollingCommand(void)
 
     //上位指令调试
     if (eventId == EID_GCODE_REQ) {
-      Periph.EncloseLedOn();
-
       //指令尾补0
       j = cmdLen + 8;
       tmpBuff[j] = 0;
@@ -636,7 +634,6 @@ void HMI_SC20::PollingCommand(void)
 
     //GCode  打印
     else if (eventId == EID_FILE_GCODE_REQ) {
-      Periph.EncloseLedOn();
 
       //获取当前状态
       CurStatus = SystemStatus.GetCurrentPrinterStatus();
@@ -730,8 +727,9 @@ void HMI_SC20::PollingCommand(void)
 
           //使能断电检测
           //EnablePowerPanicCheck();
-          //使能检测
-          if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) Periph.StartFilamentCheck();
+          //使能断料检测
+          parser.parse("M412 S1");
+          gcode.process_parsed_command();
           SendMachineStatusChange(0x03, 0);
 
           //屏幕锁定
@@ -997,6 +995,7 @@ void HMI_SC20::PollingCommand(void)
         //设置尺寸
         case 1:
           ResizeMachine(&tmpBuff[10]);
+          MarkNeedReack(0);
           break;
 
         //开启自动调平

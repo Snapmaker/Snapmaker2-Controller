@@ -96,7 +96,7 @@ void LaserExecuter::SaveFocusHeight(float height)
   Data[2] = (uint8_t)(intheight >> 16);
   Data[3] = (uint8_t)(intheight >> 8);
   Data[4] = (uint8_t)(intheight);
-  CanModules.SetFunctionValue(2, FUNC_SET_LASER_FOCUS, Data);
+  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_LASER_FOCUS, Data, 5);
 }
 
 /**
@@ -113,7 +113,7 @@ void LaserExecuter::SaveFocusHeight()
   Data[2] = (uint8_t)(intheight >> 16);
   Data[3] = (uint8_t)(intheight >> 8);
   Data[4] = (uint8_t)(intheight);
-  CanModules.SetFunctionValue(2, FUNC_SET_LASER_FOCUS, Data);
+  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_LASER_FOCUS, Data, 5);
 }
 
 /**
@@ -125,7 +125,7 @@ bool LaserExecuter::LoadFocusHeight()
   uint8_t Data[3];
 
   Data[0] = 0;
-  CanModules.SetFunctionValue(2, FUNC_REPORT_LASER_FOCUS, Data, 1);
+  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LASER_FOCUS, Data, 1);
   return 0;
 }
 #endif // ENABLED(EXECUTER_CANBUS_SUPPORT)

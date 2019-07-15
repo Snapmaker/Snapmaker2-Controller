@@ -867,8 +867,8 @@ void get_available_commands() {
   // if any immediate commands remain, don't get other commands yet
   if (drain_injected_commands_P()) return;
 
-  if (SystemStatus.GetCurrentPrinterStatus() != STAT_IDLE)
-  get_serial_commands();
+  if (SystemStatus.GetCurrentPrinterStatus() == STAT_IDLE)
+    get_serial_commands();
 
   #if ENABLED(SDSUPPORT)
     get_sdcard_commands();

@@ -80,10 +80,6 @@ volatile uint32_t Endstops::statefromcan = 0;
  */
 
 void Endstops::init() {
-  #if ENABLED(PERIPH_CANBUS_SUPPORT)
-    Periph.Init();
-  #endif
-  
   #if DISABLED(CAN_ENDSTOP_X_MIN)
     #if HAS_X_MIN
       #if ENABLED(ENDSTOPPULLUP_XMIN)

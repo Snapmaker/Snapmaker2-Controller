@@ -42,6 +42,8 @@ public:
   bool RequestReplied;
   uint32_t ModuleMacList[32];
   uint8_t ModuleCount;
+  uint32_t ExtendModuleMacList[64];
+  uint8_t ExtendModuleCount;
 };
 
 extern CanBus CanBusControlor;

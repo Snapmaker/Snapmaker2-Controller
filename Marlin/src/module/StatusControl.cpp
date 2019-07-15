@@ -66,8 +66,6 @@ bool StatusControl::PauseTriggle(PausePrintType type)
       #endif
         SetSystemFaultBit(FAULT_FLAG_FILAMENT);
         InterruptAllCommand();
-        if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-          Periph.SetFilamentCheck(false);
         //保存文件位置
         //PowerPanicData.Data.FilePosition = pBlock->FilePosition;
         //保存空跑速度
@@ -201,7 +199,8 @@ void StatusControl::PauseProcess()
           //切换到主界面
           HMI.ChangePage(PAGE_PRINT);
           //关闭断料检测
-          Periph.StopFilamentCheck();
+          parser.parse("M412 S0");
+          gcode.process_parsed_command();
           break;
 
         case MACHINE_TYPE_CNC:
@@ -252,8 +251,6 @@ void StatusControl::StopProcess()
         case MACHINE_TYPE_3DPRINT:
           //切换到主界面
           HMI.ChangePage(PAGE_PRINT);
-          //关闭断料检测
-          Periph.StopFilamentCheck();
           break;
 
         case MACHINE_TYPE_CNC:

@@ -31,15 +31,6 @@ PowerPanic PowerPanicData;
   extern float saved_g1_feedrate_mm_s;
 #endif
 
-#if USE_EXECUTE_COMMANDS_IMMEDIATE
-#define process_cmd_imd(str) do{parser.parse(str), _
-                                gcode.process_parsed_command( _
-                                false \
-                                );}while(0)
-#else
-#define process_cmd_imd(str) do{parser.parse(str), gcode.process_parsed_command( );}while(0)
-#endif
-
  /**
  * need to initialize the power detect pin
  */
@@ -437,8 +428,7 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
       process_cmd_imd(tmpBuff);
 
       //X  Y  回原点
-      strcpy(tmpBuff, "G28");
-      process_cmd_imd(tmpBuff);
+      process_cmd_imd("G28");
 
       //等待加热
       if(tmpPowerPanicData.BedTamp > 20)
@@ -465,8 +455,7 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
       //预挤出
       //相对模式
       relative_mode = true;
-      strcpy(tmpBuff, "G0 E25 F100");
-      process_cmd_imd(tmpBuff);
+      process_cmd_imd("G0 E25 F100");
       planner.synchronize();
       //坐标更新
       current_position[E_AXIS] = tmpPowerPanicData.PositionData[E_AXIS];
@@ -474,8 +463,7 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
       //绝对模式
       relative_mode = false;
       //暂停3  秒
-      strcpy(tmpBuff, "G4 S3");
-      process_cmd_imd(tmpBuff);
+      process_cmd_imd("G4 S3");
       //移动到续点XY  坐标
       sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", tmpPowerPanicData.PositionData[X_AXIS], tmpPowerPanicData.PositionData[Y_AXIS]);
       process_cmd_imd(tmpBuff);
@@ -505,10 +493,8 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
       //EnablePowerPanicCheck();
       if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
         Periph.StartDoorCheck();
-      #if((HAVE_FILAMENT_SENSOR == 1) || (HAVE_FILAMENT_SWITCH == 1))
       if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-        Periph.StartFilamentCheck();
-      #endif
+        process_cmd_imd("M412 S1");
       //清除断电数据
       restoring = false;
       MaskPowerPanicData();
@@ -1020,7 +1006,8 @@ void PowerPanic::towardStopPoint(void) {
         //Y  轴走到最大位置
         move_to_limited_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
       }
-      Periph.StopFilamentCheck();
+      //关闭断料检测
+      process_cmd_imd("M412 S0");
     break;
 
   case MACHINE_TYPE_CNC:
