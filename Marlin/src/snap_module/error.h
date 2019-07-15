@@ -21,4 +21,6 @@
 
 #define E_HARDWARE        (COMMON_ERR_BASE + 7)     /* hardware errors such as invalid bus state */
 
+#define E_INVALID_STATE   (COMMON_ERR_BASE + 8)     /* state is invalid for current operation */
+
 #endif // #ifndef ERROR_H_

@@ -1,7 +1,7 @@
 
 #include "../inc/MarlinConfig.h"
 
-#if ENABLED(HMI_SC20W) 
+#if ENABLED(HMI_SC20W)
 #include "../module/stepper.h"
 #include "../Marlin.h"
 #include "../module/temperature.h"
@@ -24,6 +24,7 @@
 #include "HMISC20.h"
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
 #include "../snap_module/lightbar.h"
+#include "../feature/runout.h"
 
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
 char tmpBuff[1024];
@@ -31,7 +32,7 @@ char tmpBuff[1024];
 #define BYTES_TO_32BITS(buff, index) ((buff[index] << 24) | (buff[index + 1] << 16) | (buff[index + 2] << 8) | (buff[index + 3]))
 #define BYTES_TO_32BITS_WITH_INDEXMOVE(result, buff, N) do{result = BYTES_TO_32BITS(buff, N); N = N + 4; }while(0)
 #define AXIS_MAX_POS(AXIS, BUFF, N) do{ AXIS##_MAX_POS = BYTES_TO_32BITS(BUFF, N) / 1000.0f; N = N + 4; }while(0)
-#define AXIS_DIR(AXIS, BUFF, N) do{ AXIS##_DIR = (int32_t)BYTES_TO_32BITS(BUFF, N)<0?-1:1; N = N + 4; }while(0) 
+#define AXIS_DIR(AXIS, BUFF, N) do{ AXIS##_DIR = (int32_t)BYTES_TO_32BITS(BUFF, N)<0?-1:1; N = N + 4; }while(0)
 #define AXIS_HOME_OFFSET(AXIS, BUFF, N) do{home_offset[AXIS] = BYTES_TO_32BITS(BUFF, N) / 1000.0f; N = N + 4; }while(0)
 #define BITS32_TO_BYTES(u32bit, buff, index) do { \
     buff[index++] = (uint8_t)(u32bit >> 24); \
@@ -47,12 +48,18 @@ static char SendBuff[1024];
 #define CMD_BUFF_EMPTY() (commands_in_queue>0?false:true)
 
 //U  盘枚举成功
-#if ENABLED(SDSUPPORT) 
+#if ENABLED(SDSUPPORT)
 #define IS_UDISK_INSERTED IS_SD_INSERTED()
 
 #else
 
 #define IS_UDISK_INSERTED false
+#endif
+
+#if ENABLED(FILAMENT_RUNOUT_SENSOR)
+  #define CHECK_RUNOUT_SENSOR     runout.sensor_state()
+#else
+  #define CHECK_RUNOUT_SENSOR     (0)
 #endif
 
 /**
@@ -224,12 +231,12 @@ void HMI_SC20::RequestFirmwareVersion(void)
   uint32_t Address;
   uint16_t i;
   char Version[33];
-  
+
   Address = FLASH_BOOT_PARA + 2048;
   for(i=0;i<32;i++)
     Version[i] = *((char*)Address++);
   Version[31] = 0;
-  
+
   i = 0;
 
   tmpBuff[i++] = 0xAA;
@@ -264,7 +271,7 @@ void HMI_SC20::CheckFirmwareVersion(char *pNewVersion)
     }
     if((Version[i] == pNewVersion[i]) && (Version[i]) == 0) break;
   }
-  
+
   i = 0;
   tmpBuff[i++] = 0xAA;
   tmpBuff[i++] = 4;
@@ -363,7 +370,7 @@ bool HMI_SC20::UpdateDownloadComplete(void)
 void HMI_SC20::SendUpdateComplete(uint8_t Type)
 {
   int i;
-  
+
   i = 0;
   tmpBuff[i++] = 0xAA;
   tmpBuff[i++] = 6;
@@ -377,7 +384,7 @@ void HMI_SC20::SendUpdateComplete(uint8_t Type)
 void HMI_SC20::SendUpdateStatus(uint8_t Status)
 {
   int i;
-  
+
   i = 0;
   tmpBuff[i++] = EID_UPGRADE_RESP;
   tmpBuff[i++] = 5;
@@ -562,7 +569,7 @@ void HMI_SC20::ResizeMachine(char * pBuff)
   //Z
   AXIS_HOME_OFFSET(Z_AXIS, pBuff, j);
 
-#if ENABLED(SW_MACHINE_SIZE) 
+#if ENABLED(SW_MACHINE_SIZE)
   UpdateMachineDefines();
 #endif
 
@@ -756,7 +763,7 @@ void HMI_SC20::PollingCommand(void)
       else if (StatuID == 0x05) {
         //获取当前状态
         CurStatus = SystemStatus.GetCurrentPrinterStatus();
-
+        Result = E_FAILURE;
         //U  盘打印
         if (CurStatus == STAT_PAUSE) {
           //激光执行头
@@ -769,7 +776,7 @@ void HMI_SC20::PollingCommand(void)
               //门已关闭
               if (Periph.IsDoorOpened() == false) {
                 //启动打印
-                SystemStatus.PauseResume();
+                Result = SystemStatus.PauseResume();
               }
 
               //开启检测
@@ -778,29 +785,28 @@ void HMI_SC20::PollingCommand(void)
 
             //禁能门开关检测
             else {
-              SystemStatus.PauseResume();
+              Result = SystemStatus.PauseResume();
             }
           }
           else {
-            SystemStatus.PauseResume();
+            Result = SystemStatus.PauseResume();
           }
-
-          //清除故障标志
-          SystemStatus.ClearSystemFaultBit(FAULT_FLAG_FILAMENT);
-          HmiRequestStatus = STAT_RUNNING;
-
-          lightbar.set_state(LB_STATE_WORKING);
         }
 
         //连机打印
         else if (CurStatus == STAT_PAUSE_ONLINE) {
-          SystemStatus.PauseResume();
+          Result = SystemStatus.PauseResume();
+        }
 
+        if (Result == E_NO_RESRC) {
+          SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+          // send error back to screen
+          SendPowerPanicResume(0x05, 1);
+        }
+        else {
           //清除故障标志
           SystemStatus.ClearSystemFaultBit(FAULT_FLAG_FILAMENT);
-          HmiRequestStatus = STAT_RUNNING_ONLINE;
-
-          lightbar.set_state(LB_STATE_WORKING);
+          HmiRequestStatus = STAT_RUNNING;
         }
       }
 
@@ -906,19 +912,25 @@ void HMI_SC20::PollingCommand(void)
 
         //CNC  或3D  打印
         else {
-          //处于待机状态
-          if (CurStatus == STAT_IDLE) {
-            //切换状态
-            SystemStatus.SetCurrentPrinterStatus(STAT_PAUSE_ONLINE);
-
-            //启动断电续打
-            PowerPanicData.PowerPanicResumeWork(NULL);
-          }
-
-          //非待机状态
-          else {
-            //发送失败
+          // check if we have runout detected for 3D printer
+          if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (CHECK_RUNOUT_SENSOR)) {
+            SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
             SendPowerPanicResume(0x0b, 1);
+          }
+          else {
+            //处于待机状态
+            if (CurStatus == STAT_IDLE) {
+              //切换状态
+              SystemStatus.SetCurrentPrinterStatus(STAT_PAUSE_ONLINE);
+
+              //启动断电续打
+              PowerPanicData.PowerPanicResumeWork(NULL);
+            }
+            //非待机状态
+            else {
+              //发送失败
+              SendPowerPanicResume(0x0b, 1);
+            }
           }
         }
       }

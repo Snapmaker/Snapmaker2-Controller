@@ -109,6 +109,11 @@ class TFilamentMonitor : public FilamentMonitorBase {
         }
       }
     }
+
+    // query current state of sensor
+    static uint8_t sensor_state() {
+      return sensor.poll_runout_states()
+    }
 };
 
 /*************************** FILAMENT PRESENCE SENSORS ***************************/
