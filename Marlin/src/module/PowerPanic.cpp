@@ -1011,14 +1011,14 @@ void PowerPanic::towardStopPoint(void) {
       }
 
       if(all_axes_known != false) {
-        if (powerloss)
-          do_blocking_move_to_z(current_position[Z_AXIS] + 5, 10);  // if power loss, raise z for 5 mm
-        else
-          do_blocking_move_to_z(current_position[Z_AXIS] + 30, 10); // else raise z for 30mm
+        if (powerloss) 
+          move_to_limited_z(current_position[Z_AXIS] + 5, 10);  // if power loss, raise z for 5 mm
+        else 
+          move_to_limited_z(current_position[Z_AXIS] + 30, 10); // else raise z for 30mm
         //X  轴走到限位开关位置
-        do_blocking_move_to_x(0, 35);
+        move_to_limited_x(0, 35);
         //Y  轴走到最大位置
-        do_blocking_move_to_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
+        move_to_limited_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
       }
       Periph.StopFilamentCheck();
     break;
@@ -1027,7 +1027,7 @@ void PowerPanic::towardStopPoint(void) {
     //关闭电机
     ExecuterHead.CNC.SetCNCPower(0);
 
-    do_blocking_move_to_z(current_position[Z_AXIS] + 30, 10);
+    move_to_limited_z(current_position[Z_AXIS] + 30, 10);
     while(planner.movesplanned()) {
       // only we are not in powerloss, then do other things
       if (!powerloss)
@@ -1035,7 +1035,7 @@ void PowerPanic::towardStopPoint(void) {
     }
 
     //走到工件原点
-    do_blocking_move_to_xy(0, 0, 50);
+    move_to_limited_xy(0, 0, 50);
     break;
 
   case MACHINE_TYPE_LASER:

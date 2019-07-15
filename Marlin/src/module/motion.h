@@ -383,3 +383,8 @@ void homeaxis(const AxisEnum axis);
 #if ENABLED(SW_MACHINE_SIZE)
   void UpdateMachineDefines(void);
 #endif
+
+void  move_to_limited_position(const float fr_mm_s);
+void  move_to_limited_z(const float z, const float fr_mm_s);
+void  move_to_limited_xy(const float x, const float y, const float fr_mm_s);
+void  move_to_limited_x(const float x, const float fr_mm_s);

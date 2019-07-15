@@ -1661,3 +1661,24 @@ void homeaxis(const AxisEnum axis) {
     max_length_P[Z_AXIS] = Z_MAX_POS - Z_MIN_POS;
   }
 #endif // ENABLED(SW_MACHINE_SIZE)
+
+FORCE_INLINE void  move_to_limited_position(const float fr_mm_s) {
+  apply_motion_limits(current_position);
+  do_blocking_move_to(current_position, fr_mm_s);
+}
+
+void  move_to_limited_z(const float z, const float fr_mm_s) {
+  current_position[Z_AXIS] = z;
+  move_to_limited_position(fr_mm_s);
+}
+
+void  move_to_limited_xy(const float x, const float y, const float fr_mm_s) {
+  current_position[X_AXIS] = x;
+  current_position[Y_AXIS] = y;
+  move_to_limited_position(fr_mm_s);
+}
+
+void  move_to_limited_x(const float x, const float fr_mm_s) {
+  current_position[X_AXIS] = x;
+  move_to_limited_position(fr_mm_s);
+}
