@@ -42,9 +42,7 @@ bool ExecuterManager::Detecte()
 
     Data[0] = (uint8_t)(temperature >> 8);
     Data[1] = (uint8_t)temperature;
-    
-    SERIAL_ECHOLN("Set Tamp");
-    CanModules.SetFunctionValue(2, FUNC_SET_TEMPEARTURE, Data, 2);
+    CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_TEMPEARTURE, Data, 2);
   }
 
   /**
@@ -59,8 +57,8 @@ bool ExecuterManager::Detecte()
     Data[0] = 0;
     Data[1] = s_value;
     FanSpeed[index] = s_value;
-    if(index == 0) CanModules.SetFunctionValue(2, FUNC_SET_FAN, Data, 2);
-    else if(index == 1) CanModules.SetFunctionValue(2, FUNC_SET_FAN2, Data, 2);
+    if(index == 0) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 2);
+    else if(index == 1) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 2);
   }
 #else
 

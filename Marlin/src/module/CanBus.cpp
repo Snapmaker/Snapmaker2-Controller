@@ -119,29 +119,6 @@ uint16_t CanBus::ProcessLongPacks(uint8_t *pBuff, uint16_t MaxLen) {
     for(i=0;i<DataLen;i++)
       pBuff[i] = ProcessBuff[i + 8];
     return i;
-    /*
-    #define EVID_BYTE_INDEX  8
-    #define OPCODE_BYTE_INDEX 9
-    #define EventID ProcessBuff[EVID_BYTE_INDEX]
-    #define OpCode  ProcessBuff[OPCODE_BYTE_INDEX]
-    switch(EventID) {
-      //Modules report Axis
-      case 0x01:
-      break;
-
-      //Modules report support function index
-      case 0x02:
-      break;
-
-      //Modules report Executer Number
-      case 0x03:
-      break;
-
-      //Module General Reack
-      case 0x99:
-      break;
-    }
-    */
   }
   return 0;
 }
@@ -262,10 +239,35 @@ void __irq_can1_tx(void) {
 }
 
 void __irq_can1_rx0(void) {
-
+  strCanData tmpData;
+  uint8_t Buff[8];
+  uint8_t Len;
+  uint8_t FMI;
+  FMI = Canbus1ParseData(&tmpData.ID, &tmpData.IDType, &tmpData.FrameType, tmpData.Data, &Len, 0);  
+  if(FMI == 0) {
+    tmpData.ID &= 0x1ff;
+    CanFuns[CanModules.MsgIDTable[tmpData.ID]](tmpData.Data);
+  } 
 }
 
 void __irq_can1_rx1(void) {
+  uint8_t Len;
+  uint8_t FMI;
+  strCanData tmpData;
+  FMI = Canbus1ParseData(&tmpData.ID, &tmpData.IDType, &tmpData.FrameType, tmpData.Data, &Len, 1);
+  if(FMI == 0) { //Brocast for enuming modules
+    CanBusControlor.ModuleMacList[CanBusControlor.ModuleCount++] = tmpData.ID;
+  } else if(FMI == 1) { //Nor communication datas
+    if(Len > 0)
+    {
+      if(((CanBusControlor.ReadHead + sizeof(CanBusControlor.ReadRingBuff) + Len - CanBusControlor.ReadTail) % sizeof(CanBusControlor.ReadRingBuff)) < sizeof(CanBusControlor.ReadRingBuff)) {
+        for(int i=0;i<Len;i++) {
+          CanBusControlor.ReadRingBuff[CanBusControlor.ReadHead] = tmpData.Data[i];
+          CanBusControlor.ReadHead = (CanBusControlor.ReadHead + 1) % sizeof(CanBusControlor.ReadRingBuff);
+        }
+      }
+    }
+  }
 }
 
 void __irq_can1_sce(void) {

@@ -33,24 +33,6 @@ public:
     FORCE_INLINE bool IsDoorOpened() { return true; }
   #endif
 
-  #if ENABLED(CAN_ENCLOSE_LED)
-    void EncloseLedOn();
-    void EncloseLedOff();
-  #else
-    static void EncloseLedOn() {}
-    static void EncloseLedOff() {}
-  #endif
-
-  #if ENABLED(FILAMENT_SENSOR)
-    void SetFilamentCheck(bool Enable);
-    void StartFilamentCheck();
-    void StopFilamentCheck();
-  #else
-    void SetFilamentCheck(bool Enable) {}
-    void StartFilamentCheck() {}
-    void StopFilamentCheck() {}
-  #endif
-
   uint8_t GetFanSpeed(uint8_t index) { return FanSpeed[index]; }
 
   #if ENABLED(CAN_FAN)

@@ -398,3 +398,15 @@ void protected_pin_err();
   extern float Z_MIN_POS;
 #endif //ENABLED(SW_MACHINE_SIZE)
 
+#if USE_EXECUTE_COMMANDS_IMMEDIATE
+#define process_cmd_imd(str) do{parser.parse(str), _
+                                gcode.process_parsed_command( _
+                                false \
+                                );}while(0)
+#else
+#define process_cmd_imd(str) do{parser.parse(str), gcode.process_parsed_command( );}while(0)
+#endif
+
+#define UInt32ToBytes(u32V, pBuff) do{pBuff[0] = (uint8_t)(u32V >> 24); pBuff[1] = (uint8_t)(u32V >> 16); pBuff[2] = (uint8_t)(u32V >> 8); pBuff[3] = (uint8_t)(u32V); }while(0)
+#define UInt16ToBytes(u16V, pBuff) do{pBuff[0] = (uint8_t)(u16V >> 8); pBuff[1] = (uint8_t)(u16V);}while(0)
+

@@ -30,8 +30,6 @@ public:
 public:
   uint32_t ExecuterID[6];
   uint32_t LinearModuleID[9];
-  uint16_t LinearModuleMsgID[9];
-  uint16_t LinearModuleAxis[9];
   uint16_t LinearModuleLength[9];
   uint8_t ExecuterCount;
   uint8_t LinearModuleCount;
@@ -41,10 +39,14 @@ public:
   uint16_t MsgIDTable[512];
 
 private:
-  uint32_t MacIDofFuncID[128];
-  uint16_t FuncIDList[128];
-  uint16_t FuncIDPriority[128];
-  uint16_t MsgIDCount;
+  uint32_t MacIDofFuncID_CAN2[128];
+  uint16_t FuncIDList_CAN2[128];
+  uint16_t FuncIDPriority_CAN2[128];
+  uint16_t MsgIDCount_CAN2;
+  uint32_t MacIDofFuncID_CAN1[128];
+  uint16_t FuncIDList_CAN1[128];
+  uint16_t FuncIDPriority_CAN1[128];
+  uint16_t MsgIDCount_CAN1;
   uint8_t SendBuff[256];
   uint8_t RecvBuff[256];
 };

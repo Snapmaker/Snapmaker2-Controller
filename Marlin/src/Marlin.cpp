@@ -1211,6 +1211,24 @@ void CheckUpdateFlag(void)
 }
 
 /**
+ * Check App Valid Flag
+ */
+void CheckAppValidFlag(void)
+{
+  uint32_t Value;
+  uint32_t Address;
+  Address = FLASH_BOOT_PARA;
+  Value = *((uint32_t*)Address);
+  if(Value != 0xaa55ee11) { 
+    FLASH_Unlock();
+    FLASH_ErasePage(Address);
+    FLASH_ProgramWord(Address, 0xaa55ee11);
+    FLASH_Lock();
+  }
+}
+
+
+/**
  * The main Marlin program loop
  *
  *  - Save or log commands to SD
@@ -1231,9 +1249,14 @@ void loop() {
   CanBusControlor.Init();
   CanModules.Init();
   CheckUpdateFlag();
+  CheckAppValidFlag();
   
   //endstops.CanPrepareAxis();
-  while(ExecuterHead.MachineType == MACHINE_TYPE_UNDEFINE);
+  while(ExecuterHead.MachineType == MACHINE_TYPE_UNDEFINE) {
+    #if ENABLED(HMISUPPORT)
+      HMI.CommandProcess();
+    #endif
+  }
   if(1)
   {
     if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
