@@ -6,13 +6,21 @@
 
 #include "../core/macros.h"
 
+#include "error.h"
+
 // define some colors are in common use
 // it is in R G B sequence
+// Brightness is 100%
 #define WHITE       255, 255, 255
-#define RED         128, 0, 0
-#define YELLOW      128, 128, 0
-#define GREEN       0, 128, 0
-#define ORANGE      128, 64, 0
+#define RED         255, 0, 0
+#define YELLOW      255, 255, 0
+#define GREEN       0, 255, 0
+#define ORANGE      255, 128, 0
+
+// default brightness for status is 50%
+#define DEFAULT_STATUS_BRIGHTNESS   (50)
+
+#define MAX_BRIGHTNESS  (100)
 
 #define COLOR_STANBY    YELLOW
 #define COLOR_ERROR     RED
@@ -21,7 +29,7 @@
 #define COLOR_LIGHTING  WHITE
 
 // corresponding to system state
-enum LightBarState {
+enum LightBarState: uint8_t {
   LB_STATE_STANDBY,
   LB_STATE_WORKING,
   LB_STATE_ERROR,
@@ -30,14 +38,14 @@ enum LightBarState {
   LB_STATE_INVALID
 };
 
-enum LightBarMode {
+enum LightBarMode: uint8_t  {
   LB_MODE_STATUS,
   LB_MODE_LIGHTING,
 
   LB_MODE_INVALID
 };
 
-enum LightBarDoorSta {
+enum LightBarDoorSta: uint8_t  {
   LB_DOORSTA_OPEN,
   LB_DOORSTA_CLOSE,
 
@@ -46,33 +54,36 @@ enum LightBarDoorSta {
 
 class LightBar {
 private:
-  uint8_t state_;
-  uint8_t mode_;
-  uint8_t door_sta_;
+  LightBarState state_;
+  LightBarMode mode_;
+  LightBarDoorSta door_sta_;
   uint8_t online_;
-  // change color per new state
-  uint8_t FORCE_INLINE set_led_per_state();
 
-  uint8_t set_led(uint8_t r, uint8_t g, uint8_t b);
+  uint8_t br_light_;
+  uint8_t br_status_;
+  // change color per new state
+  ErrCode FORCE_INLINE set_led_per_state();
+
+  ErrCode set_led(uint8_t r, uint8_t g, uint8_t b);
 
 public:
-  LightBar() {};
-
   void init();
 
   uint8_t check_online(void);
 
-  uint8_t set_mode(uint8_t m);
+  ErrCode set_mode(LightBarMode m);
 
-  uint8_t get_mode() { return mode_; }
+  LightBarMode get_mode() { return mode_; }
 
-  uint8_t set_state(uint8_t s);
+  ErrCode set_state(LightBarState s);
 
-  uint8_t get_state() { return state_; }
+  LightBarState get_state() { return state_; }
 
-  uint8_t set_door_sta(uint8_t ds);
+  ErrCode set_door_sta(LightBarDoorSta ds);
 
-  uint8_t cmd_handle(char *cmd);
+  ErrCode cmd_handle(char *cmd);
+
+  ErrCode set_brightness(uint8_t br, LightBarMode mode);
 };
 
 extern LightBar lightbar;

@@ -17,6 +17,9 @@
 #include "PowerPanic.h"
 #include "printcounter.h"
 #include "stepper.h"
+#include "../feature/runout.h"
+#include "../snap_module/lightbar.h"
+
 
 StatusControl SystemStatus;
 
@@ -335,9 +338,6 @@ void inline StatusControl::resume_3dp(void) {
 
   // switch printing page
   HMI.ChangePage(PAGE_PRINT);
-
-  // enable filament runout
-  Periph.StartFilamentCheck();
 }
 
 
@@ -359,15 +359,23 @@ void inline StatusControl::resume_laser(void) {
 /**
  * Resume Pause
  */
-void StatusControl::PauseResume()
+ErrCode StatusControl::PauseResume()
 {
   if (TriggleStat != TRIGGLE_STAT_RESUME)
-    return;
+    return E_INVALID_STATE;
 
   if (CurrentStatus != STAT_PAUSE_ONLINE || CurrentStatus != STAT_PAUSE)
-    return;
+    return E_INVALID_STATE;
 
   TriggleStat = TRIGGLE_STAT_IDLE;
+
+#if ENABLED(FILAMENT_RUNOUT_SENSOR)
+  // need to check if we have filament ready
+  if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) &&  runout.sensor_state()) {
+    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    return E_NO_RESRC;
+  }
+#endif
 
   switch(ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
@@ -401,6 +409,10 @@ void StatusControl::PauseResume()
     CurrentStatus = STAT_RUNNING_ONLINE;
   else
     CurrentStatus = STAT_RUNNING;
+
+  lightbar.set_state(LB_STATE_WORKING);
+
+  return E_SUCCESS;
 }
 
 /**

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../inc/MarlinConfig.h"
+#include "../snap_module/error.h"
 
 #ifndef _STATUS_CONTROL_H_
 #define _STATUS_CONTROL_H_
@@ -64,7 +65,7 @@ public:
   bool StopTriggle(StopPrintType type);
   void PauseProcess();
   void StopProcess();
-  void PauseResume();
+  ErrCode PauseResume();
 
 private:
   void InterruptAllCommand();

@@ -2,6 +2,8 @@
 #define ERROR_H_
 
 
+typedef uint8_t ErrCode;
+
 #define COMMON_ERR_BASE   0
 
 #define E_SUCCESS         (COMMON_ERR_BASE + 0)     /* non error */
@@ -20,5 +22,7 @@
 #define E_TIMEOUT         (COMMON_ERR_BASE + 6)
 
 #define E_HARDWARE        (COMMON_ERR_BASE + 7)     /* hardware errors such as invalid bus state */
+
+#define E_INVALID_STATE   (COMMON_ERR_BASE + 8)     /* state is invalid for current operation */
 
 #endif // #ifndef ERROR_H_
