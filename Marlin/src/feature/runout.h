@@ -21,6 +21,7 @@
  */
 #pragma once
 
+#if HAS_FILAMENT_SENSOR
 /**
  * feature/runout.h - Runout sensor support
  */
@@ -40,6 +41,7 @@
 #if ENABLED(ADVANCED_PAUSE_FEATURE)
   #include "pause.h"
 #endif
+
 
 //#define FILAMENT_RUNOUT_SENSOR_DEBUG
 
@@ -112,7 +114,7 @@ class TFilamentMonitor : public FilamentMonitorBase {
 
     // query current state of sensor
     static uint8_t sensor_state() {
-      return sensor.poll_runout_states()
+      return sensor.poll_runout_states();
     }
 };
 
@@ -405,3 +407,5 @@ typedef TFilamentMonitor<
 > FilamentMonitor;
 
 extern FilamentMonitor runout;
+
+#endif

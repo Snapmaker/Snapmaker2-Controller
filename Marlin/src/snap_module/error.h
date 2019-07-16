@@ -2,6 +2,8 @@
 #define ERROR_H_
 
 
+typedef uint8_t ErrCode;
+
 #define COMMON_ERR_BASE   0
 
 #define E_SUCCESS         (COMMON_ERR_BASE + 0)     /* non error */

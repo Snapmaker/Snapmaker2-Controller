@@ -1,5 +1,4 @@
 #include "lightbar.h"
-#include "error.h"
 
 LightBar lightbar;
 
@@ -14,7 +13,7 @@ LightBar lightbar;
  * return:
  *  0 - error code
  */
-uint8_t LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
+ErrCode LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
   uint8_t br;
 
   if (mode_ == LB_MODE_LIGHTING)
@@ -63,7 +62,7 @@ void LightBar::init() {
  * return:
  *    see error code defination
  */
-uint8_t LightBar::set_led_per_state() {
+ErrCode LightBar::set_led_per_state() {
   uint8_t ret;
   switch (state_) {
   case LB_STATE_ERROR:
@@ -96,7 +95,7 @@ uint8_t LightBar::set_led_per_state() {
  * return:
  *    see error code defination
  */
-uint8_t LightBar::set_mode(uint8_t m) {
+ErrCode LightBar::set_mode(LightBarMode m) {
   uint8_t ret;
 
   if (!online_)
@@ -138,7 +137,7 @@ uint8_t LightBar::set_mode(uint8_t m) {
  * return:
  *    see error code defination
  */
-uint8_t LightBar::set_state(uint8_t s) {
+ErrCode LightBar::set_state(LightBarState s) {
   uint8_t ret;
 
   if (!online_)
@@ -180,7 +179,7 @@ uint8_t LightBar::set_state(uint8_t s) {
  * return:
  *    see error code defination
  */
-uint8_t LightBar::set_door_sta(uint8_t ds) {
+ErrCode LightBar::set_door_sta(LightBarDoorSta ds) {
   uint8_t ret;
 
   if (!online_)
@@ -228,9 +227,9 @@ uint8_t LightBar::set_door_sta(uint8_t ds) {
  * return:
  *    see error code defination
  */
-uint8_t LightBar::cmd_handle(char *cmd) {
+ErrCode LightBar::cmd_handle(char *cmd) {
 
-  return 0;
+  return E_SUCCESS;
 }
 
 /* set the brightness
@@ -240,7 +239,7 @@ uint8_t LightBar::cmd_handle(char *cmd) {
  * return:
  *    see error code defination
  */
-uint8_t LightBar::set_brightness(uint8_t br, uint8_t mode) {
+ErrCode LightBar::set_brightness(uint8_t br, LightBarMode mode) {
   if (br > MAX_BRIGHTNESS)
     return E_PARAM;
 

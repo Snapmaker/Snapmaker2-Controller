@@ -65,7 +65,7 @@ public:
   bool StopTriggle(StopPrintType type);
   void PauseProcess();
   void StopProcess();
-  uint8_t PauseResume();
+  ErrCode PauseResume();
 
 private:
   void InterruptAllCommand();

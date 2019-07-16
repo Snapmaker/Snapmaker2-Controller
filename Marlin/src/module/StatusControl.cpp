@@ -359,7 +359,7 @@ void inline StatusControl::resume_laser(void) {
 /**
  * Resume Pause
  */
-uint8_t StatusControl::PauseResume()
+ErrCode StatusControl::PauseResume()
 {
   if (TriggleStat != TRIGGLE_STAT_RESUME)
     return E_INVALID_STATE;
