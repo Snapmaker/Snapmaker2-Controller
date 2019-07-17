@@ -49,14 +49,17 @@ void PowerPanic::init(void) {
   case 0:
     // got power panic data
     SystemStatus.SetSystemFaultBit(FAULT_FLAG_POWERPANIC);
+    SERIAL_ECHOLNPGM("Got power panic data!");
     break;
   case 1:
     // data read from flash is invalid
     SystemStatus.SetSystemFaultBit(FAULT_FLAG_INVALID_PPD);
+    SERIAL_ECHOLNPGM("invalid power panic data!");
     break;
 
   default:
     // do nothing for other results such as 2 = no power panic data
+    SERIAL_ECHOLNPGM("No power panic data!");
     break;
   }
 
@@ -922,6 +925,8 @@ void PowerPanic::turnoffPower(void) {
   WRITE(POWER0_SUPPLY_PIN, POWER_SUPPLY_OFF);
   WRITE(POWER1_SUPPLY_PIN, POWER_SUPPLY_OFF);
   WRITE(POWER2_SUPPLY_PIN, POWER_SUPPLY_OFF);
+
+  BreathLightClose();
 
   // disable power of heated bed
   WRITE(HEATER_BED_PIN, LOW);

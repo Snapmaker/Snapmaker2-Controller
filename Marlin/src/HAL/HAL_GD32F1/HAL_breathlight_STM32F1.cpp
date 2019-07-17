@@ -67,4 +67,20 @@ void BreathLightInit()
 }
 
 
+void BreathLightClose(void) {
+  GPIO_InitTypeDef GPIO_InitStruct;
+
+  DAC_Cmd(DAC_Channel_2, DISABLE);
+  DMA_Cmd(DMA2_Channel4, DISABLE);
+  TIM_Cmd(TIM7, DISABLE);
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC | RCC_APB1Periph_TIM7, DISABLE);
+  
+  GPIO_InitStruct.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStruct.GPIO_Pin = GPIO_Pin_5;
+  GPIO_InitStruct.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  GPIO_ResetBits(GPIOA, GPIO_Pin_5);
+}
+
 #endif // def __GD32F1__

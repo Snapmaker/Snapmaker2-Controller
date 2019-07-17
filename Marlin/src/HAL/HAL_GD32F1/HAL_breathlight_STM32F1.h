@@ -5,3 +5,4 @@
 // --------------------------------------------------------------------------
 
 void BreathLightInit();
+void BreathLightClose(void);
