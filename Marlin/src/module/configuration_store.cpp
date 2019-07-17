@@ -2425,16 +2425,16 @@ void MarlinSettings::reset() {
   // Software machine size
   //
   #if ENABLED(SW_MACHINE_SIZE)
-    X_DIR = 1;
-    Y_DIR = 1;
-    Z_DIR = 1;
-    E_DIR = 1;
+    X_DIR = true;
+    Y_DIR = false;
+    Z_DIR = false;
+    E_DIR = true;
     X_HOME_DIR = 1;
-    Y_HOME_DIR = 1;
-    Z_HOME_DIR = 1;
-    X_MAX_POS = 125;
-    Y_MAX_POS = 125;
-    Z_MAX_POS = 125;
+    Y_HOME_DIR = -1;
+    Z_HOME_DIR = -1;
+    X_MAX_POS = 255;
+    Y_MAX_POS = 275;
+    Z_MAX_POS = 250;
     X_MIN_POS = 0;
     Y_MIN_POS = 0;
     Z_MIN_POS = 0;

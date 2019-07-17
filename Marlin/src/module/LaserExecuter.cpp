@@ -297,10 +297,10 @@ char LaserExecuter::ReadWifiStatus(char *SSID, char *Password, char *IP) {
       }
       IP[i] = 0;
       if(buff[10] == 1) return 0;
-      else return (char)-1;
+      else return (char)1;
     }
   }
-  return (char)-1;
+  return (char)2;
 }
 
 /**

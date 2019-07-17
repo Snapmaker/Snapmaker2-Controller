@@ -29,10 +29,11 @@
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
 char tmpBuff[1024];
 
-#define BYTES_TO_32BITS(buff, index) ((buff[index] << 24) | (buff[index + 1] << 16) | (buff[index + 2] << 8) | (buff[index + 3]))
+#define BYTES_TO_32BITS(buff, index) (((uint8_t)buff[index] << 24) | ((uint8_t)buff[index + 1] << 16) | ((uint8_t)buff[index + 2] << 8) | ((uint8_t)buff[index + 3]))
 #define BYTES_TO_32BITS_WITH_INDEXMOVE(result, buff, N) do{result = BYTES_TO_32BITS(buff, N); N = N + 4; }while(0)
 #define AXIS_MAX_POS(AXIS, BUFF, N) do{ AXIS##_MAX_POS = BYTES_TO_32BITS(BUFF, N) / 1000.0f; N = N + 4; }while(0)
-#define AXIS_DIR(AXIS, BUFF, N) do{ AXIS##_DIR = (int32_t)BYTES_TO_32BITS(BUFF, N)<0?-1:1; N = N + 4; }while(0)
+#define AXIS_DIR(AXIS, BUFF, N) do{ AXIS##_DIR = (int32_t)BYTES_TO_32BITS(BUFF, N)==1?true:false; N = N + 4; }while(0)
+#define AXIS_HOME_DIR(AXIS, BUFF, N) do{ AXIS##_HOME_DIR = (int32_t)BYTES_TO_32BITS(BUFF, N)>0?1:-1; N = N + 4; }while(0)
 #define AXIS_HOME_OFFSET(AXIS, BUFF, N) do{home_offset[AXIS] = BYTES_TO_32BITS(BUFF, N) / 1000.0f; N = N + 4; }while(0)
 #define BITS32_TO_BYTES(u32bit, buff, index) do { \
     buff[index++] = (uint8_t)(u32bit >> 24); \
@@ -523,10 +524,8 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 void HMI_SC20::ResizeMachine(char * pBuff)
 {
   uint16_t j;
-
   //长宽高
   j = 0;
-
   //X
   AXIS_MAX_POS(X, pBuff, j);
 
@@ -538,13 +537,13 @@ void HMI_SC20::ResizeMachine(char * pBuff)
 
   //回原点方向
   //X
-  AXIS_DIR(X_HOME, pBuff, j);
+  AXIS_HOME_DIR(X, pBuff, j);
 
   //Y
-  AXIS_DIR(Y_HOME, pBuff, j);
+  AXIS_HOME_DIR(Y, pBuff, j);
 
   //Z
-  AXIS_DIR(Z_HOME, pBuff, j);
+  AXIS_HOME_DIR(Z, pBuff, j);
 
   //电机方向
   //X
@@ -1201,8 +1200,9 @@ void HMI_SC20::PollingCommand(void)
             BuildinWifiIP[0] = 0;
             result = ExecuterHead.Laser.ReadWifiStatus(SSID, Password, BuildinWifiIP);
             SERIAL_ECHOLNPAIR("IP:", BuildinWifiIP);
-            if (result == 0) SendWifiIP(0x02, 0, SSID, Password, BuildinWifiIP);
-            else MarkNeedReack(result);
+            if (result == 0) SendWifiIP(OpCode, 0, SSID, Password, BuildinWifiIP);
+            else if(result == 1) SendWifiIP(OpCode, 1, SSID, Password, (char*)"");
+            else if(result == 2) SendWifiIP(OpCode, 2, (char*)"", (char*)"", (char*)"");
             break;
 
           case 0x03:
@@ -1252,7 +1252,6 @@ void HMI_SC20::PollingCommand(void)
 
         //升级包数据
         case 1:
-          SERIAL_ECHOLN("Update Pack");
           UpdatePackProcess((uint8_t *) &tmpBuff[10], cmdLen - 2);
           break;
 

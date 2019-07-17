@@ -1389,7 +1389,7 @@ void homeaxis(const AxisEnum axis) {
       axis == X_AXIS ? x_home_dir(active_extruder) :
     #endif
     home_dir(axis)
-  );;
+  );
 
   // Homing Z towards the bed? Deploy the Z probe or endstop.
   #if HOMING_Z_WITH_PROBE
@@ -1427,7 +1427,7 @@ void homeaxis(const AxisEnum axis) {
   #else
     maxlen = 1.5f * max_length(axis);
   #endif
-  
+  SERIAL_ECHOPAIR("Axis:", axis, " Maxlen:", 1.5f * maxlen * axis_home_dir);
   do_homing_move(axis, 1.5f * maxlen * axis_home_dir);
 
   #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH)
@@ -1449,7 +1449,7 @@ void homeaxis(const AxisEnum axis) {
     if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Move Away:");
     do_homing_move(axis, -bump
       #if HOMING_Z_WITH_PROBE
-        , axis == Z_AXIS ? MMM_TO_MMS(Z_PROBE_SPEED_FAST) : 0.0
+        , axis == Z_AXIS ? MMM_TO_MMS(Z_PROBE_SPEED_FAST) : 0
       #endif
     );
 

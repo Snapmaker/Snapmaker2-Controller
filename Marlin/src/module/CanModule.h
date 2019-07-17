@@ -14,6 +14,7 @@ public:
   void CollectPlugModules(void);
   void PrepareLinearModules(void);
   void PrepareExecuterModules(void);
+  void PrepareExtendModules(void);
   bool Update(uint8_t CanNum, uint32_t ID, char *Version);
   void EraseUpdatePack(void);
   bool LoadUpdatePack(uint16_t Packindex, uint8_t *pData);
