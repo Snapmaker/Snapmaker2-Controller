@@ -1128,7 +1128,7 @@ void MarlinSettings::postprocess() {
     // Software machine size
     //
     #if ENABLED(SW_MACHINE_SIZE)
-      uint32_t DIR[XYZE];
+      int32_t DIR[XYZE];
       DIR[X_AXIS] = X_DIR==true?1:-1;
       DIR[Y_AXIS] = Y_DIR==true?1:-1;
       DIR[Z_AXIS] = Z_DIR==true?1:-1;
@@ -1885,7 +1885,7 @@ void MarlinSettings::postprocess() {
       // Software machine size
       //
       #if ENABLED(SW_MACHINE_SIZE)
-        uint32_t DIR[4];
+        int32_t DIR[4];
         _FIELD_TEST(DIR);
         EEPROM_READ(DIR);
         X_DIR = DIR[X_AXIS] > 0;
@@ -1986,12 +1986,16 @@ void MarlinSettings::postprocess() {
       base_home_pos_P[X_AXIS] = (home_dir_P[X_AXIS] < 0)?X_MIN_POS:X_MAX_POS;
       base_home_pos_P[Y_AXIS] = (home_dir_P[Y_AXIS] < 0)?Y_MIN_POS:Y_MAX_POS;
       base_home_pos_P[Z_AXIS] = (home_dir_P[Z_AXIS] < 0)?Z_MIN_POS:Z_MAX_POS;
+      #if ENABLED(MIN_SOFTWARE_ENDSTOPS)
       soft_endstop[X_AXIS].min = X_MIN_POS;
       soft_endstop[Y_AXIS].min = Y_MIN_POS;
       soft_endstop[Z_AXIS].min = Z_MIN_POS;
+      #endif
+      #if ENABLED(MAX_SOFTWARE_ENDSTOPS)
       soft_endstop[X_AXIS].max = X_MAX_POS;
       soft_endstop[Y_AXIS].max = Y_MAX_POS;
       soft_endstop[Z_AXIS].max = Z_MAX_POS;
+      #endif
       max_length_P[X_AXIS] = X_MAX_POS - X_MIN_POS;
       max_length_P[Y_AXIS] = Y_MAX_POS - Y_MIN_POS;
       max_length_P[Z_AXIS] = Z_MAX_POS - Z_MIN_POS;
@@ -2429,9 +2433,9 @@ void MarlinSettings::reset() {
     Y_DIR = false;
     Z_DIR = false;
     E_DIR = true;
-    X_HOME_DIR = 1;
-    Y_HOME_DIR = -1;
-    Z_HOME_DIR = -1;
+    X_HOME_DIR = -1;
+    Y_HOME_DIR = 1;
+    Z_HOME_DIR = 1;
     X_MAX_POS = 255;
     Y_MAX_POS = 275;
     Z_MAX_POS = 250;
@@ -2441,12 +2445,16 @@ void MarlinSettings::reset() {
     base_home_pos_P[X_AXIS] = (home_dir_P[X_AXIS] < 0)?X_MIN_POS:X_MAX_POS;
     base_home_pos_P[Y_AXIS] = (home_dir_P[Y_AXIS] < 0)?Y_MIN_POS:Y_MAX_POS;
     base_home_pos_P[Z_AXIS] = (home_dir_P[Z_AXIS] < 0)?Z_MIN_POS:Z_MAX_POS;
+    #if ENABLED(MIN_SOFTWARE_ENDSTOPS)
     soft_endstop[X_AXIS].min = X_MIN_POS;
     soft_endstop[Y_AXIS].min = Y_MIN_POS;
     soft_endstop[Z_AXIS].min = Z_MIN_POS;
+    #endif
+    #if ENABLED(MAX_SOFTWARE_ENDSTOPS)
     soft_endstop[X_AXIS].max = X_MAX_POS;
     soft_endstop[Y_AXIS].max = Y_MAX_POS;
     soft_endstop[Z_AXIS].max = Z_MAX_POS;
+    #endif
   #endif //ENABLED(SW_MACHINE_SIZE)
 
   postprocess();

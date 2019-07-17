@@ -1243,7 +1243,7 @@ void loop() {
     UpdateMachineDefines();
   #endif
   
-  tmptick = millis() + 3000;
+  tmptick = millis() + 4000;
   while(tmptick > millis());
   ExecuterHead.Init();
   CanBusControlor.Init();
