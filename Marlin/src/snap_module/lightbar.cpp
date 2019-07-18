@@ -33,11 +33,7 @@ ErrCode LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
   Buff[1] = g;
   Buff[2] = b;
   CanModules.SetFunctionValue(EXTEND_CAN_NUM, FUNC_SET_LIGHT_COLOR, Buff, 3);
-<<<<<<< HEAD
   return E_SUCCESS;
-=======
-  return 0;
->>>>>>> 8841ca85fd23c6da42aa77582fd57fa7d58faba0
 }
 
 /*
