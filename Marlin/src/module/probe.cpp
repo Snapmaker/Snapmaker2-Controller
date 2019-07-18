@@ -687,9 +687,9 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
 
   // TODO: Adapt for SCARA, where the offset rotates
   float nx = rx, ny = ry;
-  SERIAL_ECHOPAIR("ProbeX:", rx, " ProbeY:", ry);
+  SERIAL_ECHOLNPAIR("ProbeX:", rx, " ProbeY:", ry, "Avtive:", probe_relative);
   if (probe_relative) {
-    if (!position_is_reachable_by_probe(rx, ry)) return NAN;  // The given position is in terms of the probe
+    if (!position_is_reachable_by_probe(rx, ry)) { SERIAL_ECHOLN("Error1"); return NAN;}  // The given position is in terms of the probe
     nx -= (X_PROBE_OFFSET_FROM_EXTRUDER);                     // Get the nozzle position
     ny -= (Y_PROBE_OFFSET_FROM_EXTRUDER);
   }
@@ -708,6 +708,7 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
   feedrate_mm_s = XY_PROBE_FEEDRATE_MM_S;
 
   // Move the probe to the starting XYZ
+  SERIAL_ECHOLNPAIR("Move to X:", nx, " Y:", ny);
   do_blocking_move_to(nx, ny, nz);
 
   float measured_z = NAN;

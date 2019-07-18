@@ -1,4 +1,6 @@
 #include "lightbar.h"
+#include "../module/CanModule.h"
+#include "../module/CanDefines.h"
 
 LightBar lightbar;
 
@@ -15,6 +17,7 @@ LightBar lightbar;
  */
 ErrCode LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
   uint8_t br;
+  uint8_t Buff[3];
 
   if (mode_ == LB_MODE_LIGHTING)
     br = br_light_;
@@ -26,7 +29,10 @@ ErrCode LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
   b = (uint8_t)((b * br) / 100);
 
   // TODO: need to send r,g,b to lightbar module by CAN
-
+  Buff[0] = r;
+  Buff[1] = g;
+  Buff[2] = b;
+  CanModules.SetFunctionValue(EXTEND_CAN_NUM, FUNC_SET_LIGHT_COLOR, Buff, 3);
   return 0;
 }
 

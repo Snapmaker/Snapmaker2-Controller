@@ -47,6 +47,7 @@ typedef enum {
   FUNC_SET_LASER_FOCUS       ,
   FUNC_REPORT_LASER_FOCUS    ,    
   FUNC_SET_LIGHT_COLOR       ,
+  FUNC_REPORT_ENCLOSUER      ,
 }FUNC_ID_E;
 
 
@@ -67,6 +68,8 @@ const uint16_t PriorityTable[][2] = {
   {FUNC_SET_CAMERA_POWER,         0},
   {FUNC_SET_LASER_FOCUS,          10},
   {FUNC_REPORT_LASER_FOCUS,       7},
+  {FUNC_SET_LIGHT_COLOR,          15},
+  {FUNC_REPORT_ENCLOSUER,         15},
 };
 
 #endif

@@ -427,10 +427,12 @@ float bilinear_z_offset(const float raw[XYZ]) {
  */
 void bilinear_grid_manual(float startx, float starty, float endx, float endy)
 {
-  bilinear_grid_spacing[X_AXIS] = (endx - startx) / GRID_MAX_POINTS_X;
-  bilinear_grid_spacing[Y_AXIS] = (endx - startx) / GRID_MAX_POINTS_Y;
+  bilinear_grid_spacing[X_AXIS] = (endx - startx) / (GRID_MAX_POINTS_X - 1);
+  bilinear_grid_spacing[Y_AXIS] = (endx - startx) / (GRID_MAX_POINTS_Y - 1);
   bilinear_start[X_AXIS] = startx;
   bilinear_start[Y_AXIS] = starty;
+  SERIAL_ECHOLNPAIR("X:", bilinear_start[X_AXIS], " - ", bilinear_grid_spacing[X_AXIS]);
+  SERIAL_ECHOLNPAIR("Y:", bilinear_start[Y_AXIS], " - ", bilinear_grid_spacing[Y_AXIS]);
 }
 
 #endif // AUTO_BED_LEVELING_BILINEAR
