@@ -30,7 +30,7 @@ char* Value8BitToString(uint8_t Value);
 int TempReport(uint8_t *pBuff);
 int LimitReport(uint8_t *pBuff);
 int ProbeReport(uint8_t *pBuff);
-int FilamentSensorReport(uint8_t *pBuff);
+int FilamentSensor1Report(uint8_t *pBuff);
 int CNCRpmReport(uint8_t *pBuff);
 int LaserFocusReport(uint8_t *pBuff);
 int NoopFunc(uint8_t *pBuff);

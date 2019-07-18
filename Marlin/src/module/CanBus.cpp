@@ -19,7 +19,7 @@ const FunPointer CanFuns[] =
 {
   LimitReport,
   ProbeReport,
-  FilamentSensorReport,
+  FilamentSensor1Report,
   NoopFunc,
   NoopFunc,
   CNCRpmReport,

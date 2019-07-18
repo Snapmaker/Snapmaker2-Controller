@@ -31,7 +31,8 @@
 #include "../module/stepper.h"
 #include "../gcode/queue.h"
 #include "../module/periphdevice.h"
-
+#include "../module/endstops.h"
+#include "../module/CanModule.h"
 #include "../inc/MarlinConfig.h"
 
 #if ENABLED(EXTENSIBLE_UI)
@@ -43,7 +44,7 @@
 #endif
 
 
-//#define FILAMENT_RUNOUT_SENSOR_DEBUG
+#define FILAMENT_RUNOUT_SENSOR_DEBUG
 
 class FilamentMonitorBase {
   public:
@@ -171,37 +172,37 @@ class FilamentSensorBase {
         #if DISABLED(CAN_FILAMENT1_RUNOUT)
           (READ(FIL_RUNOUT_PIN ) ? _BV(0) : 0)
         #else
-          (CanModules.Endstop & _BV(FILAMENT1))? _BV(0):0)
+          (TEST(CanModules.Endstop, FILAMENT1)? _BV(0):0)
         #endif
         #if NUM_RUNOUT_SENSORS > 1
           #if DISABLED(CAN_FILAMENT2_RUNOUT)
             | (READ(FIL_RUNOUT2_PIN) ? _BV(1) : 0)
           #else
-            | (CanModules.Endstop & _BV(FILAMENT2))? _BV(1):0)
+            | (TEST(CanModules.Endstop, FILAMENT2)? _BV(1):0)
           #endif
           #if NUM_RUNOUT_SENSORS > 2
             #if DISABLED(CAN_FILAMENT3_RUNOUT)
               | (READ(FIL_RUNOUT3_PIN) ? _BV(2) : 0)
             #else
-              | (CanModules.Endstop & _BV(FILAMENT3))? _BV(2):0)
+              | (TEST(CanModules.Endstop, FILAMENT3)? _BV(2):0)
             #endif
             #if NUM_RUNOUT_SENSORS > 3
               #if DISABLED(CAN_FILAMENT4_RUNOUT)
                 | (READ(FIL_RUNOUT4_PIN) ? _BV(3) : 0)
               #else
-                | (CanModules.Endstop & _BV(FILAMENT4))? _BV(3):0)
+                | (TEST(CanModules.Endstop, FILAMENT4)? _BV(3):0)
               #endif
               #if NUM_RUNOUT_SENSORS > 4
                 #if DISABLED(CAN_FILAMENT5_RUNOUT)
                   | (READ(FIL_RUNOUT5_PIN) ? _BV(4) : 0)
                 #else
-                  | (CanModules.Endstop & _BV(FILAMENT5))? _BV(4):0)
+                  | (TEST(CanModules.Endstop, FILAMENT5)? _BV(4):0)
                 #endif
                 #if NUM_RUNOUT_SENSORS > 5
                   #if DISABLED(CAN_FILAMENT5_RUNOUT)
                     | (READ(FIL_RUNOUT6_PIN) ? _BV(5) : 0)
                   #else
-                    | (CanModules.Endstop & _BV(FILAMENT6))? _BV(5):0)
+                    | (TEST(CanModules.Endstop, FILAMENT6)? _BV(5):0)
                   #endif
                 #endif
               #endif

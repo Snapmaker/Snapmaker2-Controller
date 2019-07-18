@@ -60,14 +60,17 @@ int ProbeReport(uint8_t *pBuff) {
   return 0;
 }
 
-int FilamentSensorReport(uint8_t *pBuff) {
-  if(pBuff[0] == 0) {
-    CanModules.Endstop |= _BV(FILAMENT1);
-    if(pBuff[1] == 0) CanModules.Endstop &= ~(_BV(FILAMENT1));
-  } else if(pBuff[0] == 1) {
-    CanModules.Endstop |= _BV(FILAMENT2);
-    if(pBuff[1] == 0) CanModules.Endstop &= ~(_BV(FILAMENT2));
-  }
+
+static void FilamentSensorReport(uint8_t *pBuff, enum EndstopEnum filament_num) {
+  if (pBuff[0] == 0)
+    CBI(CanModules.Endstop , FILAMENT1);
+  else
+    SBI(CanModules.Endstop , FILAMENT1);
+}
+
+int FilamentSensor1Report(uint8_t *pBuff) {
+  FilamentSensorReport(pBuff, FILAMENT1);
+  SERIAL_ECHOLNPAIR("runout1: 0x", Value8BitToString(pBuff[0]), "time: ",millis());
   return 0;
 }
 
