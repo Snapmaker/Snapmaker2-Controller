@@ -1282,11 +1282,6 @@ void loop() {
   }
   //ExecuterHead.MachineType = MACHINE_TYPE_LASER;
   //ExecuterHead.Laser.Init();
- 
-  #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    SERIAL_ECHOLN("grid manual");
-    bilinear_grid_manual(LEFT_PROBE_BED_POSITION, FRONT_PROBE_BED_POSITION, (X_MAX_POS - X_MIN_POS - 10), (Y_MAX_POS - Y_MIN_POS - 10));
-  #endif
   
   for (;;) {
 

@@ -1,4 +1,6 @@
 #include "lightbar.h"
+#include "../module/CanModule.h"
+#include "../module/CanDefines.h"
 
 LightBar lightbar;
 
@@ -15,6 +17,7 @@ LightBar lightbar;
  */
 ErrCode LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
   uint8_t br;
+  uint8_t Buff[3];
 
   if (mode_ == LB_MODE_LIGHTING)
     br = br_light_;
@@ -26,8 +29,11 @@ ErrCode LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
   b = (uint8_t)((b * br) / 100);
 
   // TODO: need to send r,g,b to lightbar module by CAN
-
-  return 0;
+  Buff[0] = r;
+  Buff[1] = g;
+  Buff[2] = b;
+  CanModules.SetFunctionValue(EXTEND_CAN_NUM, FUNC_SET_LIGHT_COLOR, Buff, 3);
+  return E_SUCCESS;
 }
 
 /*
@@ -63,7 +69,7 @@ void LightBar::init() {
  *    see error code defination
  */
 ErrCode LightBar::set_led_per_state() {
-  uint8_t ret;
+  uint8_t ret = E_SUCCESS;
   switch (state_) {
   case LB_STATE_ERROR:
     ret = set_led(COLOR_ERROR);
@@ -96,7 +102,7 @@ ErrCode LightBar::set_led_per_state() {
  *    see error code defination
  */
 ErrCode LightBar::set_mode(LightBarMode m) {
-  uint8_t ret;
+  uint8_t ret = E_SUCCESS;
 
   if (!online_)
     return E_NO_RESRC;
@@ -250,4 +256,5 @@ ErrCode LightBar::set_brightness(uint8_t br, LightBarMode mode) {
     br_light_ = br;
   else
     br_status_ = br;
+  return E_SUCCESS;
 }

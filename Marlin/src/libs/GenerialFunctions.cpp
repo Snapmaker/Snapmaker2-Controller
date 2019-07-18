@@ -87,6 +87,10 @@ int NoopFunc(uint8_t *pBuff) {
   return 0;
 }
 
+int EnclosureDoorReport(uint8_t *pBuff) {
+  return 0;
+}
+
 uint8_t CanDebugBuff[32];
 uint8_t CanDebugLen;
 int CanDebug(uint8_t *pBuff, uint8_t Len) {

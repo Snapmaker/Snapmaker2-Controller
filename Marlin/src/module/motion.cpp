@@ -1469,6 +1469,9 @@ void homeaxis(const AxisEnum axis) {
     #endif
   }
 
+  
+  do_homing_move(axis, axis_home_dir * -3, get_homing_bump_feedrate(axis));
+
   #if HAS_EXTRA_ENDSTOPS
     const bool pos_dir = axis_home_dir > 0;
     #if ENABLED(X_DUAL_ENDSTOPS)
@@ -1663,6 +1666,11 @@ void homeaxis(const AxisEnum axis) {
     max_length_P[X_AXIS] = X_MAX_POS - X_MIN_POS;
     max_length_P[Y_AXIS] = Y_MAX_POS - Y_MIN_POS;
     max_length_P[Z_AXIS] = Z_MAX_POS - Z_MIN_POS;
+
+    #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
+      SERIAL_ECHOLN("grid manual");
+      bilinear_grid_manual(50, 50, (X_MAX_POS - X_MIN_POS - 50), (Y_MAX_POS - Y_MIN_POS - 50));
+    #endif
   }
 #endif // ENABLED(SW_MACHINE_SIZE)
 

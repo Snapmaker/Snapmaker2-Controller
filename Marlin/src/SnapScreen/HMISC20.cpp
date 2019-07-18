@@ -20,6 +20,7 @@
 #include "../module/CNCexecuter.h"
 #include "../module/PeriphDevice.h"
 #include "../module/Probe.h"
+#include "../module/endstops.h"
 #include <EEPROM.h>
 #include "HMISC20.h"
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
@@ -423,29 +424,31 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     indexx = 0;
     indexy = 0;
     indexdir = 1;
-    relative_mode = true;
+    do_blocking_move_to_xy(current_position[X_AXIS] + 5, current_position[Y_AXIS] - 5, 30);
+    endstops.enable_z_probe(true);
     for (j = 0; j < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y); j++) {
       //Z  轴移动到13mm
-      do_blocking_move_to_z(13);
-
+      do_blocking_move_to_z(15);
       MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = probe_pt(_GET_MESH_X(indexx), _GET_MESH_Y(indexy), PROBE_PT_RAISE, 2);
       //MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
-      SERIAL_ECHOLNPAIR("Z Value:", MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx]);
+      SERIAL_ECHOLNPAIR("Zvalue:", MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx]);
 
       //获取调平点索引值
       indexx += indexdir;
       if (indexx == GRID_MAX_POINTS_X) {
         indexy++;
         indexdir = -1;
+        indexx += indexdir;
       }
       else if (indexx < 0) {
         indexy++;
         indexdir = 1;
+        indexx += indexdir;
       }
       //发送进度
       SendHalfCalibratePoint(0x03, indexy * GRID_MAX_POINTS_X + indexx + 1);
     }
-    relative_mode = false;
+    endstops.enable_z_probe(false);
 
     //Zoffset
     do_blocking_move_to_z(7, 50);
@@ -1035,12 +1038,13 @@ void HMI_SC20::PollingCommand(void)
         //保存调平点
         case 7:
           if (CMD_BUFF_EMPTY() == true) {
+            float delCenter = MeshPointZ[4] - current_position[Z_AXIS];
             //自动调平方式
             if (CalibrateMethod == 1) {
               //设置调平值
               for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
                 for (j = 0; j < GRID_MAX_POINTS_X; j++) {
-                  sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[i * GRID_MAX_POINTS_X + j]);
+                  sprintf(tmpBuff, "G29 W I%d J%d Z%0.3f", j, i, MeshPointZ[i * GRID_MAX_POINTS_X + j] - delCenter);
                   parser.parse(tmpBuff);
                   gcode.process_parsed_command();
                 }

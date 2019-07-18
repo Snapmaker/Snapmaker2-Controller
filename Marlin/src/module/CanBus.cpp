@@ -31,7 +31,9 @@ const FunPointer CanFuns[] =
   NoopFunc,           //Set Camera Power
   NoopFunc,           //Set Laser Focus
   LaserFocusReport,
-  NoopFunc
+  NoopFunc,
+  NoopFunc,           //Set Light bar
+  EnclosureDoorReport,
 };
 
 
