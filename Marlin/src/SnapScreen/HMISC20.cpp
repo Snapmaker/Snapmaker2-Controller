@@ -1283,7 +1283,34 @@ void HMI_SC20::PollingCommand(void)
       }
     }
     else if (eventId == EID_ADDON_OP_REQ) {
-      lightbar.cmd_handle(tmpBuff);
+      switch (OpCode) {
+      case CMD_ADDON_CHK_ONLINE:
+        break;
+
+      case CMD_LB_QUERY_STATE:
+        lightbar.sync2host();
+        break;
+
+      case CMD_LB_SET_MODE_BRIGHTNESS:
+        Result = lightbar.set_mode((LightBarMode)tmpBuff[IDX_DATA0]);
+        if ((LightBarMode)tmpBuff[IDX_DATA0] == LB_MODE_LIGHTING)
+          Result = lightbar.set_brightness(tmpBuff[IDX_DATA0 + 1]);
+        if (Result > 1)
+          Result = 1;
+        break;
+
+      case CMD_LB_SWITCH:
+        if (tmpBuff[IDX_DATA0])
+          Result = lightbar.turn_on();
+        else
+          Result = lightbar.turn_off();
+        break;
+
+      default:
+        Result = 1;
+        break;
+      }
+      GenReack = true;
     }
     if (GenReack == true) SendGeneralReack((eventId + 1), OpCode, Result);
 

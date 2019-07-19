@@ -1,6 +1,7 @@
 #include "lightbar.h"
 #include "../module/CanModule.h"
 #include "../module/CanDefines.h"
+#include "../SnapScreen/HMISC20.h"
 
 LightBar lightbar;
 
@@ -10,7 +11,6 @@ LightBar lightbar;
  *  r - red
  *  g - green
  *  b - blue
- *  br - brightness for all, 0 - 100
  *       0 indicates turn off, 100 indicates max
  * return:
  *  0 - error code
@@ -59,9 +59,38 @@ void LightBar::init() {
   br_status_ = DEFAULT_STATUS_BRIGHTNESS;
 
   if (check_online() != E_SUCCESS)
-    online_ = 0;
-  else
     online_ = 1;
+  else
+    online_ = 0;
+}
+
+/*
+ * turn on the light bar
+ * return:
+ *    see error code defination
+ */
+ErrCode LightBar::turn_on() {
+  if (switch_sta_ == LB_SWITCH_ON)
+    return E_SUCCESS;
+
+  switch_sta_ = LB_SWITCH_ON;
+
+  mode_ = LB_MODE_STATUS;
+  return set_led_per_state();
+}
+
+/*
+ * turn off the light bar
+ * return:
+ *    see error code defination
+ */
+ErrCode LightBar::turn_off() {
+  if (switch_sta_ == LB_SWITCH_OFF)
+    return E_SUCCESS;
+
+  switch_sta_ = LB_SWITCH_OFF;
+
+  return set_led(COLOR_TURNOFF);
 }
 
 /*
@@ -102,7 +131,7 @@ ErrCode LightBar::set_led_per_state() {
  * return:
  *    see error code defination
  */
-ErrCode LightBar::set_mode(LightBarMode m) {
+ErrCode LightBar::set_mode(LightBarMode m, bool sync) {
   uint8_t ret = E_SUCCESS;
 
   if (!online_)
@@ -166,6 +195,9 @@ ErrCode LightBar::set_state(LightBarState s) {
       ret = set_led(COLOR_ERROR);
       if (ret  != E_SUCCESS)
         return ret;
+
+      // we changed the mode, need to tell screen
+      sync2host();
     }
 
     return E_SUCCESS;
@@ -176,6 +208,8 @@ ErrCode LightBar::set_state(LightBarState s) {
     return E_SUCCESS;
 
   state_ = s;
+
+  sync2host();
 
   return set_led_per_state();
 }
@@ -225,37 +259,41 @@ ErrCode LightBar::set_door_sta(LightBarDoorSta ds) {
       return ret;
   }
 
-  return E_SUCCESS;
-}
-
-/* I will handle the command come from screen to control light bar
- * param:
- *    cmd - command come from screen
- * return:
- *    see error code defination
- */
-ErrCode LightBar::cmd_handle(char *cmd) {
+  sync2host();
 
   return E_SUCCESS;
 }
 
-/* set the brightness
+/* set the brightness of lighting
  * param:
  *    br   - new brightness
  *    mode - which mode of brightness will be set
  * return:
  *    see error code defination
  */
-ErrCode LightBar::set_brightness(uint8_t br, LightBarMode mode) {
-  if (br > MAX_BRIGHTNESS)
+ErrCode LightBar::set_brightness(uint8_t br) {
+  if (br > MAX_BRIGHTNESS || !br)
     return E_PARAM;
 
-  if (mode >= LB_MODE_INVALID)
-    return E_PARAM;
-
-  if (mode == LB_MODE_LIGHTING)
     br_light_ = br;
-  else
-    br_status_ = br;
+
+  if (mode_ == LB_MODE_LIGHTING)
+    set_led(COLOR_LIGHTING);
+
   return E_SUCCESS;
+}
+
+/* sync our state to host(screen)
+ * for now we push mode, state, and brightness to host
+ */
+extern HMI_SC20 SC20HMI;
+void LightBar::sync2host(void) {
+  char ret[] = {EID_ADDON_OP_RESP, CMD_LB_QUERY_STATE, 0, 0, 0, 0};
+
+  ret[2] = (char)online_;
+  ret[3] = (char)switch_sta_;
+  ret[4] = (char)mode_;
+  ret[5] = (char)br_light_;
+
+  SC20HMI.PackedProtocal(ret, 6);
 }

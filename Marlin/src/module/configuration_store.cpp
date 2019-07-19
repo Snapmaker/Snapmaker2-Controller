@@ -57,7 +57,7 @@
 #include "../Marlin.h"
 #include "LaserExecuter.h"
 #include "CNCexecuter.h"
-
+#include "../snap_module/lightbar.h"
 
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
   #include "../HAL/shared/persistent_store_api.h"
@@ -309,6 +309,11 @@ typedef struct SettingsDataStruct {
     float Y_MIN_POS;
     float Z_MIN_POS;
   #endif
+
+  //
+  // brightness for lightbar
+  //
+  uint32_t  lb_brightness;
 } SettingsData;
 
 MarlinSettings settings;
@@ -1157,6 +1162,11 @@ void MarlinSettings::postprocess() {
       EEPROM_WRITE(Z_MIN_POS);
     #endif //ENABLED(SW_MACHINE_SIZE)
 
+    // save brightness of light bar
+    uint32_t lb_brightness = (uint32_t)lightbar.get_brightness();
+    _FIELD_TEST(lb_brightness);
+    EEPROM_WRITE(lb_brightness);
+
     //
     // Validate CRC and Data Size
     //
@@ -1913,6 +1923,15 @@ void MarlinSettings::postprocess() {
         _FIELD_TEST(Z_MIN_POS);
         EEPROM_READ(Z_MIN_POS);
       #endif //ENABLED(SW_MACHINE_SIZE)
+
+      //
+      // load brightness for light bar
+      //
+      {
+        uint32_t lb_brightness;
+        EEPROM_READ(lb_brightness);
+        lightbar.set_brightness(lb_brightness);
+      }
       
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {
@@ -2456,6 +2475,8 @@ void MarlinSettings::reset() {
     soft_endstop[Z_AXIS].max = Z_MAX_POS;
     #endif
   #endif //ENABLED(SW_MACHINE_SIZE)
+
+  lightbar.set_brightness(MAX_BRIGHTNESS);
 
   postprocess();
 
