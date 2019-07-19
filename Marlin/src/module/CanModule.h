@@ -35,6 +35,7 @@ public:
   uint8_t ExecuterCount;
   uint8_t LinearModuleCount;
   uint32_t Endstop;
+  uint32_t PeriphSwitch;
   uint32_t tmpEndstopBits;
   uint8_t UpdateStatus;
   uint16_t MsgIDTable[512];

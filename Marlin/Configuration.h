@@ -2204,9 +2204,12 @@
   #define CAN_ZMIN_PROBE
   #define CAN_FILAMENT1_RUNOUT
   #define CAN_FAN
+  #define CAN_ENCLOSURE
 #endif
 
 #if ANY(EXECUTER_CANBUS_SUPPORT, PERIPH_CANBUS_SUPPORT)
   #define CANBUS_SUPPORT
 #endif
 
+
+#define DOOR_SWITCH

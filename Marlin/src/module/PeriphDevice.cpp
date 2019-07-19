@@ -38,13 +38,22 @@ void PeriphDevice::SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value
 
 #if ENABLED(DOOR_SWITCH)
 
+bool PeriphDevice::IsDoorOpened() {
+  #if DISABLED(CAN_ENCLOSURE)
+    return (IOSwitch & PERIPH_IOSW_DOOR) && READ(DOOR_PIN));
+  #else
+    return (IOSwitch & PERIPH_IOSW_DOOR) && TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE);
+  #endif
+}
+
+
 /**
  * DoorSwitchInit:Initialze the door switch IO
  * para Enable:true enable ,false disable
  */
-void PeriphDevice::DoorSwitchInit()
-{
-  #if DISABLED(PERIPH_CANBUS_SUPPORT)
+void PeriphDevice::DoorSwitchInit() {
+  #if DISABLED(CAN_ENCLOSURE)
+    pinMode(DOOR_PIN, INPUT_PULLUP);
   #endif
 }
 
@@ -52,31 +61,24 @@ void PeriphDevice::DoorSwitchInit()
  * SetDoorCheck:enable or disable Door Sensor
  * para Enable:true enable ,false disable
  */
-void PeriphDevice::SetDoorCheck(bool Enable)
-{
-  #if DISABLED(PERIPH_CANBUS_SUPPORT)
-  #endif
+void PeriphDevice::SetDoorCheck(bool Enable) {
+  if(Enable) CBI(IOSwitch, PERIPH_IOSW_DOOR);
+  else SBI(IOSwitch, PERIPH_IOSW_DOOR);
 }
 
 /**
  * StartDoorCheck:Start Door Sensor working
  * para percent:
  */
-void PeriphDevice::StartDoorCheck()
-{
-  #if DISABLED(PERIPH_CANBUS_SUPPORT)
-
-  #endif
+void PeriphDevice::StartDoorCheck() {
+  
 }
 
 /**
  * StopDoorCheck:Stop Door Sensor working
  * para percent:
  */
-void PeriphDevice::StopDoorCheck()
-{
-  #if DISABLED(PERIPH_CANBUS_SUPPORT)
-  #endif
+void PeriphDevice::StopDoorCheck() {
 }
 #endif //ENABLED(DOOR_SWITCH)
 

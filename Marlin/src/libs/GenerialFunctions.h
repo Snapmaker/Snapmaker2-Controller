@@ -37,7 +37,5 @@ int NoopFunc(uint8_t *pBuff);
 int CanDebug(uint8_t *pBuff, uint8_t Len);
 int EnclosureDoorReport(uint8_t *pBuff);
 
-
 extern uint8_t CanDebugBuff[32];
 extern uint8_t CanDebugLen;
-

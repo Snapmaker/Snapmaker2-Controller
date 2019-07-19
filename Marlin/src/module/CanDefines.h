@@ -72,5 +72,10 @@ const uint16_t PriorityTable[][2] = {
   {FUNC_REPORT_ENCLOSUER,         15},
 };
 
+enum PeriphSwitchEnum : uint32_t {
+  CAN_IO_ENCLOSURE,
+};
+
+
 #endif
 #endif //ENABLE CANBUS_SUPPORT

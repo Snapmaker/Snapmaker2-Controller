@@ -3,12 +3,7 @@
 #include "../inc/MarlinConfig.h"
 
 //IO Switch Bits
-#define PERIPH_IOSW_DOOR     (1<<0)
-#define PERIPH_IOSW_PROBE    (1<<1)
-
-//Periph IO Bits
-#define PERIPH_IOL_DOOR   (1<<26)
-#define PERIPH_IOL_PROBE  (1<<25)
+#define PERIPH_IOSW_DOOR     1
 
 #define PERIPH_FAN_COUNT 1
 
@@ -22,8 +17,8 @@ public:
     void SetDoorCheck(bool Enable);
     void StartDoorCheck();
     void StopDoorCheck();
-    FORCE_INLINE bool GetDoorCheckFlag() { return (IOSwitch & PERIPH_IOSW_DOOR) != 0; } 
-    FORCE_INLINE bool IsDoorOpened() { return (IOLevel & PERIPH_IOL_DOOR) != 0; }
+    FORCE_INLINE bool GetDoorCheckFlag() { return TEST(IOSwitch, PERIPH_IOSW_DOOR); } 
+    bool IsDoorOpened();
   #else
     void DoorSwitchInit() {}
     void SetDoorCheck(bool Enable) {}

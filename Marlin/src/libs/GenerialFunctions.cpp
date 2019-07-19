@@ -88,6 +88,10 @@ int NoopFunc(uint8_t *pBuff) {
 }
 
 int EnclosureDoorReport(uint8_t *pBuff) {
+  if (pBuff[0] == 0)
+    CBI(CanModules.PeriphSwitch , CAN_IO_ENCLOSURE);
+  else
+    SBI(CanModules.PeriphSwitch , CAN_IO_ENCLOSURE);
   return 0;
 }
 
