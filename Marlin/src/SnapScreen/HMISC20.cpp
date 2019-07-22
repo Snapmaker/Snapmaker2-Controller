@@ -433,6 +433,8 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
       //MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
       SERIAL_ECHOLNPAIR("Zvalue:", MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx]);
 
+      //发送进度
+      SendHalfCalibratePoint(0x03, indexy * GRID_MAX_POINTS_X + indexx + 1);
       //获取调平点索引值
       indexx += indexdir;
       if (indexx == GRID_MAX_POINTS_X) {
@@ -445,8 +447,6 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
         indexdir = 1;
         indexx += indexdir;
       }
-      //发送进度
-      SendHalfCalibratePoint(0x03, indexy * GRID_MAX_POINTS_X + indexx + 1);
     }
     endstops.enable_z_probe(false);
 
@@ -1280,7 +1280,34 @@ void HMI_SC20::PollingCommand(void)
       }
     }
     else if (eventId == EID_ADDON_OP_REQ) {
-      lightbar.cmd_handle(tmpBuff);
+      switch (OpCode) {
+      case CMD_ADDON_CHK_ONLINE:
+        break;
+
+      case CMD_LB_QUERY_STATE:
+        lightbar.sync2host();
+        break;
+
+      case CMD_LB_SET_MODE_BRIGHTNESS:
+        Result = lightbar.set_mode((LightBarMode)tmpBuff[IDX_DATA0]);
+        if ((LightBarMode)tmpBuff[IDX_DATA0] == LB_MODE_LIGHTING)
+          Result = lightbar.set_brightness(tmpBuff[IDX_DATA0 + 1]);
+        if (Result > 1)
+          Result = 1;
+        break;
+
+      case CMD_LB_SWITCH:
+        if (tmpBuff[IDX_DATA0])
+          Result = lightbar.turn_on();
+        else
+          Result = lightbar.turn_off();
+        break;
+
+      default:
+        Result = 1;
+        break;
+      }
+      GenReack = true;
     }
     if (GenReack == true) SendGeneralReack((eventId + 1), OpCode, Result);
 

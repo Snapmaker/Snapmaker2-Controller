@@ -1265,7 +1265,6 @@ void Temperature::updateTemperaturesFromRawValues() {
         temp_hotend[i].current = ExecuterHead.GetTemp(i);
       ExecuterHead.CanTempMeasReady = false;
     }
-    temp_hotend[0].current = 200;
   #else
     HOTEND_LOOP() temp_hotend[e].current = analog_to_celsius_hotend(temp_hotend[e].raw, e);
   #endif
