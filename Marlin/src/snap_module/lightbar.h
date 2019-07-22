@@ -56,8 +56,8 @@ enum LightBarDoorSta: uint8_t  {
 };
 
 enum LightSwitchSta: uint8_t {
-  LB_SWITCH_ON,
   LB_SWITCH_OFF,
+  LB_SWITCH_ON,
   LB_SWITCH_INVALID
 };
 

@@ -58,10 +58,7 @@ void LightBar::init() {
   br_light_ = 100;
   br_status_ = DEFAULT_STATUS_BRIGHTNESS;
 
-  if (check_online() != E_SUCCESS)
-    online_ = 1;
-  else
-    online_ = 0;
+  online_ = check_online();
 }
 
 /*

@@ -47,8 +47,8 @@
 
 // commands for light bar, LB = light bar
 #define CMD_LB_QUERY_STATE          1
-#define CMD_LB_SET_MODE_BRIGHTNESS  2
-#define CMD_LB_SWITCH               3
+#define CMD_LB_SWITCH               2
+#define CMD_LB_SET_MODE_BRIGHTNESS  3
 
 
 #endif
