@@ -452,7 +452,8 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
 
     //Zoffset
     do_blocking_move_to_z(7, 50);
-    do_blocking_move_to_xy(_GET_MESH_X(0) +_GET_MESH_X(GRID_MAX_POINTS_X - 1) / 2.0f, _GET_MESH_Y(0) +_GET_MESH_Y(GRID_MAX_POINTS_Y - 1) / 2.0f, 50.0f);
+    SERIAL_ECHOLNPAIR("Center X:", _GET_MESH_X(0) + _GET_MESH_X(GRID_MAX_POINTS_X - 1) / 2.0f, " Y:", _GET_MESH_Y(0) + _GET_MESH_Y(GRID_MAX_POINTS_Y - 1) / 2.0f);
+    do_blocking_move_to_xy(_GET_MESH_X(1), _GET_MESH_Y(1), 50.0f);
 
     //设置Z  轴最大速度
     planner.settings.max_feedrate_mm_s[Z_AXIS] = 20;
@@ -574,10 +575,6 @@ void HMI_SC20::ResizeMachine(char * pBuff)
 #if ENABLED(SW_MACHINE_SIZE)
   UpdateMachineDefines();
 #endif
-
-  do_blocking_move_to(current_position[X_AXIS] +0.05f, current_position[Y_AXIS] +0.05f, current_position[Z_AXIS] +0.05f, 16);
-  do_blocking_move_to(current_position[X_AXIS] -0.05f, current_position[Y_AXIS] -0.05f, current_position[Z_AXIS] -0.05f, 16);
-
   //保存数据
   settings.save();
 }

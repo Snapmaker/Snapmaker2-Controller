@@ -87,7 +87,11 @@ void GcodeSuite::M106() {
 void GcodeSuite::M107() {
   #if ENABLED(CAN_FAN)
     uint8_t p = parser.byteval('P', 0);
-    Periph.SetFanSpeed(p, 0, 0);
+    NOMORE(p, 4);
+    if(p < 4)
+      ExecuterHead.SetFan(p, 0);
+    else
+      Periph.SetFanSpeed(p, 0, 0);
   #else
     const uint8_t p = parser.byteval('P', _ALT_P);
     thermalManager.set_fan_speed(p, 0);

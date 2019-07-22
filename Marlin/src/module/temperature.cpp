@@ -914,6 +914,8 @@ void Temperature::manage_heater() {
     }
   #endif
 
+  if (!temp_meas_ready) return;
+
   #if BOTH(PROBING_HEATERS_OFF, BED_LIMIT_SWITCHING)
     static bool last_pause_state;
   #endif
@@ -926,28 +928,18 @@ void Temperature::manage_heater() {
     millis_t ms = millis();
   #endif
 
-  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
-    updateTemperaturesFromRawValues(); // also resets the watchdog
+  updateTemperaturesFromRawValues(); // also resets the watchdog
 
-    #if ENABLED(HEATER_0_USES_MAX6675)
-      if (temp_hotend[0].current > MIN(HEATER_0_MAXTEMP, HEATER_0_MAX6675_TMAX - 1.0)) max_temp_error(0);
-      if (temp_hotend[0].current < MAX(HEATER_0_MINTEMP, HEATER_0_MAX6675_TMIN + .01)) min_temp_error(0);
-    #endif
-
-    #if ENABLED(HEATER_1_USES_MAX6675)
-      if (temp_hotend[1].current > MIN(HEATER_1_MAXTEMP, HEATER_1_MAX6675_TMAX - 1.0)) max_temp_error(1);
-      if (temp_hotend[1].current < MAX(HEATER_1_MINTEMP, HEATER_1_MAX6675_TMIN + .01)) min_temp_error(1);
-    #endif
-    CheckTempError = true;
-  #else
-    if(ExecuterHead.CanTempMeasReady == true)
-    {
-      for(int i=0;i<HOTENDS;i++)
-        temp_hotend[i].current = ExecuterHead.GetTemp(i);
-      ExecuterHead.CanTempMeasReady = false;
-      CheckTempError = true;
-    }
+  #if ENABLED(HEATER_0_USES_MAX6675)
+    if (temp_hotend[0].current > MIN(HEATER_0_MAXTEMP, HEATER_0_MAX6675_TMAX - 1.0)) max_temp_error(0);
+    if (temp_hotend[0].current < MAX(HEATER_0_MINTEMP, HEATER_0_MAX6675_TMIN + .01)) min_temp_error(0);
   #endif
+
+  #if ENABLED(HEATER_1_USES_MAX6675)
+    if (temp_hotend[1].current > MIN(HEATER_1_MAXTEMP, HEATER_1_MAX6675_TMAX - 1.0)) max_temp_error(1);
+    if (temp_hotend[1].current < MAX(HEATER_1_MINTEMP, HEATER_1_MAX6675_TMIN + .01)) min_temp_error(1);
+  #endif
+  CheckTempError = true;
 
   if(CheckTempError == true)
   {
@@ -1006,9 +998,6 @@ void Temperature::manage_heater() {
   #endif // FILAMENT_WIDTH_SENSOR
 
   #if HAS_HEATED_BED
-    #if ENABLED()
-      if (!temp_meas_ready) return;
-    #endif
     #if WATCH_BED
       // Make sure temperature is increasing
       if (watch_bed.elapsed(ms)) {        // Time to check the bed?
@@ -1269,7 +1258,17 @@ void Temperature::updateTemperaturesFromRawValues() {
   #if ENABLED(HEATER_1_USES_MAX6675)
     temp_hotend[1].raw = READ_MAX6675(1);
   #endif
-  HOTEND_LOOP() temp_hotend[e].current = analog_to_celsius_hotend(temp_hotend[e].raw, e);
+
+  #if ENABLED(EXECUTER_CANBUS_SUPPORT)
+    if(ExecuterHead.CanTempMeasReady == true) {
+      for(int i=0;i<HOTENDS;i++)
+        temp_hotend[i].current = ExecuterHead.GetTemp(i);
+      ExecuterHead.CanTempMeasReady = false;
+    }
+    temp_hotend[0].current = 200;
+  #else
+    HOTEND_LOOP() temp_hotend[e].current = analog_to_celsius_hotend(temp_hotend[e].raw, e);
+  #endif
   #if HAS_HEATED_BED
     temp_bed.current = analog_to_celsius_bed(temp_bed.raw);
   #endif
