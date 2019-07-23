@@ -79,6 +79,7 @@ void GcodeSuite::M3_M4(const bool is_M4) {
     }
   }
   else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+    if(parser.seen('P')) ExecuterHead.CNC.SetCNCPower(parser.value_ushort());
   }
 
   
@@ -94,6 +95,7 @@ void GcodeSuite::M5() {
     ExecuterHead.Laser.SetLaserPower((uint16_t)0);
   }
   else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+    ExecuterHead.CNC.SetCNCPower(0);
   }
 }
 
