@@ -54,6 +54,7 @@ private:
   void EnterLaserFocusSetting();
   void SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PWD, char * IP);
   void SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result);
+  void DrawLaserCalibrateShape();
 
 public:
   uint8_t HmiRequestStatus;

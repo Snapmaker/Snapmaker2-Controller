@@ -44,7 +44,10 @@ ErrCode LightBar::set_led(uint8_t r, uint8_t g, uint8_t b) {
  *    other - offline
  */
 uint8_t LightBar::check_online(void) {
-  return 0;
+  if(CanModules.SearchModule(MODULE_LIGHT) > 0)
+    return 0;
+  else
+    return 1;
 }
 
 /*
@@ -272,7 +275,7 @@ ErrCode LightBar::set_brightness(uint8_t br) {
   if (br > MAX_BRIGHTNESS || !br)
     return E_PARAM;
 
-    br_light_ = br;
+  br_light_ = br;
 
   if (mode_ == LB_MODE_LIGHTING)
     set_led(COLOR_LIGHTING);

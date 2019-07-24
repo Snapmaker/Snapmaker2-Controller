@@ -31,6 +31,9 @@
 // Add-on operation
 #define EID_ADDON_OP_REQ      0x11
 #define EID_ADDON_OP_RESP     0x12
+// laser calibration
+#define EID_LASER_CALIBRATE_REQ   0x13
+#define EID_LASER_CALIBRATE_RESP  0x14
 
 
 // index of each field in command header
@@ -49,6 +52,5 @@
 #define CMD_LB_QUERY_STATE          1
 #define CMD_LB_SWITCH               2
 #define CMD_LB_SET_MODE_BRIGHTNESS  3
-
 
 #endif

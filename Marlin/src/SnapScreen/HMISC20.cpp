@@ -394,6 +394,59 @@ void HMI_SC20::SendUpdateStatus(uint8_t Status)
   PackedProtocal(tmpBuff, i);
 }
 
+/********************************************************
+激光画方框
+*********************************************************/
+void HMI_SC20::DrawLaserCalibrateShape() {
+  int i;
+  int rowindex;
+  float NextX, NextY;
+  float StartX, StartY, RowSpace;
+  float SquareSideLength;
+
+  rowindex = 0;
+  StartX = 5;
+  StartY = 5;
+  RowSpace = 3;
+  SquareSideLength = 10;
+
+  // Move to the focus z 
+  do_blocking_move_to_z(ExecuterHead.Laser.FocusHeight - 5, 20.0f);
+
+  NextX = StartX;
+  NextY = StartY;
+  
+  // Draw 10 square
+  for(i=0;i<10;i++) {
+    // Move to the start point
+    do_blocking_move_to_xy(NextX, NextY, 50.0f);
+    
+    // Laser on
+    ExecuterHead.Laser.SetLaserPower(30.0f);
+
+    // Draw square
+    do_blocking_move_to_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
+    do_blocking_move_to_xy(current_position[X_AXIS], current_position[Y_AXIS] - SquareSideLength, 5.0f);
+    do_blocking_move_to_xy(current_position[X_AXIS] - SquareSideLength, current_position[Y_AXIS], 5.0f);
+    do_blocking_move_to_xy(current_position[X_AXIS], current_position[Y_AXIS] + SquareSideLength, 5.0f);
+    
+    // Laser off
+    ExecuterHead.Laser.SetLaserPower(0.0f);
+
+    // Move up 1mm
+    do_blocking_move_to_z(current_position[Z_AXIS] + 1, 20.0f);
+
+    // Caculate next x y
+    if(i % 5 == 0) {
+      rowindex++;
+      NextX = StartX;
+      NextY = StartY + rowindex * (SquareSideLength + RowSpace);
+    }
+    else {
+      NextX = NextX + SquareSideLength + RowSpace;
+    }
+  }
+}
 
 /********************************************************
 平自动调平处理
@@ -705,9 +758,7 @@ void HMI_SC20::PollingCommand(void)
             //Z  未知坐标
             if (axes_homed(Z_AXIS) == false) {
               //Z  轴回原点
-              strcpy(tmpBuff, "G28 Z");
-              parser.parse(tmpBuff);
-              gcode.process_parsed_command();
+              process_cmd_imd("G28");
             }
 
             //走到工件坐标
@@ -727,8 +778,7 @@ void HMI_SC20::PollingCommand(void)
           //使能断电检测
           //EnablePowerPanicCheck();
           //使能断料检测
-          parser.parse("M412 S1");
-          gcode.process_parsed_command();
+          process_cmd_imd("M412 S1");
           SendMachineStatusChange(0x03, 0);
 
           //屏幕锁定
@@ -1309,6 +1359,20 @@ void HMI_SC20::PollingCommand(void)
       }
       GenReack = true;
     }
+    else if (eventId == EID_LASER_CALIBRATE_REQ) {
+      switch (OpCode) {
+      case 0:
+        if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+          DrawLaserCalibrateShape();
+          MarkNeedReack(0);
+        }
+        else {
+          MarkNeedReack(1);
+        }
+        break;
+      }
+    }
+    
     if (GenReack == true) SendGeneralReack((eventId + 1), OpCode, Result);
 
     //ReadTail = ReadHead;

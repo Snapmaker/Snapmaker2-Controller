@@ -17,19 +17,6 @@ CanModule CanModules;
 
 #define CANID_BROCAST (1)
 
-#define MODULE_MASK_BITS  0x1ff00000
-#define MODULE_EXECUTER_PRINT 0
-#define MODULE_EXECUTER_CNC 1
-#define MODULE_EXECUTER_LASER 2
-#define MODULE_LINEAR 3
-#define MODULE_ROTATE 4
-#define MODULE_ENCLOSER 5
-#define MODULE_LIGHT 6
-#define MODULE_AIRCONDITIONER 7
-
-
-#define MAKE_ID(MID)  ((MID << 20) & MODULE_MASK_BITS)
-
 #define FLASH_CAN_TABLE_ADDR  (0x8000000 + 32 * 1024)
 
 /**
@@ -41,7 +28,7 @@ void CanModule::Init(void) {
   UpdateProcess();
   PrepareLinearModules();
   PrepareExecuterModules();
-  PrepareExtendModules();
+  //PrepareExtendModules();
   for(int i=0;i<CanBusControlor.ModuleCount;i++) {
     SERIAL_ECHOLNPAIR("Basic ID:", Value32BitToString(CanBusControlor.ModuleMacList[i]));
   }
@@ -90,7 +77,8 @@ void CanModule::CollectPlugModules() {
       ExecuterID[ExecuterCount++] = CanBusControlor.ModuleMacList[i];
   }
 
-  //Collect module for can2
+  //Collect module for can1
+  
   while(1) {
     if(CanSendPacked(CANID_BROCAST, IDTYPE_EXTID, EXTEND_CAN_NUM, FRAME_REMOTE, 0, 0) == true) {
       tmptick = millis() + 1000;
@@ -489,6 +477,23 @@ void CanModule::PrepareExtendModules(void) {
  *para Packindex:
  *para pData:The point to the buff 
  */
+uint16_t CanModule::SearchModule(uint16_t ModuleTypeID) {
+  int i;
+  uint16_t Count;
+  Count = 0;
+  for(i=0;i<CanBusControlor.ModuleCount;i++) {
+    if(MAKE_ID(ModuleTypeID) == (CanBusControlor.ModuleMacList[i] & MODULE_MASK_BITS)) {
+      Count++;
+    }
+  }
+  return Count;
+}
+
+/**
+ *LoadUpdateData:Load update data from flash
+ *para Packindex:
+ *para pData:The point to the buff 
+ */
 void CanModule::EraseUpdatePack(void) {
   uint32_t Address;
   FLASH_Unlock();
@@ -638,9 +643,7 @@ void CanModule::UpdateProcess(void)
   millis_t tmptick;
   uint32_t UpdateFlag;
   uint16_t StartID, EndID, CurTypeID;
-  uint8_t CanNum;
 
-  CanNum = 0;
   char Version[64];
   //Load Update infomation and check if it is the module update file
   if(LoadUpdateInfo(Version, &StartID, &EndID, &UpdateFlag) == true) {
@@ -649,7 +652,16 @@ void CanModule::UpdateProcess(void)
     for(i=0;i<CanBusControlor.ModuleCount;i++) {
       CurTypeID = CanBusControlor.ModuleMacList[i] & MODULE_MASK_BITS;
       if((CurTypeID >= StartID) && (CurTypeID <= EndID)) {
-        UpdateModule(CanNum, CanBusControlor.ModuleMacList[i], Version, UpdateFlag);
+        UpdateModule(BASIC_CAN_NUM, CanBusControlor.ModuleMacList[i], Version, UpdateFlag);
+      } else {
+        
+      }
+    }
+
+    for(i=0;i<CanBusControlor.ExtendModuleCount;i++) {
+      CurTypeID = CanBusControlor.ExtendModuleMacList[i] & MODULE_MASK_BITS;
+      if((CurTypeID >= StartID) && (CurTypeID <= EndID)) {
+        UpdateModule(EXTEND_CAN_NUM, CanBusControlor.ModuleMacList[i], Version, UpdateFlag);
       } else {
         
       }
@@ -673,7 +685,6 @@ int CanModule::UpdateEndstops(uint8_t *pBuff) {
   tmpEndstopBits |= (1 << index);
   if(pBuff[2] == 0) tmpEndstopBits &= ~(1 << index);
   Endstop = tmpEndstopBits & (tmpEndstopBits >> 7) & (tmpEndstopBits >> 14);
-  SERIAL_ECHOLN("EndStop");
   return 0;
 }
 
@@ -686,10 +697,22 @@ int CanModule::UpdateEndstops(uint8_t *pBuff) {
  */
 int CanModule::SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff, uint8_t Len) {
   int i;
-  for(i=0;i<MsgIDCount_CAN2;i++) {
-    if(MsgIDTable[i] == FuncID) {
-      CanSendPacked(i, IDTYPE_STDID, CanNum, FRAME_DATA, Len, pBuff);
-      break;
+
+  if(CanNum == BASIC_CAN_NUM) {
+    for(i=0;i<MsgIDCount_CAN2;i++) {
+      if(MsgIDTable[i] == FuncID) {
+        CanSendPacked(i, IDTYPE_STDID, CanNum, FRAME_DATA, Len, pBuff);
+        break;
+      }
+    }
+  }
+  else
+  {
+    for(i=0;i<MsgIDCount_CAN1;i++) {
+      if(MsgIDTable[i] == FuncID) {
+        CanSendPacked(i, IDTYPE_STDID, CanNum, FRAME_DATA, Len, pBuff);
+        break;
+      }
     }
   }
   return 0;

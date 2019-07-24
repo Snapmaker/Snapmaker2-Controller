@@ -28,6 +28,7 @@ public:
   int UpdateCNCRPM(uint8_t *pBuff);
   int SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff);
   int SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff, uint8_t Len);
+  uint16_t SearchModule(uint16_t ModuleTypeID);
 public:
   uint32_t ExecuterID[6];
   uint32_t LinearModuleID[9];

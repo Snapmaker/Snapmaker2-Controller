@@ -31,7 +31,7 @@ void CNCExecuter::SetCNCRPM(uint16_t RPMValue) {
 void CNCExecuter::SetCNCPower(float Percent) {
   uint8_t Data[2];
   if(Percent < 50)
-    Percent = 50;
+    Percent = 0;
   Data[0] = Percent;
   CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_MOTOR_SPEED, Data, 1);
 }

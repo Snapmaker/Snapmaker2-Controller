@@ -97,6 +97,7 @@ uint16_t CanBus::ReadTail = 0;
  */
 void CanBus::Init() {
   CanBusControlor.ModuleCount = 0;
+  CanBusControlor.ExtendModuleCount = 0;
   CanInit();
 }
 
@@ -242,7 +243,8 @@ void __irq_can1_tx(void) {
 
 void __irq_can1_rx0(void) {
   strCanData tmpData;
-  uint8_t Buff[8];
+
+
   uint8_t Len;
   uint8_t FMI;
   FMI = Canbus1ParseData(&tmpData.ID, &tmpData.IDType, &tmpData.FrameType, tmpData.Data, &Len, 0);  
@@ -258,7 +260,7 @@ void __irq_can1_rx1(void) {
   strCanData tmpData;
   FMI = Canbus1ParseData(&tmpData.ID, &tmpData.IDType, &tmpData.FrameType, tmpData.Data, &Len, 1);
   if(FMI == 0) { //Brocast for enuming modules
-    CanBusControlor.ModuleMacList[CanBusControlor.ModuleCount++] = tmpData.ID;
+    CanBusControlor.ExtendModuleMacList[CanBusControlor.ExtendModuleCount++] = tmpData.ID;
   } else if(FMI == 1) { //Nor communication datas
     if(Len > 0)
     {

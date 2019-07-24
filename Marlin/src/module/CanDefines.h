@@ -50,7 +50,6 @@ typedef enum {
   FUNC_REPORT_ENCLOSUER      ,
 }FUNC_ID_E;
 
-
 //Priority Table for attributing the priority of the FuncID
 const uint16_t PriorityTable[][2] = {
 // FUNCID                         Priority(0-15)
@@ -76,6 +75,17 @@ enum PeriphSwitchEnum : uint32_t {
   CAN_IO_ENCLOSURE,
 };
 
+#define MODULE_MASK_BITS  0x1ff00000
+#define MODULE_EXECUTER_PRINT   0
+#define MODULE_EXECUTER_CNC     1
+#define MODULE_EXECUTER_LASER   2
+#define MODULE_LINEAR           3
+#define MODULE_LIGHT            4
+#define MODULE_ENCLOSER         5
+#define MODULE_ROTATE           6
+#define MODULE_AIRCONDITIONER   7
+
+#define MAKE_ID(MID)  ((MID << 20) & MODULE_MASK_BITS)
 
 #endif
 #endif //ENABLE CANBUS_SUPPORT
