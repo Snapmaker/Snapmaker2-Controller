@@ -149,7 +149,7 @@ void CanInit() {
   CAN_InitStruct.CAN_BS1 = CAN_BS1_14tq;
   CAN_InitStruct.CAN_BS2 = CAN_BS2_5tq;
   CAN_InitStruct.CAN_Mode = CAN_Mode_Normal;
-  CAN_InitStruct.CAN_NART = DISABLE;
+  CAN_InitStruct.CAN_NART = ENABLE;
   CAN_InitStruct.CAN_Prescaler = 6;
   CAN_InitStruct.CAN_RFLM = DISABLE;
   CAN_InitStruct.CAN_SJW = CAN_SJW_1tq;
@@ -208,7 +208,7 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   uint32_t regtsr;
 
   if(DataLen > 8)
-  return false;
+    return false;
 
   if(FrameType == FRAME_DATA) {
     TxMessage.RTR = CAN_RTR_DATA;
@@ -238,13 +238,13 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
       tmptick = millis();
       //while pending
       do {
-        if((millis() - tmptick) > 10)
+        if((millis() - tmptick) > 500)
           break;
         regtsr = CAN1->TSR & (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0);
         if(regtsr == (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0)) {
           return true;
         }
-        if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
+        else if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
           break;
       }while(true);
     }
