@@ -15,6 +15,7 @@ public:
   void PrepareLinearModules(void);
   void PrepareExecuterModules(void);
   void PrepareExtendModules(void);
+  void PrepareRestModules(void);
   bool Update(uint8_t CanNum, uint32_t ID, char *Version);
   void EraseUpdatePack(void);
   bool LoadUpdatePack(uint16_t Packindex, uint8_t *pData);
@@ -42,6 +43,11 @@ public:
   uint16_t MsgIDTable[512];
 
 private:
+  uint32_t MacIDofFuncID[256];
+  uint16_t FuncIDList[256];
+  uint16_t FuncIDPriority[256];
+  uint16_t MsgIDCount;
+  
   uint32_t MacIDofFuncID_CAN2[128];
   uint16_t FuncIDList_CAN2[128];
   uint16_t FuncIDPriority_CAN2[128];
