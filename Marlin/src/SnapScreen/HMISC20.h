@@ -51,10 +51,11 @@ private:
   uint8_t HalfAutoCalibrate();
   uint8_t ManualCalibrateStart();
   void ResizeMachine(char *pBuff);
-  void EnterLaserFocusSetting();
   void SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PWD, char * IP);
   void SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result);
+  void LaserCoarseCalibrate(float X, float Y, float Z);
   void DrawLaserCalibrateShape();
+  void MovementProcess(float X, float Y, float Z, uint8_t Option);
 
 public:
   uint8_t HmiRequestStatus;

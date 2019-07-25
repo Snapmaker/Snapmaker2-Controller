@@ -3,7 +3,7 @@
 #include "../inc/MarlinConfig.h"
 
 
-class PrintExecuter 
+class PrintExecuter
 {
 public:
   PrintExecuter(){};

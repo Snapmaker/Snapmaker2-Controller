@@ -397,6 +397,24 @@ void HMI_SC20::SendUpdateStatus(uint8_t Status)
 /********************************************************
 激光画方框
 *********************************************************/
+void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
+  X = X / 1000.0f;
+  Y = Y / 1000.0f;
+  Z = Z / 1000.0f;
+  
+  // All axes home
+  process_cmd_imd("G28");
+
+  // Move to the Certain point
+  do_blocking_move_to_xy(X, Y, 30.0f);
+
+  // Move to the Z
+  do_blocking_move_to_z(Z, 10.0f);  
+}
+
+/********************************************************
+激光画方框
+*********************************************************/
 void HMI_SC20::DrawLaserCalibrateShape() {
   int i;
   int rowindex;
@@ -410,8 +428,8 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   RowSpace = 3;
   SquareSideLength = 10;
 
-  // Move to the focus z 
-  do_blocking_move_to_z(ExecuterHead.Laser.FocusHeight - 5, 20.0f);
+  // Move down 5
+  do_blocking_move_to_z(current_position[Z_AXIS] - 5, 20.0f);
 
   NextX = StartX;
   NextY = StartY;
@@ -422,7 +440,7 @@ void HMI_SC20::DrawLaserCalibrateShape() {
     do_blocking_move_to_xy(NextX, NextY, 50.0f);
     
     // Laser on
-    ExecuterHead.Laser.SetLaserPower(30.0f);
+    ExecuterHead.Laser.SetLaserPower(40.0f);
 
     // Draw square
     do_blocking_move_to_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
@@ -445,6 +463,31 @@ void HMI_SC20::DrawLaserCalibrateShape() {
     else {
       NextX = NextX + SquareSideLength + RowSpace;
     }
+  }
+}
+
+/********************************************************
+激光画方框
+*********************************************************/
+void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
+  X = X / 1000.0f;
+  Y = Y / 1000.0f;
+  Z = Z / 1000.0f;
+  switch(Option) {
+    case 0:
+      process_cmd_imd("G28 Z");
+      set_bed_leveling_enabled(false);
+      break;
+
+    case 1:
+      do_blocking_move_to_z(Z, 10.0f);
+      do_blocking_move_to_xy(X, Y, 30.0f);
+      break;
+
+    case 2:
+      do_blocking_move_to_z(current_position[Z_AXIS] + Z, 10.0f);
+      do_blocking_move_to_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
+      break;
   }
 }
 
@@ -631,27 +674,6 @@ void HMI_SC20::ResizeMachine(char * pBuff)
   //保存数据
   settings.save();
 }
-
-
-/****************************************************
-激光焦点设置启动
-***************************************************/
-void HMI_SC20::EnterLaserFocusSetting()
-{
-  char strCmd[50];
-
-  //回原点
-  strcpy(strCmd, "G28 Z");
-  parser.parse(tmpBuff);
-  gcode.process_parsed_command();
-
-  //走到特定高度
-  do_blocking_move_to_z(20.0f);
-
-  //微光
-  ExecuterHead.Laser.SetLaserPower(0.5f);
-}
-
 
 void HMI_SC20::PollingCommand(void)
 {
@@ -1177,26 +1199,30 @@ void HMI_SC20::PollingCommand(void)
           MarkNeedReack(0);
           break;
 
-        //激光Z  轴回原点调焦专用
+        //激光焦点粗调
         case 12:
-          //全部回原点
-          strcpy(tmpBuff, "G28");
-          parser.parse(tmpBuff);
-          gcode.process_parsed_command();
+          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+            j = 10;
+            BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
+            BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
+            BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+            LaserCoarseCalibrate(fX, fY, fZ);
+            //应答
+            MarkNeedReack(0);
+          }
+          else {
+            MarkNeedReack(1);
+          }
+          break;
 
-          //调平数据失效
-          set_bed_leveling_enabled(false);
-
-          //Z  轴移动到70  位置
-          do_blocking_move_to_z(70, 40);
-
-          //X  Y  移动到中心位置
-          fX = (X_MAX_POS + home_offset[X_AXIS]) / 2.0f;
-          fY = (Y_MAX_POS + home_offset[Y_AXIS]) / 2.0f;
-          do_blocking_move_to_xy(fX, fY, 4.0f);
-
-          //应答
-          MarkNeedReack(0);
+        case 13:
+          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+            DrawLaserCalibrateShape();
+            MarkNeedReack(0);
+          }
+          else {
+            MarkNeedReack(1);
+          }
           break;
 
         //读取尺寸参数
@@ -1207,21 +1233,30 @@ void HMI_SC20::PollingCommand(void)
     }
     //Movement Request
     else if (eventId == EID_MOVEMENT_REQ) {
+      j = 10;
+      BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
+      BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
+      BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
       switch (OpCode)
       {
         //激光回原点应答
         case 0x01:
-          strcpy(tmpBuff, "G28 Z");
-          parser.parse(tmpBuff);
-          gcode.process_parsed_command();
-
           //调平数据失效
-          set_bed_leveling_enabled(false);
+          MovementProcess(0, 0, 0, 0);
+          break;
 
-          //应答
-          MarkNeedReack(0);
+        //绝对坐标移动轴
+        case 0x02:
+          MovementProcess(fX, fY, fZ, 1);
+          break;
+
+        //相对坐标移动轴
+        case 0x03:
+          MovementProcess(fX, fY, fZ, 2);
           break;
       }
+      //应答
+      MarkNeedReack(0);
     }
     //WIFI
     else if (eventId == EID_LAS_CAM_OP_REQ) {
@@ -1355,19 +1390,6 @@ void HMI_SC20::PollingCommand(void)
 
       default:
         Result = 1;
-        break;
-      }
-    }
-    else if (eventId == EID_LASER_CALIBRATE_REQ) {
-      switch (OpCode) {
-      case 0:
-        if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-          DrawLaserCalibrateShape();
-          MarkNeedReack(0);
-        }
-        else {
-          MarkNeedReack(1);
-        }
         break;
       }
     }
