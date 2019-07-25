@@ -1287,13 +1287,14 @@ void Stepper::isr() {
   // We need this variable here to be able to use it in the following loop
   hal_timer_t min_ticks;
 
-  // check if power-loss event happen
-  // if happened, we need to stop currunt block and save the work.
-  PowerPanicData.check(current_block);
-
   do {
     // Enable ISRs to reduce USART processing latency
     ENABLE_ISRS();
+
+    // checking power loss here because when no moves in block buffer, ISR will not
+    // execute to endstop.update(), then we cannot check power loss there.
+    // But if power loss happened and ISR cannot get block, no need to check again
+    PowerPanicData.check(current_block);
 
     // Run main stepping pulse phase ISR if we have to
     if (!nextMainISR) Stepper::stepper_pulse_phase_isr();
@@ -1560,11 +1561,8 @@ uint32_t Stepper::stepper_block_phase_isr() {
         runout.block_completed(current_block);
       #endif
       axis_did_move = 0;
-      // if have BLOCK_BIT_SYNC_POSITION, this block is not generate from Gcode
-      if (TEST(current_block->flag, BLOCK_BIT_SYNC_POSITION))
-        PowerPanicData.saveCmdLine(0xFFFFFFFF);
-      else
-        PowerPanicData.saveCmdLine(current_block->filePos);
+      // when a block is outputed, we record it position in file if it has
+      PowerPanicData.saveCmdLine(current_block->filePos);
       current_block = NULL;
       planner.discard_current_block();
     }
@@ -1847,6 +1845,11 @@ uint32_t Stepper::stepper_block_phase_isr() {
       // is against the limits, the block will be marked as to be killed, and
       // on the next call to this ISR, will be discarded.
       endstops.update();
+
+      // check if power-loss event happen
+      // if happened, we need to stop currunt block and save the work.
+      //PowerPanicData.check(current_block);
+
 
       #if ENABLED(Z_LATE_ENABLE)
         // If delayed Z enable, enable it now. This option will severely interfere with

@@ -212,6 +212,8 @@ void StatusControl::PauseProcess()
       // move to stop point
       PowerPanicData.towardStopPoint();
 
+      planner.synchronize();
+
       // switch to rellated pages in HMI
       switch(ExecuterHead.MachineType) {
         case MACHINE_TYPE_3DPRINT:

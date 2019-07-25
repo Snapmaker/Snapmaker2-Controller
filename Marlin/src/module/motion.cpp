@@ -1685,23 +1685,32 @@ void homeaxis(const AxisEnum axis) {
   }
 #endif // ENABLED(SW_MACHINE_SIZE)
 
-FORCE_INLINE void  move_to_limited_position(const float fr_mm_s) {
-  apply_motion_limits(current_position);
-  do_blocking_move_to(current_position, fr_mm_s);
-}
+void  move_to_limited_position(const float (&target)[XYZE], const float fr_mm_s) {
+  const float z_feedrate  = fr_mm_s ? fr_mm_s : homing_feedrate(Z_AXIS),
+            xy_feedrate = fr_mm_s ? fr_mm_s : XY_PROBE_FEEDRATE_MM_S;
 
-void  move_to_limited_z(const float z, const float fr_mm_s) {
-  current_position[Z_AXIS] = z;
-  move_to_limited_position(fr_mm_s);
-}
+#if HAS_SOFTWARE_ENDSTOP
+  apply_motion_limits(target);
+#endif
 
-void  move_to_limited_xy(const float x, const float y, const float fr_mm_s) {
-  current_position[X_AXIS] = x;
-  current_position[Y_AXIS] = y;
-  move_to_limited_position(fr_mm_s);
-}
+  // If Z needs to raise, do it before moving XY
+  if (current_position[Z_AXIS] < target[Z_AXIS]) {
+    current_position[Z_AXIS] = target[Z_AXIS];
+    line_to_current_position(z_feedrate);
+  }
 
-void  move_to_limited_x(const float x, const float fr_mm_s) {
-  current_position[X_AXIS] = x;
-  move_to_limited_position(fr_mm_s);
+  current_position[X_AXIS] = target[X_AXIS];
+  current_position[Y_AXIS] = target[Y_AXIS];
+  line_to_current_position(xy_feedrate);
+
+  // If Z needs to lower, do it after moving XY
+  if (current_position[Z_AXIS] > target[Z_AXIS]) {
+    current_position[Z_AXIS] = target[Z_AXIS];
+    line_to_current_position(z_feedrate);
+  }
+
+  if (current_position[E_AXIS] != target[E_AXIS]) {
+    current_position[E_AXIS] = target[E_AXIS];
+    line_to_current_position(z_feedrate);
+  }
 }

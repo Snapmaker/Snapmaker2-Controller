@@ -68,10 +68,12 @@ public:
   strPowerPanicSave Data;
 
 private:
-  bool restoring;
   bool powerloss;
+  bool restoring;
+  bool disable_stepper;
   uint32_t WriteIndex;
   strPowerPanicSave tmpPowerPanicData;
+
 
   void turnoffPower(void);
   int Load(void);
