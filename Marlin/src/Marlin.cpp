@@ -1194,8 +1194,6 @@ void setup() {
   #endif
 
   BreathLightInit();
-
-  lightbar.init();
 }
 
 /**
@@ -1250,6 +1248,8 @@ void loop() {
   CanModules.Init();
   CheckUpdateFlag();
   CheckAppValidFlag();
+
+  lightbar.init();
   
   //endstops.CanPrepareAxis();
   while(ExecuterHead.MachineType == MACHINE_TYPE_UNDEFINE) {

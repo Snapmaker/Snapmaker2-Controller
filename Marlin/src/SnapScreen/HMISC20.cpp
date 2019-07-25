@@ -1342,8 +1342,7 @@ void HMI_SC20::PollingCommand(void)
         Result = lightbar.set_mode((LightBarMode)tmpBuff[IDX_DATA0]);
         if ((LightBarMode)tmpBuff[IDX_DATA0] == LB_MODE_LIGHTING)
           Result = lightbar.set_brightness(tmpBuff[IDX_DATA0 + 1]);
-        if (Result > 1)
-          Result = 1;
+        MarkNeedReack(!!Result);
         break;
 
       case CMD_LB_SWITCH:
@@ -1351,13 +1350,13 @@ void HMI_SC20::PollingCommand(void)
           Result = lightbar.turn_on();
         else
           Result = lightbar.turn_off();
+        MarkNeedReack(0);
         break;
 
       default:
         Result = 1;
         break;
       }
-      GenReack = true;
     }
     else if (eventId == EID_LASER_CALIBRATE_REQ) {
       switch (OpCode) {

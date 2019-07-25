@@ -671,6 +671,11 @@ uint16_t CanModule::SearchModule(uint16_t ModuleTypeID) {
       Count++;
     }
   }
+  for(i=0;i<CanBusControlor.ExtendModuleCount;i++) {
+    if(MAKE_ID(ModuleTypeID) == (CanBusControlor.ExtendModuleMacList[i] & MODULE_MASK_BITS)) {
+      Count++;
+    }
+  }
   return Count;
 }
 
@@ -846,7 +851,7 @@ void CanModule::UpdateProcess(void)
     for(i=0;i<CanBusControlor.ExtendModuleCount;i++) {
       CurTypeID = CanBusControlor.ExtendModuleMacList[i] & MODULE_MASK_BITS;
       if((CurTypeID >= StartID) && (CurTypeID <= EndID)) {
-        UpdateModule(EXTEND_CAN_NUM, CanBusControlor.ModuleMacList[i], Version, UpdateFlag);
+        UpdateModule(EXTEND_CAN_NUM, CanBusControlor.ExtendModuleMacList[i], Version, UpdateFlag);
       } else {
         
       }
