@@ -423,8 +423,8 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   float SquareSideLength;
 
   rowindex = 0;
-  StartX = 5;
-  StartY = 5;
+  StartX = current_position[X_AXIS];
+  StartY = current_position[Y_AXIS];
   RowSpace = 3;
   SquareSideLength = 10;
 
@@ -433,14 +433,18 @@ void HMI_SC20::DrawLaserCalibrateShape() {
 
   NextX = StartX;
   NextY = StartY;
+  i = 1;
+
+  // Fan On
+  process_cmd_imd("M106 P0 S255");
   
   // Draw 10 square
-  for(i=0;i<10;i++) {
+  do {
     // Move to the start point
     do_blocking_move_to_xy(NextX, NextY, 50.0f);
     
     // Laser on
-    ExecuterHead.Laser.SetLaserPower(40.0f);
+    ExecuterHead.Laser.SetLaserPower(100.0f);
 
     // Draw square
     do_blocking_move_to_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
@@ -463,7 +467,10 @@ void HMI_SC20::DrawLaserCalibrateShape() {
     else {
       NextX = NextX + SquareSideLength + RowSpace;
     }
-  }
+    i++;
+  }while(i < 11);
+  // Fan Off
+  process_cmd_imd("M107 P0");
 }
 
 /********************************************************
@@ -1215,6 +1222,7 @@ void HMI_SC20::PollingCommand(void)
           }
           break;
 
+        //激光细调
         case 13:
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
             DrawLaserCalibrateShape();
