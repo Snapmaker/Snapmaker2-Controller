@@ -506,8 +506,6 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
   int j;
   int Index;
   int indexx, indexy;
-  uint8_t CalibrateIndexX[] = {0, 1, 2, 2, 2, 1, 0, 0, 1};
-  uint8_t CalibrateIndexY[] = {0, 0, 0, 1, 2, 2, 2, 1, 1};
 
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
     //请求执行头的开关状态
@@ -533,12 +531,12 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     endstops.enable_z_probe(true);
     for (j = 0; j < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y); j++) {
       //Z  轴移动到13mm
-      indexx = CalibrateIndexX[Index];
-      indexy = CalibrateIndexY[Index];
+      indexx = CalibrateIndeX[Index];
+      indexy = CalibrateIndeY[Index];
       Index++;
       do_blocking_move_to_z(15);
       MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = probe_pt(_GET_MESH_X(indexx), _GET_MESH_Y(indexy), PROBE_PT_RAISE, 2);
-      //MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
+      //MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_positfion[Z_AXIS];
       SERIAL_ECHOLNPAIR("Zvalue:", MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx]);
 
       //发送进度
