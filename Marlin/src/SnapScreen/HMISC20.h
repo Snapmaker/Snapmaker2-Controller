@@ -70,8 +70,8 @@ private:
   uint32_t UpdateDataSize;
   uint8_t UpdateInProgress;
   uint16_t UpdatePackRequest;
-  uint8_t CalibrateXIndeX[9]={0, 1, 2, 2, 2, 1, 0, 0, 1};
-  uint8_t CalibrateXIndeY[9]={0, 0, 0, 1, 2, 2, 2, 1, 1};
+  uint8_t CalibrateIndeX[9]={0, 1, 2, 2, 2, 1, 0, 0, 1};
+  uint8_t CalibrateIndeY[9]={0, 0, 0, 1, 2, 2, 2, 1, 1};
   //调平点索引
   uint8_t PointIndex;
   float MeshPointZ[9];

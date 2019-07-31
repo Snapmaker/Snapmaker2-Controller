@@ -504,7 +504,7 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
 uint8_t HMI_SC20::HalfAutoCalibrate()
 {
   int j;
-  int indexdir;
+  int Index;
   int indexx, indexy;
 
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
@@ -526,30 +526,21 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     sync_plan_position();
     indexx = 0;
     indexy = 0;
-    indexdir = 1;
+    Index = 0;
     do_blocking_move_to_xy(current_position[X_AXIS] + 5, current_position[Y_AXIS] - 5, 30);
     endstops.enable_z_probe(true);
     for (j = 0; j < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y); j++) {
       //Z  轴移动到13mm
+      indexx = CalibrateIndeX[Index];
+      indexy = CalibrateIndeY[Index];
+      Index++;
       do_blocking_move_to_z(15);
       MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = probe_pt(_GET_MESH_X(indexx), _GET_MESH_Y(indexy), PROBE_PT_RAISE, 2);
-      //MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_position[Z_AXIS];
+      //MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_positfion[Z_AXIS];
       SERIAL_ECHOLNPAIR("Zvalue:", MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx]);
 
       //发送进度
       SendHalfCalibratePoint(0x03, indexy * GRID_MAX_POINTS_X + indexx + 1);
-      //获取调平点索引值
-      indexx += indexdir;
-      if (indexx == GRID_MAX_POINTS_X) {
-        indexy++;
-        indexdir = -1;
-        indexx += indexdir;
-      }
-      else if (indexx < 0) {
-        indexy++;
-        indexdir = 1;
-        indexx += indexdir;
-      }
     }
     endstops.enable_z_probe(false);
 
@@ -1107,7 +1098,8 @@ void HMI_SC20::PollingCommand(void)
         //Z  轴移动
         case 6:
           int32Value = BYTES_TO_32BITS(tmpBuff, 10);
-          do_blocking_move_to_z(current_position[Z_AXIS] +int32Value, 20.0f);
+          fZ = int32Value / 1000.0f;
+          do_blocking_move_to_z(current_position[Z_AXIS] + fZ, 20.0f);
           MarkNeedReack(0);
           break;
 
