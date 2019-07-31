@@ -245,6 +245,14 @@ void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_
 #endif
 
 /**
+ * Check if the command came from HMI
+ * return: true or false
+ */
+bool ok_to_HMI() {
+  return Screen_send_ok[cmd_queue_index_r];
+}
+
+/**
  * Send an "ok" message to the host, indicating
  * that a command was successfully processed.
  *
