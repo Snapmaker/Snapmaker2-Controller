@@ -139,6 +139,7 @@ enum BoardVer {
 //
 #define POWER_DETECT_PIN PE0
 #define POWER_LOSS_STATE LOW
+#define POWER_NORMAL_STATE  HIGH
 
 //
 // Heatedbed error detect pin

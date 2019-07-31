@@ -34,12 +34,9 @@ PowerPanic PowerPanicData;
  /**
  * need to initialize the power detect pin
  */
-void PowerPanic::init(void) {
+void PowerPanic::Init(void) {
   int ret;
 
-  restoring = false;
-  powerloss = false;
-  disable_stepper = false;
 	SET_INPUT(POWER_DETECT_PIN);
 
   ret = Load();
@@ -63,77 +60,9 @@ void PowerPanic::init(void) {
     SERIAL_ECHOLNPGM("No power panic data!");
     break;
   }
-
 }
 
- /**
- * check the state of power detect pin
- * if power loss and saved the data successfully, return true, otherwise return false.
- */
-bool PowerPanic::check(block_t *blk) {
-	if (READ(POWER_DETECT_PIN) != POWER_LOSS_STATE)
-		return false;
-
-  if (powerloss) {
-    // here indicate power loss happened, but PowerPanic::process has not been executed
-    // we need to abort block into stepper to disable output moves
-    // when PowerPanic::process is executed, disable_stepper will be false
-    if (disable_stepper && blk) {
-      stepper.quick_stop();
-    }
-    return true;
-  }
-
-  /* when we are reading data from flash or resume work, restoring = true
-   * for this condition, we just disable power and move to stop point
-   */
-  if (restoring)
-    return false;
-
-  powerloss = true;
-  disable_stepper = true;
-
-  turnoffPower();
-
-  /* see if there is a block is handling
-   * if yes, its file position is we needed
-   * if no, need to see if command queue have any command
-   */
-  if (blk) {
-    // stop stepper, it will abort the current block if it have
-    stepper.quick_stop();
-    Data.FilePosition = blk->filePos;
-  }
-
-
-  /* if power-loss happened, need to disable all interrupts,
-   * then do some critical actions to save data, and then enable
-   * ISR to move executer to stop
-   */
-  DISABLE_ISRS();
-
-  // stop stepper, clean buffer and queue
-	stopWorking();
-
-  // for now, we only handle power-loss in follow two conditions
-  if (SystemStatus.CurrentStatus != STAT_PAUSE || SystemStatus.CurrentStatus != STAT_PAUSE_ONLINE
-      || SystemStatus.CurrentStatus != STAT_RUNNING || SystemStatus.CurrentStatus != STAT_RUNNING_ONLINE) {
-    ENABLE_ISRS();
-    return false;
-  }
-
-  // save information to buffer
-	saveWork();
-
-  // write buffer to flash
-  save();
-
-  // enable interrupt
-  ENABLE_ISRS();
-
-  return true;
-}
-
+ 
  /**
  *Load power panic data from flash
  *return:
@@ -151,8 +80,6 @@ int PowerPanic::Load(void)
 	uint32_t TotalCount;
 	uint32_t Flag;
   int ret = 0;
-
-  restoring = true;
 
 	//记录大小
 	RecordSize = (sizeof(strPowerPanicSave) + 8);
@@ -268,15 +195,13 @@ int PowerPanic::Load(void)
 		}
 	}
 
-  restoring = false;
-
   return ret;
 }
 
  /**
  * save the power panic data to flash
  */
-void PowerPanic::save(void)
+void PowerPanic::WriteFlash(void)
 {
   uint32_t addr;
 	uint32_t RecordSize;
@@ -358,11 +283,9 @@ void PowerPanic::MaskPowerPanicData(void)
  *    0  - sucess
  *    -1 - failed
  */
-int PowerPanic::saveWork(void) {
+int PowerPanic::SaveEnv(void) {
   int     i = 0;
   uint8_t *pBuff;
-  if (restoring)
-    return -1;
 
   // extruders' temperature
 	HOTEND_LOOP() Data.HeaterTamp[e] = thermalManager.temp_hotend[e].target;
@@ -381,12 +304,10 @@ int PowerPanic::saveWork(void) {
     Data.FanSpeed[i] = Periph.GetFanSpeed(i);
 
   // if power loss, we have record the position to Data.PositionData[]
-  if (!powerloss) {
-    for (i=0; i<NUM_AXIS; i++)
-      Data.PositionData[i] = current_position[i];
-  }
+	for (i=0; i<NUM_AXIS; i++)
+		Data.PositionData[i] = current_position[i];
 
-  if (Data.GCodeSource == GCODE_SOURCE_SCREEN)
+  if (Data.GCodeSource == GCODE_SOURCE_UDISK)
     strcpy(Data.FileName, card.filename);
   else {
     // 0xff will reduce the write times for the flash
@@ -413,8 +334,6 @@ int PowerPanic::saveWork(void) {
  */
 bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
 {
-  restoring = true;
-
 	char tmpBuff[32];
 
 	//暂存文件位置，运动会更新PowerPanicData  中的数据
@@ -509,14 +428,13 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
       set_bed_leveling_enabled(true);
 
       *Err = 0;
-      SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING);
+      SystemStatus.SetCurrentStatus(SYSTAT_WORK);
       //EnablePowerPanicCheck();
       if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
         Periph.StartDoorCheck();
       if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
         process_cmd_imd("M412 S1");
       //清除断电数据
-      restoring = false;
       MaskPowerPanicData();
       return 0;
 		}
@@ -613,7 +531,7 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
 			set_bed_leveling_enabled(true);
 
 			*Err = 0;
-      SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING_ONLINE);
+      SystemStatus.SetCurrentStatus(SYSTAT_WORK);
 			//EnablePowerPanicCheck();
 			if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
 				Periph.StartDoorCheck();
@@ -623,7 +541,6 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
 			#endif
 			//清除断电数据
 			MaskPowerPanicData();
-      restoring = false;
 			return 0;
 		}
 	}
@@ -637,7 +554,6 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
 		return false;
 	}
 	*/
-    restoring = false;
 
     if(Err != NULL)
         *Err = 1;
@@ -936,7 +852,7 @@ bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
 /*
  * disable other unused peripherals
  */
-void PowerPanic::turnoffPower(void) {
+void PowerPanic::TurnOffPower(void) {
 
   // disable power of heated bed
   thermalManager.setTargetBed(0);
@@ -966,105 +882,12 @@ void PowerPanic::turnoffPower(void) {
   //disble DMA
   rcc_clk_disable(DMA1->clk_id);
   rcc_clk_disable(DMA2->clk_id);
-}
 
-/*
- * stop current working and recover stepper postion to current_position
- */
-void PowerPanic::stopWorking(void) {
-
-  /* NOTE: this is executed in stepper ISR!
-   * to avoid race condition, we cannot clear block buffer or command queue
-   * here, just delay next block/queue to be performed. Then do it in
-   * powerpanic::process()
-   */
-
-  // it will delay the stepper to get next avaible block
-  planner.delay_before_delivering = 100;
-
-  // it will delay planner to plan next movement
-  planner.cleaning_buffer_counter = 1000;
-
-  // above two variables will be cleared in powerpanic::process()
-
-  // set current stepper position to current_position
-  // then we can get current stepper position from current_position[4]
-  set_current_from_steppers_for_axis(ALL_AXES);
-  for (int i = 0; i < NUM_AXIS; i++) {
-    Data.PositionData[i] = current_position[i];
-  }
-}
-
-/*
- * move axes to stop point
- * NOTE: this function is also called by pause/stop process
- */
-void PowerPanic::towardStopPoint(void) {
-
-  // make sure we are in absolute position mode
-  relative_mode = false;
-
-  // Disable the leveling to reduce execution time
-  #if HAS_LEVELING
-    set_bed_leveling_enabled(false);
-    planner.leveling_active = false;
-  #endif
-
-  switch (ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
-    if (powerloss) {
-      //to avoid pre-block has been aborted, we input a block again
-      current_position[Z_AXIS] + 1 < Z_MAX_POS;
-      current_position[Z_AXIS] += 1;
-      line_to_current_position(10);
-
-      move_to_limited_z(current_position[Z_AXIS] + 10, 10);
-    }
-    else
-      move_to_limited_z(current_position[Z_AXIS] + 30, 10);
-
-    if(thermalManager.temp_hotend[0].current > 180) {
-      current_position[E_AXIS] -= 4;
-      line_to_current_position(10);
-    }
-
-    // move X to original point
-    move_to_limited_x(0, 35);
-    // move Y to max position
-    move_to_limited_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
-    break;
-
-  case MACHINE_TYPE_CNC:
-    // close CNC motor
-    ExecuterHead.CNC.SetPower(0);
-
-    if (powerloss) {
-      //to avoid pre-block has been aborted, we input a block again
-      current_position[Z_AXIS] + 1 < Z_MAX_POS;
-      current_position[Z_AXIS] += 1;
-      line_to_current_position(10);
-
-      move_to_limited_z(current_position[Z_AXIS] + 10, 10);
-    }
-    else
-      move_to_limited_z(current_position[Z_AXIS] + 30, 10);
-
-    while (planner.has_blocks_queued()) {
-      if (!powerloss)
-        idle();
-    }
-
-    // move to original point
-    move_to_limited_xy(0, 0, 50);
-    break;
-
-  case MACHINE_TYPE_LASER:
-
-    break;
-
-  default:
-    break;
-  }
+  // disable other unnecessary soc peripherals
+  // disable usart
+  rcc_clk_disable(MSerial1.c_dev()->clk_id);
+  rcc_clk_disable(MSerial2.c_dev()->clk_id);
+  rcc_clk_disable(MSerial3.c_dev()->clk_id);
 }
 
 /*
@@ -1072,50 +895,7 @@ void PowerPanic::towardStopPoint(void) {
  * this function is called by stepper isr()
  * when powerloss happened, no need to record line num.
  */
-void PowerPanic::saveCmdLine(uint32_t l) {
-  if (!powerloss)
+void PowerPanic::SaveCmdLine(uint32_t l) {
+  if (READ(POWER_DETECT_PIN) != POWER_LOSS_STATE)
     Data.FilePosition = l;
-}
-
-
-void PowerPanic::process(void) {
-  if (!powerloss)
-    return;
-
-  // disable other unnecessary soc peripherals
-  // disable usart
-  rcc_clk_disable(MSerial1.c_dev()->clk_id);
-  rcc_clk_disable(MSerial2.c_dev()->clk_id);
-  rcc_clk_disable(MSerial3.c_dev()->clk_id);
-
-  clear_command_queue();
-
-  DISABLE_ISRS();
-  planner.block_buffer_nonbusy = planner.block_buffer_planned = \
-      planner.block_buffer_head = planner.block_buffer_tail;
-
-  // these two variables will clean the latency in planning commands
-  // and outputing blocks
-  planner.delay_before_delivering = 0;
-  planner.cleaning_buffer_counter = 0;
-
-  // make it false, PowerPanic::check() will not abort block, then we can output moves
-  disable_stepper = false;
-
-  // if still have a previous block in stepper, need to abort it
-  if (stepper.get_current_block())
-    stepper.quick_stop();
-
-  // enable ISR, stepper will abort current block if it has
-  ENABLE_ISRS();
-
-  // get stepper axes position to current_position[]
-  set_current_from_steppers_for_axis(ALL_AXES);
-  // sync current_position[] to planner and stepper's position
-  sync_plan_position();
-
-  towardStopPoint();
-
-  // wait to die
-  while (1);
 }

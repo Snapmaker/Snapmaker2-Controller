@@ -466,6 +466,7 @@ class Stepper {
     static void set_directions();
 
     block_t *get_current_block() { return current_block; }
+    static void allow_current_block() { abort_current_block = false; }
 
   private:
 

@@ -7,6 +7,8 @@
 #include "../HAL/HAL_GD32F1/HAL_exti_STM32F1.h"
 #include "CanBus.h"
 #include "CanModule.h"
+#include "StatusControl.h"
+#include "../snap_module/error.h"
 
 PeriphDevice Periph;
 
@@ -80,5 +82,29 @@ void PeriphDevice::StartDoorCheck() {
  */
 void PeriphDevice::StopDoorCheck() {
 }
+
+/**
+ * set new latest enclosure event
+ * para percent:
+ */
+void PeriphDevice::LatestEnclosureEvent(EnclosureEvent e) {
+  if (e < ENCLOSURE_EVENT_INVALID)
+    latest_enclosure_event_ = e;
+}
+
 #endif //ENABLED(DOOR_SWITCH)
 
+void PeriphDevice::Process() {
+#if ENABLED(DOOR_SWITCH)
+  if (SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_FINISH) {
+    // last pause is triggered by door open
+    if (SystemStatus.GetPauseSource() == PAUSE_SOURCE_DOOR_OPEN) {
+      if (latest_enclosure_event_ == ENCLOSURE_EVENT_CLOSE) {
+        if (SystemStatus.ResumeTrigger(RESUME_SOURCE_DOOR_CLOSE) == E_SUCCESS)
+          // if we trigger resume successfully, clear event
+          latest_enclosure_event_ = ENCLOSURE_EVENT_NONE;
+      }
+    }
+  }
+#endif
+}

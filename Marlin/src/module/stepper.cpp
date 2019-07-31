@@ -101,6 +101,7 @@ Stepper stepper; // Singleton
 #include "../Marlin.h"
 #include "../HAL/shared/Delay.h"
 #include "PowerPanic.h"
+#include "../snap_module/quickstop.h"
 
 #if MB(ALLIGATOR)
   #include "../feature/dac/dac_dac084s085.h"
@@ -1294,7 +1295,7 @@ void Stepper::isr() {
     // checking power loss here because when no moves in block buffer, ISR will not
     // execute to endstop.update(), then we cannot check power loss there.
     // But if power loss happened and ISR cannot get block, no need to check again
-    PowerPanicData.check(current_block);
+    quickstop.CheckISR(current_block);
 
     // Run main stepping pulse phase ISR if we have to
     if (!nextMainISR) Stepper::stepper_pulse_phase_isr();
@@ -1562,7 +1563,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
       #endif
       axis_did_move = 0;
       // when a block is outputed, we record it position in file if it has
-      PowerPanicData.saveCmdLine(current_block->filePos);
+      PowerPanicData.SaveCmdLine(current_block->filePos);
       current_block = NULL;
       planner.discard_current_block();
     }

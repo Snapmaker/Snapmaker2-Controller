@@ -750,7 +750,10 @@ void HMI_SC20::PollingCommand(void)
   uint16_t cmdLen;
   short i;
   char result;
-  uint8_t CurStatus;
+  SysStatus cur_status;
+  SysStage cur_stage;
+  WorkingPort cur_port;
+  ErrCode err;
   bool GenReack = false;
   uint8_t eventId, OpCode, Result;
   #define MarkNeedReack(R) do{GenReack = true; Result = R;}while(0)
@@ -764,94 +767,72 @@ void HMI_SC20::PollingCommand(void)
     eventId = tmpBuff[8];
     OpCode = tmpBuff[9];
 
-    //上位指令调试
+    // get current status
+    cur_status = SystemStatus.GetCurrentStatus();
+    cur_stage = SystemStatus.GetCurrentStage();
+    cur_port = SystemStatus.GetWorkingPort();
+
+    // debug command
     if (eventId == EID_GCODE_REQ) {
-      //指令尾补0
+      // pad '0' in the end of command
       j = cmdLen + 8;
       tmpBuff[j] = 0;
       Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02);
     }
 
-    //GCode  打印
+    //gcode from screen
     else if (eventId == EID_FILE_GCODE_REQ) {
       SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_RECEIVED);
-      //获取当前状态
-      CurStatus = SystemStatus.GetCurrentPrinterStatus();
+      // need to check if we are in working with screen
+      if ((cur_status == SYSTAT_WORK && SystemStatus.GetWorkingPort() == WORKING_PORT_SC)) {
+        // line number
+        ID = BYTES_TO_32BITS(tmpBuff, 9);
 
-      //上位启动打印
-      if ((CurStatus == STAT_RUNNING_ONLINE) || (CurStatus == STAT_PAUSE_ONLINE)) {
-        //激光头
-        if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-          //行号
-          ID = BYTES_TO_32BITS(tmpBuff, 9);
+        // pad '0' to the end of string command
+        j = cmdLen + 8;
+        tmpBuff[j] = 0;
 
-          //指令尾补0
-          j = cmdLen + 8;
-          tmpBuff[j] = 0;
-          if (Periph.GetDoorCheckFlag() == true) {
-            //门已关闭
-            if (Periph.IsDoorOpened() == false) {
-              Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
-            }
-            else {
-              SystemStatus.PauseTriggle(ManualPause);
-              SystemStatus.SetCurrentPrinterStatus(STAT_PAUSE_ONLINE);
-            }
-          }
-          else {
-            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
-          }
-        }
-
-        //非激光头
-        else {
-          //行号
-          ID = BYTES_TO_32BITS(tmpBuff, 9);
-
-          //指令尾补0
-          j = tmpBuff[3] + 8;
-          tmpBuff[j] = 0;
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
-        }
+        Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
         SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_BUFFERED);
       }
     }
 
-    //状态上报
+    // query or set system status
     else if (eventId == EID_STATUS_REQ) {
       uint8_t StatuID;
       StatuID = tmpBuff[9];
 
-      //获取当前状态
-      CurStatus = SystemStatus.GetCurrentPrinterStatus();
-
-      //查询状态
+      // query status
       if (StatuID == 0x01) {
         SendMachineStatus();
       }
 
-      //查询异常
+      // query exception
       else if (StatuID == 0x02) {
         SendMachineFaultFlag();
       }
 
-      //联机打印
+      // screen want to start a work
       else if (StatuID == 0x03) {
         LOG_I("receive start work from SC\n");
-        //待机状态中
-        if (CurStatus == STAT_IDLE) {
-          //设置打印状态
-          SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING_ONLINE);
+        // we need to be idle
+        if (cur_stage != SYSTAGE_IDLE) {
+          // ack a fault to screen
+          MarkNeedReack(1);
+          LOG_E("current state is not IDLE\n");
+        }
+        else {
+          // set state
+          SystemStatus.SetCurrentStatus(SYSTAT_WORK);
 
-          //激光执行头
           if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-            //Z  未知坐标
+            // z is un-homed
             if (axes_homed(Z_AXIS) == false) {
-              //Z  轴回原点
+              // home
               process_cmd_imd("G28");
             }
 
-            //走到工件坐标
+            // move to original point
             do_blocking_move_to_logical_xy(0, 0);
           }
           PowerPanicData.Data.FilePosition = 0;
@@ -865,89 +846,43 @@ void HMI_SC20::PollingCommand(void)
           PowerPanicData.Data.GCodeSource = GCODE_SOURCE_SCREEN;
           PowerPanicData.Data.MachineType = ExecuterHead.MachineType;
 
-          //使能断电检测
-          //EnablePowerPanicCheck();
-          //使能断料检测
-          process_cmd_imd("M412 S1");
-          SendMachineStatusChange(0x03, 0);
+          // enable runout
+          if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
+            process_cmd_imd("M412 S1");
+          else
+            process_cmd_imd("M412 S0");
+          MarkNeedReack(0);
 
-          //屏幕锁定
+          // lock screen
           HMICommandSave = 1;
 
           lightbar.set_state(LB_STATE_WORKING);
           LOG_I("start working ok!\n");
         }
-        else {
-          LOG_E("current state is not IDLE\n");
-        }
       }
 
-      //暂停
+      // screen request a pause
       else if (StatuID == 0x04) {
-        //获取当前状态
-        CurStatus = SystemStatus.GetCurrentPrinterStatus();
-        if (CurStatus == STAT_RUNNING) {
-          HmiRequestStatus = STAT_PAUSE;
-          if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) ExecuterHead.Laser.SetLaserPower(0.0f);
-          SystemStatus.PauseTriggle(ManualPause);
+        err = SystemStatus.PauseTrigger(PAUSE_SOURCE_SC);
+        if (err == E_SUCCESS) {
+          RequestStatus = HMI_REQ_PAUSE;
           lightbar.set_state(LB_STATE_STANDBY);
         }
-        else if (CurStatus == STAT_RUNNING_ONLINE) {
-          HmiRequestStatus = STAT_PAUSE_ONLINE;
-          if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) ExecuterHead.Laser.SetLaserPower(0.0f);
-          SystemStatus.PauseTriggle(ManualPause);
-          lightbar.set_state(LB_STATE_STANDBY);
+        else {
+          // other status cannot be paused
+          MarkNeedReack((uint8_t)err);
         }
       }
 
-      //继续
+      // resume work
       else if (StatuID == 0x05) {
-        //获取当前状态
-        CurStatus = SystemStatus.GetCurrentPrinterStatus();
-        Result = E_FAILURE;
-        //U  盘打印
-        if (CurStatus == STAT_PAUSE) {
-          //激光执行头
-          if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-            //关闭检测
-            Periph.StopDoorCheck();
-
-            //门开关检测使能
-            if (Periph.GetDoorCheckFlag() == true) {
-              //门已关闭
-              if (Periph.IsDoorOpened() == false) {
-                //启动打印
-                Result = SystemStatus.PauseResume();
-              }
-
-              //开启检测
-              Periph.StartDoorCheck();
-            }
-
-            //禁能门开关检测
-            else {
-              Result = SystemStatus.PauseResume();
-            }
-          }
-          else {
-            Result = SystemStatus.PauseResume();
-          }
-        }
-
-        //连机打印
-        else if (CurStatus == STAT_PAUSE_ONLINE) {
-          Result = SystemStatus.PauseResume();
-        }
-
-        if (Result == E_NO_RESRC) {
-          SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-          // send error back to screen
-          SendPowerPanicResume(0x05, 1);
+        // trigger a resuming, need to ack screen when resume work
+        err = SystemStatus.ResumeTrigger(RESUME_SOURCE_SC);
+        if (err = E_SUCCESS) {
+          RequestStatus = HMI_REQ_RESUME;
         }
         else {
-          //清除故障标志
-          SystemStatus.ClearSystemFaultBit(FAULT_FLAG_FILAMENT);
-          HmiRequestStatus = STAT_RUNNING;
+          MarkNeedReack((uint8_t)err);
         }
         if(Result == E_SUCCESS)
           SendMachineStatusChange(StatuID, 0);
@@ -955,217 +890,126 @@ void HMI_SC20::PollingCommand(void)
           SendMachineStatusChange(StatuID, 1);
       }
 
-      //停止
+      // stop work
       else if (StatuID == 0x06) {
-        //不在待机状态
-        if (CurStatus != STAT_IDLE) {
-          HmiRequestStatus = STAT_PAUSE_ONLINE;
-          //上位机停止分2  种，立即停止
-          SystemStatus.StopTriggle(ManualStop);
-
-          //清除断电有效标置
-          PowerPanicData.Data.Valid = 0;
-
+        err = SystemStatus.StopTrigger(STOP_SOURCE_SC);
+        if (err == E_SUCCESS) {
+          RequestStatus = HMI_REQ_STOP;
           lightbar.set_state(LB_STATE_STANDBY);
+          PowerPanicData.Data.Valid = 0;
+        }
+        else {
+          MarkNeedReack((uint8_t)err);
         }
       }
 
-      //打印结束
+      // finish work
       else if (StatuID == 0x07) {
-        //不在待机状态
-        if (CurStatus != STAT_IDLE) {
-          //触发停止
-          SystemStatus.StopTriggle(EndPrint);
-
-          //清除断电有效标置
-          PowerPanicData.Data.Valid = 0;
+        err = SystemStatus.StopTrigger(STOP_SOURCE_FINISH);
+        // make sure we are working
+        if (err != SYSTAT_WORK) {
+          RequestStatus = HMI_REQ_FINISH;
           lightbar.set_state(LB_STATE_FINISH);
         }
+        else {
+          MarkNeedReack((uint8_t)err);
+        }
       }
 
-      //请求最近行号
+      // request the latest line number
       else if (StatuID == 0x08) {
         SendBreakPointData();
       }
 
-      //请求打印进度
+      // request progress
       else if (StatuID == 0x09) {
-      #if (BAORD_VER == BOARD_SNAPMAKER2_v1)
-        //文件打开
-        if (card.isFileOpen() == true) //更新最后进度
-          card.LastPercent = card.percentDone();
-
-        //发送进度
-        SendProgressPercent(card.LastPercent);
-      #endif
+        // not supported in snapmaker2
+        MarkNeedReack(1);
       }
 
-      //清除断电续打数据
+      // clear power panic data
       else if (StatuID == 0x0a) {
-        //清除标置
+        // clear all fault flags
         SystemStatus.ClearSystemFaultBit(0xffffffff);
 
-        //断电数据有效
+        // clear flash data
         if (PowerPanicData.Data.Valid == 1) {
-          //清除Flash  有效位
           PowerPanicData.MaskPowerPanicData();
         }
 
-        //标志断电续打无效
+        // diable power panic data
         PowerPanicData.Data.Valid = 0;
 
-        //应答
+        // ack
         MarkNeedReack(0);
       }
 
-      //联机续打
+      // recovery work from power loss
       else if (StatuID == 0x0b) {
-        //获取当前状态
-        CurStatus = SystemStatus.GetCurrentPrinterStatus();
-
-        //激光执行头
-        if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-          //外罩门检测开启
-          if (Periph.GetDoorCheckFlag() == true) {
-            //门已关闭且处于待机状态
-            if ((Periph.IsDoorOpened() == false) && (CurStatus == STAT_IDLE)) {
-              //启动打印
-              PowerPanicData.PowerPanicResumeWork(NULL);
-
-              //开启检测
-              Periph.StartDoorCheck();
-            }
-
-            //门未关闭
-            else {
-              //发送失败
-              SendPowerPanicResume(0x0b, 1);
-            }
-          }
-
-          //不检测外罩门，待机状态
-          else if (CurStatus == STAT_IDLE) {
-            //启动打印
-            PowerPanicData.PowerPanicResumeWork(NULL);
-          }
-
-          //不检测外罩门，非待机状态
-          else {
-            //发送失败
-            SendPowerPanicResume(0x0b, 1);
-          }
+        if (cur_status != SYSTAT_IDLE) {
+          MarkNeedReack(1);
         }
-
-        //CNC  或3D  打印
+        else if (MACHINE_TYPE_LASER == ExecuterHead.MachineType &&
+                Periph.IsDoorOpened()) {
+          MarkNeedReack(2);
+        }
+        else if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
+                  CHECK_RUNOUT_SENSOR) {
+          MarkNeedReack(3);
+          SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+        }
         else {
-          // check if we have runout detected for 3D printer
-          if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (CHECK_RUNOUT_SENSOR)) {
-            SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-            SendPowerPanicResume(0x0b, 1);
-          }
-          else {
-            //处于待机状态
-            if (CurStatus == STAT_IDLE) {
-              //切换状态
-              SystemStatus.SetCurrentPrinterStatus(STAT_PAUSE_ONLINE);
+          // to here, we can recovery work
 
-              //启动断电续打
-              PowerPanicData.PowerPanicResumeWork(NULL);
-            }
-            //非待机状态
-            else {
-              //发送失败
-              SendPowerPanicResume(0x0b, 1);
-            }
-          }
+          // enable door checking
+          if (MACHINE_TYPE_LASER == ExecuterHead.MachineType)
+            Periph.StartDoorCheck();
+
+          // enable filament runout checking
+          if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
+            process_cmd_imd("M412 S1");
+
+          // recovery work and ack to screen
+          PowerPanicData.PowerPanicResumeWork(NULL);
         }
       }
 
-      //U  盘续打
+      // not supported now
       else if (StatuID == 0x0c) {
-        //获取当前状态
-        CurStatus = SystemStatus.GetCurrentPrinterStatus();
-
-        //激光执行头
-        if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-          //外罩门检测开启
-          if (Periph.GetDoorCheckFlag() == true) {
-            //门已关闭且处于待机状态
-            if ((Periph.IsDoorOpened() == false) && (CurStatus == STAT_IDLE)) {
-              //启动打印
-              PowerPanicData.PowerPanicResumeWork(NULL);
-
-              //开启检测
-              Periph.StartDoorCheck();
-            }
-
-            //门未关闭或不处于待机状态
-            else {
-              //发送失败
-              SendPowerPanicResume(0x0c, 1);
-            }
-          }
-
-          //不检测外罩门，待机状态
-          else if (CurStatus == STAT_IDLE) {
-            //启动打印
-            PowerPanicData.PowerPanicResumeWork(NULL);
-          }
-
-          //不检测外罩 门，非待机状态
-          else {
-            //发送失败
-            SendPowerPanicResume(0x0c, 1);
-          }
-        }
-
-        //CNC  或3D  打印
-        else {
-          //处于待机状态
-          if (CurStatus == STAT_IDLE) {
-            //启动断电续打
-            PowerPanicData.PowerPanicResumeWork(NULL);
-          }
-
-          //非待机状态
-          else {
-            //发送失败
-            SendPowerPanicResume(0x0c, 1);
-          }
-        }
+        MarkNeedReack(1);
       }
     }
 
-    //操作指令
+    // change settings
     else if (eventId == EID_SETTING_REQ) {
       switch (OpCode)
       {
-        //设置尺寸
+        // set size of machine
         case 1:
           ResizeMachine(&tmpBuff[10]);
           MarkNeedReack(0);
           break;
 
-        //开启自动调平
+        // enable auto level bed
         case 2:
           MarkNeedReack(HalfAutoCalibrate());
           break;
 
-        //开启手动调平
+        // enble manual level bed
         case 4:
           MarkNeedReack(ManualCalibrateStart());
           break;
 
-        //移动到调平点
+        // move to leveling point
         case 5:
           if ((tmpBuff[10] < 10) && (tmpBuff[10] > 0)) {
-            //有效索引
+            // check point index
             if (PointIndex < 10) {
-              //保存数据
+              // save point index
               MeshPointZ[PointIndex] = current_position[Z_AXIS];
             }
 
-            //更新点索引
+            // move to new point
             PointIndex = tmpBuff[10] -1;
             do_blocking_move_to_logical_z(current_position[Z_AXIS] + 5, 30);
             do_blocking_move_to_logical_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X), _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), 60.0f);
@@ -1174,7 +1018,7 @@ void HMI_SC20::PollingCommand(void)
           }
           break;
 
-        //Z  轴移动
+        // move z axis
         case 6:
           int32Value = BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
@@ -1182,59 +1026,57 @@ void HMI_SC20::PollingCommand(void)
           MarkNeedReack(0);
           break;
 
-        //保存调平点
+        // save the cordinate of leveling points
         case 7:
           if (CMD_BUFF_EMPTY() == true) {
             float delCenter = MeshPointZ[4] - current_position[Z_AXIS];
-            //自动调平方式
+            // auto leveling
             if (CalibrateMethod == 1) {
-              //设置调平值
+              // set leveling data to marlin
               for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
                 for (j = 0; j < GRID_MAX_POINTS_X; j++) {
                   sprintf(tmpBuff, "G29 W I%d J%d Z%0.3f", j, i, MeshPointZ[i * GRID_MAX_POINTS_X + j] - delCenter);
                   process_cmd_imd(tmpBuff);
                 }
               }
-              //保存数据
               settings.save();
             }
 
-            //手动调平
+            // manual leveling
             else if (CalibrateMethod == 2) {
               if (PointIndex != 99) {
                 MeshPointZ[PointIndex] = current_position[Z_AXIS];
 
-                //设置调平值
+                // set leveling data to marlin
                 for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
                   for (j = 0; j < GRID_MAX_POINTS_X; j++) {
                     sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[i * GRID_MAX_POINTS_X + j]);
                     process_cmd_imd(tmpBuff);
                   }
                 }
-                //保存数据
                 settings.save();
               }
             }
 
-            //回原点
+            // home all axes
             strcpy(tmpBuff, "G28");
             process_cmd_imd(tmpBuff);
 
-            //切换到绝对位置模式
+            // make sure we are in absolute mode
             relative_mode = false;
 
-            //清除标志
+            // clear flag
             CalibrateMethod = 0;
 
-            //应答
+            // ack to screen
             MarkNeedReack(0);
 
-            //解除屏幕锁定
+            // unlock PC port
             HMICommandSave = 0;
           }
           break;
 
-        //退出调平点
+        // exit leveling
         case 8:
           if (CMD_BUFF_EMPTY() == true) {
             //Load
@@ -1242,18 +1084,17 @@ void HMI_SC20::PollingCommand(void)
             process_cmd_imd("G28");
             HMICommandSave = 0;
 
-            //切换到绝对位置模式
+            // make sure we are in absolute mode
             relative_mode = false;
 
-            //应答
             MarkNeedReack(0);
 
-            //解除屏幕锁定
+            // unlock PC port
             HMICommandSave = 0;
           }
           break;
 
-        //出厂设置
+        // restore to factory mode
         case 9:
           break;
 
@@ -1714,7 +1555,7 @@ void HMI_SC20::SendMachineFaultFlag()
   i = 0;
 
   //EventID
-  tmpBuff[i++] = 0x08;
+  tmpBuff[i++] = EID_STATUS_RESP;
 
   //异常上报
   tmpBuff[i++] = 0x02;
@@ -1725,7 +1566,7 @@ void HMI_SC20::SendMachineFaultFlag()
   BITS32_TO_BYTES(SysFaultFlag, tmpBuff, i);
 
   //打印文件源
-  if (SystemStatus.GetCurrentPrinterStatus() == STAT_IDLE) tmpBuff[i++] = 3;
+  if (SystemStatus.GetCurrentStage() == SYSTAGE_IDLE) tmpBuff[i++] = 3;
   else tmpBuff[i++] = PowerPanicData.Data.GCodeSource;
 
   //行号
@@ -1828,8 +1669,7 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = (uint8_t) (RPM);
 
   //打印机状态
-  j = SystemStatus.GetCurrentPrinterStatus();
-  tmpBuff[i++] = (uint8_t) (j);
+  tmpBuff[i++] = (uint8_t) SystemStatus.MapCurrentStatusForSC();
 
   //外设状态
   //tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 24);

@@ -24,8 +24,8 @@
 #include "stdio.h"
 #include "../module/ExecuterManager.h"
 #include "../module/endstops.h"
-
-
+#include "../module/StatusControl.h"
+#include "../module/PeriphDevice.h"
 
 static char ValueString[12]; 
 
@@ -93,10 +93,15 @@ int NoopFunc(uint8_t *pBuff) {
 }
 
 int EnclosureDoorReport(uint8_t *pBuff) {
-  if (pBuff[0] == 0)
+  if (pBuff[0] == 0) {
     CBI(CanModules.PeriphSwitch , CAN_IO_ENCLOSURE);
-  else
+    Periph.LatestEnclosureEvent(ENCLOSURE_EVENT_CLOSE);
+  }
+  else {
     SBI(CanModules.PeriphSwitch , CAN_IO_ENCLOSURE);
+    if (SystemStatus.PauseTrigger(PAUSE_SOURCE_DOOR_OPEN) != E_SUCCESS)
+      Periph.LatestEnclosureEvent(ENCLOSURE_EVENT_OPEN);
+  }
   return 0;
 }
 

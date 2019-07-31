@@ -91,11 +91,11 @@ void HMIScreen::SendUpdateComplete(uint8_t Type) {
 }
 
 uint8_t HMIScreen::GetRequestStatus() {
-  return SC20HMI.HmiRequestStatus;
+  return SC20HMI.RequestStatus;
 }
 
 void HMIScreen::ClearRequestStatus() {
-  SC20HMI.HmiRequestStatus = STAT_IDLE;
+  SC20HMI.RequestStatus = HMI_REQ_NONE;
 }
 
 

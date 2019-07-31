@@ -403,7 +403,7 @@ void CardReader::startFileprint() {
     #if SD_RESORT
       flush_presort();
     #endif
-    SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING);
+    SystemStatus.SetCurrentStatus(SYSTAT_WORK);
   }
 }
 
@@ -1013,7 +1013,7 @@ void CardReader::printingHasFinished() {
     //Mark power panic save data
     PowerPanicData.MaskPowerPanicData();
     //Triggle end print
-    SystemStatus.StopTriggle(EndPrint);
+    SystemStatus.StopTrigger(STOP_SOURCE_FINISH);
   }
 }
 

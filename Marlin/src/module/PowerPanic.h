@@ -15,6 +15,9 @@ typedef enum
 #define PP_FILE_NAME_LEN  270
 #define PP_FAN_COUNT      4
 #define PP_HEATER         4
+
+// delay for debounce, uint: ms, for now we use 10ms
+#define POWERPANIC_DEBOUNCE	10
 typedef struct
 {
 	//校验
@@ -52,30 +55,22 @@ class PowerPanic
 {
 public:
   PowerPanic(){};
-  void init(void);
-  bool check(block_t *blk);
-  void save(void);
+  void Init(void);
+  void WriteFlash(void);
   void ClearPowerPanicData(void);
   void MaskPowerPanicData(void);
-  int  saveWork(void);
+  int  SaveEnv(void);
   bool PowerPanicResumeWork(uint8_t *Err);
-  void stopWorking(void);
-  void towardStopPoint(void);
-  void process(void);
-  void saveCmdLine(uint32_t l);
+  void SaveCmdLine(uint32_t l);
+  void TurnOffPower(void);
 
 public:
   strPowerPanicSave Data;
 
 private:
-  bool powerloss;
-  bool restoring;
-  bool disable_stepper;
   uint32_t WriteIndex;
   strPowerPanicSave tmpPowerPanicData;
 
-
-  void turnoffPower(void);
   int Load(void);
 };
 
