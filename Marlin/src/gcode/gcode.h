@@ -299,7 +299,7 @@ public:
 
   static int8_t get_target_extruder_from_command();
   static void get_destination_from_command();
-
+  static void execute_command(void);
   static void process_parsed_command(
     #if USE_EXECUTE_COMMANDS_IMMEDIATE
       const bool no_ok = false

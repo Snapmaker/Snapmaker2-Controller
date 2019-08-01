@@ -741,7 +741,7 @@ void HMI_SC20::PollingCommand(void)
           ID = BYTES_TO_32BITS(tmpBuff, 9);
 
           //指令尾补0
-          j = tmpBuff[3] +8;
+          j = tmpBuff[3] + 8;
           tmpBuff[j] = 0;
           Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
         }
