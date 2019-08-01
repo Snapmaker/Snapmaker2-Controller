@@ -276,10 +276,10 @@
 
 //Machine Status defines,StatuaControl use this
 #define STAT_IDLE           0
-#define STAT_PAUSE          1
-#define STAT_PAUSE_ONLINE   2
-#define STAT_RUNNING        3
-#define STAT_RUNNING_ONLINE 4
+#define STAT_RUNNING        1
+#define STAT_PAUSE          2
+#define STAT_RUNNING_ONLINE 3
+#define STAT_PAUSE_ONLINE   4
 
 //FLASH定义占用空间大小
 #define FLASH_SIZE      (512*1024)

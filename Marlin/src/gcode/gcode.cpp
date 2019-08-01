@@ -402,7 +402,7 @@ void GcodeSuite::process_parsed_command(
         //case 191: M191(); break;                                // M191: Wait for chamber temperature to reach target
       #endif
 
-      case 105: M105(); KEEPALIVE_STATE(NOT_BUSY); return;        // M105: Report Temperatures (and say "ok")
+      case 105: M105(); KEEPALIVE_STATE(NOT_BUSY); if(ok_to_HMI() == false) return;        // M105: Report Temperatures (and say "ok")
 
       #if ENABLED(AUTO_REPORT_TEMPERATURES) && HAS_TEMP_SENSOR
         case 155: M155(); break;                                  // M155: Set temperature auto-report interval
@@ -569,11 +569,11 @@ void GcodeSuite::process_parsed_command(
       #endif
 
       #if ENABLED(MORGAN_SCARA)
-        case 360: if (M360()) return; break;                      // M360: SCARA Theta pos1
-        case 361: if (M361()) return; break;                      // M361: SCARA Theta pos2
-        case 362: if (M362()) return; break;                      // M362: SCARA Psi pos1
-        case 363: if (M363()) return; break;                      // M363: SCARA Psi pos2
-        case 364: if (M364()) return; break;                      // M364: SCARA Psi pos3 (90 deg to Theta)
+        case 360: if (M360()) if(ok_to_HMI() == false) return; break;                      // M360: SCARA Theta pos1
+        case 361: if (M361()) if(ok_to_HMI() == false) return; break;                      // M361: SCARA Theta pos2
+        case 362: if (M362()) if(ok_to_HMI() == false) return; break;                      // M362: SCARA Psi pos1
+        case 363: if (M363()) if(ok_to_HMI() == false) return; break;                      // M363: SCARA Psi pos2
+        case 364: if (M364()) if(ok_to_HMI() == false) return; break;                      // M364: SCARA Psi pos3 (90 deg to Theta)
       #endif
 
       #if EITHER(EXT_SOLENOID, MANUAL_SOLENOID_CONTROL)
