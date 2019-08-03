@@ -512,9 +512,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     //CanRequestIOSwichStatus(0);
     //关闭热床和加热头
     thermalManager.disable_all_heaters();
-    strcpy(tmpBuff, "G28");
-    parser.parse(tmpBuff);
-    gcode.process_parsed_command();
+    process_cmd_imd("G28");
     while (planner.movesplanned());
     set_bed_leveling_enabled(false);
 
@@ -576,9 +574,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     //CanRequestIOSwichStatus(0);
     //关闭热床和加热头
     thermalManager.disable_all_heaters();
-    strcpy(tmpBuff, "G28");
-    parser.parse(tmpBuff);
-    gcode.process_parsed_command();
+    process_cmd_imd("G28");
     while (planner.movesplanned());
     set_bed_leveling_enabled(false);
 
@@ -1113,8 +1109,7 @@ void HMI_SC20::PollingCommand(void)
               for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
                 for (j = 0; j < GRID_MAX_POINTS_X; j++) {
                   sprintf(tmpBuff, "G29 W I%d J%d Z%0.3f", j, i, MeshPointZ[i * GRID_MAX_POINTS_X + j] - delCenter);
-                  parser.parse(tmpBuff);
-                  gcode.process_parsed_command();
+                  process_cmd_imd(tmpBuff);
                 }
               }
               //保存数据
@@ -1130,8 +1125,7 @@ void HMI_SC20::PollingCommand(void)
                 for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
                   for (j = 0; j < GRID_MAX_POINTS_X; j++) {
                     sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[i * GRID_MAX_POINTS_X + j]);
-                    parser.parse(tmpBuff);
-                    gcode.process_parsed_command();
+                    process_cmd_imd(tmpBuff);
                   }
                 }
                 //保存数据
@@ -1141,8 +1135,7 @@ void HMI_SC20::PollingCommand(void)
 
             //回原点
             strcpy(tmpBuff, "G28");
-            parser.parse(tmpBuff);
-            gcode.process_parsed_command();
+            process_cmd_imd(tmpBuff);
 
             //切换到绝对位置模式
             relative_mode = false;
@@ -1163,9 +1156,7 @@ void HMI_SC20::PollingCommand(void)
           if (CMD_BUFF_EMPTY() == true) {
             //Load
             settings.load();
-            strcpy(tmpBuff, "G28");
-            parser.parse(tmpBuff);
-            gcode.process_parsed_command();
+            process_cmd_imd("G28");
             HMICommandSave = 0;
 
             //切换到绝对位置模式

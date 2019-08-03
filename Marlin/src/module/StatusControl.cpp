@@ -199,8 +199,7 @@ void StatusControl::PauseProcess()
           //切换到主界面
           HMI.ChangePage(PAGE_PRINT);
           //关闭断料检测
-          parser.parse("M412 S0");
-          gcode.process_parsed_command();
+          process_cmd_imd("M412 S0");
           break;
 
         case MACHINE_TYPE_CNC:
@@ -300,14 +299,12 @@ static void restore_xyz(void) {
   // restore X, Y
   snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 X%.2f Y%.2f F4000",
       PowerPanicData.Data.PositionData[X_AXIS], PowerPanicData.Data.PositionData[Y_AXIS]);
-  parser.parse(cmd);
-  gcode.process_parsed_command();
+  process_cmd_imd(cmd);
   planner.synchronize();
 
   // restore Z
   snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F4000", PowerPanicData.Data.PositionData[Z_AXIS]);
-  parser.parse(cmd);
-  gcode.process_parsed_command();
+  process_cmd_imd(cmd);
   planner.synchronize();
 }
 
@@ -317,11 +314,9 @@ void inline StatusControl::resume_3dp(void) {
   // pre-extrude
   relative_mode = true;
 
-  parser.parse("G0 E15 F800");
-  gcode.process_parsed_command();
+  process_cmd_imd("G0 E15 F800");
 
-  parser.parse("G0 E-4 F2400");
-  gcode.process_parsed_command();
+  process_cmd_imd("G0 E-4 F2400");
 
   planner.synchronize();
 

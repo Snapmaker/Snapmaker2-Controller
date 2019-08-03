@@ -658,20 +658,16 @@ void HMILong::PollingCommand(void)
 						ChangePage(PAGE_ZCENTER);
             
             sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[0]);
-            parser.parse(tmpBuff);
-            gcode.process_parsed_command();
+            process_cmd_imd(tmpBuff);
 
             sprintf(tmpBuff, "G29 W I1 J0 Z%0.3f", MeshPointZ[1]);
-            parser.parse(tmpBuff);
-            gcode.process_parsed_command();
+            process_cmd_imd(tmpBuff);
 
             sprintf(tmpBuff, "G29 W I0 J1 Z%0.3f", MeshPointZ[2]);
-            parser.parse(tmpBuff);
-            gcode.process_parsed_command();
+            process_cmd_imd(tmpBuff);
 
             sprintf(tmpBuff, "G29 W I1 J1 Z%0.3f", MeshPointZ[3]);
-            parser.parse(tmpBuff);
-            gcode.process_parsed_command();
+            process_cmd_imd(tmpBuff);
 
             do_blocking_move_to_z(current_position[Z_AXIS] + 5, 30);
 
@@ -1053,8 +1049,7 @@ void HMILong::PollingCommand(void)
 
 				case BUTTON_CNC_SET_ORIGIN:
 					strcpy(tmpBuff, "G92 X0 Y0 Z0");
-          parser.parse(tmpBuff);
-          gcode.process_parsed_command();
+          process_cmd_imd(tmpBuff);
 					ChangePage(PAGE_ORIGINSAVED);
 					millis_t tick;
 					tick = millis();
