@@ -452,10 +452,10 @@ void StatusControl::ClearSystemFaultBit(uint32_t BitsToClear)
 }
 
 /**
- * StatusControl:Get Faults
+ * StatusControl:Set Faults
  */
-void StatusControl::SetSystemFaultBit(uint32_t BitsToClear)
+void StatusControl::SetSystemFaultBit(uint32_t BitsToSet)
 {
-  FaultFlag |= BitsToClear;
+  FaultFlag |= BitsToSet;
 }
 

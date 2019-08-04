@@ -1385,13 +1385,13 @@ void HMI_SC20::SendProgressPercent(uint8_t Percent)
   uint16_t i;
   i = 0;
 
-  //EventID
+  // EventID
   tmpBuff[i++] = EID_STATUS_RESP;
 
-  //行号
+  // Opcode
   tmpBuff[i++] = 0x09;
 
-  //断点数据
+  // Percent
   tmpBuff[i++] = 0;
   tmpBuff[i++] = 0;
   tmpBuff[i++] = 0;

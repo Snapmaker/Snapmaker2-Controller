@@ -1190,10 +1190,15 @@ void setup() {
 void CheckUpdateFlag(void)
 {
   uint32_t Address;
-  FLASH_Unlock();
+  uint32_t Flag;
   Address = FLASH_UPDATE_CONTENT_INFO;
-  FLASH_ErasePage(Address);
-  FLASH_Lock();
+  Flag = *((uint32_t*)Address);
+  if(Flag != 0xffffffff)
+  {
+    FLASH_Unlock();  
+    FLASH_ErasePage(Address);
+    FLASH_Lock();
+  }
 }
 
 /**
@@ -1212,7 +1217,6 @@ void CheckAppValidFlag(void)
     FLASH_Lock();
   }
 }
-
 
 /**
  * The main Marlin program loop
