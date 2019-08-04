@@ -23,6 +23,17 @@ CanModule CanModules;
  *Init:Initialize module table
  */
 void CanModule::Init(void) {
+  CanBusControlor.Init();
+  millis_t tmptick;
+  OUT_WRITE(POWER1_SUPPLY_PIN, LOW);
+  OUT_WRITE(POWER2_SUPPLY_PIN, LOW);
+  tmptick = millis() + 500;
+  while(tmptick > millis());
+  OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
+  OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
+  tmptick = millis() + 500;
+  while(tmptick > millis());
+
   SERIAL_ECHOLN("Module enum");
   CollectPlugModules();
   UpdateProcess();

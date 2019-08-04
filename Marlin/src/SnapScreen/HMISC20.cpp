@@ -406,10 +406,10 @@ void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
   process_cmd_imd("G28");
 
   // Move to the Certain point
-  do_blocking_move_to_xy(X, Y, 30.0f);
+  do_blocking_move_to_logical_xy(X, Y, 30.0f);
 
   // Move to the Z
-  do_blocking_move_to_z(Z, 10.0f);  
+  do_blocking_move_to_logical_z(Z, 10.0f);  
 }
 
 /********************************************************
@@ -429,7 +429,7 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   SquareSideLength = 10;
 
   // Move down 5
-  do_blocking_move_to_z(current_position[Z_AXIS] - 5, 20.0f);
+  do_blocking_move_to_logical_z(current_position[Z_AXIS] - 5, 20.0f);
 
   NextX = StartX;
   NextY = StartY;
@@ -441,22 +441,22 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   // Draw 10 square
   do {
     // Move to the start point
-    do_blocking_move_to_xy(NextX, NextY, 50.0f);
+    do_blocking_move_to_logical_xy(NextX, NextY, 50.0f);
     
     // Laser on
     ExecuterHead.Laser.SetLaserPower(100.0f);
 
     // Draw square
-    do_blocking_move_to_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
-    do_blocking_move_to_xy(current_position[X_AXIS], current_position[Y_AXIS] - SquareSideLength, 5.0f);
-    do_blocking_move_to_xy(current_position[X_AXIS] - SquareSideLength, current_position[Y_AXIS], 5.0f);
-    do_blocking_move_to_xy(current_position[X_AXIS], current_position[Y_AXIS] + SquareSideLength, 5.0f);
+    do_blocking_move_to_logical_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
+    do_blocking_move_to_logical_xy(current_position[X_AXIS], current_position[Y_AXIS] - SquareSideLength, 5.0f);
+    do_blocking_move_to_logical_xy(current_position[X_AXIS] - SquareSideLength, current_position[Y_AXIS], 5.0f);
+    do_blocking_move_to_logical_xy(current_position[X_AXIS], current_position[Y_AXIS] + SquareSideLength, 5.0f);
     
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
     // Move up 1mm
-    do_blocking_move_to_z(current_position[Z_AXIS] + 1, 20.0f);
+    do_blocking_move_to_logical_z(current_position[Z_AXIS] + 1, 20.0f);
 
     // Caculate next x y
     if(i % 5 == 0) {
@@ -487,13 +487,13 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
       break;
 
     case 1:
-      do_blocking_move_to_z(Z, 10.0f);
-      do_blocking_move_to_xy(X, Y, 30.0f);
+      do_blocking_move_to_logical_z(Z, 10.0f);
+      do_blocking_move_to_logical_xy(X, Y, 30.0f);
       break;
 
     case 2:
-      do_blocking_move_to_z(current_position[Z_AXIS] + Z, 10.0f);
-      do_blocking_move_to_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
+      do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z, 10.0f);
+      do_blocking_move_to_logical_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
       break;
   }
 }
@@ -508,52 +508,44 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
   int indexx, indexy;
 
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
-    //请求执行头的开关状态
-    //CanRequestIOSwichStatus(0);
-    //关闭热床和加热头
+    // Turn off the heaters
     thermalManager.disable_all_heaters();
     process_cmd_imd("G28");
-    while (planner.movesplanned());
     set_bed_leveling_enabled(false);
 
-    //设置Z  轴最大速度
+    // Set the Z max feedrate to 50mm/s
     planner.settings.max_feedrate_mm_s[Z_AXIS] = 50;
 
-    //设置海平面点的坐标
+    // Set the current position of Z to Z_MAX_POS
     current_position[Z_AXIS] = Z_MAX_POS;
     sync_plan_position();
     indexx = 0;
     indexy = 0;
     Index = 0;
-    do_blocking_move_to_xy(current_position[X_AXIS] + 5, current_position[Y_AXIS] - 5, 30);
     endstops.enable_z_probe(true);
     for (j = 0; j < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y); j++) {
-      //Z  轴移动到13mm
       indexx = CalibrateIndeX[Index];
       indexy = CalibrateIndeY[Index];
       Index++;
-      do_blocking_move_to_z(15);
-      MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = probe_pt(_GET_MESH_X(indexx), _GET_MESH_Y(indexy), PROBE_PT_RAISE, 2);
-      //MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = current_positfion[Z_AXIS];
+      // Move Z to 15mm
+      do_blocking_move_to_logical_z(15);
+      MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = probe_pt(RAW_X_POSITION(_GET_MESH_X(indexx)), RAW_Y_POSITION(_GET_MESH_Y(indexy)), PROBE_PT_RAISE, 2);
       SERIAL_ECHOLNPAIR("Zvalue:", MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx]);
 
-      //发送进度
+      // Send the point index to HMI
       SendHalfCalibratePoint(0x03, indexy * GRID_MAX_POINTS_X + indexx + 1);
     }
     endstops.enable_z_probe(false);
 
     //Zoffset
-    do_blocking_move_to_z(7, 50);
-    SERIAL_ECHOLNPAIR("Center X:", _GET_MESH_X(0) + _GET_MESH_X(GRID_MAX_POINTS_X - 1) / 2.0f, " Y:", _GET_MESH_Y(0) + _GET_MESH_Y(GRID_MAX_POINTS_Y - 1) / 2.0f);
-    do_blocking_move_to_xy(_GET_MESH_X(1), _GET_MESH_Y(1), 50.0f);
+    do_blocking_move_to_logical_z(7, 50);
+    do_blocking_move_to_logical_xy(_GET_MESH_X(1), _GET_MESH_Y(1), 50.0f);
 
-    //设置Z  轴最大速度
+    // Recover the Z max feedrate to 20mm/s
     planner.settings.max_feedrate_mm_s[Z_AXIS] = 20;
 
-    //屏幕锁定
     HMICommandSave = 1;
 
-    //标置自动调平
     CalibrateMethod = 1;
     return 0;
   }
@@ -568,36 +560,25 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 {
   int i, j;
 
-  //if((StepperSync == false) && (CMD_BUFF_EMPTY() == true))
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
-    //请求执行头的开关状态
-    //CanRequestIOSwichStatus(0);
-    //关闭热床和加热头
+    // Disable all heaters
     thermalManager.disable_all_heaters();
     process_cmd_imd("G28");
-    while (planner.movesplanned());
     set_bed_leveling_enabled(false);
 
-    //绝对坐标模式
-    do_blocking_move_to_xy(home_offset[X_AXIS], home_offset[Y_AXIS]);
-    do_blocking_move_to_z(0);
-
-    //设置海平面点的坐标
-    //限位开关在最高处
+    // Z limit switch at the higtest position
     if (Z_HOME_DIR > 0) current_position[Z_AXIS] = Z_MAX_POS;
 
-    //限位开关在最低处
+    // Z limit switch at the lowest position
     else current_position[Z_AXIS] = 0;
     sync_plan_position();
 
-    //Z  轴移到20  的位置
-    do_blocking_move_to_z(15);
+    // Move Z to 20mm height
+    do_blocking_move_to_logical_z(20);
 
-    //初始化
+    // Preset the index to 99 for initial status
     PointIndex = 99;
 
-    //屏幕锁定
-    //HMICommandSave = 1;
     for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
       for (j = 0; j < GRID_MAX_POINTS_X; j++) {
         MeshPointZ[i * GRID_MAX_POINTS_X + j] = z_values[i][j];
@@ -665,6 +646,9 @@ void HMI_SC20::ResizeMachine(char * pBuff)
 #if ENABLED(SW_MACHINE_SIZE)
   UpdateMachineDefines();
 #endif
+
+  CanModules.Init();
+	
   //保存数据
   settings.save();
 }
@@ -778,7 +762,7 @@ void HMI_SC20::PollingCommand(void)
             }
 
             //走到工件坐标
-            do_blocking_move_to_xy(0, 0);
+            do_blocking_move_to_logical_xy(0, 0);
           }
           PowerPanicData.Data.FilePosition = 0;
           PowerPanicData.Data.accumulator = 0;
@@ -1084,9 +1068,9 @@ void HMI_SC20::PollingCommand(void)
 
             //更新点索引
             PointIndex = tmpBuff[10] -1;
-            do_blocking_move_to_z(current_position[Z_AXIS] +5, 30);
-            do_blocking_move_to_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X), _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), 60.0f);
-            do_blocking_move_to_z(current_position[Z_AXIS] -5, 0.2);
+            do_blocking_move_to_logical_z(current_position[Z_AXIS] + 5, 30);
+            do_blocking_move_to_logical_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X), _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), 60.0f);
+            do_blocking_move_to_logical_z(current_position[Z_AXIS] - 5, 0.2);
             MarkNeedReack(0);
           }
           break;
@@ -1095,7 +1079,7 @@ void HMI_SC20::PollingCommand(void)
         case 6:
           int32Value = BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          do_blocking_move_to_z(current_position[Z_AXIS] + fZ, 20.0f);
+          do_blocking_move_to_logical_z(current_position[Z_AXIS] + fZ, 20.0f);
           MarkNeedReack(0);
           break;
 
@@ -1290,8 +1274,8 @@ void HMI_SC20::PollingCommand(void)
             fY = int32Value / 1000.0f;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fZ = int32Value / 1000.0f;
-            do_blocking_move_to_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
-            do_blocking_move_to_z(current_position[Z_AXIS] +fZ, 40);
+            do_blocking_move_to_logical_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
+            do_blocking_move_to_logical_z(current_position[Z_AXIS] +fZ, 40);
 
             //应答
             MarkNeedReack(0);
@@ -1305,8 +1289,8 @@ void HMI_SC20::PollingCommand(void)
             fY = int32Value / 1000.0f;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fZ = int32Value / 1000.0f;
-            do_blocking_move_to_xy(fX, fY, 40);
-            do_blocking_move_to_z(fZ, 40);
+            do_blocking_move_to_logical_xy(fX, fY, 40);
+            do_blocking_move_to_logical_z(fZ, 40);
 
             //应答
             MarkNeedReack(0);

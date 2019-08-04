@@ -1181,18 +1181,6 @@ void setup() {
     else SERIAL_ECHOLN("Screen Plugged!");
   #endif
 
-  millis_t tmptick;
-  tmptick = millis() + 500;
-  while(tmptick > millis());
-
-  #if PIN_EXISTS(POWER1_SUPPLY)
-    OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
-  #endif
-
-  #if PIN_EXISTS(POWER2_SUPPLY)
-    OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
-  #endif
-
   BreathLightInit();
 }
 
@@ -1244,7 +1232,6 @@ void loop() {
   tmptick = millis() + 4000;
   while(tmptick > millis());
   ExecuterHead.Init();
-  CanBusControlor.Init();
   CanModules.Init();
   CheckUpdateFlag();
   CheckAppValidFlag();
