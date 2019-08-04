@@ -25,6 +25,7 @@ public:
 
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)
     void SetTemperature(uint8_t index, uint16_t temperature);
+    void SetFanDelayOff(uint8_t index, uint8_t time, uint8_t s_value);
     void SetFan(uint8_t index, uint8_t s_value);
     float GetTemp(uint8_t hotendindex) { return temp_hotend[hotendindex]; }
   #endif
