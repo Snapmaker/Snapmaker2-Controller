@@ -435,6 +435,15 @@ void do_blocking_move_to_z(const float &rz, const float &fr_mm_s/*=0.0*/) {
 void do_blocking_move_to_xy(const float &rx, const float &ry, const float &fr_mm_s/*=0.0*/) {
   do_blocking_move_to(rx, ry, current_position[Z_AXIS], fr_mm_s);
 }
+void do_blocking_move_to_logical_x(const float &rx, const float &fr_mm_s/*=0.0*/) {
+  do_blocking_move_to(RAW_X_POSITION(rx), current_position[Y_AXIS], current_position[Z_AXIS], fr_mm_s);
+}
+void do_blocking_move_to_logical_z(const float &rz, const float &fr_mm_s/*=0.0*/) {
+  do_blocking_move_to(current_position[X_AXIS], current_position[Y_AXIS], RAW_Z_POSITION(rz), fr_mm_s);
+}
+void do_blocking_move_to_logical_xy(const float &rx, const float &ry, const float &fr_mm_s/*=0.0*/) {
+  do_blocking_move_to(RAW_X_POSITION(rx), RAW_Y_POSITION(ry), current_position[Z_AXIS], fr_mm_s);
+}
 
 //
 // Prepare to do endstop or probe moves with custom feedrates.
@@ -1427,7 +1436,7 @@ void homeaxis(const AxisEnum axis) {
   #else
     maxlen = 1.5f * max_length(axis);
   #endif
-  SERIAL_ECHOPAIR("Axis:", axis, " Maxlen:", 1.5f * maxlen * axis_home_dir);
+
   do_homing_move(axis, 1.5f * maxlen * axis_home_dir);
 
   #if HOMING_Z_WITH_PROBE && ENABLED(BLTOUCH)
