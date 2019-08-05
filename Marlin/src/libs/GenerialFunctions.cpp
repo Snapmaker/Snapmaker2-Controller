@@ -80,6 +80,9 @@ int CNCRpmReport(uint8_t *pBuff) {
 }
 
 int LaserFocusReport(uint8_t *pBuff) {
+  uint16_t u16Value;
+  u16Value = ((uint8_t)pBuff[0] << 8) | pBuff[1];
+  ExecuterHead.Laser.FocusHeight = (float)u16Value / 1000.0f;
   return 0;
 }
 

@@ -102,7 +102,7 @@ void HMI_SC20::PackedProtocal(char * pData, uint16_t len)
   //校验
   checksum = 0;
   for (j = 8; j < (i - 1); j = j + 2) checksum += (uint32_t) (((uint8_t) SendBuff[j] << 8) | (uint8_t) SendBuff[j + 1]);
-  if ((i - 8) % 2) checksum += SendBuff[i - 1];
+  if ((i - 8) % 2) checksum += (uint8_t)SendBuff[i - 1];
   while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
   checksum = ~checksum;
   SendBuff[6] = checksum >> 8;
@@ -1168,9 +1168,14 @@ void HMI_SC20::PollingCommand(void)
         //设置激光Z  轴高度
         case 11:
           ExecuterHead.Laser.SetLaserPower(0.0f);
-          ExecuterHead.Laser.SaveFocusHeight(current_position[Z_AXIS]);
-          ExecuterHead.Laser.LoadFocusHeight();
-          MarkNeedReack(0);
+          if(current_position[Z_AXIS] > 65) {
+            MarkNeedReack(1);
+          }
+          else {
+            ExecuterHead.Laser.SaveFocusHeight(current_position[Z_AXIS]);
+            ExecuterHead.Laser.LoadFocusHeight();
+            MarkNeedReack(0);
+          }
           break;
 
         //激光焦点粗调
@@ -1647,16 +1652,16 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = 0x01;
 
   //坐标
-  fValue = stepper.position(X_AXIS) *planner.steps_to_mm[X_AXIS];
+  fValue = LOGICAL_X_POSITION(stepper.position(X_AXIS) * planner.steps_to_mm[X_AXIS]);
+  u32Value = u32Value = (uint32_t) (fValue * 1000);
+  BITS32_TO_BYTES(u32Value, tmpBuff, i);
+  fValue = LOGICAL_Y_POSITION(stepper.position(Y_AXIS) * planner.steps_to_mm[Y_AXIS]);
   u32Value = (uint32_t) (fValue * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
-  fValue = stepper.position(Y_AXIS) *planner.steps_to_mm[X_AXIS];
+  fValue = LOGICAL_Z_POSITION(stepper.position(Z_AXIS) * planner.steps_to_mm[Z_AXIS]);
   u32Value = (uint32_t) (fValue * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
-  fValue = stepper.position(Z_AXIS) *planner.steps_to_mm[X_AXIS];
-  u32Value = (uint32_t) (fValue * 1000);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
-  fValue = stepper.position(E_AXIS) *planner.steps_to_mm[X_AXIS];
+  fValue = stepper.position(E_AXIS) *planner.steps_to_mm[E_AXIS];
   u32Value = (uint32_t) (fValue * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
 
