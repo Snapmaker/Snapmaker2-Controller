@@ -60,7 +60,7 @@ public:
   void SetCurrentPrinterStatus(uint8_t newstatus);
   uint8_t GetPeriphDeviceStatus();
   void ClearSystemFaultBit(uint32_t BitsToClear);
-  void SetSystemFaultBit(uint32_t BitsToClear);
+  void SetSystemFaultBit(uint32_t BitsToSet);
   bool PauseTriggle(PausePrintType type);
   bool StopTriggle(StopPrintType type);
   void PauseProcess();

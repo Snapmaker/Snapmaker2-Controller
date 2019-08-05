@@ -4,6 +4,7 @@
 #include "../module/temperature.h"
 #include "../module/configuration_store.h"
 #include "CNCExecuter.h"
+#include "StatusControl.h"
 #include "CanBus.h"
 
 /**
@@ -56,6 +57,20 @@ void PrintExecuter::EStepperInit()
   #endif
 
   SET_OUTPUT(E0_STEP_PIN);
+}
+
+/**
+ * HeatedBedSelfCheck:Check if the heatedbed is OK
+ * return : true if OK, or else false
+ */
+bool PrintExecuter::HeatedBedSelfCheck(void) {
+  millis_t tmptick;
+  SET_INPUT_PULLUP(HEATEDBED_ON_PIN);
+  tmptick = millis() + 10;
+  while(tmptick > millis());
+  if(READ(HEATEDBED_ON_PIN) == LOW) {
+    SystemStatus.SetSystemFaultBit(FAULT_FLAG_BED);
+  }
 }
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)

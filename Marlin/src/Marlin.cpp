@@ -1181,18 +1181,6 @@ void setup() {
     else SERIAL_ECHOLN("Screen Plugged!");
   #endif
 
-  millis_t tmptick;
-  tmptick = millis() + 500;
-  while(tmptick > millis());
-
-  #if PIN_EXISTS(POWER1_SUPPLY)
-    OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
-  #endif
-
-  #if PIN_EXISTS(POWER2_SUPPLY)
-    OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
-  #endif
-
   BreathLightInit();
 }
 
@@ -1202,10 +1190,15 @@ void setup() {
 void CheckUpdateFlag(void)
 {
   uint32_t Address;
-  FLASH_Unlock();
+  uint32_t Flag;
   Address = FLASH_UPDATE_CONTENT_INFO;
-  FLASH_ErasePage(Address);
-  FLASH_Lock();
+  Flag = *((uint32_t*)Address);
+  if(Flag != 0xffffffff)
+  {
+    FLASH_Unlock();  
+    FLASH_ErasePage(Address);
+    FLASH_Lock();
+  }
 }
 
 /**
@@ -1225,7 +1218,6 @@ void CheckAppValidFlag(void)
   }
 }
 
-
 /**
  * The main Marlin program loop
  *
@@ -1244,7 +1236,6 @@ void loop() {
   tmptick = millis() + 4000;
   while(tmptick > millis());
   ExecuterHead.Init();
-  CanBusControlor.Init();
   CanModules.Init();
   CheckUpdateFlag();
   CheckAppValidFlag();

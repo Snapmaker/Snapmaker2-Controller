@@ -139,6 +139,12 @@ enum BoardVer {
 //
 #define POWER_DETECT_PIN PE0
 #define POWER_LOSS_STATE LOW
+
+//
+// Heatedbed error detect pin
+//
+#define HEATEDBED_ON_PIN  PD13
+
 //
 // LCD Pins
 //

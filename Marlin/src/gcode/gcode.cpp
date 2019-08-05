@@ -168,14 +168,7 @@ void GcodeSuite::dwell(millis_t time) {
   extern void M100_dump_routine(PGM_P const title, const char *start, const char *end);
 #endif
 
-/**
- * Process the parsed command and dispatch it to its handler
- */
-void GcodeSuite::process_parsed_command(
-  #if USE_EXECUTE_COMMANDS_IMMEDIATE
-    const bool no_ok
-  #endif
-) {
+void GcodeSuite::execute_command(void) {
   KEEPALIVE_STATE(IN_HANDLER);
 
   // Handle a known G, M, or T
@@ -765,6 +758,18 @@ void GcodeSuite::process_parsed_command(
   }
 
   KEEPALIVE_STATE(NOT_BUSY);
+}
+
+/**
+ * Process the parsed command and dispatch it to its handler
+ */
+void GcodeSuite::process_parsed_command(
+  #if USE_EXECUTE_COMMANDS_IMMEDIATE
+    const bool no_ok
+  #endif
+) {
+
+  execute_command();
 
   #if USE_EXECUTE_COMMANDS_IMMEDIATE
     if (!no_ok)

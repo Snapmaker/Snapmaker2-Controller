@@ -689,7 +689,7 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
   float nx = rx, ny = ry;
   SERIAL_ECHOLNPAIR("ProbeX:", rx, " ProbeY:", ry, "Avtive:", probe_relative);
   if (probe_relative) {
-    if (!position_is_reachable_by_probe(rx, ry)) { SERIAL_ECHOLN("Error1"); return NAN;}  // The given position is in terms of the probe
+    if (!position_is_reachable_by_probe(rx, ry)) { return NAN;}  // The given position is in terms of the probe
     nx -= (X_PROBE_OFFSET_FROM_EXTRUDER);                     // Get the nozzle position
     ny -= (Y_PROBE_OFFSET_FROM_EXTRUDER);
   }

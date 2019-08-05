@@ -43,6 +43,28 @@ bool ExecuterManager::Detecte()
     Data[0] = (uint8_t)(temperature >> 8);
     Data[1] = (uint8_t)temperature;
     CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_TEMPEARTURE, Data, 2);
+    if(temperature > 60)
+      SetFan(1, 255);
+    else
+      SetFan(1, 0);
+  }
+
+  /**
+   * SetFanDelayOff:
+   * para index:executer index
+   * para time:time to delay in second
+   * percent:fan speed in percent
+   */
+  void ExecuterManager::SetFanDelayOff(uint8_t index, uint8_t time, uint8_t s_value)
+  {
+    uint8_t Data[8];
+
+    Data[0] = 0;
+    Data[1] = time;
+    Data[2] = s_value;
+    FanSpeed[index] = s_value;
+    if(index == 0) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 3);
+    else if(index == 1) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 3);
   }
 
   /**
