@@ -46,6 +46,7 @@ class HMILong
   void HmiWriteData(char *pData, uint16_t len);
   short HmiGetCommand(void);
   public:
+  uint8_t HmiRequestStatus;
 
   private:
   const uint32_t TemperatureLable[3] = {LABEL_TEMP_HEART0, LABEL_TEMP_BED};

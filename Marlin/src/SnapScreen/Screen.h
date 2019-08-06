@@ -11,7 +11,9 @@ class HMIScreen
     public:
     HMIScreen(){}
     void Init(void);
-    void CommandProcess(void);    
+    void CommandProcess(void);
+    uint8_t GetRequestStatus(void);
+    void ClearRequestStatus();
     #if ENABLED(HMI_SC20W)  
       void SendMachineStatusChange(uint8_t, uint8_t);
       void SendMachineFaultFlag();
@@ -38,7 +40,6 @@ class HMIScreen
     uint32_t ScreenLockTick;
     bool ScreenLock;
     uint8_t CalibrateMethod;
-    uint8_t RequestStatus;
     
 };
 

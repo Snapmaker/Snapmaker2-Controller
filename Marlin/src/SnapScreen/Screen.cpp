@@ -40,9 +40,7 @@ void HMIScreen::CommandProcess(void)
  */
 void HMIScreen::ChangePage(uint8_t Page)
 {
-  #if ENABLED(HMI_LONG)
-    LongHMI.ChangePage(Page);
-  #endif
+  LongHMI.ChangePage(Page);
 }
 
 /**
@@ -50,9 +48,15 @@ void HMIScreen::ChangePage(uint8_t Page)
  */
 void HMIScreen::Show(void)
 {
-  #if ENABLED(HMI_LONG)
-    LongHMI.Show();
-  #endif
+  LongHMI.Show();
+}
+
+uint8_t HMIScreen::GetRequestStatus() {
+  return LongHMI.HmiRequestStatus;
+}
+
+void HMIScreen::ClearRequestStatus() {
+  LongHMI.HmiRequestStatus = STAT_IDLE;
 }
 
 #endif
@@ -79,6 +83,16 @@ void HMIScreen::SendMachineStatusChange(uint8_t Status, uint8_t Result) {
 void HMIScreen::SendUpdateComplete(uint8_t Type) {
   SC20HMI.SendUpdateComplete(Type);
 }
+
+uint8_t HMIScreen::GetRequestStatus() {
+  return SC20HMI.HmiRequestStatus;
+}
+
+void HMIScreen::ClearRequestStatus() {
+  SC20HMI.HmiRequestStatus = STAT_IDLE;
+}
+
+
 #endif
 
 

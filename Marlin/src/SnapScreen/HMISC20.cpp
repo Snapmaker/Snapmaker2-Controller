@@ -473,6 +473,66 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   process_cmd_imd("M107 P0");
 }
 
+/**
+ * DrawLaserCalibrateShape
+ */
+bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count) {
+  int i;
+  float next_x, next_y, next_z;
+  float line_space;
+  float line_len_short, line_len_long;
+
+  line_space = 2;
+  line_len_short = 5;
+  line_len_long = 10;
+  next_x = StartX;
+  next_y = StartY;
+  next_z = StartZ - ((float)Count / 2.0 * Z_Increase);
+
+  if(next_z <= 5)
+    return false;
+  
+  // Move to next Z
+  do_blocking_move_to_logical_z(next_z, 20.0f);
+  
+  i = 0;
+
+  // Fan On
+  process_cmd_imd("M106 P0 S255");
+  
+  // Draw 10 square
+  do {
+    // Move to the start point
+    do_blocking_move_to_logical_xy(next_x, next_y, 50.0f);
+    
+    // Laser on
+    ExecuterHead.Laser.SetLaserPower(100.0f);
+
+    // Draw Line
+    if((i % 5) == 0)
+      do_blocking_move_to_logical_xy(next_x, current_position[Y_AXIS] + line_len_long, 3.0f);
+    else
+      do_blocking_move_to_logical_xy(next_x, current_position[Y_AXIS] + line_len_short, 3.0f);
+    
+    // Laser off
+    ExecuterHead.Laser.SetLaserPower(0.0f);
+
+    // Move up 1mm
+    do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
+
+    next_x = next_x + line_space;
+    i++;
+  }while(i < Count);
+  
+  // Fan Off
+  process_cmd_imd("M107 P0");
+  
+  // Move to the center
+  do_blocking_move_to_logical_xy(StartX, StartY, 50.0f);
+  return true;
+}
+
+
 /********************************************************
 激光画方框
 *********************************************************/
@@ -855,12 +915,17 @@ void HMI_SC20::PollingCommand(void)
           SystemStatus.ClearSystemFaultBit(FAULT_FLAG_FILAMENT);
           HmiRequestStatus = STAT_RUNNING;
         }
+        if(Result == E_SUCCESS)
+          SendMachineStatusChange(StatuID, 0);
+        else
+          SendMachineStatusChange(StatuID, 1);
       }
 
       //停止
       else if (StatuID == 0x06) {
         //不在待机状态
         if (CurStatus != STAT_IDLE) {
+          HmiRequestStatus = STAT_PAUSE_ONLINE;
           //上位机停止分2  种，立即停止
           SystemStatus.StopTriggle(ManualStop);
 
@@ -1194,10 +1259,21 @@ void HMI_SC20::PollingCommand(void)
           }
           break;
 
-        //激光细调
+        // Laser draw square
         case 13:
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
             DrawLaserCalibrateShape();
+            MarkNeedReack(0);
+          }
+          else {
+            MarkNeedReack(1);
+          }
+          break;
+
+        // Laser draw ruler
+        case 14:
+          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+            DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.1f, 21);
             MarkNeedReack(0);
           }
           else {
@@ -1653,7 +1729,7 @@ void HMI_SC20::SendMachineStatus()
 
   //坐标
   fValue = LOGICAL_X_POSITION(stepper.position(X_AXIS) * planner.steps_to_mm[X_AXIS]);
-  u32Value = u32Value = (uint32_t) (fValue * 1000);
+  u32Value = (uint32_t) (fValue * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
   fValue = LOGICAL_Y_POSITION(stepper.position(Y_AXIS) * planner.steps_to_mm[Y_AXIS]);
   u32Value = (uint32_t) (fValue * 1000);

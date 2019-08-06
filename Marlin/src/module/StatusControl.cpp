@@ -218,12 +218,12 @@ void StatusControl::PauseProcess()
       }
 
 			//回应上位机
-			if((HMI.RequestStatus == STAT_PAUSE) || (HMI.RequestStatus == STAT_PAUSE_ONLINE))
+			if((HMI.GetRequestStatus() == STAT_PAUSE) || (HMI.GetRequestStatus() == STAT_PAUSE_ONLINE))
 			{
 				HMI.SendMachineStatusChange(0x04, 0);
 			}
-			//清除标志
-			HMI.RequestStatus = STAT_IDLE;
+			// Clear HmiRequestStat to STAT_IDLE
+			HMI.ClearRequestStatus();
 
 			//清除标置
 			PauseType = NonePause;
@@ -268,11 +268,11 @@ void StatusControl::StopProcess()
       }
 
 			//回应上位机
-			if((HMI.RequestStatus == STAT_PAUSE) || (HMI.RequestStatus == STAT_PAUSE_ONLINE)) {
-				HMI.SendMachineStatusChange(0x04, 0);
+			if((HMI.GetRequestStatus() == STAT_PAUSE) || (HMI.GetRequestStatus() == STAT_PAUSE_ONLINE)) {
+				HMI.SendMachineStatusChange(0x06, 0);
 			}
-			//清除标志
-			HMI.RequestStatus = STAT_IDLE;
+			// Clear HmiRequestStat to STAT_IDLE
+			HMI.ClearRequestStatus();
 
 			//清除标置
 			PauseType = NonePause;
@@ -353,10 +353,7 @@ void inline StatusControl::resume_laser(void) {
  */
 ErrCode StatusControl::PauseResume()
 {
-  if (TriggleStat != TRIGGLE_STAT_RESUME)
-    return E_INVALID_STATE;
-
-  if (CurrentStatus != STAT_PAUSE_ONLINE || CurrentStatus != STAT_PAUSE)
+  if ((CurrentStatus != STAT_PAUSE_ONLINE) && (CurrentStatus != STAT_PAUSE))
     return E_INVALID_STATE;
 
   TriggleStat = TRIGGLE_STAT_IDLE;

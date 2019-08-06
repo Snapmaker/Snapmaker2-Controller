@@ -55,6 +55,7 @@ private:
   void SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result);
   void LaserCoarseCalibrate(float X, float Y, float Z);
   void DrawLaserCalibrateShape();
+  bool DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count);
   void MovementProcess(float X, float Y, float Z, uint8_t Option);
 
 public:
