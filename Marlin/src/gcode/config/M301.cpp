@@ -69,6 +69,9 @@ void GcodeSuite::M301() {
       SERIAL_ECHOPAIR(" c:", PID_PARAM(Kc, e));
     #endif
     SERIAL_EOL();
+    ExecuterHead.Print3D.SetPID(0, PID_PARAM(Kp, e));
+    ExecuterHead.Print3D.SetPID(1, PID_PARAM(Ki, e));
+    ExecuterHead.Print3D.SetPID(2, PID_PARAM(Kd, e));
   }
   else
     SERIAL_ERROR_MSG(MSG_INVALID_EXTRUDER);

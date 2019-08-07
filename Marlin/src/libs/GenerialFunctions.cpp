@@ -70,7 +70,7 @@ static void FilamentSensorReport(uint8_t *pBuff, enum EndstopEnum filament_num) 
 
 int FilamentSensor1Report(uint8_t *pBuff) {
   FilamentSensorReport(pBuff, FILAMENT1);
-  SERIAL_ECHOLNPAIR("runout1: 0x", Value8BitToString(pBuff[0]), "time: ",millis());
+  //SERIAL_ECHOLNPAIR("runout1: 0x", Value8BitToString(pBuff[0]), "time: ",millis());
   return 0;
 }
 
