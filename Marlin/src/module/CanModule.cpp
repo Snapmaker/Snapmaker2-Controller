@@ -669,6 +669,60 @@ void CanModule::PrepareExtendModules(void) {
 }
 
 /**
+ * GetFirmwareVersion:Get the firmware version of the specific module
+ * para CanNum:The Can port of the Module
+ * para MacID:The MacID of the Module
+ * para pVersion:The pointer to save the version
+ * return:True for success, or else false
+ */
+bool CanModule::GetFirmwareVersion(uint8_t CanNum, uint32 MacID, char* pVersion) {
+  int i;
+  uint16_t datalen;
+  millis_t tmptick;
+  SendBuff[0] = CMD_T_REQUEST_FIRMWARE;
+  SendBuff[1] = 0;
+  CanBusControlor.SendLongData(BASIC_CAN_NUM, MacID, SendBuff, 2);
+  tmptick = millis() + 1500;
+  while(tmptick > millis()) {
+    datalen = CanBusControlor.ProcessLongPacks(RecvBuff, 128);
+    if(datalen >= 4) {
+      if(RecvBuff[0] == CMD_R_REPORT_FIRMWARE) {
+        for(i=0;(i<32) && (i<(datalen-2));i++) {
+          pVersion[i] = RecvBuff[2 + i];
+          if(pVersion[i] == 0)
+            break;
+        }
+        pVersion[i] = 0;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * EnumFirmwareVersion:Enum the firmware version of the modules on the CAN bus
+ * para ReportToScreen:True for reporting to the screen
+ * para ReportToPC:True for reporting to the PC
+ */
+void CanModule::EnumFirmwareVersion(bool ReportToScreen, bool ReportToPC) {
+  char Version[32];
+  uint32_t ID;
+  if((ReportToPC == false) && (ReportToScreen == false))
+    return;
+
+  for(int i=0;i<CanBusControlor.ModuleCount;i++) {
+    ID = CanBusControlor.ModuleMacList[i];
+    if(GetFirmwareVersion(BASIC_CAN_NUM, ID, Version) == true) {
+      if(ReportToPC == true)
+        SERIAL_ECHOPAIR("MAC:", Value32BitToString(ID), " Version", Version);
+      if(ReportToScreen == true)
+        HMI.SendModuleVersion(ID, Version);
+    }
+  }
+}
+
+/**
  *LoadUpdateData:Load update data from flash
  *para Packindex:
  *para pData:The point to the buff 

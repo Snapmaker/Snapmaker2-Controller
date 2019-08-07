@@ -23,6 +23,8 @@ public:
   bool UpdateModule(uint8_t CanNum, uint32_t ID, char *Version, uint32_t Flag);
   void UpdateProcess(void);
   uint8_t GetUpdateStatus() {return UpdateStatus;}
+  bool GetFirmwareVersion(uint8_t CanNum, uint32 MacID, char* pVersion);
+  void EnumFirmwareVersion(bool ReportToScreen, bool ReportToPC);
   
   int UpdateEndstops(uint8_t *pBuff);
   int UpdateTemperature(uint8_t *pBuff);

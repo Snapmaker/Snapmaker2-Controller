@@ -228,12 +228,13 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
 /********************************************************
 请求固件版本信息
 *********************************************************/
-void HMI_SC20::RequestFirmwareVersion(void)
+void HMI_SC20::RequestFirmwareVersion()
 {
   uint32_t Address;
   uint16_t i;
   char Version[33];
 
+  //Request controller's firmware version
   Address = FLASH_BOOT_PARA + 2048;
   for(i=0;i<32;i++)
     Version[i] = *((char*)Address++);
@@ -247,7 +248,6 @@ void HMI_SC20::RequestFirmwareVersion(void)
     tmpBuff[i++] = Version[j];
     if(Version[j] == 0) break;
   }
-  SERIAL_ECHOLN((char*)&tmpBuff[2]);
   PackedProtocal(tmpBuff, i);
 }
 
@@ -712,6 +712,30 @@ void HMI_SC20::ResizeMachine(char * pBuff)
   //保存数据
   settings.save();
 }
+
+ /**
+ * ReportModuleFirmwareVersion:Send module firmware version to SC20
+ */
+void HMI_SC20::ReportModuleFirmwareVersion(uint32_t ID, char *pVersion) {
+  uint16_t i;
+  
+  i = 0;
+
+  tmpBuff[i++] = 0xAA;
+  tmpBuff[i++] = 7;
+  tmpBuff[i++] = (uint8_t)(ID >> 24);
+  tmpBuff[i++] = (uint8_t)(ID >> 16);
+  tmpBuff[i++] = (uint8_t)(ID >> 8);
+  tmpBuff[i++] = (uint8_t)(ID);
+  
+  for(int j=0;j<32;j++) {
+    tmpBuff[i++] = pVersion[j];
+    if(pVersion[j] == 0) break;
+  }
+  PackedProtocal(tmpBuff, i);
+
+}
+
 
 void HMI_SC20::PollingCommand(void)
 {
@@ -1232,12 +1256,15 @@ void HMI_SC20::PollingCommand(void)
 
         //设置激光Z  轴高度
         case 11:
+          j = 10;
+          BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
           ExecuterHead.Laser.SetLaserPower(0.0f);
-          if(current_position[Z_AXIS] > 65) {
+          fZ = (float)int32Value / 1000.0f;
+          if(fZ > 65) {
             MarkNeedReack(1);
           }
           else {
-            ExecuterHead.Laser.SaveFocusHeight(current_position[Z_AXIS]);
+            ExecuterHead.Laser.SaveFocusHeight(fZ);
             ExecuterHead.Laser.LoadFocusHeight();
             MarkNeedReack(0);
           }
@@ -1417,6 +1444,11 @@ void HMI_SC20::PollingCommand(void)
         //查询升级状态
         case 5:
           SendUpdateStatus(CanModules.GetUpdateStatus());
+          break;
+
+        //查询模块
+        case 7:
+          CanModules.EnumFirmwareVersion(true, false);
           break;
       }
     }

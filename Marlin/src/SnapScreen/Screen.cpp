@@ -33,6 +33,12 @@ void HMIScreen::CommandProcess(void)
   #endif
 }
 
+void HMIScreen::SendModuleVersion(uint32_t MacID, char *pVersion) {
+  #if ENABLED(HMI_SC20W)
+    SC20HMI.ReportModuleFirmwareVersion(MacID, pVersion);
+  #endif
+}
+
 #if ENABLED(HMI_LONG)
 /**
  * ChangePage:Change page

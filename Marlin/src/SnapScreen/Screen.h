@@ -14,6 +14,7 @@ class HMIScreen
     void CommandProcess(void);
     uint8_t GetRequestStatus(void);
     void ClearRequestStatus();
+    void SendModuleVersion(uint32_t MacID, char *pVersion);
     #if ENABLED(HMI_SC20W)  
       void SendMachineStatusChange(uint8_t, uint8_t);
       void SendMachineFaultFlag();
