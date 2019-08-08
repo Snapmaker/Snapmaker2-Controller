@@ -56,17 +56,17 @@ void LaserExecuter::SetLaserPower(uint16_t PwmValue)
 }
 
 /**
- * LaserOff:Laser off without changing the power
+ * Off:Laser off without changing the power
  */
-void LaserExecuter::LaserOff()
+void LaserExecuter::Off()
 {
   TimSetPwm(0);
 }
 
 /**
- * LaserOn:Laser on and use the last power
+ * On:Laser on and use the last power
  */
-void LaserExecuter::LaserOn()
+void LaserExecuter::On()
 {
   SetLaserPower(LastPercent);
 }

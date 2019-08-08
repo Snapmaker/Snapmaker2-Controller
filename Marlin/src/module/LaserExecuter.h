@@ -18,8 +18,8 @@ public:
   void SetLaserPower(float Percent);
   void SetLaserPower(uint16_t PwmValue);
   void SetLaserLowPower();
-  void LaserOff();
-  void LaserOn();
+  void Off();
+  void On();
   void SavePlatformHeight(float height);
   void LoadPlatformHeight();
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)

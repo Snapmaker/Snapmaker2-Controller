@@ -10,9 +10,11 @@ public:
   void Init();
   void SetCNCRPM(uint16_t RPMValue);
   void SetCNCPower(float Percent);
+  void On();
+  void Off();
 
 public:
-  uint8_t Percent;
+  float percent;
   uint16_t RPM;
 
 };
