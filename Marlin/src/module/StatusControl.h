@@ -58,6 +58,7 @@ public:
   void Init();
   uint8_t GetCurrentPrinterStatus();
   uint32_t GetSystemFault();
+  void CheckFatalError();
   void SetCurrentPrinterStatus(uint8_t newstatus);
   uint8_t GetPeriphDeviceStatus();
   void ClearSystemFaultBit(uint32_t BitsToClear);

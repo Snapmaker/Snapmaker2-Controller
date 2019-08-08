@@ -33,6 +33,25 @@ void StatusControl::Init()
 }
 
 /**
+ *  CheckFatalError:Check if the machine have fatal error
+ */
+void StatusControl::CheckFatalError() {
+  uint32_t Flag = FAULT_FLAG_BED | FAULT_FLAG_HEATER0 | FAULT_FLAG_LOAD;
+  if((Flag & FaultFlag) != 0) {
+    #if PIN_EXISTS(POWER2_SUPPLY)
+      OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
+    #endif
+    #if PIN_EXISTS(POWER1_SUPPLY)
+      OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
+    #endif
+    while(1) {
+      HMI.CommandProcess();
+    }
+  }
+}
+
+
+/**
  * InterruptAllCommand:Clean all motion and actions
  */
 void StatusControl::InterruptAllCommand()
