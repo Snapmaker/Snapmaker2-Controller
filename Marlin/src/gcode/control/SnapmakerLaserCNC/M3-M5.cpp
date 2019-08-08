@@ -82,7 +82,7 @@ void GcodeSuite::M3_M4(const bool is_M4) {
     }
   }
   else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-    if(parser.seen('P')) ExecuterHead.CNC.SetCNCPower(parser.value_ushort());
+    if(parser.seen('P')) ExecuterHead.CNC.SetPower(parser.value_ushort());
     else ExecuterHead.CNC.On();
   }
 

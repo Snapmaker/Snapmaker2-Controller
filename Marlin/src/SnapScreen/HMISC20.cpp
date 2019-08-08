@@ -1803,16 +1803,19 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = 0;
 
   //LaserPower
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.Laser.LastPercent);
+  uint32_t LaserPower = ExecuterHead.Laser.GetPower();
+  tmpBuff[i++] = (uint8_t)(LaserPower >> 24);
+  tmpBuff[i++] = (uint8_t)(LaserPower >> 16);
+  tmpBuff[i++] = (uint8_t)(LaserPower >> 8);
+  tmpBuff[i++] = (uint8_t)(LaserPower);
 
   //RPM
+  uint16_t RPM;
+  RPM = ExecuterHead.CNC.GetRPM();
   tmpBuff[i++] = 0;
   tmpBuff[i++] = 0;
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.CNC.RPM >> 8);
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.CNC.RPM);
+  tmpBuff[i++] = (uint8_t) (RPM >> 8);
+  tmpBuff[i++] = (uint8_t) (RPM);
 
   //打印机状态
   j = SystemStatus.GetCurrentPrinterStatus();
@@ -1828,8 +1831,8 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = ExecuterHead.MachineType;
 
   //CNC  转速
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.CNC.RPM >> 8);
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.CNC.RPM);
+  tmpBuff[i++] = (uint8_t) (RPM >> 8);
+  tmpBuff[i++] = (uint8_t) (RPM);
   PackedProtocal(tmpBuff, i);
 }
 

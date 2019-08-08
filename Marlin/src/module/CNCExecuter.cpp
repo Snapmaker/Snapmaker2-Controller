@@ -17,24 +17,25 @@ void CNCExecuter::Init() {
 }
 
 /**
- * SetCNCPower:Set CNC RPM
- * para RPMValue:Real RPM Value,between 6000 ~ 12000
- */
-void CNCExecuter::SetCNCRPM(uint16_t RPMValue) {
-  
-}
-
-/**
  * SetCNCPower:Set CNC power
  * para percent:Only Support 50-100 int
  */
-void CNCExecuter::SetCNCPower(float Percent) {
+void CNCExecuter::SetPower(float Percent) {
   uint8_t Data[2];
   if(Percent < 50)
     Percent = 0;
   percent = Percent;
   Data[0] = Percent;
   CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_MOTOR_SPEED, Data, 1);
+}
+
+/**
+ * UpdateRPM:Update the RPM
+ * para NewRPM:New rpm got
+ */
+void CNCExecuter::UpdateWorkingRPM(uint16_t NewRPM)
+{
+  RPM = NewRPM;
 }
 
 /**

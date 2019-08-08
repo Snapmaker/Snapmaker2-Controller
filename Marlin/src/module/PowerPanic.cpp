@@ -1017,7 +1017,7 @@ void PowerPanic::towardStopPoint(void) {
 
   case MACHINE_TYPE_CNC:
     //关闭电机
-    ExecuterHead.CNC.SetCNCPower(0);
+    ExecuterHead.CNC.SetPower(0);
 
     move_to_limited_z(current_position[Z_AXIS] + 30, 10);
     while(planner.movesplanned()) {

@@ -39,7 +39,7 @@ void LaserExecuter::SetLaserPower(float Percent)
   int integer;
   float decimal;
   uint16_t pwmvalue;
-  LastPercent = Percent;
+  last_percent = Percent;
   integer = Percent;
   decimal = Percent - integer;
   pwmvalue = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
@@ -68,7 +68,7 @@ void LaserExecuter::Off()
  */
 void LaserExecuter::On()
 {
-  SetLaserPower(LastPercent);
+  SetLaserPower(last_percent);
 }
 
 
@@ -134,22 +134,11 @@ bool LaserExecuter::LoadFocusHeight()
 #endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
 
 /**
- * SavePlatformHeight:Save the focus platform heigh
- *para height:The value of the platform height
+ * UpdateLaserPower:Update the laser power without output to the laser
+ *para NewPower:New power the update
  */
-void LaserExecuter::SavePlatformHeight(float height)
-{
-  PlatformHeight = height;
-  settings.save();
-}
-
-/**
- * LoadPlatformHeight:Load the focus height
- * para height:the height of focus
- */
-void LaserExecuter::LoadPlatformHeight()
-{
-  settings.load();
+void LaserExecuter::UpdateLaserPower(float NewPower) {
+  last_percent = NewPower;
 }
 
 /**

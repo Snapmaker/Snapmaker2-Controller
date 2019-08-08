@@ -75,7 +75,9 @@ int FilamentSensor1Report(uint8_t *pBuff) {
 }
 
 int CNCRpmReport(uint8_t *pBuff) {
-  ExecuterHead.CNC.RPM = (pBuff[0] << 8) | pBuff[1];
+  uint16_t RPM;
+  RPM = (pBuff[0] << 8) | pBuff[1];
+  ExecuterHead.CNC.UpdateWorkingRPM(RPM);
   return 0;
 }
 
