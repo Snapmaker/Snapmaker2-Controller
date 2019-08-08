@@ -58,6 +58,7 @@
 #include "LaserExecuter.h"
 #include "CNCexecuter.h"
 #include "../snap_module/lightbar.h"
+#include "StatusControl.h"
 
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
   #include "../HAL/shared/persistent_store_api.h"
@@ -2031,9 +2032,14 @@ void MarlinSettings::postprocess() {
   }
 
   bool MarlinSettings::load() {
-    if (validate()) return _load();
-    reset();
-    return true;
+    if (validate()) {
+      return _load();
+    }
+    else {
+      SystemStatus.SetSystemFaultBit(FAULT_FLAG_SETTING);
+      reset();
+      return true;
+    }
   }
 
   #if ENABLED(AUTO_BED_LEVELING_UBL)
