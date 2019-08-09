@@ -417,7 +417,7 @@ void disable_all_steppers() {
       if (run_runout_script)
         enqueue_and_echo_commands_P(PSTR(FILAMENT_RUNOUT_SCRIPT));
     #else
-      SystemStatus.PauseTrigger(PAUSE_SOURCE_RUNOUT);
+      SystemStatus.PauseTrigger(TRIGGER_SOURCE_RUNOUT);
     #endif
   }
 

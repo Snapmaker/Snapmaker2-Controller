@@ -86,7 +86,7 @@ void SnapDebug::CmdChecksumError(bool screen) {
 
 // show system debug info
 void SnapDebug::ShowInfo() {
-  Log(SNAP_DEBUG_LEVEL_INFO, "current status: %d\n", SystemStatus.GetCurrentPrinterStatus());
+  Log(SNAP_DEBUG_LEVEL_INFO, "current status: %d\n", SystemStatus.GetCurrentStatus());
   Log(SNAP_DEBUG_LEVEL_INFO, "SC gcode state: %d\n", info.sc_gcode_state);
   Log(SNAP_DEBUG_LEVEL_INFO, "PC gcode state: %d\n", info.pc_gcode_state);
   Log(SNAP_DEBUG_LEVEL_INFO, "SC cmd chksum error count: %u\n", info.screen_cmd_checksum_err);

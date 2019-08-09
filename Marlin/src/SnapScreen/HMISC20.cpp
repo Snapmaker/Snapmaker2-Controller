@@ -863,7 +863,7 @@ void HMI_SC20::PollingCommand(void)
 
       // screen request a pause
       else if (StatuID == 0x04) {
-        err = SystemStatus.PauseTrigger(PAUSE_SOURCE_SC);
+        err = SystemStatus.PauseTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_PAUSE;
           lightbar.set_state(LB_STATE_STANDBY);
@@ -877,7 +877,7 @@ void HMI_SC20::PollingCommand(void)
       // resume work
       else if (StatuID == 0x05) {
         // trigger a resuming, need to ack screen when resume work
-        err = SystemStatus.ResumeTrigger(RESUME_SOURCE_SC);
+        err = SystemStatus.ResumeTrigger(TRIGGER_SOURCE_SC);
         if (err = E_SUCCESS) {
           RequestStatus = HMI_REQ_RESUME;
         }
@@ -892,7 +892,7 @@ void HMI_SC20::PollingCommand(void)
 
       // stop work
       else if (StatuID == 0x06) {
-        err = SystemStatus.StopTrigger(STOP_SOURCE_SC);
+        err = SystemStatus.StopTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_STOP;
           lightbar.set_state(LB_STATE_STANDBY);
@@ -905,7 +905,7 @@ void HMI_SC20::PollingCommand(void)
 
       // finish work
       else if (StatuID == 0x07) {
-        err = SystemStatus.StopTrigger(STOP_SOURCE_FINISH);
+        err = SystemStatus.StopTrigger(TRIGGER_SOURCE_FINISH);
         // make sure we are working
         if (err != SYSTAT_WORK) {
           RequestStatus = HMI_REQ_FINISH;

@@ -17,30 +17,17 @@
 #define FAULT_FLAG_INVALID_PPD        (1<<8)    /* invalid power panic data */
 #define FAULT_FLAG_SETTING            (1<<9)    /* EEPROM settings lost*/
 
-// source for stopping
-enum StopSource : uint8_t {
-	STOP_SOURCE_SC = 0,   // stopped by Screen port
-  STOP_SOURCE_PC,       // stopped by PC port
-	STOP_SOURCE_FINISH,   // finish printing
-  STOP_SOURCE_BUTTON,   // stop by quickstop button
-	STOP_SOURCE_INVALID  
-};
-
-// source for pause
-enum PauseSource : uint8_t {
-  PAUSE_SOURCE_SC,            // paused by screen port
-  PAUSE_SOURCE_PC,            // paused by PC port
-  PAUSE_SOURCE_RUNOUT,        // paused by filament runout
-  PAUSE_SOURCE_DOOR_OPEN,     // paused by door opened
-  PAUSE_SOURCE_LOST_EXECUTOR, // paused by losting executor
-  PAUSE_SOURCE_INVALID
-};
-
-enum ResumeSource : uint8_t {
-  RESUME_SOURCE_PC,         // resume by PC port
-  RESUME_SOURCE_SC,         // resume by screen port
-  RESUME_SOURCE_DOOR_CLOSE, // resume door closed
-  RESUME_SOURCE_INVALID
+enum TriggerSource : uint8_t {
+  TRIGGER_SOURCE_NONE,
+  TRIGGER_SOURCE_SC,              // trigger by screen
+  TRIGGER_SOURCE_PC,              // trigger by PC
+  TRIGGER_SOURCE_RUNOUT,          // trigger by filament runout
+  TRIGGER_SOURCE_DOOR_OPEN,       // trigger by door opened
+  TRIGGER_SOURCE_DOOR_CLOSE,      // trigger by door closed
+  TRIGGER_SOURCE_STOP_BUTTON,     // trigger by emergency button
+  TRIGGER_SOURCE_LOST_EXECUTOR,   // trigger by executor lost
+  TRIGGER_SOURCE_FINISH,          // trigger by job finished
+  TRIGGER_SOURCE_INVALID
 };
 
 // status of system
@@ -95,10 +82,10 @@ public:
 
   void ClearSystemFaultBit(uint32_t BitsToClear);
   void SetSystemFaultBit(uint32_t BitsToSet);
-  ErrCode PauseTrigger(PauseSource type);
-  PauseSource GetPauseSource() { return pause_source_; }
-  ErrCode StopTrigger(StopSource type);
-  ErrCode ResumeTrigger(ResumeSource s);
+  ErrCode PauseTrigger(TriggerSource type);
+  TriggerSource GetPauseSource() { return pause_source_; }
+  ErrCode StopTrigger(TriggerSource type);
+  ErrCode ResumeTrigger(TriggerSource s);
   void Process();
 
   uint8_t MapCurrentStatusForSC();
@@ -135,8 +122,8 @@ public:
 
 private:
   uint8_t TriggleStat;
-  PauseSource pause_source_;  // record latest pause source
-  StopSource stop_type_;
+  TriggerSource pause_source_;  // record latest pause source
+  TriggerSource stop_type_;
   uint32_t fault_flag_;
 
   SysStatus cur_status_;

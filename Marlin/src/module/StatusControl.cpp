@@ -72,7 +72,7 @@ void StatusControl::InterruptAllCommand()
  * PauseTriggle:Triggle the pause
  * return: true if pause triggle success, or false
  */
-ErrCode StatusControl::PauseTrigger(PauseSource type)
+ErrCode StatusControl::PauseTrigger(TriggerSource type)
 {
   ErrCode ret = E_SUCCESS;
   SysStage stage = GetCurrentStage();
@@ -90,16 +90,16 @@ ErrCode StatusControl::PauseTrigger(PauseSource type)
     print_job_timer.pause();
 
     switch (type) {
-    case PAUSE_SOURCE_RUNOUT:
+    case TRIGGER_SOURCE_RUNOUT:
       quickstop.Trigger(QS_EVENT_RUNOUT);
       break;
 
-    case PAUSE_SOURCE_DOOR_OPEN:
+    case TRIGGER_SOURCE_DOOR_OPEN:
       quickstop.Trigger(QS_EVENT_DOOR_OPEN);
       break;
 
-    case PAUSE_SOURCE_SC:
-    case PAUSE_SOURCE_PC:
+    case TRIGGER_SOURCE_SC:
+    case TRIGGER_SOURCE_PC:
       quickstop.Trigger(QS_EVENT_PAUSE);
       break;
     }
@@ -113,18 +113,18 @@ ErrCode StatusControl::PauseTrigger(PauseSource type)
       ExecuterHead.Laser.SetLaserPower(0.0f);
 
     switch(type) {
-      case PAUSE_SOURCE_RUNOUT:
+      case TRIGGER_SOURCE_RUNOUT:
         SetSystemFaultBit(FAULT_FLAG_FILAMENT);
         parser.parse("M412 S0");
         gcode.process_parsed_command();
         HMI.SendMachineFaultFlag();
       break;
 
-      case PAUSE_SOURCE_DOOR_OPEN:
+      case TRIGGER_SOURCE_DOOR_OPEN:
       break;
 
-      case PAUSE_SOURCE_SC:
-      case PAUSE_SOURCE_PC:
+      case TRIGGER_SOURCE_SC:
+      case TRIGGER_SOURCE_PC:
       break;
 
       default:
@@ -143,7 +143,7 @@ ErrCode StatusControl::PauseTrigger(PauseSource type)
  * Triggle the stop
  * return: true if stop triggle success, or false
  */
-ErrCode StatusControl::StopTrigger(StopSource type)
+ErrCode StatusControl::StopTrigger(TriggerSource type)
 {
   SysStage stage = GetCurrentStage();
 
@@ -161,13 +161,13 @@ ErrCode StatusControl::StopTrigger(StopSource type)
   print_job_timer.stop();
 
   switch(type) {
-  case STOP_SOURCE_FINISH:
-  case STOP_SOURCE_PC:
-  case STOP_SOURCE_SC:
+  case TRIGGER_SOURCE_FINISH:
+  case TRIGGER_SOURCE_PC:
+  case TRIGGER_SOURCE_SC:
     quickstop.Trigger(QS_EVENT_STOP);
     break;
 
-  case STOP_SOURCE_BUTTON:
+  case TRIGGER_SOURCE_STOP_BUTTON:
     quickstop.Trigger(QS_EVENT_BUTTON);
     break;
 
@@ -218,7 +218,7 @@ void StatusControl::PauseProcess()
   }
 
   if (HMI.GetRequestStatus() == HMI_REQ_PAUSE) {
-    HMI.SendMachineStatusChange((uint8_t)HMI.RequestStatus(), 0);
+    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
     // clear request flag of HMI
     HMI.ClearRequestStatus();
   }
@@ -235,14 +235,14 @@ void StatusControl::StopProcess()
     return;
 
   // tell Screen we finish stop
-  if (HMI.RequestStatus() == HMI_REQ_STOP || HMI.RequestStatus() == HMI_REQ_FINISH) {
-    HMI.SendMachineStatusChange((uint8_t)HMI.RequestStatus(), 0);
+  if (HMI.GetRequestStatus() == HMI_REQ_STOP || HMI.GetRequestStatus() == HMI_REQ_FINISH) {
+    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
     // clear flag
     HMI.ClearRequestStatus();
   }
 
   // clear stop type because stage will be changed
-  stop_type_ = STOP_SOURCE_INVALID;
+  stop_type_ = TRIGGER_SOURCE_NONE;
 
   cur_status_ = SYSTAT_IDLE;
 }
@@ -349,12 +349,12 @@ void StatusControl::ResumeProcess() {
   // resume stopwatch
   if (print_job_timer.isPaused()) print_job_timer.start();
 
-  if (HMI.RequestStatus() == HMI_REQ_RESUME) {
-    HMI.SendMachineStatusChange((uint8_t)HMI.RequestStatus(), 0);
-    HMI.RequestStatus(HMI_REQ_NONE);
+  if (HMI.GetRequestStatus() == HMI_REQ_RESUME) {
+    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
+    HMI.ClearRequestStatus();
   }
 
-  pause_source_ = PAUSE_SOURCE_INVALID;
+  pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
 
   quickstop.Reset();
@@ -363,23 +363,23 @@ void StatusControl::ResumeProcess() {
 /**
  * trigger resuming from other event
  */
-ErrCode StatusControl::ResumeTrigger(ResumeSource s) {
+ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
   if (cur_status_ != SYSTAT_PAUSE_FINISH)
     return E_INVALID_STATE;
 
   switch (s) {
-  case RESUME_SOURCE_SC:
+  case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
       return E_INVALID_STATE;
     }
     break;
 
-  case RESUME_SOURCE_PC:
+  case TRIGGER_SOURCE_PC:
     if (work_port_ != WORKING_PORT_PC)
       return E_INVALID_STATE;
     break;
     
-  case RESUME_SOURCE_DOOR_CLOSE:
+  case TRIGGER_SOURCE_DOOR_CLOSE:
     break;
     
   default:

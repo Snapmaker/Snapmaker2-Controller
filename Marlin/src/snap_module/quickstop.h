@@ -21,6 +21,7 @@ enum QuickStopEvent : uint8_t {
   QS_EVENT_RUNOUT,          // filament run out
   QS_EVENT_PAUSE,           // screen or PC pause working
   QS_EVENT_STOP,            // screen or PC stop working
+  QS_EVENT_LOST_EXECUTOR,   // executor lost when working
   QS_EVENT_INVALID
 };
 

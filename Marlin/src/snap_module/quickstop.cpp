@@ -188,7 +188,7 @@ void QuickStop::TowardStop() {
       move_to_limited_z(current_position[Z_AXIS] + 30, 10);
 
     while (planner.has_blocks_queued()) {
-      if (!event_ == QS_EVENT_ISR_POWER_LOSS)
+      if (event_ != QS_EVENT_ISR_POWER_LOSS)
         idle();
     }
 

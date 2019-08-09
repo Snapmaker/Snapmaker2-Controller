@@ -1013,7 +1013,7 @@ void CardReader::printingHasFinished() {
     //Mark power panic save data
     PowerPanicData.MaskPowerPanicData();
     //Triggle end print
-    SystemStatus.StopTrigger(STOP_SOURCE_FINISH);
+    SystemStatus.StopTrigger(TRIGGER_SOURCE_FINISH);
   }
 }
 

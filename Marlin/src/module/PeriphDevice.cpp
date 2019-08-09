@@ -17,7 +17,7 @@ PeriphDevice Periph;
  */
 void PeriphDevice::Init()
 {
-  
+  latest_enclosure_event_ = ENCLOSURE_EVENT_NONE;
 }
 
 #if ENABLED(CAN_FAN)
@@ -73,7 +73,7 @@ void PeriphDevice::SetDoorCheck(bool Enable) {
  * para percent:
  */
 void PeriphDevice::StartDoorCheck() {
-  
+
 }
 
 /**
@@ -95,16 +95,34 @@ void PeriphDevice::LatestEnclosureEvent(EnclosureEvent e) {
 #endif //ENABLED(DOOR_SWITCH)
 
 void PeriphDevice::Process() {
+
 #if ENABLED(DOOR_SWITCH)
-  if (SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_FINISH) {
-    // last pause is triggered by door open
-    if (SystemStatus.GetPauseSource() == PAUSE_SOURCE_DOOR_OPEN) {
-      if (latest_enclosure_event_ == ENCLOSURE_EVENT_CLOSE) {
-        if (SystemStatus.ResumeTrigger(RESUME_SOURCE_DOOR_CLOSE) == E_SUCCESS)
-          // if we trigger resume successfully, clear event
-          latest_enclosure_event_ = ENCLOSURE_EVENT_NONE;
-      }
+  if (IOSwitch & PERIPH_IOSW_DOOR) {
+    if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ != ENCLOSURE_EVENT_OPEN)) {
+      SystemStatus.PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
+      latest_enclosure_event_ = ENCLOSURE_EVENT_OPEN;
+    }
+
+    if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ == ENCLOSURE_EVENT_OPEN)
+        && (SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_FINISH)) {
+      // TODO: tell screen we have paused by door opened
+
+      latest_enclosure_event_ = ENCLOSURE_EVENT_OPEN_FINISH;
+    }
+
+    if (!TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ == ENCLOSURE_EVENT_OPEN_FINISH)
+          && SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_FINISH) {
+      if (SystemStatus.ResumeTrigger(TRIGGER_SOURCE_DOOR_CLOSE) == E_SUCCESS)
+        latest_enclosure_event_ = ENCLOSURE_EVENT_CLOSE;
+    }
+
+    if ((latest_enclosure_event_ = ENCLOSURE_EVENT_CLOSE) && (SystemStatus.GetCurrentStatus() == SYSTAT_RESUME_WAITING
+          || SystemStatus.GetCurrentStage() == SYSTAGE_WORK)) {
+      // TODO: tell screen we have finish reuming
+
+      latest_enclosure_event_ = ENCLOSURE_EVENT_NONE;
     }
   }
 #endif
+
 }
