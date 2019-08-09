@@ -26,6 +26,7 @@
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
 #include "../snap_module/lightbar.h"
 #include "../feature/runout.h"
+#include "../snap_module/snap_dbg.h"
 
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
 char tmpBuff[1024];
@@ -211,7 +212,10 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
       if (commandLen % 2) checksum += pBuff[commandLen + 8 - 1];
       while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
       checksum = ~checksum;
-      if ((uint16_t)checksum != (uint16_t) ((pBuff[6] << 8) | pBuff[7])) return (short) - 1;
+      if ((uint16_t)checksum != (uint16_t) ((pBuff[6] << 8) | pBuff[7])) {
+        CmdChecksumError(true);
+        return (short) - 1;
+      }
 
       //_rx_buffer->tail = _rx_buffer->head = 0;
       return commandLen + 8;
@@ -770,7 +774,7 @@ void HMI_SC20::PollingCommand(void)
 
     //GCode  打印
     else if (eventId == EID_FILE_GCODE_REQ) {
-
+      SetGcodeState(GCODE_STATE_RECEIVED);
       //获取当前状态
       CurStatus = SystemStatus.GetCurrentPrinterStatus();
 
@@ -809,6 +813,7 @@ void HMI_SC20::PollingCommand(void)
           tmpBuff[j] = 0;
           Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
         }
+        SetGcodeState(GCODE_STATE_BUFFERED);
       }
     }
 
@@ -832,6 +837,7 @@ void HMI_SC20::PollingCommand(void)
 
       //联机打印
       else if (StatuID == 0x03) {
+        SnapDbg(SNAP_INFO, "receive start work from SC\n");
         //待机状态中
         if (CurStatus == STAT_IDLE) {
           //设置打印状态
@@ -869,6 +875,10 @@ void HMI_SC20::PollingCommand(void)
           HMICommandSave = 1;
 
           lightbar.set_state(LB_STATE_WORKING);
+          SnapDbg(SNAP_INFO, "start working ok!\n");
+        }
+        else {
+          SnapDbg(SNAP_ERROR, "current state is not IDLE\n");
         }
       }
 

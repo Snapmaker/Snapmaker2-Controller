@@ -748,6 +748,8 @@ void GcodeSuite::execute_command(void) {
         case 1000: M1000(); break;                                // M1000: Resume from power-loss
       #endif
 
+      case 2000: M2000(); break;
+
       default: parser.unknown_command_error(); break;
     }
     break;

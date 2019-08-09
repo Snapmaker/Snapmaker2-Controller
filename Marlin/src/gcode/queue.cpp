@@ -34,6 +34,7 @@
 #include "../SnapScreen/Screen.h"
 #include "../Marlin.h"
 #include "../module/StatusControl.h"
+#include "../snap_module/snap_dbg.h"
 
 #if ENABLED(PRINTER_EVENT_LEDS)
   #include "../feature/leds/printer_event_leds.h"
@@ -286,6 +287,7 @@ void ok_to_send() {
   if(Screen_send_ok[cmd_queue_index_r])
   {
     HMI.SendGcode((char*)"ok\r\n", Screen_send_ok_opcode[cmd_queue_index_r]);
+    SetGcodeState(GCODE_STATE_ACKED);
   }
 }
 
