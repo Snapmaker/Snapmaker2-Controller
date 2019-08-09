@@ -18,10 +18,10 @@ public:
   void SetLaserPower(float Percent);
   void SetLaserPower(uint16_t PwmValue);
   void SetLaserLowPower();
-  void LaserOff();
-  void LaserOn();
-  void SavePlatformHeight(float height);
-  void LoadPlatformHeight();
+  void Off();
+  void On();
+  uint32_t GetPower() { return (uint32_t)(last_percent * 1000.0f); };
+  void UpdateLaserPower(float NewPower);
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)
     void SaveFocusHeight(float height);
     void SaveFocusHeight();
@@ -39,12 +39,10 @@ private:
   char GetReply(uint8_t *Buff, millis_t Timeout);
 
 public:
-  float LastPercent;
   float FocusHeight;
-  float PlatformHeight;
   
 private:
-  uint8_t LastSetIndex;
+  float last_percent;
   uint8_t tmpBuff[128];
 };
 

@@ -77,9 +77,13 @@ void GcodeSuite::M3_M4(const bool is_M4) {
     else if(parser.seen('P')) {
       ExecuterHead.Laser.SetLaserPower(parser.value_float());
     }
+    else {
+      ExecuterHead.Laser.On();
+    }
   }
   else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-    if(parser.seen('P')) ExecuterHead.CNC.SetCNCPower(parser.value_ushort());
+    if(parser.seen('P')) ExecuterHead.CNC.SetPower(parser.value_ushort());
+    else ExecuterHead.CNC.On();
   }
 
   
@@ -92,10 +96,10 @@ void GcodeSuite::M5() {
   planner.synchronize();
   //set_spindle_laser_enabled(false);
   if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+    ExecuterHead.Laser.Off();
   }
   else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-    ExecuterHead.CNC.SetCNCPower(0);
+    ExecuterHead.CNC.Off();
   }
 }
 

@@ -33,6 +33,25 @@ void StatusControl::Init()
 }
 
 /**
+ *  CheckFatalError:Check if the machine have fatal error
+ */
+void StatusControl::CheckFatalError() {
+  uint32_t Flag = FAULT_FLAG_BED | FAULT_FLAG_HEATER0 | FAULT_FLAG_LOAD;
+  if((Flag & FaultFlag) != 0) {
+    #if PIN_EXISTS(POWER2_SUPPLY)
+      OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
+    #endif
+    #if PIN_EXISTS(POWER1_SUPPLY)
+      OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
+    #endif
+    while(1) {
+      HMI.CommandProcess();
+    }
+  }
+}
+
+
+/**
  * InterruptAllCommand:Clean all motion and actions
  */
 void StatusControl::InterruptAllCommand()
@@ -218,12 +237,12 @@ void StatusControl::PauseProcess()
       }
 
 			//回应上位机
-			if((HMI.RequestStatus == STAT_PAUSE) || (HMI.RequestStatus == STAT_PAUSE_ONLINE))
+			if((HMI.GetRequestStatus() == STAT_PAUSE) || (HMI.GetRequestStatus() == STAT_PAUSE_ONLINE))
 			{
 				HMI.SendMachineStatusChange(0x04, 0);
 			}
-			//清除标志
-			HMI.RequestStatus = STAT_IDLE;
+			// Clear HmiRequestStat to STAT_IDLE
+			HMI.ClearRequestStatus();
 
 			//清除标置
 			PauseType = NonePause;
@@ -268,11 +287,11 @@ void StatusControl::StopProcess()
       }
 
 			//回应上位机
-			if((HMI.RequestStatus == STAT_PAUSE) || (HMI.RequestStatus == STAT_PAUSE_ONLINE)) {
-				HMI.SendMachineStatusChange(0x04, 0);
+			if((HMI.GetRequestStatus() == STAT_PAUSE) || (HMI.GetRequestStatus() == STAT_PAUSE_ONLINE)) {
+				HMI.SendMachineStatusChange(0x06, 0);
 			}
-			//清除标志
-			HMI.RequestStatus = STAT_IDLE;
+			// Clear HmiRequestStat to STAT_IDLE
+			HMI.ClearRequestStatus();
 
 			//清除标置
 			PauseType = NonePause;
@@ -353,10 +372,7 @@ void inline StatusControl::resume_laser(void) {
  */
 ErrCode StatusControl::PauseResume()
 {
-  if (TriggleStat != TRIGGLE_STAT_RESUME)
-    return E_INVALID_STATE;
-
-  if (CurrentStatus != STAT_PAUSE_ONLINE || CurrentStatus != STAT_PAUSE)
+  if ((CurrentStatus != STAT_PAUSE_ONLINE) && (CurrentStatus != STAT_PAUSE))
     return E_INVALID_STATE;
 
   TriggleStat = TRIGGLE_STAT_IDLE;

@@ -20,6 +20,7 @@
 #define FAULT_FLAG_POWERPANIC	        (1<<6)
 #define FAULT_FLAG_LASER_EEPROM	      (1<<7)
 #define FAULT_FLAG_INVALID_PPD        (1<<8)    /* invalid power panic data */
+#define FAULT_FLAG_SETTING            (1<<9)    /* EEPROM settings lost*/
 
 //终止触发源
 typedef enum
@@ -57,6 +58,7 @@ public:
   void Init();
   uint8_t GetCurrentPrinterStatus();
   uint32_t GetSystemFault();
+  void CheckFatalError();
   void SetCurrentPrinterStatus(uint8_t newstatus);
   uint8_t GetPeriphDeviceStatus();
   void ClearSystemFaultBit(uint32_t BitsToClear);

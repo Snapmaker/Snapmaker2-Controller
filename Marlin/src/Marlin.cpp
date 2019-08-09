@@ -1273,7 +1273,7 @@ void loop() {
   }
   //ExecuterHead.MachineType = MACHINE_TYPE_LASER;
   //ExecuterHead.Laser.Init();
-  
+
   for (;;) {
 
     #if(0)
@@ -1313,6 +1313,7 @@ void loop() {
     endstops.event_handler();
     SystemStatus.StopProcess();
     SystemStatus.PauseProcess();
+    SystemStatus.CheckFatalError();
     idle();
   }
 }

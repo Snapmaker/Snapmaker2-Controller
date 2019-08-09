@@ -36,6 +36,7 @@ public:
   void UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen);
   void StartUpdate(void);
   void RequestFirmwareVersion(void);
+  void ReportModuleFirmwareVersion(uint32_t ID, char *pVersion);
   void CheckFirmwareVersion(char *pNewVersion);
   void PackedProtocal(char *pData, uint16_t len);
 
@@ -55,6 +56,7 @@ private:
   void SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result);
   void LaserCoarseCalibrate(float X, float Y, float Z);
   void DrawLaserCalibrateShape();
+  bool DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count);
   void MovementProcess(float X, float Y, float Z, uint8_t Option);
 
 public:

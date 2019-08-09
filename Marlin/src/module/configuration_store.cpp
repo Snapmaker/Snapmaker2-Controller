@@ -58,6 +58,7 @@
 #include "LaserExecuter.h"
 #include "CNCexecuter.h"
 #include "../snap_module/lightbar.h"
+#include "StatusControl.h"
 
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
   #include "../HAL/shared/persistent_store_api.h"
@@ -288,7 +289,6 @@ typedef struct SettingsDataStruct {
   // Laser
   //
   float LaserPower;
-  float LaserPlatformHeight;
 
   //
   // Software machine resize
@@ -1124,10 +1124,9 @@ void MarlinSettings::postprocess() {
     //
     // Laser
     //
-    _FIELD_TEST(ExecuterHead.Laser.LastPercent);
-    EEPROM_WRITE(ExecuterHead.Laser.LastPercent);
-    _FIELD_TEST(ExecuterHead.Laser.PlatformHeight);
-    EEPROM_WRITE(ExecuterHead.Laser.PlatformHeight);
+    uint32_t LaserPower = ExecuterHead.Laser.GetPower();
+    _FIELD_TEST(LaserPower);
+    EEPROM_WRITE(LaserPower);
 
     //
     // Software machine size
@@ -1886,10 +1885,10 @@ void MarlinSettings::postprocess() {
       //
       // Laser power
       //
-      _FIELD_TEST(ExecuterHead.Laser.LastPercent);
-      EEPROM_READ(ExecuterHead.Laser.LastPercent);
-      _FIELD_TEST(ExecuterHead.Laser.PlatformHeight);
-      EEPROM_READ(ExecuterHead.Laser.PlatformHeight);
+      uint32_t LaserPower;
+      _FIELD_TEST(LaserPower);
+      EEPROM_READ(LaserPower);
+      ExecuterHead.Laser.UpdateLaserPower((float)LaserPower / 1000.0f);
 
       //
       // Software machine size
@@ -2031,9 +2030,14 @@ void MarlinSettings::postprocess() {
   }
 
   bool MarlinSettings::load() {
-    if (validate()) return _load();
-    reset();
-    return true;
+    if (validate()) {
+      return _load();
+    }
+    else {
+      SystemStatus.SetSystemFaultBit(FAULT_FLAG_SETTING);
+      reset();
+      return true;
+    }
   }
 
   #if ENABLED(AUTO_BED_LEVELING_UBL)
@@ -2441,8 +2445,7 @@ void MarlinSettings::reset() {
   //
   // Laser
   //
-  ExecuterHead.Laser.LastPercent = 80;
-  ExecuterHead.Laser.PlatformHeight = 10;
+  ExecuterHead.Laser.UpdateLaserPower(80.0f);
 
   //
   // Software machine size

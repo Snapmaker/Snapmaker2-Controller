@@ -73,6 +73,22 @@ bool PrintExecuter::HeatedBedSelfCheck(void) {
   }
 }
 
+/**
+ * HeatedBedSelfCheck:Check if the heatedbed is OK
+ * return : true if OK, or else false
+ */
+bool PrintExecuter::SetPID(uint8_t Index, float Value) {
+  uint32_t value_multiple1000;
+  uint8_t buff[8];
+  buff[0] = Index;
+  value_multiple1000 = (uint32_t)(Value * 1000.0f);
+  buff[1] = (uint8_t)(value_multiple1000 >> 24);
+  buff[2] = (uint8_t)(value_multiple1000 >> 16);
+  buff[3] = (uint8_t)(value_multiple1000 >> 8);
+  buff[4] = (uint8_t)(value_multiple1000);
+  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_PID, buff, 5);
+}
+
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
 
 /**

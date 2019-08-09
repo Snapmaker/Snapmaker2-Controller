@@ -102,7 +102,7 @@ void HMI_SC20::PackedProtocal(char * pData, uint16_t len)
   //校验
   checksum = 0;
   for (j = 8; j < (i - 1); j = j + 2) checksum += (uint32_t) (((uint8_t) SendBuff[j] << 8) | (uint8_t) SendBuff[j + 1]);
-  if ((i - 8) % 2) checksum += SendBuff[i - 1];
+  if ((i - 8) % 2) checksum += (uint8_t)SendBuff[i - 1];
   while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
   checksum = ~checksum;
   SendBuff[6] = checksum >> 8;
@@ -228,12 +228,13 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
 /********************************************************
 请求固件版本信息
 *********************************************************/
-void HMI_SC20::RequestFirmwareVersion(void)
+void HMI_SC20::RequestFirmwareVersion()
 {
   uint32_t Address;
   uint16_t i;
   char Version[33];
 
+  //Request controller's firmware version
   Address = FLASH_BOOT_PARA + 2048;
   for(i=0;i<32;i++)
     Version[i] = *((char*)Address++);
@@ -247,7 +248,6 @@ void HMI_SC20::RequestFirmwareVersion(void)
     tmpBuff[i++] = Version[j];
     if(Version[j] == 0) break;
   }
-  SERIAL_ECHOLN((char*)&tmpBuff[2]);
   PackedProtocal(tmpBuff, i);
 }
 
@@ -473,6 +473,66 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   process_cmd_imd("M107 P0");
 }
 
+/**
+ * DrawLaserCalibrateShape
+ */
+bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count) {
+  int i;
+  float next_x, next_y, next_z;
+  float line_space;
+  float line_len_short, line_len_long;
+
+  line_space = 2;
+  line_len_short = 5;
+  line_len_long = 10;
+  next_x = StartX;
+  next_y = StartY;
+  next_z = StartZ - ((float)Count / 2.0 * Z_Increase);
+
+  if(next_z <= 5)
+    return false;
+  
+  // Move to next Z
+  do_blocking_move_to_logical_z(next_z, 20.0f);
+  
+  i = 0;
+
+  // Fan On
+  process_cmd_imd("M106 P0 S255");
+  
+  // Draw 10 square
+  do {
+    // Move to the start point
+    do_blocking_move_to_logical_xy(next_x, next_y, 50.0f);
+    
+    // Laser on
+    ExecuterHead.Laser.SetLaserPower(100.0f);
+
+    // Draw Line
+    if((i % 5) == 0)
+      do_blocking_move_to_logical_xy(next_x, current_position[Y_AXIS] + line_len_long, 3.0f);
+    else
+      do_blocking_move_to_logical_xy(next_x, current_position[Y_AXIS] + line_len_short, 3.0f);
+    
+    // Laser off
+    ExecuterHead.Laser.SetLaserPower(0.0f);
+
+    // Move up 1mm
+    do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
+
+    next_x = next_x + line_space;
+    i++;
+  }while(i < Count);
+  
+  // Fan Off
+  process_cmd_imd("M107 P0");
+  
+  // Move to the center
+  do_blocking_move_to_logical_xy(StartX, StartY, 50.0f);
+  return true;
+}
+
+
 /********************************************************
 激光画方框
 *********************************************************/
@@ -652,6 +712,30 @@ void HMI_SC20::ResizeMachine(char * pBuff)
   //保存数据
   settings.save();
 }
+
+ /**
+ * ReportModuleFirmwareVersion:Send module firmware version to SC20
+ */
+void HMI_SC20::ReportModuleFirmwareVersion(uint32_t ID, char *pVersion) {
+  uint16_t i;
+  
+  i = 0;
+
+  tmpBuff[i++] = 0xAA;
+  tmpBuff[i++] = 7;
+  tmpBuff[i++] = (uint8_t)(ID >> 24);
+  tmpBuff[i++] = (uint8_t)(ID >> 16);
+  tmpBuff[i++] = (uint8_t)(ID >> 8);
+  tmpBuff[i++] = (uint8_t)(ID);
+  
+  for(int j=0;j<32;j++) {
+    tmpBuff[i++] = pVersion[j];
+    if(pVersion[j] == 0) break;
+  }
+  PackedProtocal(tmpBuff, i);
+
+}
+
 
 void HMI_SC20::PollingCommand(void)
 {
@@ -855,12 +939,17 @@ void HMI_SC20::PollingCommand(void)
           SystemStatus.ClearSystemFaultBit(FAULT_FLAG_FILAMENT);
           HmiRequestStatus = STAT_RUNNING;
         }
+        if(Result == E_SUCCESS)
+          SendMachineStatusChange(StatuID, 0);
+        else
+          SendMachineStatusChange(StatuID, 1);
       }
 
       //停止
       else if (StatuID == 0x06) {
         //不在待机状态
         if (CurStatus != STAT_IDLE) {
+          HmiRequestStatus = STAT_PAUSE_ONLINE;
           //上位机停止分2  种，立即停止
           SystemStatus.StopTriggle(ManualStop);
 
@@ -1167,10 +1256,18 @@ void HMI_SC20::PollingCommand(void)
 
         //设置激光Z  轴高度
         case 11:
+          j = 10;
+          BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
           ExecuterHead.Laser.SetLaserPower(0.0f);
-          ExecuterHead.Laser.SaveFocusHeight(current_position[Z_AXIS]);
-          ExecuterHead.Laser.LoadFocusHeight();
-          MarkNeedReack(0);
+          fZ = (float)int32Value / 1000.0f;
+          if(fZ > 65) {
+            MarkNeedReack(1);
+          }
+          else {
+            ExecuterHead.Laser.SaveFocusHeight(fZ);
+            ExecuterHead.Laser.LoadFocusHeight();
+            MarkNeedReack(0);
+          }
           break;
 
         //激光焦点粗调
@@ -1189,10 +1286,21 @@ void HMI_SC20::PollingCommand(void)
           }
           break;
 
-        //激光细调
+        // Laser draw square
         case 13:
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
             DrawLaserCalibrateShape();
+            MarkNeedReack(0);
+          }
+          else {
+            MarkNeedReack(1);
+          }
+          break;
+
+        // Laser draw ruler
+        case 14:
+          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+            DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.1f, 21);
             MarkNeedReack(0);
           }
           else {
@@ -1336,6 +1444,11 @@ void HMI_SC20::PollingCommand(void)
         //查询升级状态
         case 5:
           SendUpdateStatus(CanModules.GetUpdateStatus());
+          break;
+
+        //查询模块
+        case 7:
+          CanModules.EnumFirmwareVersion(true, false);
           break;
       }
     }
@@ -1647,16 +1760,16 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = 0x01;
 
   //坐标
-  fValue = stepper.position(X_AXIS) *planner.steps_to_mm[X_AXIS];
+  fValue = LOGICAL_X_POSITION(stepper.position(X_AXIS) * planner.steps_to_mm[X_AXIS]);
   u32Value = (uint32_t) (fValue * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
-  fValue = stepper.position(Y_AXIS) *planner.steps_to_mm[X_AXIS];
+  fValue = LOGICAL_Y_POSITION(stepper.position(Y_AXIS) * planner.steps_to_mm[Y_AXIS]);
   u32Value = (uint32_t) (fValue * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
-  fValue = stepper.position(Z_AXIS) *planner.steps_to_mm[X_AXIS];
+  fValue = LOGICAL_Z_POSITION(stepper.position(Z_AXIS) * planner.steps_to_mm[Z_AXIS]);
   u32Value = (uint32_t) (fValue * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
-  fValue = stepper.position(E_AXIS) *planner.steps_to_mm[X_AXIS];
+  fValue = stepper.position(E_AXIS) *planner.steps_to_mm[E_AXIS];
   u32Value = (uint32_t) (fValue * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
 
@@ -1690,16 +1803,19 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = 0;
 
   //LaserPower
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.Laser.LastPercent);
+  uint32_t LaserPower = ExecuterHead.Laser.GetPower();
+  tmpBuff[i++] = (uint8_t)(LaserPower >> 24);
+  tmpBuff[i++] = (uint8_t)(LaserPower >> 16);
+  tmpBuff[i++] = (uint8_t)(LaserPower >> 8);
+  tmpBuff[i++] = (uint8_t)(LaserPower);
 
   //RPM
+  uint16_t RPM;
+  RPM = ExecuterHead.CNC.GetRPM();
   tmpBuff[i++] = 0;
   tmpBuff[i++] = 0;
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.CNC.RPM >> 8);
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.CNC.RPM);
+  tmpBuff[i++] = (uint8_t) (RPM >> 8);
+  tmpBuff[i++] = (uint8_t) (RPM);
 
   //打印机状态
   j = SystemStatus.GetCurrentPrinterStatus();
@@ -1715,8 +1831,8 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = ExecuterHead.MachineType;
 
   //CNC  转速
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.CNC.RPM >> 8);
-  tmpBuff[i++] = (uint8_t) (ExecuterHead.CNC.RPM);
+  tmpBuff[i++] = (uint8_t) (RPM >> 8);
+  tmpBuff[i++] = (uint8_t) (RPM);
   PackedProtocal(tmpBuff, i);
 }
 

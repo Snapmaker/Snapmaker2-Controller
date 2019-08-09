@@ -70,16 +70,21 @@ static void FilamentSensorReport(uint8_t *pBuff, enum EndstopEnum filament_num) 
 
 int FilamentSensor1Report(uint8_t *pBuff) {
   FilamentSensorReport(pBuff, FILAMENT1);
-  SERIAL_ECHOLNPAIR("runout1: 0x", Value8BitToString(pBuff[0]), "time: ",millis());
+  //SERIAL_ECHOLNPAIR("runout1: 0x", Value8BitToString(pBuff[0]), "time: ",millis());
   return 0;
 }
 
 int CNCRpmReport(uint8_t *pBuff) {
-  ExecuterHead.CNC.RPM = (pBuff[0] << 8) | pBuff[1];
+  uint16_t RPM;
+  RPM = (pBuff[0] << 8) | pBuff[1];
+  ExecuterHead.CNC.UpdateWorkingRPM(RPM);
   return 0;
 }
 
 int LaserFocusReport(uint8_t *pBuff) {
+  uint16_t u16Value;
+  u16Value = ((uint8_t)pBuff[0] << 8) | pBuff[1];
+  ExecuterHead.Laser.FocusHeight = (float)u16Value / 1000.0f;
   return 0;
 }
 

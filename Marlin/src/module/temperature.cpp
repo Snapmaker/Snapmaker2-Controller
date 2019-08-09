@@ -33,6 +33,7 @@
 #include "../core/language.h"
 #include "../HAL/shared/Delay.h"
 #include "executermanager.h"
+#include "StatusControl.h"
 
 #define MAX6675_SEPARATE_SPI EITHER(HEATER_0_USES_MAX6675, HEATER_1_USES_MAX6675) && PIN_EXISTS(MAX6675_SCK, MAX6675_DO)
 
@@ -2334,6 +2335,9 @@ void Temperature::isr() {
      * Standard heater PWM modulation
      */
     if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+      // Check the NMOS of the heated bed is shortcut
+      if(READ(HEATEDBED_ON_PIN) == LOW)
+        SystemStatus.SetSystemFaultBit(FAULT_FLAG_BED);
       if (pwm_count_tmp >= 127) {
         pwm_count_tmp -= 127;
         #define _PWM_MOD(N,S,T) do{                           \

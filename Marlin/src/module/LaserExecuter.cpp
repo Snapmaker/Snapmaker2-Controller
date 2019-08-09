@@ -27,6 +27,7 @@ void LaserExecuter::Init()
 {
   Tim1PwmInit();
   LASERSerial.begin(115200);
+  LoadFocusHeight();
 }
 
 /**
@@ -38,7 +39,7 @@ void LaserExecuter::SetLaserPower(float Percent)
   int integer;
   float decimal;
   uint16_t pwmvalue;
-  LastPercent = Percent;
+  last_percent = Percent;
   integer = Percent;
   decimal = Percent - integer;
   pwmvalue = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
@@ -55,19 +56,19 @@ void LaserExecuter::SetLaserPower(uint16_t PwmValue)
 }
 
 /**
- * LaserOff:Laser off without changing the power
+ * Off:Laser off without changing the power
  */
-void LaserExecuter::LaserOff()
+void LaserExecuter::Off()
 {
   TimSetPwm(0);
 }
 
 /**
- * LaserOn:Laser on and use the last power
+ * On:Laser on and use the last power
  */
-void LaserExecuter::LaserOn()
+void LaserExecuter::On()
 {
-  SetLaserPower(LastPercent);
+  SetLaserPower(last_percent);
 }
 
 
@@ -90,13 +91,12 @@ void LaserExecuter::SaveFocusHeight(float height)
   uint8_t Data[8];
   uint32_t intheight;
   intheight = height * 1000;
+  if(FocusHeight > 65000)
+    FocusHeight = 65000;
 
-  Data[0] = 0;
-  Data[1] = (uint8_t)(intheight >> 24);
-  Data[2] = (uint8_t)(intheight >> 16);
-  Data[3] = (uint8_t)(intheight >> 8);
-  Data[4] = (uint8_t)(intheight);
-  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_LASER_FOCUS, Data, 5);
+  Data[0] = (uint8_t)(intheight >> 8);
+  Data[1] = (uint8_t)(intheight);
+  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_LASER_FOCUS, Data, 2);
 }
 
 /**
@@ -106,14 +106,13 @@ void LaserExecuter::SaveFocusHeight()
 {
   uint8_t Data[8];
   uint32_t intheight;
+  if(FocusHeight > 65000)
+    FocusHeight = 65000;
   intheight = FocusHeight * 1000;
 
-  Data[0] = 0;
-  Data[1] = (uint8_t)(intheight >> 24);
-  Data[2] = (uint8_t)(intheight >> 16);
-  Data[3] = (uint8_t)(intheight >> 8);
-  Data[4] = (uint8_t)(intheight);
-  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_LASER_FOCUS, Data, 5);
+  Data[0] = (uint8_t)(intheight >> 8);
+  Data[1] = (uint8_t)(intheight);
+  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_LASER_FOCUS, Data, 2);
 }
 
 /**
@@ -122,31 +121,24 @@ void LaserExecuter::SaveFocusHeight()
  */
 bool LaserExecuter::LoadFocusHeight()
 {
+  millis_t tmptick;
   uint8_t Data[3];
 
   Data[0] = 0;
   CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LASER_FOCUS, Data, 1);
+  // Delay for update
+  tmptick = millis() + 50;
+  while(tmptick > millis());
   return 0;
 }
 #endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
 
 /**
- * SavePlatformHeight:Save the focus platform heigh
- *para height:The value of the platform height
+ * UpdateLaserPower:Update the laser power without output to the laser
+ *para NewPower:New power the update
  */
-void LaserExecuter::SavePlatformHeight(float height)
-{
-  PlatformHeight = height;
-  settings.save();
-}
-
-/**
- * LoadPlatformHeight:Load the focus height
- * para height:the height of focus
- */
-void LaserExecuter::LoadPlatformHeight()
-{
-  settings.load();
+void LaserExecuter::UpdateLaserPower(float NewPower) {
+  last_percent = NewPower;
 }
 
 /**

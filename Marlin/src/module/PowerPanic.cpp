@@ -985,7 +985,7 @@ void PowerPanic::stopWorking(void) {
  * NOTE: this function is also called by pause/stop process
  */
 void PowerPanic::towardStopPoint(void) {
-
+	
   //切换到绝对坐标模式
   relative_mode = false;
 
@@ -1002,10 +1002,17 @@ void PowerPanic::towardStopPoint(void) {
       }
 
       if(all_axes_known != false) {
-        if (powerloss) 
+        if (powerloss)
+        {
           move_to_limited_z(current_position[Z_AXIS] + 5, 10);  // if power loss, raise z for 5 mm
+        }
         else 
-          move_to_limited_z(current_position[Z_AXIS] + 30, 10); // else raise z for 30mm
+        {
+          if((current_position[Z_AXIS] + 30) < Z_MAX_POS)
+            move_to_limited_z(current_position[Z_AXIS] + 30, 10); // raise z for 30mm
+          else
+            move_to_limited_z(Z_MAX_POS, 10); // else raise z to max position
+        }
         //X  轴走到限位开关位置
         move_to_limited_x(0, 35);
         //Y  轴走到最大位置
@@ -1016,17 +1023,19 @@ void PowerPanic::towardStopPoint(void) {
     break;
 
   case MACHINE_TYPE_CNC:
-    //关闭电机
-    ExecuterHead.CNC.SetCNCPower(0);
-
-    move_to_limited_z(current_position[Z_AXIS] + 30, 10);
+    // Shut down the CNC
+    ExecuterHead.CNC.SetPower(0);
+    if((current_position[Z_AXIS] + 30) < Z_MAX_POS)
+      move_to_limited_z(current_position[Z_AXIS] + 30, 10); // raise z for 30mm
+    else
+      move_to_limited_z(Z_MAX_POS, 10); // else raise z for 30mm
     while(planner.movesplanned()) {
       // only we are not in powerloss, then do other things
       if (!powerloss)
         thermalManager.manage_heater();
     }
 
-    //走到工件原点
+    // Move to the origin point
     move_to_limited_xy(0, 0, 50);
     break;
 
