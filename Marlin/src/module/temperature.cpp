@@ -1408,7 +1408,7 @@ void Temperature::init() {
       HAL_ANALOG_SELECT(TEMP_5_PIN);
     #endif
   #endif // DISABLED(EXECUTER_CANBUS_SUPPORT)
-  
+
   #if HAS_HEATED_BED
     HAL_ANALOG_SELECT(TEMP_BED_PIN);
   #endif
@@ -2335,9 +2335,6 @@ void Temperature::isr() {
      * Standard heater PWM modulation
      */
     if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
-      // Check the NMOS of the heated bed is shortcut
-      if(READ(HEATEDBED_ON_PIN) == LOW)
-        SystemStatus.SetSystemFaultBit(FAULT_FLAG_BED);
       if (pwm_count_tmp >= 127) {
         pwm_count_tmp -= 127;
         #define _PWM_MOD(N,S,T) do{                           \
@@ -2427,19 +2424,23 @@ void Temperature::isr() {
             if (soft_pwm_count_fan[2] <= pwm_count_tmp) WRITE_FAN2(LOW);
           #endif
         #endif
-      // SOFT_PWM_SCALE to frequency:
-      //
-      // 0: 16000000/64/256/128 =   7.6294 Hz
-      // 1:                / 64 =  15.2588 Hz
-      // 2:                / 32 =  30.5176 Hz
-      // 3:                / 16 =  61.0352 Hz
-      // 4:                /  8 = 122.0703 Hz
-      // 5:                /  4 = 244.1406 Hz
-      pwm_count = pwm_count_tmp + _BV(SOFT_PWM_SCALE);
+        // SOFT_PWM_SCALE to frequency:
+        //
+        // 0: 16000000/64/256/128 =   7.6294 Hz
+        // 1:                / 64 =  15.2588 Hz
+        // 2:                / 32 =  30.5176 Hz
+        // 3:                / 16 =  61.0352 Hz
+        // 4:                /  8 = 122.0703 Hz
+        // 5:                /  4 = 244.1406 Hz
+        pwm_count = pwm_count_tmp + _BV(SOFT_PWM_SCALE);
+
+        // Check the NMOS of the heated bed is shortcut
+        if(READ(HEATEDBED_ON_PIN) == LOW)
+          SystemStatus.SetSystemFaultBit(FAULT_FLAG_BED);
       }
     } // 3D printer
     else {
-      //WRITE_HEATER_0(0); 
+      //WRITE_HEATER_0(0);
     } // CNC and Laser
 
   #else // SLOW_PWM_HEATERS
