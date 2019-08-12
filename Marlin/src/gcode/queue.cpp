@@ -287,6 +287,7 @@ void ok_to_send() {
   if(Screen_send_ok[cmd_queue_index_r])
   {
     HMI.SendGcode((char*)"ok\r\n", Screen_send_ok_opcode[cmd_queue_index_r]);
+    SetSCGcodeLine(CommandLine[cmd_queue_index_r]);
     SetGcodeState(GCODE_STATE_ACKED);
   }
 }
@@ -877,7 +878,7 @@ void get_available_commands() {
   // if any immediate commands remain, don't get other commands yet
   if (drain_injected_commands_P()) return;
 
-  if (SystemStatus.GetCurrentPrinterStatus() == STAT_IDLE)
+  //if (SystemStatus.GetCurrentPrinterStatus() == STAT_IDLE)
     get_serial_commands();
 
   #if ENABLED(SDSUPPORT)

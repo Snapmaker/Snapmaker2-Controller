@@ -46,7 +46,7 @@ extern "C" void ShowDebugInfo();
 extern "C" void SnapDbg(SnapDbgLevel lvl, const char *fmt, ...);
 extern "C" void SetDbgLevel(SnapDbgLevel l);
 extern "C" void CmdChecksumError(bool screen);
-
+extern "C" void SetSCGcodeLine(uint32_t l);
 #else
 
 #define SnapDbg(lvl, fmt, ...)
@@ -54,6 +54,7 @@ extern "C" void CmdChecksumError(bool screen);
 #define ShowDebugInfo()
 #define SetDbgLevel(l)
 #define CmdChecksumError(sc)
+#define SetSCGcodeLine(l)
 
 #endif // #ifdef SNAP_DEBUG
 

@@ -33,6 +33,8 @@ struct SnapDebugInfo {
 
   uint32_t  sc_cmd_chk_error; // chceksum error for command from screen
   uint32_t  pc_cmd_chk_error; // chceksum error for command from screen
+
+  uint32_t last_ack_sc_gcode; // line number of last gcode acked to screen
 };
 
 static struct SnapDebugInfo info;
@@ -91,6 +93,9 @@ void SetGcodeState(GcodeState s) {
   info.sc_gcode_state = s;
 }
 
+void SetSCGcodeLine(uint32_t l) {
+  info.last_ack_sc_gcode = l;
+}
 
 void CmdChecksumError(bool screen) {
   if (screen)
@@ -106,6 +111,7 @@ void ShowDebugInfo() {
   SnapDbg(SNAP_INFO, "PC gcode state: %d", info.pc_gcode_state);
   SnapDbg(SNAP_INFO, "SC cmd chksum count: %u", info.sc_cmd_chk_error);
   SnapDbg(SNAP_INFO, "PC cmd chksum count: %u", info.pc_cmd_chk_error);
+  SnapDbg(SNAP_INFO, "Last SC Gcode line: %d", info.last_ack_sc_gcode);
 }
 
 #endif // #if (SNAP_DEBUG == 1)
