@@ -16,17 +16,17 @@ void GcodeSuite::M2000() {
   switch (s) {
   case 0:
     // show current snapmaker info
-    ShowDebugInfo();
+    SNAP_DEBUG_SHOW_INFO();
     break;
 
   case 1:
     // set debug level
     l = (uint8_t)parser.byteval('L', (uint8_t)10);
     if (!WITHIN(l, 0, (int)SNAP_DEBUG_LEVEL_MAX)) {
-      SnapDbg(SNAP_ERROR, "L out of range (0-%d)\n", (int)SNAP_DEBUG_LEVEL_MAX);
+      LOG_E("L out of range (0-%d)\n", (int)SNAP_DEBUG_LEVEL_MAX);
       return;
     }
-    SetDbgLevel((SnapDbgLevel)l);
+    SNAP_DEBUG_SET_LEVEL((SnapDebugLevel)l);
     break;
   }
 
