@@ -26,6 +26,7 @@
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
 #include "../snap_module/lightbar.h"
 #include "../feature/runout.h"
+#include "../snap_module/snap_dbg.h"
 
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
 char tmpBuff[1024];
@@ -211,7 +212,10 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
       if (commandLen % 2) checksum += pBuff[commandLen + 8 - 1];
       while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
       checksum = ~checksum;
-      if ((uint16_t)checksum != (uint16_t) ((pBuff[6] << 8) | pBuff[7])) return (short) - 1;
+      if ((uint16_t)checksum != (uint16_t) ((pBuff[6] << 8) | pBuff[7])) {
+        SNAP_DEBUG_CMD_CHECKSUM_ERROR(true);
+        return (short) - 1;
+      }
 
       //_rx_buffer->tail = _rx_buffer->head = 0;
       return commandLen + 8;
@@ -401,7 +405,7 @@ void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
   X = X / 1000.0f;
   Y = Y / 1000.0f;
   Z = Z / 1000.0f;
-  
+
   // All axes home
   process_cmd_imd("G28");
 
@@ -409,7 +413,7 @@ void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
   do_blocking_move_to_logical_xy(X, Y, 30.0f);
 
   // Move to the Z
-  do_blocking_move_to_logical_z(Z, 10.0f);  
+  do_blocking_move_to_logical_z(Z, 10.0f);
 }
 
 /********************************************************
@@ -437,12 +441,12 @@ void HMI_SC20::DrawLaserCalibrateShape() {
 
   // Fan On
   process_cmd_imd("M106 P0 S255");
-  
+
   // Draw 10 square
   do {
     // Move to the start point
     do_blocking_move_to_logical_xy(NextX, NextY, 50.0f);
-    
+
     // Laser on
     ExecuterHead.Laser.SetLaserPower(100.0f);
 
@@ -451,7 +455,7 @@ void HMI_SC20::DrawLaserCalibrateShape() {
     do_blocking_move_to_logical_xy(current_position[X_AXIS], current_position[Y_AXIS] - SquareSideLength, 5.0f);
     do_blocking_move_to_logical_xy(current_position[X_AXIS] - SquareSideLength, current_position[Y_AXIS], 5.0f);
     do_blocking_move_to_logical_xy(current_position[X_AXIS], current_position[Y_AXIS] + SquareSideLength, 5.0f);
-    
+
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
@@ -491,20 +495,20 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
   if(next_z <= 5)
     return false;
-  
+
   // Move to next Z
   do_blocking_move_to_logical_z(next_z, 20.0f);
-  
+
   i = 0;
 
   // Fan On
   process_cmd_imd("M106 P0 S255");
-  
+
   // Draw 10 square
   do {
     // Move to the start point
     do_blocking_move_to_logical_xy(next_x, next_y, 50.0f);
-    
+
     // Laser on
     ExecuterHead.Laser.SetLaserPower(100.0f);
 
@@ -513,7 +517,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
       do_blocking_move_to_logical_xy(next_x, current_position[Y_AXIS] + line_len_long, 3.0f);
     else
       do_blocking_move_to_logical_xy(next_x, current_position[Y_AXIS] + line_len_short, 3.0f);
-    
+
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
@@ -523,10 +527,10 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     next_x = next_x + line_space;
     i++;
   }while(i < Count);
-  
+
   // Fan Off
   process_cmd_imd("M107 P0");
-  
+
   // Move to the center
   do_blocking_move_to_logical_xy(StartX, StartY, 50.0f);
   return true;
@@ -708,7 +712,7 @@ void HMI_SC20::ResizeMachine(char * pBuff)
 #endif
 
   CanModules.Init();
-	
+
   //保存数据
   settings.save();
 }
@@ -718,7 +722,7 @@ void HMI_SC20::ResizeMachine(char * pBuff)
  */
 void HMI_SC20::ReportModuleFirmwareVersion(uint32_t ID, char *pVersion) {
   uint16_t i;
-  
+
   i = 0;
 
   tmpBuff[i++] = 0xAA;
@@ -727,7 +731,7 @@ void HMI_SC20::ReportModuleFirmwareVersion(uint32_t ID, char *pVersion) {
   tmpBuff[i++] = (uint8_t)(ID >> 16);
   tmpBuff[i++] = (uint8_t)(ID >> 8);
   tmpBuff[i++] = (uint8_t)(ID);
-  
+
   for(int j=0;j<32;j++) {
     tmpBuff[i++] = pVersion[j];
     if(pVersion[j] == 0) break;
@@ -770,7 +774,7 @@ void HMI_SC20::PollingCommand(void)
 
     //GCode  打印
     else if (eventId == EID_FILE_GCODE_REQ) {
-
+      SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_RECEIVED);
       //获取当前状态
       CurStatus = SystemStatus.GetCurrentPrinterStatus();
 
@@ -809,6 +813,7 @@ void HMI_SC20::PollingCommand(void)
           tmpBuff[j] = 0;
           Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
         }
+        SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_BUFFERED);
       }
     }
 
@@ -832,6 +837,7 @@ void HMI_SC20::PollingCommand(void)
 
       //联机打印
       else if (StatuID == 0x03) {
+        LOG_I("receive start work from SC\n");
         //待机状态中
         if (CurStatus == STAT_IDLE) {
           //设置打印状态
@@ -869,6 +875,10 @@ void HMI_SC20::PollingCommand(void)
           HMICommandSave = 1;
 
           lightbar.set_state(LB_STATE_WORKING);
+          LOG_I("start working ok!\n");
+        }
+        else {
+          LOG_E("current state is not IDLE\n");
         }
       }
 
@@ -1481,7 +1491,7 @@ void HMI_SC20::PollingCommand(void)
         break;
       }
     }
-    
+
     if (GenReack == true) SendGeneralReack((eventId + 1), OpCode, Result);
 
     //ReadTail = ReadHead;
