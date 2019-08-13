@@ -7,6 +7,7 @@
 #include "../module/printcounter.h"
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/StatusControl.h"
+#include "snap_dbg.h"
 
 QuickStop quickstop;
 
@@ -85,6 +86,9 @@ void QuickStop::CheckISR(block_t *blk) {
       if (SetEvent(QS_EVENT_ISR_POWER_LOSS) == E_SUCCESS)
         new_event = QS_EVENT_ISR_POWER_LOSS;
     }
+    else if (sync_flag_ == QS_SYNC_TRIGGER) {
+      new_event = event_;
+    }
   }
 
   // here are the common handle for above branchs
@@ -99,8 +103,7 @@ void QuickStop::CheckISR(block_t *blk) {
     PowerPanicData.TurnOffPower();
 
 
-  if (sync_flag_ == QS_SYNC_TRIGGER ||
-      (sync_flag_ == QS_SYNC_NONE && new_event == QS_EVENT_ISR_POWER_LOSS)) {
+  if (new_event != QS_EVENT_NONE) {
     if (blk)
       PowerPanicData.Data.FilePosition = blk->filePos;
     set_current_from_steppers_for_axis(ALL_AXES);
@@ -116,8 +119,11 @@ void QuickStop::CheckISR(block_t *blk) {
 }
 
 ErrCode QuickStop::Trigger(QuickStopEvent e) {
-  if (SetEvent(e) != E_SUCCESS)
+  ErrCode ret = SetEvent(e);
+  if (ret != E_SUCCESS) {
+    LOG_W("set quick stop event failed, err = %d\n", ret);
     return E_BUSY;
+  }
 
   sync_flag_ = QS_SYNC_TRIGGER;
 
@@ -210,11 +216,16 @@ void QuickStop::Process() {
   if (event_ == QS_EVENT_NONE || stopped_)
     return;
 
+  LOG_I("quick stop process, event = %d\n", event_);
+
   CleanMoves();
 
+  LOG_I("waiting Stepper ISR to save env, sync_flag = %d\n", sync_flag_);
   // waiting sync_flag_ to become QS_SYNC_ISR_END
   while (sync_flag_ != QS_SYNC_ISR_END);
 
+  LOG_I("the last stepper position(XYZ): (%f, %f, %f)\n", PowerPanicData.Data.PositionData[X_AXIS],
+        PowerPanicData.Data.PositionData[Y_AXIS], PowerPanicData.Data.PositionData[Z_AXIS]);
   TowardStop();
 
   stopped_ = true;

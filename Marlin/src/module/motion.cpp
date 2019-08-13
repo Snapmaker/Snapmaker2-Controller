@@ -1689,9 +1689,7 @@ void  move_to_limited_position(const float (&target)[XYZE], const float fr_mm_s)
   const float z_feedrate  = fr_mm_s ? fr_mm_s : homing_feedrate(Z_AXIS),
             xy_feedrate = fr_mm_s ? fr_mm_s : XY_PROBE_FEEDRATE_MM_S;
 
-#if HAS_SOFTWARE_ENDSTOP
   apply_motion_limits(target);
-#endif
 
   // If Z needs to raise, do it before moving XY
   if (current_position[Z_AXIS] < target[Z_AXIS]) {

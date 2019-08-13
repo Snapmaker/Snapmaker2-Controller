@@ -792,7 +792,11 @@ void HMI_SC20::PollingCommand(void)
         j = cmdLen + 8;
         tmpBuff[j] = 0;
 
-        Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+        // for comment, resturn ok immediately
+        if (tmpBuff[13] != ';')
+          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+        else
+          SendGcode("ok\n", 0x4);
         SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_BUFFERED);
       }
     }
@@ -814,16 +818,17 @@ void HMI_SC20::PollingCommand(void)
 
       // screen want to start a work
       else if (StatuID == 0x03) {
-        LOG_I("receive start work from SC\n");
+        LOG_I("SC req START WORK\n");
         // we need to be idle
         if (cur_stage != SYSTAGE_IDLE) {
           // ack a fault to screen
           MarkNeedReack(1);
-          LOG_E("current state is not IDLE\n");
+          LOG_W("current state is not IDLE\n");
         }
         else {
           // set state
           SystemStatus.SetCurrentStatus(SYSTAT_WORK);
+          SystemStatus.SetWorkingPort(WORKING_PORT_SC);
 
           if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
             // z is un-homed
@@ -851,84 +856,98 @@ void HMI_SC20::PollingCommand(void)
             process_cmd_imd("M412 S1");
           else
             process_cmd_imd("M412 S0");
-          MarkNeedReack(0);
 
           // lock screen
           HMICommandSave = 1;
 
+          print_job_timer.start();
+
           lightbar.set_state(LB_STATE_WORKING);
-          LOG_I("start working ok!\n");
+
+          MarkNeedReack(0);
+          LOG_I("trigger WORK: ok\n");
         }
       }
 
       // screen request a pause
       else if (StatuID == 0x04) {
+        LOG_I("SC req PAUSE\n");
         err = SystemStatus.PauseTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_PAUSE;
           lightbar.set_state(LB_STATE_STANDBY);
+          LOG_I("trigger PAUSE: ok\n");
         }
         else {
           // other status cannot be paused
           MarkNeedReack((uint8_t)err);
+          LOG_W("trigger PAUSE: failed, err = %d\n", err);
         }
       }
 
       // resume work
       else if (StatuID == 0x05) {
+        LOG_I("SC req RESUME\n");
         // trigger a resuming, need to ack screen when resume work
         err = SystemStatus.ResumeTrigger(TRIGGER_SOURCE_SC);
-        if (err = E_SUCCESS) {
+        if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_RESUME;
+          LOG_I("trigger RESUME: ok\n");
         }
         else {
           MarkNeedReack((uint8_t)err);
+          LOG_W("trigger RESUME: failed, err = %d\n", err);
         }
-        if(Result == E_SUCCESS)
-          SendMachineStatusChange(StatuID, 0);
-        else
-          SendMachineStatusChange(StatuID, 1);
       }
 
       // stop work
       else if (StatuID == 0x06) {
+        LOG_I("SC req STOP\n");
         err = SystemStatus.StopTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_STOP;
           lightbar.set_state(LB_STATE_STANDBY);
           PowerPanicData.Data.Valid = 0;
+          LOG_I("trigger STOP: ok\n");
         }
         else {
           MarkNeedReack((uint8_t)err);
+          LOG_W("trigger STOP: failed, err = %d\n", err);
         }
       }
 
       // finish work
       else if (StatuID == 0x07) {
+        LOG_I("SC req FINISH\n");
         err = SystemStatus.StopTrigger(TRIGGER_SOURCE_FINISH);
         // make sure we are working
         if (err != SYSTAT_WORK) {
           RequestStatus = HMI_REQ_FINISH;
           lightbar.set_state(LB_STATE_FINISH);
+          LOG_I("trigger FINISH: ok\n");
         }
         else {
           MarkNeedReack((uint8_t)err);
+          LOG_W("trigger FINISH: failed, err = %d\n", err);
         }
       }
 
       // request the latest line number
       else if (StatuID == 0x08) {
+        LOG_I("SC req line number\n");
         SendBreakPointData();
       }
 
       // request progress
       else if (StatuID == 0x09) {
+        LOG_I("SC req progress\n");
         // not supported in snapmaker2
         MarkNeedReack(1);
       }
 
       // clear power panic data
       else if (StatuID == 0x0a) {
+        LOG_I("SC req clear power-loss record\n");
         // clear all fault flags
         SystemStatus.ClearSystemFaultBit(0xffffffff);
 
@@ -946,17 +965,21 @@ void HMI_SC20::PollingCommand(void)
 
       // recovery work from power loss
       else if (StatuID == 0x0b) {
+        LOG_I("SC req restore from power-loss\n");
         if (cur_status != SYSTAT_IDLE) {
           MarkNeedReack(1);
+          LOG_W("trigger RESTORE: failed, current state[%d] in IDLE\n", cur_status);
         }
         else if (MACHINE_TYPE_LASER == ExecuterHead.MachineType &&
                 Periph.IsDoorOpened()) {
           MarkNeedReack(2);
+          LOG_W("trigger RESTORE: failed, door is open\n");
         }
         else if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
                   CHECK_RUNOUT_SENSOR) {
           MarkNeedReack(3);
           SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+          LOG_W("trigger RESTORE: failed, filament runout\n");
         }
         else {
           // to here, we can recovery work
@@ -971,6 +994,7 @@ void HMI_SC20::PollingCommand(void)
 
           // recovery work and ack to screen
           PowerPanicData.PowerPanicResumeWork(NULL);
+          LOG_W("trigger RESTORE: ok\n");
         }
       }
 

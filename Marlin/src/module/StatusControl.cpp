@@ -20,6 +20,7 @@
 #include "../feature/runout.h"
 #include "../snap_module/lightbar.h"
 #include "../snap_module/quickstop.h"
+#include "../snap_module/snap_dbg.h"
 
 StatusControl SystemStatus;
 
@@ -51,23 +52,6 @@ void StatusControl::CheckFatalError() {
   }
 }
 
-
-/**
- * InterruptAllCommand:Clean all motion and actions
- */
-void StatusControl::InterruptAllCommand()
-{
-  clear_command_queue();
-  quickstop_stepper();
-  print_job_timer.stop();
-  if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-  {
-    thermalManager.disable_all_heaters();
-    thermalManager.zero_fan_speeds();
-  }
-  wait_for_heatup = false;
-}
-
 /**
  * PauseTriggle:Triggle the pause
  * return: true if pause triggle success, or false
@@ -77,63 +61,71 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   ErrCode ret = E_SUCCESS;
   SysStage stage = GetCurrentStage();
 
-  if (stage != SYSTAGE_WORK || cur_status_ != SYSTAT_RESUME_WAITING) {
-    SERIAL_ECHOLN("cannot pause! current stage is not working!");
+  if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING) {
+    LOG_W("cannot pause in current status: %d\n", cur_status_);
     return E_INVALID_STATE;
   }
 
   // if pause is triggered at first time
   // we need to do some operation which only can be performed at most once
-  if (stage != SYSTAGE_PAUSE) {
+  SetCurrentStatus(SYSTAT_PAUSE_TRIG);
+  print_job_timer.pause();
 
-    SetCurrentStatus(SYSTAT_PAUSE_TRIG);
-    print_job_timer.pause();
+  switch (type) {
+  case TRIGGER_SOURCE_RUNOUT:
+    quickstop.Trigger(QS_EVENT_RUNOUT);
+    break;
 
-    switch (type) {
-    case TRIGGER_SOURCE_RUNOUT:
-      quickstop.Trigger(QS_EVENT_RUNOUT);
-      break;
+  case TRIGGER_SOURCE_DOOR_OPEN:
+    quickstop.Trigger(QS_EVENT_DOOR_OPEN);
+    break;
 
-    case TRIGGER_SOURCE_DOOR_OPEN:
-      quickstop.Trigger(QS_EVENT_DOOR_OPEN);
-      break;
-
-    case TRIGGER_SOURCE_SC:
-    case TRIGGER_SOURCE_PC:
-      quickstop.Trigger(QS_EVENT_PAUSE);
-      break;
+  case TRIGGER_SOURCE_SC:
+    if (work_port_ != WORKING_PORT_SC) {
+      LOG_W("current working port is not SC!");
+      return E_INVALID_STATE;
     }
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  case TRIGGER_SOURCE_PC:
+    if (work_port_ != WORKING_PORT_PC) {
+      LOG_W("current working port is not PC!");
+      return E_INVALID_STATE;
+    }
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  default:
+    LOG_W("invlaid trigger source： %d\n", type);
+    return E_PARAM;
+    break;
   }
 
   // here the operations can be performed many times
-  if (pause_source_ != type) {
-    pause_source_ = type;
+  pause_source_ = type;
 
-    if (MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-      ExecuterHead.Laser.SetLaserPower(0.0f);
+  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType)
+    ExecuterHead.Laser.SetLaserPower(0.0f);
 
-    switch(type) {
-      case TRIGGER_SOURCE_RUNOUT:
-        SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-        parser.parse("M412 S0");
-        gcode.process_parsed_command();
-        HMI.SendMachineFaultFlag();
-      break;
+  switch(type) {
+    case TRIGGER_SOURCE_RUNOUT:
+      SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+      parser.parse("M412 S0");
+      gcode.process_parsed_command();
+      HMI.SendMachineFaultFlag();
+    break;
 
-      case TRIGGER_SOURCE_DOOR_OPEN:
-      break;
+    case TRIGGER_SOURCE_DOOR_OPEN:
+    break;
 
-      case TRIGGER_SOURCE_SC:
-      case TRIGGER_SOURCE_PC:
-      break;
+    case TRIGGER_SOURCE_SC:
+    case TRIGGER_SOURCE_PC:
+    break;
 
-      default:
-      return E_INVALID_STATE;
-      break;
-    }
-  }
-  else {
-    ret = E_SAME_STATE;
+    default:
+    return E_INVALID_STATE;
+    break;
   }
 
   return ret;
@@ -147,12 +139,15 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
 {
   SysStage stage = GetCurrentStage();
 
-  if (stage == SYSTAGE_INIT || stage == SYSTAGE_IDLE || cur_status_ != SYSTAT_RESUME_WAITING) {
+  if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING) {
+    LOG_W("cannot stop in current status[%d]\n", cur_status_);
     return E_INVALID_STATE;
   }
 
-  if (stage == SYSTAGE_END)
-    return true;
+  if (stage == SYSTAGE_END) {
+    LOG_I("we have stopped\n");
+    return E_SUCCESS;
+  }
 
   stop_type_ = type;
 
@@ -161,9 +156,23 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
   print_job_timer.stop();
 
   switch(type) {
-  case TRIGGER_SOURCE_FINISH:
-  case TRIGGER_SOURCE_PC:
   case TRIGGER_SOURCE_SC:
+    if (work_port_ != WORKING_PORT_SC) {
+      LOG_W("current working port is not SC!");
+      return E_INVALID_STATE;
+    }
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  case TRIGGER_SOURCE_PC:
+    if (work_port_ != WORKING_PORT_PC) {
+      LOG_W("current working port is not PC!");
+      return E_INVALID_STATE;
+    }
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  case TRIGGER_SOURCE_FINISH:
     quickstop.Trigger(QS_EVENT_STOP);
     break;
 
@@ -172,7 +181,8 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
     break;
 
   default:
-    return false;
+    LOG_W("invalid trigger source: %d\n", type);
+    return E_PARAM;
     break;
   }
 
@@ -186,7 +196,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
     process_cmd_imd("M412 S0");
 
-  return true;
+  return E_SUCCESS;
 }
 
 /**
@@ -237,6 +247,7 @@ void StatusControl::StopProcess()
   // tell Screen we finish stop
   if (HMI.GetRequestStatus() == HMI_REQ_STOP || HMI.GetRequestStatus() == HMI_REQ_FINISH) {
     HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
+    work_port_ = WORKING_PORT_NONE;
     // clear flag
     HMI.ClearRequestStatus();
   }
@@ -258,7 +269,8 @@ void StatusControl::StopProcess()
 #define RESUME_PROCESS_CMD_SIZE 40
 
 static void restore_xyz(void) {
-
+  LOG_I("restore XYZ to (%f, %f, %f)\n", PowerPanicData.Data.PositionData[X_AXIS],
+        PowerPanicData.Data.PositionData[Y_AXIS], PowerPanicData.Data.PositionData[Z_AXIS]);
   char cmd[RESUME_PROCESS_CMD_SIZE] = {0};
 
   // restore X, Y
@@ -357,6 +369,7 @@ void StatusControl::ResumeProcess() {
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
 
+  // reset the state of quick stop handler
   quickstop.Reset();
 }
 
@@ -364,26 +377,32 @@ void StatusControl::ResumeProcess() {
  * trigger resuming from other event
  */
 ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
-  if (cur_status_ != SYSTAT_PAUSE_FINISH)
+  if (cur_status_ != SYSTAT_PAUSE_FINISH) {
+    LOG_W("cannot trigger in current status: %d\n", cur_status_);
     return E_INVALID_STATE;
+  }
 
   switch (s) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
+      LOG_W("current working port is not SC!");
       return E_INVALID_STATE;
     }
     break;
 
   case TRIGGER_SOURCE_PC:
-    if (work_port_ != WORKING_PORT_PC)
+    if (work_port_ != WORKING_PORT_PC) {
+      LOG_W("current working port is not PC!");
       return E_INVALID_STATE;
+    }
     break;
-    
+
   case TRIGGER_SOURCE_DOOR_CLOSE:
     break;
-    
+
   default:
-    return E_FAILURE;
+    LOG_W("invalid trigger source: %d\n", s);
+    return E_PARAM;
     break;
   }
 
@@ -394,6 +413,7 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
   // need to check if we have filament ready
   if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && runout.sensor_state()) {
     SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    LOG_W("filament is runout, cannot resuem 3D print\n");
     return E_HARDWARE;
   }
 #endif

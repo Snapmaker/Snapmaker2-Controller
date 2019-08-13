@@ -104,11 +104,18 @@ public:
   }
 
   WorkingPort FORCE_INLINE GetWorkingPort() { return work_port_;  }
+  ErrCode FORCE_INLINE SetWorkingPort(WorkingPort p) {
+    if (p < WORKING_PORT_INVALID) {
+      work_port_ = p;
+      return E_SUCCESS;
+    }
+
+    return E_PARAM;
+  }
 
   SysStage GetCurrentStage();
 
 private:
-  void InterruptAllCommand();
   void inline resume_3dp(void);
   void inline resume_cnc(void);
   void inline resume_laser(void);
