@@ -61,7 +61,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   ErrCode ret = E_SUCCESS;
   SysStage stage = GetCurrentStage();
 
-  if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING) {
+  if (stage != SYSTAGE_WORK) {
     LOG_W("cannot pause in current status: %d\n", cur_status_);
     return E_INVALID_STATE;
   }
@@ -71,8 +71,19 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   SetCurrentStatus(SYSTAT_PAUSE_TRIG);
   print_job_timer.pause();
 
+  // here the operations can be performed many times
+  pause_source_ = type;
+
+  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    ExecuterHead.Laser.SetLaserPower(0.0f);
+  }
+
   switch (type) {
   case TRIGGER_SOURCE_RUNOUT:
+    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    parser.parse("M412 S0");
+    gcode.process_parsed_command();
+    HMI.SendMachineFaultFlag();
     quickstop.Trigger(QS_EVENT_RUNOUT);
     break;
 
@@ -102,33 +113,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
     break;
   }
 
-  // here the operations can be performed many times
-  pause_source_ = type;
-
-  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-    ExecuterHead.Laser.SetLaserPower(0.0f);
-
-  switch(type) {
-    case TRIGGER_SOURCE_RUNOUT:
-      SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-      parser.parse("M412 S0");
-      gcode.process_parsed_command();
-      HMI.SendMachineFaultFlag();
-    break;
-
-    case TRIGGER_SOURCE_DOOR_OPEN:
-    break;
-
-    case TRIGGER_SOURCE_SC:
-    case TRIGGER_SOURCE_PC:
-    break;
-
-    default:
-    return E_INVALID_STATE;
-    break;
-  }
-
-  return ret;
+  return E_SUCCESS;
 }
 
 /**
@@ -139,36 +124,53 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
 {
   SysStage stage = GetCurrentStage();
 
-  if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING) {
+  if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
+      cur_status_ != SYSTAT_PAUSE_FINISH) {
     LOG_W("cannot stop in current status[%d]\n", cur_status_);
     return E_INVALID_STATE;
   }
 
-  if (stage == SYSTAGE_END) {
-    LOG_I("we have stopped\n");
-    return E_SUCCESS;
+  if ((type == TRIGGER_SOURCE_SC) && (work_port_ != WORKING_PORT_SC)) {
+      LOG_W("current working port is not SC!");
+      return E_INVALID_STATE;
   }
 
-  stop_type_ = type;
+  if ((type == TRIGGER_SOURCE_PC) && (work_port_ != WORKING_PORT_PC)) {
+    LOG_W("current working port is not PC!");
+    return E_INVALID_STATE;
+  }
 
-  SetCurrentStatus(SYSTAT_END_TRIG);
+  stop_source_ = type;
 
   print_job_timer.stop();
 
+  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
+    Periph.StopDoorCheck();
+
+  // diable power panic data
+  PowerPanicData.Data.Valid = 0;
+
+  // disable filament checking
+  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
+    process_cmd_imd("M412 S0");
+
+  // if we already finish quick stop, just change system status
+  // disable power-loss data, and exit with success
+  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
+    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
+    cur_status_ = SYSTAT_END_FINISH;
+    LOG_I("Stop in pauseing\n");
+    return E_SUCCESS;
+  }
+
+  cur_status_ = SYSTAT_END_TRIG;
+
   switch(type) {
   case TRIGGER_SOURCE_SC:
-    if (work_port_ != WORKING_PORT_SC) {
-      LOG_W("current working port is not SC!");
-      return E_INVALID_STATE;
-    }
     quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   case TRIGGER_SOURCE_PC:
-    if (work_port_ != WORKING_PORT_PC) {
-      LOG_W("current working port is not PC!");
-      return E_INVALID_STATE;
-    }
     quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
@@ -185,16 +187,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
     return E_PARAM;
     break;
   }
-
-  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
-    Periph.StopDoorCheck();
-
-  // diable power panic data
-  PowerPanicData.Data.Valid = 0;
-
-  // disable filament checking
-  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
-    process_cmd_imd("M412 S0");
 
   return E_SUCCESS;
 }
@@ -233,6 +225,7 @@ void StatusControl::PauseProcess()
     HMI.ClearRequestStatus();
   }
 
+  LOG_I("Finish pause\n");
   cur_status_ = SYSTAT_PAUSE_FINISH;
 }
 
@@ -253,9 +246,15 @@ void StatusControl::StopProcess()
   }
 
   // clear stop type because stage will be changed
-  stop_type_ = TRIGGER_SOURCE_NONE;
-
+  stop_source_ = TRIGGER_SOURCE_NONE;
+  pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_IDLE;
+  quickstop.Reset();
+
+  process_cmd_imd("M140 S0");
+  process_cmd_imd("M104 S0");
+
+  LOG_I("Finish stop\n");
 }
 
 
@@ -269,8 +268,9 @@ void StatusControl::StopProcess()
 #define RESUME_PROCESS_CMD_SIZE 40
 
 static void restore_xyz(void) {
-  LOG_I("restore XYZ to (%f, %f, %f)\n", PowerPanicData.Data.PositionData[X_AXIS],
-        PowerPanicData.Data.PositionData[Y_AXIS], PowerPanicData.Data.PositionData[Z_AXIS]);
+  LOG_I("restore XYZE to (%f, %f, %f, %f)\n", PowerPanicData.Data.PositionData[X_AXIS],
+        PowerPanicData.Data.PositionData[Y_AXIS], PowerPanicData.Data.PositionData[Z_AXIS],
+        PowerPanicData.Data.PositionData[E_AXIS]);
   char cmd[RESUME_PROCESS_CMD_SIZE] = {0};
 
   // restore X, Y
@@ -288,39 +288,35 @@ static void restore_xyz(void) {
 void inline StatusControl::resume_3dp(void) {
   enable_all_steppers();
 
-  // pre-extrude
-  relative_mode = true;
+  process_cmd_imd("M412 S1");
 
-  process_cmd_imd("G0 E15 F800");
+  process_cmd_imd("G92 E0");
 
-  process_cmd_imd("G0 E-4 F2400");
+  process_cmd_imd("G0 E15 F400");
 
   planner.synchronize();
 
-  relative_mode = false;
-
-  // sync E position
+  // restore E position
   current_position[E_AXIS] = PowerPanicData.Data.PositionData[E_AXIS];
   sync_plan_position_e();
 
-  restore_xyz();
+  // retract filament to cut it out
+  relative_mode = true;
+  process_cmd_imd("G0 E-5 F3600");
+  relative_mode = false;
 
-  // switch printing page
-  HMI.ChangePage(PAGE_PRINT);
+  planner.synchronize();
 }
 
 
 void inline StatusControl::resume_cnc(void) {
   // enable CNC motor
+  LOG_I("restore CNC power: %f\n", PowerPanicData.Data.cnc_power);
+  ExecuterHead.CNC.SetPower(PowerPanicData.Data.cnc_power);
 
-  restore_xyz();
-
-  HMI.ChangePage(PAGE_CNC);
 }
 
 void inline StatusControl::resume_laser(void) {
-  HMI.ChangePage(PAGE_LASER);
-
   // enable door check
   Periph.StartDoorCheck();
 }
@@ -355,22 +351,25 @@ void StatusControl::ResumeProcess() {
   saved_g0_feedrate_mm_s = PowerPanicData.Data.TravelFeedRate;
   saved_g1_feedrate_mm_s = PowerPanicData.Data.PrintFeedRate;
 
+  restore_xyz();
+
   // clear command queue
   clear_command_queue();
 
   // resume stopwatch
   if (print_job_timer.isPaused()) print_job_timer.start();
 
-  if (HMI.GetRequestStatus() == HMI_REQ_RESUME) {
-    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
-    HMI.ClearRequestStatus();
-  }
-
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
 
   // reset the state of quick stop handler
   quickstop.Reset();
+
+  // tell screen we are ready  to work
+  if (HMI.GetRequestStatus() == HMI_REQ_RESUME) {
+    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
+    HMI.ClearRequestStatus();
+  }
 }
 
 /**
@@ -406,7 +405,7 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
     break;
   }
 
-  if (Periph.IsDoorOpened() && MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
+  if (Periph.IsDoorOpened())
     return E_HARDWARE;
 
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
@@ -421,6 +420,28 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
   cur_status_ = SYSTAT_RESUME_TRIG;
 
   return E_SUCCESS;
+}
+
+/**
+ * when receive gcode in resume_waiting, we need to change state to work
+ * and make some env ready
+ */
+void StatusControl::ResumeOver() {
+  switch (ExecuterHead.MachineType) {
+  case MACHINE_TYPE_3DPRINT:
+    break;
+
+  case MACHINE_TYPE_LASER:
+    ExecuterHead.Laser.RestorePower(PowerPanicData.Data.laser_percent, PowerPanicData.Data.laser_pwm);
+    break;
+
+  case MACHINE_TYPE_CNC:
+    break;
+
+  default:
+    LOG_E("invalid machine type: %d\n", ExecuterHead.MachineType);
+    break;
+  }
 }
 
 /**
@@ -482,12 +503,9 @@ uint8_t StatusControl::MapCurrentStatusForSC() {
     return 0;
 
   if (stage == SYSTAGE_WORK)
-    status = 1;
+    status = 3;
   else
-    status = 2;
-
-  if(work_port_ == WORKING_PORT_PC)
-    status += 2;
+    status = 4;
 
   return status;
 }
@@ -527,7 +545,48 @@ void StatusControl::SetSystemFaultBit(uint32_t BitsToSet)
 }
 
 /**
- * Resume work for all trigger
+ * screen start a work
+ */
+ErrCode StatusControl::StartWork() {
+
+  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    // z is un-homed
+    if (axes_homed(Z_AXIS) == false) {
+      // home
+      process_cmd_imd("G28");
+    }
+
+    // move to original point
+    do_blocking_move_to_logical_xy(0, 0);
+  }
+  PowerPanicData.Data.FilePosition = 0;
+  PowerPanicData.Data.accumulator = 0;
+  PowerPanicData.Data.HeaterTamp[0] = 0;
+  PowerPanicData.Data.BedTamp = 0;
+  PowerPanicData.Data.PositionData[0] = 0;
+  PowerPanicData.Data.PositionData[1] = 0;
+  PowerPanicData.Data.PositionData[2] = 0;
+  PowerPanicData.Data.PositionData[3] = 0;
+  PowerPanicData.Data.GCodeSource = GCODE_SOURCE_SCREEN;
+  PowerPanicData.Data.MachineType = ExecuterHead.MachineType;
+
+  // enable runout
+  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
+    process_cmd_imd("M412 S1");
+  else
+    process_cmd_imd("M412 S0");
+
+  print_job_timer.start();
+
+  // set state
+  cur_status_ = SYSTAT_WORK;
+  work_port_ = WORKING_PORT_SC;
+
+  return E_SUCCESS;
+}
+
+/**
+ * process Pause / Resume / Stop event
  */
 void StatusControl::Process() {
   PauseProcess();

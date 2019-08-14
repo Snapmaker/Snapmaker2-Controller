@@ -77,15 +77,16 @@ public:
   void Init();
   uint32_t GetSystemFault();
   void CheckFatalError();
-  void SetCurrentPrinterStatus(uint8_t newstatus);
   uint8_t GetPeriphDeviceStatus();
 
   void ClearSystemFaultBit(uint32_t BitsToClear);
   void SetSystemFaultBit(uint32_t BitsToSet);
+
   ErrCode PauseTrigger(TriggerSource type);
-  TriggerSource GetPauseSource() { return pause_source_; }
   ErrCode StopTrigger(TriggerSource type);
   ErrCode ResumeTrigger(TriggerSource s);
+  void    ResumeOver();
+  ErrCode StartWork();
   void Process();
 
   uint8_t MapCurrentStatusForSC();
@@ -130,7 +131,7 @@ public:
 private:
   uint8_t TriggleStat;
   TriggerSource pause_source_;  // record latest pause source
-  TriggerSource stop_type_;
+  TriggerSource stop_source_;
   uint32_t fault_flag_;
 
   SysStatus cur_status_;

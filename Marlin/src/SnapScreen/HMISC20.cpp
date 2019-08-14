@@ -784,7 +784,8 @@ void HMI_SC20::PollingCommand(void)
     else if (eventId == EID_FILE_GCODE_REQ) {
       SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_RECEIVED);
       // need to check if we are in working with screen
-      if ((cur_status == SYSTAT_WORK && SystemStatus.GetWorkingPort() == WORKING_PORT_SC)) {
+      if (SystemStatus.GetWorkingPort() == WORKING_PORT_SC && (cur_status == SYSTAT_WORK ||
+            cur_status == SYSTAT_RESUME_WAITING)) {
         // line number
         ID = BYTES_TO_32BITS(tmpBuff, 9);
 
@@ -793,8 +794,13 @@ void HMI_SC20::PollingCommand(void)
         tmpBuff[j] = 0;
 
         // for comment, resturn ok immediately
-        if (tmpBuff[13] != ';')
+        if (tmpBuff[13] != ';') {
+          if (cur_status == SYSTAT_RESUME_WAITING) {
+            SystemStatus.ResumeOver();
+            SystemStatus.SetCurrentStatus(SYSTAT_WORK);
+          }
           Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+        }
         else
           SendGcode("ok\n", 0x4);
         SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_BUFFERED);
@@ -826,46 +832,20 @@ void HMI_SC20::PollingCommand(void)
           LOG_W("current state is not IDLE\n");
         }
         else {
-          // set state
-          SystemStatus.SetCurrentStatus(SYSTAT_WORK);
-          SystemStatus.SetWorkingPort(WORKING_PORT_SC);
+          err = SystemStatus.StartWork();
+          if (E_SUCCESS ==err) {
+            // lock screen
+            HMICommandSave = 1;
 
-          if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-            // z is un-homed
-            if (axes_homed(Z_AXIS) == false) {
-              // home
-              process_cmd_imd("G28");
-            }
+            lightbar.set_state(LB_STATE_WORKING);
 
-            // move to original point
-            do_blocking_move_to_logical_xy(0, 0);
+            MarkNeedReack(0);
+            LOG_I("trigger WORK: ok\n");
           }
-          PowerPanicData.Data.FilePosition = 0;
-          PowerPanicData.Data.accumulator = 0;
-          PowerPanicData.Data.HeaterTamp[0] = 0;
-          PowerPanicData.Data.BedTamp = 0;
-          PowerPanicData.Data.PositionData[0] = 0;
-          PowerPanicData.Data.PositionData[1] = 0;
-          PowerPanicData.Data.PositionData[2] = 0;
-          PowerPanicData.Data.PositionData[3] = 0;
-          PowerPanicData.Data.GCodeSource = GCODE_SOURCE_SCREEN;
-          PowerPanicData.Data.MachineType = ExecuterHead.MachineType;
-
-          // enable runout
-          if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-            process_cmd_imd("M412 S1");
-          else
-            process_cmd_imd("M412 S0");
-
-          // lock screen
-          HMICommandSave = 1;
-
-          print_job_timer.start();
-
-          lightbar.set_state(LB_STATE_WORKING);
-
-          MarkNeedReack(0);
-          LOG_I("trigger WORK: ok\n");
+          else {
+            LOG_W("failed to start work: err= %d\n", err);
+            MarkNeedReack(1);
+          }
         }
       }
 
@@ -940,7 +920,6 @@ void HMI_SC20::PollingCommand(void)
 
       // request progress
       else if (StatuID == 0x09) {
-        LOG_I("SC req progress\n");
         // not supported in snapmaker2
         MarkNeedReack(1);
       }
@@ -1704,9 +1683,6 @@ void HMI_SC20::SendMachineStatus()
   //执行头类型
   tmpBuff[i++] = ExecuterHead.MachineType;
 
-  //CNC  转速
-  tmpBuff[i++] = (uint8_t) (RPM >> 8);
-  tmpBuff[i++] = (uint8_t) (RPM);
   PackedProtocal(tmpBuff, i);
 }
 

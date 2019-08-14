@@ -307,12 +307,14 @@ int PowerPanic::SaveEnv(void) {
 	for (i=0; i<NUM_AXIS; i++)
 		Data.PositionData[i] = current_position[i];
 
+#if (BOARD_VER == BOARD_SNAPMAKER1)
   if (Data.GCodeSource == GCODE_SOURCE_UDISK)
     strcpy(Data.FileName, card.filename);
   else {
     // 0xff will reduce the write times for the flash
     memset((void *)Data.FileName, 0xFF, PP_FILE_NAME_LEN);
     PowerPanicData.Data.FileName[0] = 0;
+#endif
   }
 
   Data.Valid = 1;
@@ -321,6 +323,21 @@ int PowerPanic::SaveEnv(void) {
 	Data.CheckSum = 0;
 	for(i = 0; i < sizeof(strPowerPanicSave); i++)
 		Data.CheckSum += pBuff[i];
+
+	switch (ExecuterHead.MachineType)
+	{
+	case MACHINE_TYPE_CNC:
+		Data.cnc_power = ExecuterHead.CNC.GetRPM();
+		break;
+
+	case MACHINE_TYPE_LASER:
+		Data.laser_percent = ExecuterHead.Laser.GetPower();
+		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+	break;
+	
+	default:
+		break;
+	}
 
   return 0;
 }

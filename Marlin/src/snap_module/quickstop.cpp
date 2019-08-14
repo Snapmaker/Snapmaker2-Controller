@@ -14,8 +14,6 @@ QuickStop quickstop;
 ErrCode QuickStop::SetEvent(QuickStopEvent e) {
   ErrCode ret = E_SUCCESS;
 
-  DISABLE_ISRS();
-
   // priority of power-loss is highest
   if (e == QS_EVENT_ISR_POWER_LOSS) {
     // if previous event is not power-loss, override it.
@@ -39,8 +37,6 @@ ErrCode QuickStop::SetEvent(QuickStopEvent e) {
       ret = E_SUCCESS;
     }
   }
-
-  ENABLE_ISRS();
 
   return ret;
 }
@@ -119,7 +115,11 @@ void QuickStop::CheckISR(block_t *blk) {
 }
 
 ErrCode QuickStop::Trigger(QuickStopEvent e) {
+  // only stepper ISR may call SetEvent() at the same time
+  DISABLE_STEPPER_DRIVER_INTERRUPT();
   ErrCode ret = SetEvent(e);
+  ENABLE_STEPPER_DRIVER_INTERRUPT();
+
   if (ret != E_SUCCESS) {
     LOG_W("set quick stop event failed, err = %d\n", ret);
     return E_BUSY;
@@ -168,6 +168,7 @@ void QuickStop::TowardStop() {
     // if temperature permitted, will raise Z with retracting E
     if(thermalManager.temp_hotend[0].current > 180) {
       current_position[E_AXIS] -= 4;
+      line_to_current_position(60);
     }
 
     if (event_ == QS_EVENT_ISR_POWER_LOSS) {
@@ -177,8 +178,15 @@ void QuickStop::TowardStop() {
     else
       move_to_limited_z(current_position[Z_AXIS] + 30, 10);
 
-    // move X to original point
-    move_to_limited_x(0, 35);
+    // if runout, move X to max
+    if (event_ == QS_EVENT_RUNOUT) {
+      move_to_limited_x(X_MAX_POS, 35);
+    }
+    else {
+      // move X to original point
+      move_to_limited_x(0, 35);
+    }
+
     // move Y to max position
     move_to_limited_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
     break;
@@ -193,11 +201,6 @@ void QuickStop::TowardStop() {
     else
       move_to_limited_z(current_position[Z_AXIS] + 30, 10);
 
-    while (planner.has_blocks_queued()) {
-      if (event_ != QS_EVENT_ISR_POWER_LOSS)
-        idle();
-    }
-
     // move to original point
     move_to_limited_xy(0, 0, 50);
     break;
@@ -209,6 +212,11 @@ void QuickStop::TowardStop() {
   default:
     break;
   }
+
+  while (planner.has_blocks_queued()) {
+    if (event_ != QS_EVENT_ISR_POWER_LOSS)
+      idle();
+  }
 }
 
 
@@ -218,14 +226,20 @@ void QuickStop::Process() {
 
   LOG_I("quick stop process, event = %d\n", event_);
 
+  // make sure stepper ISR is enabled
+  // need it to save data
+  ENABLE_STEPPER_DRIVER_INTERRUPT();
+
   CleanMoves();
 
   LOG_I("waiting Stepper ISR to save env, sync_flag = %d\n", sync_flag_);
   // waiting sync_flag_ to become QS_SYNC_ISR_END
   while (sync_flag_ != QS_SYNC_ISR_END);
 
-  LOG_I("the last stepper position(XYZ): (%f, %f, %f)\n", PowerPanicData.Data.PositionData[X_AXIS],
-        PowerPanicData.Data.PositionData[Y_AXIS], PowerPanicData.Data.PositionData[Z_AXIS]);
+  LOG_I("the last stepper position(XYZE): (%f, %f, %f, %f)\n", PowerPanicData.Data.PositionData[X_AXIS],
+        PowerPanicData.Data.PositionData[Y_AXIS], PowerPanicData.Data.PositionData[Z_AXIS],
+        PowerPanicData.Data.PositionData[E_AXIS]);
+
   TowardStop();
 
   stopped_ = true;

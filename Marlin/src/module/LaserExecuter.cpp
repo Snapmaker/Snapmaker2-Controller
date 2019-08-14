@@ -331,3 +331,11 @@ char LaserExecuter::SetWifiParameter(char *SSID, char *Password)
 }
 
 
+uint16_t LaserExecuter::GetTimPwm() {
+  return Tim1GetCCR4();
+}
+
+void LaserExecuter::RestorePower(float percent, uint16_t pwm) {
+  last_percent = percent;
+  TimSetPwm(pwm);
+}
