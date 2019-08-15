@@ -40,7 +40,9 @@ class QuickStop {
     void Process();
 
     bool IsStopped() { return !!stopped_; };
-    bool IsTriggered() { return !!event_;}
+    bool IsTriggered() { return !!event_; }
+
+    void Debug(QuickStopEvent e) { debug_ = e; }
 
   private:
 
@@ -49,6 +51,8 @@ class QuickStop {
 
     bool disable_stepper_;
     bool stopped_;
+
+    QuickStopEvent debug_;
 
     ErrCode FORCE_INLINE SetEvent(QuickStopEvent e);
     void CleanMoves();

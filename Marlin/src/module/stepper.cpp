@@ -1563,7 +1563,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
       #endif
       axis_did_move = 0;
       // when a block is outputed, we record it position in file if it has
-      PowerPanicData.SaveCmdLine(current_block->filePos);
+      powerpanic.SaveCmdLine(current_block->filePos);
       current_block = NULL;
       planner.discard_current_block();
     }
@@ -1846,11 +1846,6 @@ uint32_t Stepper::stepper_block_phase_isr() {
       // is against the limits, the block will be marked as to be killed, and
       // on the next call to this ISR, will be discarded.
       endstops.update();
-
-      // check if power-loss event happen
-      // if happened, we need to stop currunt block and save the work.
-      //PowerPanicData.check(current_block);
-
 
       #if ENABLED(Z_LATE_ENABLE)
         // If delayed Z enable, enable it now. This option will severely interfere with

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../inc/MarlinConfig.h"
+#include "../snap_module/error.h"
 
 #ifndef _POWER_PANIC_H_
 #define _POWER_PANIC_H_
@@ -37,6 +38,8 @@ typedef struct
 	float BedTamp;
 	// position of stepper on last move
 	float PositionData[NUM_AXIS];
+	// position shift between home offset and workspace offset
+	float position_shift[XYZ];
 	// line number of last gcode
 	int FilePosition;
 	// 
@@ -67,20 +70,25 @@ public:
   void ClearPowerPanicData(void);
   void MaskPowerPanicData(void);
   int  SaveEnv(void);
-  bool PowerPanicResumeWork(uint8_t *Err);
+  ErrCode ResumeWork();
   void SaveCmdLine(uint32_t l);
   void TurnOffPower(void);
+	void Reset();
 
 public:
   strPowerPanicSave Data;
 
 private:
   uint32_t WriteIndex;
-  strPowerPanicSave tmpPowerPanicData;
+  strPowerPanicSave tmp_data;
 
   int Load(void);
+
+	void Resume3DP();
+	void ResumeCNC();
+	void ResumeLaser();
 };
 
-extern PowerPanic PowerPanicData;
+extern PowerPanic powerpanic;
 
 #endif //def _STATUS_CONTROL_H_

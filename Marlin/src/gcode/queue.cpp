@@ -263,6 +263,7 @@ bool ok_to_HMI() {
  *   B<int>  Block queue space remaining
  */
 void ok_to_send() {
+  static char ok_to_sc[10] = "okline\r\n";
   #if NUM_SERIAL > 1
     const int16_t port = command_queue_port[cmd_queue_index_r];
     if (port < 0) return;
@@ -286,9 +287,13 @@ void ok_to_send() {
   }
   if(Screen_send_ok[cmd_queue_index_r])
   {
-    HMI.SendGcode((char*)"ok\r\n", Screen_send_ok_opcode[cmd_queue_index_r]);
+    uint32_t line = CommandLine[cmd_queue_index_r];
+    ok_to_sc[2] = (char)(line & 0x000000FF) + 0x30;
+    ok_to_sc[3] = (char)((line & 0x0000FF00) >> 8) + 0x30;
+    ok_to_sc[4] = (char)((line & 0x00FF0000) >> 16) + 0x30;
+    ok_to_sc[5] = (char)((line & 0xFF000000) >> 24) + 0x30;
+    HMI.SendGcode(ok_to_sc, Screen_send_ok_opcode[cmd_queue_index_r]);
     SNAP_DEBUG_SET_GCODE_LINE(CommandLine[cmd_queue_index_r]);
-    SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_ACKED);
   }
 }
 
@@ -878,7 +883,7 @@ void get_available_commands() {
   // if any immediate commands remain, don't get other commands yet
   if (drain_injected_commands_P()) return;
 
-  //if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
+  if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
     get_serial_commands();
 
   #if ENABLED(SDSUPPORT)

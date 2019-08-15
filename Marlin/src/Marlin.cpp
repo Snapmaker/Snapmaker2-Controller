@@ -998,7 +998,7 @@ void setup() {
   (void)settings.load();
 
   // init power panic handler and load data from flash
-  PowerPanicData.Init();
+  powerpanic.Init();
 
   // reset the status of quickstop
   quickstop.Reset();

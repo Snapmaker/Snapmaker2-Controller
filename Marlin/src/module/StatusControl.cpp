@@ -113,6 +113,8 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
     break;
   }
 
+  lightbar.set_state(LB_STATE_STANDBY);
+
   return E_SUCCESS;
 }
 
@@ -148,18 +150,20 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
     Periph.StopDoorCheck();
 
   // diable power panic data
-  PowerPanicData.Data.Valid = 0;
+  powerpanic.Data.Valid = 0;
 
   // disable filament checking
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
     process_cmd_imd("M412 S0");
+
+  lightbar.set_state(LB_STATE_STANDBY);
 
   // if we already finish quick stop, just change system status
   // disable power-loss data, and exit with success
   if (cur_status_ == SYSTAT_PAUSE_FINISH) {
     // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
     cur_status_ = SYSTAT_END_FINISH;
-    LOG_I("Stop in pauseing\n");
+    LOG_I("Stop in pauseing, trigger source: %d\n", type);
     return E_SUCCESS;
   }
 
@@ -268,19 +272,19 @@ void StatusControl::StopProcess()
 #define RESUME_PROCESS_CMD_SIZE 40
 
 static void restore_xyz(void) {
-  LOG_I("restore XYZE to (%f, %f, %f, %f)\n", PowerPanicData.Data.PositionData[X_AXIS],
-        PowerPanicData.Data.PositionData[Y_AXIS], PowerPanicData.Data.PositionData[Z_AXIS],
-        PowerPanicData.Data.PositionData[E_AXIS]);
+  LOG_I("restore XYZE to (%f, %f, %f, %f)\n", powerpanic.Data.PositionData[X_AXIS],
+        powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
+        powerpanic.Data.PositionData[E_AXIS]);
   char cmd[RESUME_PROCESS_CMD_SIZE] = {0};
 
   // restore X, Y
   snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 X%.2f Y%.2f F4000",
-      PowerPanicData.Data.PositionData[X_AXIS], PowerPanicData.Data.PositionData[Y_AXIS]);
+      powerpanic.Data.PositionData[X_AXIS], powerpanic.Data.PositionData[Y_AXIS]);
   process_cmd_imd(cmd);
   planner.synchronize();
 
   // restore Z
-  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F4000", PowerPanicData.Data.PositionData[Z_AXIS]);
+  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F4000", powerpanic.Data.PositionData[Z_AXIS]);
   process_cmd_imd(cmd);
   planner.synchronize();
 }
@@ -297,7 +301,7 @@ void inline StatusControl::resume_3dp(void) {
   planner.synchronize();
 
   // restore E position
-  current_position[E_AXIS] = PowerPanicData.Data.PositionData[E_AXIS];
+  current_position[E_AXIS] = powerpanic.Data.PositionData[E_AXIS];
   sync_plan_position_e();
 
   // retract filament to cut it out
@@ -311,8 +315,8 @@ void inline StatusControl::resume_3dp(void) {
 
 void inline StatusControl::resume_cnc(void) {
   // enable CNC motor
-  LOG_I("restore CNC power: %f\n", PowerPanicData.Data.cnc_power);
-  ExecuterHead.CNC.SetPower(PowerPanicData.Data.cnc_power);
+  LOG_I("restore CNC power: %f\n", powerpanic.Data.cnc_power);
+  ExecuterHead.CNC.SetPower(powerpanic.Data.cnc_power);
 
 }
 
@@ -348,8 +352,8 @@ void StatusControl::ResumeProcess() {
   }
 
   // restore speed
-  saved_g0_feedrate_mm_s = PowerPanicData.Data.TravelFeedRate;
-  saved_g1_feedrate_mm_s = PowerPanicData.Data.PrintFeedRate;
+  saved_g0_feedrate_mm_s = powerpanic.Data.TravelFeedRate;
+  saved_g1_feedrate_mm_s = powerpanic.Data.PrintFeedRate;
 
   restore_xyz();
 
@@ -432,7 +436,7 @@ void StatusControl::ResumeOver() {
     break;
 
   case MACHINE_TYPE_LASER:
-    ExecuterHead.Laser.RestorePower(PowerPanicData.Data.laser_percent, PowerPanicData.Data.laser_pwm);
+    ExecuterHead.Laser.RestorePower(powerpanic.Data.laser_percent, powerpanic.Data.laser_pwm);
     break;
 
   case MACHINE_TYPE_CNC:
@@ -442,6 +446,9 @@ void StatusControl::ResumeOver() {
     LOG_E("invalid machine type: %d\n", ExecuterHead.MachineType);
     break;
   }
+
+  cur_status_ = SYSTAT_WORK;
+  lightbar.set_state(LB_STATE_WORKING);
 }
 
 /**
@@ -547,7 +554,12 @@ void StatusControl::SetSystemFaultBit(uint32_t BitsToSet)
 /**
  * screen start a work
  */
-ErrCode StatusControl::StartWork() {
+ErrCode StatusControl::StartWork(TriggerSource s) {
+
+  if (cur_status_ != SYSTAT_IDLE) {
+    LOG_W("cannot start work in current status: %d\n", cur_status_);
+    return E_INVALID_STATE;
+  }
 
   if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
     // z is un-homed
@@ -559,28 +571,32 @@ ErrCode StatusControl::StartWork() {
     // move to original point
     do_blocking_move_to_logical_xy(0, 0);
   }
-  PowerPanicData.Data.FilePosition = 0;
-  PowerPanicData.Data.accumulator = 0;
-  PowerPanicData.Data.HeaterTamp[0] = 0;
-  PowerPanicData.Data.BedTamp = 0;
-  PowerPanicData.Data.PositionData[0] = 0;
-  PowerPanicData.Data.PositionData[1] = 0;
-  PowerPanicData.Data.PositionData[2] = 0;
-  PowerPanicData.Data.PositionData[3] = 0;
-  PowerPanicData.Data.GCodeSource = GCODE_SOURCE_SCREEN;
-  PowerPanicData.Data.MachineType = ExecuterHead.MachineType;
 
-  // enable runout
+  powerpanic.Reset();
+
+  if (s == TRIGGER_SOURCE_SC) {
+    powerpanic.Data.GCodeSource = GCODE_SOURCE_SCREEN;
+  }
+  else if (s == TRIGGER_SOURCE_PC) {
+    powerpanic.Data.GCodeSource = GCODE_SOURCE_PC;
+  }
+
+
+  // enable runout or not
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
     process_cmd_imd("M412 S1");
   else
     process_cmd_imd("M412 S0");
+
+  Periph.StartDoorCheck();
 
   print_job_timer.start();
 
   // set state
   cur_status_ = SYSTAT_WORK;
   work_port_ = WORKING_PORT_SC;
+
+  lightbar.set_state(LB_STATE_WORKING);
 
   return E_SUCCESS;
 }

@@ -59,7 +59,6 @@ class SnapDebug {
     void SetLevel(SnapDebugLevel l);
     void CmdChecksumError(bool screen);
     void SetSCGcodeLine(uint32_t l);
-    void SetGcodeState(GcodeState s);
 
   private:
 
@@ -80,7 +79,6 @@ extern SnapDebug debug;
 #define SNAP_DEBUG_SET_LEVEL(l)           debug.SetLevel(l);
 #define SNAP_DEBUG_CMD_CHECKSUM_ERROR(s)  debug.CmdChecksumError(s);
 #define SNAP_DEBUG_SET_GCODE_LINE(l)      debug.SetSCGcodeLine(l);
-#define SNAP_DEBUG_SET_GCODE_STATE(s)     debug.SetGcodeState(s);
 
 #else
 
@@ -89,7 +87,6 @@ extern SnapDebug debug;
 #define LOG_W(...)
 #define LOG_I(...)
 
-#define SNAP_DEBUG_SET_GCODE_STATE(s)
 #define SNAP_DEBUG_SHOW_INFO()
 #define SNAP_DEBUG_SET_LEVEL(l)
 #define SNAP_DEBUG_CMD_CHECKSUM_ERROR(s)

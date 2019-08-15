@@ -45,7 +45,7 @@ void QuickStop::CheckISR(block_t *blk) {
   QuickStopEvent new_event = QS_EVENT_NONE;
   static millis_t last_powerloss = 0;
 
-  uint8_t powerstat = READ(POWER_DETECT_PIN);
+  uint8_t powerstat = (debug_ == QS_EVENT_NONE)?  READ(POWER_DETECT_PIN) : POWER_LOSS_STATE;
 
   // debounce for power loss, will delay 10ms for responce
   if (powerstat != POWER_LOSS_STATE)
@@ -96,18 +96,18 @@ void QuickStop::CheckISR(block_t *blk) {
   }
 
   if (new_event == QS_EVENT_ISR_POWER_LOSS)
-    PowerPanicData.TurnOffPower();
+    powerpanic.TurnOffPower();
 
 
   if (new_event != QS_EVENT_NONE) {
     if (blk)
-      PowerPanicData.Data.FilePosition = blk->filePos;
+      powerpanic.Data.FilePosition = blk->filePos;
     set_current_from_steppers_for_axis(ALL_AXES);
-    PowerPanicData.SaveEnv();
+    powerpanic.SaveEnv();
   }
 
   if (new_event == QS_EVENT_ISR_POWER_LOSS)
-    PowerPanicData.WriteFlash();
+    powerpanic.WriteFlash();
 
   sync_flag_ = QS_SYNC_ISR_END;
 
@@ -147,7 +147,10 @@ void QuickStop::TowardStop() {
   planner.delay_before_delivering = 0;
   planner.cleaning_buffer_counter = 0;
 
-  while (stepper.get_current_block());
+  while (stepper.get_current_block()) {
+    ENABLE_STEPPER_DRIVER_INTERRUPT();
+    stepper.quick_stop();
+  }
 
   // make it false, will not abort block, then we can output moves
   disable_stepper_ = false;
@@ -224,25 +227,58 @@ void QuickStop::Process() {
   if (event_ == QS_EVENT_NONE || stopped_)
     return;
 
-  LOG_I("quick stop process, event = %d\n", event_);
-
   // make sure stepper ISR is enabled
   // need it to save data
   ENABLE_STEPPER_DRIVER_INTERRUPT();
 
   CleanMoves();
 
-  LOG_I("waiting Stepper ISR to save env, sync_flag = %d\n", sync_flag_);
   // waiting sync_flag_ to become QS_SYNC_ISR_END
   while (sync_flag_ != QS_SYNC_ISR_END);
 
-  LOG_I("the last stepper position(XYZE): (%f, %f, %f, %f)\n", PowerPanicData.Data.PositionData[X_AXIS],
-        PowerPanicData.Data.PositionData[Y_AXIS], PowerPanicData.Data.PositionData[Z_AXIS],
-        PowerPanicData.Data.PositionData[E_AXIS]);
+  LOG_I("last position: X: %f, Y: %f, Z: %f, E: %f\n", powerpanic.Data.PositionData[X_AXIS],
+      powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS], powerpanic.Data.PositionData[E_AXIS]);
+  LOG_I("Last line number: %d\n", powerpanic.Data.FilePosition);
+  LOG_I("last position shift:\n");
+  LOG_I("X: %f, Y: %f, Z: %f\n", powerpanic.Data.position_shift[0],
+      powerpanic.Data.position_shift[1], powerpanic.Data.position_shift[2]);
+
+  if (event_ == QS_EVENT_ISR_POWER_LOSS) {
+    BreathLightClose();
+
+    // disble timer except the stepper's
+    rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
+    rcc_clk_disable(TIMER7->clk_id);
+
+    // disalbe ADC
+    rcc_clk_disable(ADC1->clk_id);
+    rcc_clk_disable(ADC2->clk_id);
+
+    //disble DMA
+    rcc_clk_disable(DMA1->clk_id);
+    rcc_clk_disable(DMA2->clk_id);
+
+    // disable other unnecessary soc peripherals
+    // disable usart
+    //rcc_clk_disable(MSerial1.c_dev()->clk_id);
+    //rcc_clk_disable(MSerial2.c_dev()->clk_id);
+    //rcc_clk_disable(MSerial3.c_dev()->clk_id);
+
+#if ENABLED(EXECUTER_CANBUS_SUPPORT)
+  // turn off hot end and FAN
+	// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+	// 	ExecuterHead.SetTemperature(0, 0);
+	// }
+#endif
+
+    }
 
   TowardStop();
 
   stopped_ = true;
+
+  if (event_ == QS_EVENT_ISR_POWER_LOSS)
+    while (1);
 
   if (SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_TRIG)
     SystemStatus.SetCurrentStatus(SYSTAT_PAUSE_STOPPED);
@@ -256,4 +292,6 @@ void QuickStop::Reset() {
   event_ = QS_EVENT_NONE;
   sync_flag_ = QS_SYNC_NONE;
   disable_stepper_ = false;
+
+  debug_ = QS_EVENT_NONE;
 }

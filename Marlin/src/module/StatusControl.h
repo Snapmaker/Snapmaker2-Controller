@@ -86,7 +86,7 @@ public:
   ErrCode StopTrigger(TriggerSource type);
   ErrCode ResumeTrigger(TriggerSource s);
   void    ResumeOver();
-  ErrCode StartWork();
+  ErrCode StartWork(TriggerSource s);
   void Process();
 
   uint8_t MapCurrentStatusForSC();

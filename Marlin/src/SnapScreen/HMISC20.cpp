@@ -27,6 +27,7 @@
 #include "../snap_module/lightbar.h"
 #include "../feature/runout.h"
 #include "../snap_module/snap_dbg.h"
+#include "../snap_module/quickstop.h"
 
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
 char tmpBuff[1024];
@@ -782,7 +783,6 @@ void HMI_SC20::PollingCommand(void)
 
     //gcode from screen
     else if (eventId == EID_FILE_GCODE_REQ) {
-      SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_RECEIVED);
       // need to check if we are in working with screen
       if (SystemStatus.GetWorkingPort() == WORKING_PORT_SC && (cur_status == SYSTAT_WORK ||
             cur_status == SYSTAT_RESUME_WAITING)) {
@@ -797,13 +797,11 @@ void HMI_SC20::PollingCommand(void)
         if (tmpBuff[13] != ';') {
           if (cur_status == SYSTAT_RESUME_WAITING) {
             SystemStatus.ResumeOver();
-            SystemStatus.SetCurrentStatus(SYSTAT_WORK);
           }
           Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
         }
         else
           SendGcode("ok\n", 0x4);
-        SNAP_DEBUG_SET_GCODE_STATE(GCODE_STATE_BUFFERED);
       }
     }
 
@@ -825,37 +823,26 @@ void HMI_SC20::PollingCommand(void)
       // screen want to start a work
       else if (StatuID == 0x03) {
         LOG_I("SC req START WORK\n");
-        // we need to be idle
-        if (cur_stage != SYSTAGE_IDLE) {
-          // ack a fault to screen
-          MarkNeedReack(1);
-          LOG_W("current state is not IDLE\n");
+        err = SystemStatus.StartWork(TRIGGER_SOURCE_SC);
+        if (E_SUCCESS ==err) {
+          // lock screen
+          HMICommandSave = 1;
+
+          MarkNeedReack(0);
+          LOG_I("trigger WORK: ok\n");
         }
         else {
-          err = SystemStatus.StartWork();
-          if (E_SUCCESS ==err) {
-            // lock screen
-            HMICommandSave = 1;
-
-            lightbar.set_state(LB_STATE_WORKING);
-
-            MarkNeedReack(0);
-            LOG_I("trigger WORK: ok\n");
-          }
-          else {
-            LOG_W("failed to start work: err= %d\n", err);
-            MarkNeedReack(1);
-          }
+          LOG_W("failed to start work: err= %d\n", err);
+          MarkNeedReack(1);
         }
       }
 
       // screen request a pause
       else if (StatuID == 0x04) {
-        LOG_I("SC req PAUSE\n");
+        LOG_I("SC trigger PAUSE\n");
         err = SystemStatus.PauseTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_PAUSE;
-          lightbar.set_state(LB_STATE_STANDBY);
           LOG_I("trigger PAUSE: ok\n");
         }
         else {
@@ -867,7 +854,7 @@ void HMI_SC20::PollingCommand(void)
 
       // resume work
       else if (StatuID == 0x05) {
-        LOG_I("SC req RESUME\n");
+        LOG_I("SC trigger RESUME\n");
         // trigger a resuming, need to ack screen when resume work
         err = SystemStatus.ResumeTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
@@ -882,12 +869,10 @@ void HMI_SC20::PollingCommand(void)
 
       // stop work
       else if (StatuID == 0x06) {
-        LOG_I("SC req STOP\n");
+        LOG_I("SC trigger STOP\n");
         err = SystemStatus.StopTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_STOP;
-          lightbar.set_state(LB_STATE_STANDBY);
-          PowerPanicData.Data.Valid = 0;
           LOG_I("trigger STOP: ok\n");
         }
         else {
@@ -898,7 +883,7 @@ void HMI_SC20::PollingCommand(void)
 
       // finish work
       else if (StatuID == 0x07) {
-        LOG_I("SC req FINISH\n");
+        LOG_I("SC trigger FINISH\n");
         err = SystemStatus.StopTrigger(TRIGGER_SOURCE_FINISH);
         // make sure we are working
         if (err != SYSTAT_WORK) {
@@ -914,29 +899,30 @@ void HMI_SC20::PollingCommand(void)
 
       // request the latest line number
       else if (StatuID == 0x08) {
-        LOG_I("SC req line number\n");
+        LOG_I("SC req line number: %d\n", powerpanic.Data.FilePosition);
         SendBreakPointData();
       }
 
       // request progress
       else if (StatuID == 0x09) {
         // not supported in snapmaker2
+        LOG_I("not support cmd: [08, 09]\n");
         MarkNeedReack(1);
       }
 
       // clear power panic data
       else if (StatuID == 0x0a) {
-        LOG_I("SC req clear power-loss record\n");
+        LOG_I("SC trigger clear power-loss record\n");
         // clear all fault flags
         SystemStatus.ClearSystemFaultBit(0xffffffff);
 
         // clear flash data
-        if (PowerPanicData.Data.Valid == 1) {
-          PowerPanicData.MaskPowerPanicData();
+        if (powerpanic.Data.Valid == 1) {
+          powerpanic.MaskPowerPanicData();
         }
 
         // diable power panic data
-        PowerPanicData.Data.Valid = 0;
+        powerpanic.Data.Valid = 0;
 
         // ack
         MarkNeedReack(0);
@@ -944,36 +930,21 @@ void HMI_SC20::PollingCommand(void)
 
       // recovery work from power loss
       else if (StatuID == 0x0b) {
-        LOG_I("SC req restore from power-loss\n");
+        LOG_I("SC trigger restore from power-loss\n");
+        // recovery work and ack to screen
         if (cur_status != SYSTAT_IDLE) {
           MarkNeedReack(1);
-          LOG_W("trigger RESTORE: failed, current state[%d] in IDLE\n", cur_status);
-        }
-        else if (MACHINE_TYPE_LASER == ExecuterHead.MachineType &&
-                Periph.IsDoorOpened()) {
-          MarkNeedReack(2);
-          LOG_W("trigger RESTORE: failed, door is open\n");
-        }
-        else if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
-                  CHECK_RUNOUT_SENSOR) {
-          MarkNeedReack(3);
-          SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-          LOG_W("trigger RESTORE: failed, filament runout\n");
         }
         else {
-          // to here, we can recovery work
-
-          // enable door checking
-          if (MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-            Periph.StartDoorCheck();
-
-          // enable filament runout checking
-          if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-            process_cmd_imd("M412 S1");
-
-          // recovery work and ack to screen
-          PowerPanicData.PowerPanicResumeWork(NULL);
-          LOG_W("trigger RESTORE: ok\n");
+          err = powerpanic.ResumeWork();
+          if (E_SUCCESS == err) {
+            MarkNeedReack(0);
+            LOG_I("trigger RESTORE: ok\n");
+          }
+          else {
+            LOG_I("trigger RESTORE: failed, err = %d\n", err);
+            MarkNeedReack(1);
+          }
         }
       }
 
@@ -1023,9 +994,9 @@ void HMI_SC20::PollingCommand(void)
 
         // move z axis
         case 6:
-          int32Value = BYTES_TO_32BITS(tmpBuff, 10);
+          int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          do_blocking_move_to_logical_z(current_position[Z_AXIS] + fZ, 20.0f);
+          move_to_limited_z(current_position[Z_AXIS] + fZ, 20.0f);
           MarkNeedReack(0);
           break;
 
@@ -1335,6 +1306,12 @@ void HMI_SC20::PollingCommand(void)
         break;
       }
     }
+    else if (eventId == 0x99) {
+      if (OpCode == 0) {
+        // trigger powerloss
+        quickstop.Debug(QS_EVENT_ISR_POWER_LOSS);
+      }
+    }
 
     if (GenReack == true) SendGeneralReack((eventId + 1), OpCode, Result);
 
@@ -1543,9 +1520,9 @@ void HMI_SC20::SendBreakPointData()
   //EventID
   tmpBuff[i++] = EID_STATUS_RESP;
   tmpBuff[i++] = 0x08;
-  tmpBuff[i++] = PowerPanicData.Data.Valid;
-  tmpBuff[i++] = PowerPanicData.Data.GCodeSource;
-  BITS32_TO_BYTES(PowerPanicData.Data.FilePosition, tmpBuff, i);
+  tmpBuff[i++] = powerpanic.Data.Valid;
+  tmpBuff[i++] = powerpanic.Data.GCodeSource;
+  BITS32_TO_BYTES(powerpanic.Data.FilePosition, tmpBuff, i);
   PackedProtocal(tmpBuff, i);
 }
 
@@ -1570,10 +1547,10 @@ void HMI_SC20::SendMachineFaultFlag()
 
   //打印文件源
   if (SystemStatus.GetCurrentStage() == SYSTAGE_IDLE) tmpBuff[i++] = 3;
-  else tmpBuff[i++] = PowerPanicData.Data.GCodeSource;
+  else tmpBuff[i++] = powerpanic.Data.GCodeSource;
 
   //行号
-  BITS32_TO_BYTES(PowerPanicData.Data.FilePosition, tmpBuff, i);
+  BITS32_TO_BYTES(powerpanic.Data.FilePosition, tmpBuff, i);
   PackedProtocal(tmpBuff, i);
 }
 
