@@ -54,7 +54,6 @@ class QuickStop {
 
     QuickStopEvent debug_;
 
-    ErrCode FORCE_INLINE SetEvent(QuickStopEvent e);
     void CleanMoves();
     void TowardStop();
 };

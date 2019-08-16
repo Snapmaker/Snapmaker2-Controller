@@ -77,10 +77,10 @@ public:
 
 public:
   strPowerPanicSave Data;
+  strPowerPanicSave pre_data_;
 
 private:
   uint32_t WriteIndex;
-  strPowerPanicSave tmp_data;
 
   int Load(void);
 

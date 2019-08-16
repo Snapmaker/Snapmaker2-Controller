@@ -11,36 +11,6 @@
 
 QuickStop quickstop;
 
-ErrCode QuickStop::SetEvent(QuickStopEvent e) {
-  ErrCode ret = E_SUCCESS;
-
-  // priority of power-loss is highest
-  if (e == QS_EVENT_ISR_POWER_LOSS) {
-    // if previous event is not power-loss, override it.
-    if (event_ != QS_EVENT_ISR_POWER_LOSS) {
-      event_ = e;
-      ret = E_SUCCESS;
-    }
-    else {
-      // if previous event is power-loss, return busy
-      // indicates we are handling pwoer-loss
-      ret = E_BUSY;
-    }
-  }
-  else {
-    // if new event is not power-loss, just see if current event is none
-    if (event_ != QS_EVENT_NONE) {
-      ret = E_BUSY;
-    }
-    else {
-      event_ = e;
-      ret = E_SUCCESS;
-    }
-  }
-
-  return ret;
-}
-
 void QuickStop::CheckISR(block_t *blk) {
   QuickStopEvent new_event = QS_EVENT_NONE;
   static millis_t last_powerloss = 0;
@@ -73,14 +43,16 @@ void QuickStop::CheckISR(block_t *blk) {
     }
     else {
       // power loss happened
-      if (SetEvent(QS_EVENT_ISR_POWER_LOSS) == E_SUCCESS)
-        new_event = QS_EVENT_ISR_POWER_LOSS;
+      event_ = QS_EVENT_ISR_POWER_LOSS;
+      new_event = QS_EVENT_ISR_POWER_LOSS;
     }
   }
   else {
     if (powerstat == POWER_LOSS_STATE) {
-      if (SetEvent(QS_EVENT_ISR_POWER_LOSS) == E_SUCCESS)
+      if (event_ != QS_EVENT_ISR_POWER_LOSS) {
+        event_ = QS_EVENT_ISR_POWER_LOSS;
         new_event = QS_EVENT_ISR_POWER_LOSS;
+      }
     }
     else if (sync_flag_ == QS_SYNC_TRIGGER) {
       new_event = event_;
@@ -90,7 +62,7 @@ void QuickStop::CheckISR(block_t *blk) {
   // here are the common handle for above branchs
   // which has no new event
   if (new_event == QS_EVENT_NONE) {
-    if (disable_stepper_ && blk)
+    if (disable_stepper_)
       stepper.quick_stop();
     return;
   }
@@ -99,7 +71,8 @@ void QuickStop::CheckISR(block_t *blk) {
     powerpanic.TurnOffPower();
 
 
-  if (new_event != QS_EVENT_NONE) {
+  if ((sync_flag_ == QS_SYNC_TRIGGER) ||
+      (new_event == QS_EVENT_ISR_POWER_LOSS && sync_flag_ != QS_SYNC_ISR_END)) {
     if (blk)
       powerpanic.Data.FilePosition = blk->filePos;
     set_current_from_steppers_for_axis(ALL_AXES);
@@ -111,23 +84,27 @@ void QuickStop::CheckISR(block_t *blk) {
 
   sync_flag_ = QS_SYNC_ISR_END;
 
+  stepper.quick_stop();
+
   disable_stepper_ = true;
 }
 
 ErrCode QuickStop::Trigger(QuickStopEvent e) {
+  ErrCode ret = E_SUCCESS;
+
   // only stepper ISR may call SetEvent() at the same time
   DISABLE_STEPPER_DRIVER_INTERRUPT();
-  ErrCode ret = SetEvent(e);
+  if (event_ != QS_EVENT_NONE) {
+    ret = E_BUSY;
+    LOG_W("pre event[%d] is not none\n", event_);
+  }
+  else {
+    event_ = e;
+    sync_flag_ = QS_SYNC_TRIGGER;
+  }
   ENABLE_STEPPER_DRIVER_INTERRUPT();
 
-  if (ret != E_SUCCESS) {
-    LOG_W("set quick stop event failed, err = %d\n", ret);
-    return E_BUSY;
-  }
-
-  sync_flag_ = QS_SYNC_TRIGGER;
-
-  return E_SUCCESS;
+  return ret;
 }
 
 void QuickStop::CleanMoves() {
@@ -142,21 +119,6 @@ void QuickStop::CleanMoves() {
 }
 
 void QuickStop::TowardStop() {
-  // these two variables will clean the latency in planning commands
-  // and outputing blocks
-  planner.delay_before_delivering = 0;
-  planner.cleaning_buffer_counter = 0;
-
-  while (stepper.get_current_block()) {
-    ENABLE_STEPPER_DRIVER_INTERRUPT();
-    stepper.quick_stop();
-  }
-
-  // make it false, will not abort block, then we can output moves
-  disable_stepper_ = false;
-
-  stepper.allow_current_block();
-
   // make sure we are in absolute position mode
   relative_mode = false;
 
@@ -227,6 +189,8 @@ void QuickStop::Process() {
   if (event_ == QS_EVENT_NONE || stopped_)
     return;
 
+  millis_t timeout = millis() + 1000UL;
+
   // make sure stepper ISR is enabled
   // need it to save data
   ENABLE_STEPPER_DRIVER_INTERRUPT();
@@ -234,14 +198,12 @@ void QuickStop::Process() {
   CleanMoves();
 
   // waiting sync_flag_ to become QS_SYNC_ISR_END
-  while (sync_flag_ != QS_SYNC_ISR_END);
-
-  LOG_I("last position: X: %f, Y: %f, Z: %f, E: %f\n", powerpanic.Data.PositionData[X_AXIS],
-      powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS], powerpanic.Data.PositionData[E_AXIS]);
-  LOG_I("Last line number: %d\n", powerpanic.Data.FilePosition);
-  LOG_I("last position shift:\n");
-  LOG_I("X: %f, Y: %f, Z: %f\n", powerpanic.Data.position_shift[0],
-      powerpanic.Data.position_shift[1], powerpanic.Data.position_shift[2]);
+  while (sync_flag_ != QS_SYNC_ISR_END) {
+    if ((int32_t)(timeout - millis()) < 0) {
+      timeout = millis() + 1000UL;
+      LOG_I("wait sync flag timeout\n");
+    }
+  }
 
   if (event_ == QS_EVENT_ISR_POWER_LOSS) {
     BreathLightClose();
@@ -270,8 +232,24 @@ void QuickStop::Process() {
 	// 	ExecuterHead.SetTemperature(0, 0);
 	// }
 #endif
+  }
 
+  while (planner.movesplanned()) {
+    if ((int32_t)(timeout - millis()) < 0) {
+      timeout = millis() + 1000UL;
+      LOG_I("wait moves empty timeout\n");
     }
+  }
+
+  // make it false, will not abort block, then we can output moves
+  disable_stepper_ = false;
+
+  stepper.allow_current_block();
+
+  // these two variables will clean the latency in planning commands
+  // and outputing blocks
+  planner.delay_before_delivering = 0;
+  planner.cleaning_buffer_counter = 0;
 
   TowardStop();
 

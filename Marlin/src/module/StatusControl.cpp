@@ -58,7 +58,6 @@ void StatusControl::CheckFatalError() {
  */
 ErrCode StatusControl::PauseTrigger(TriggerSource type)
 {
-  ErrCode ret = E_SUCCESS;
   SysStage stage = GetCurrentStage();
 
   if (stage != SYSTAGE_WORK) {

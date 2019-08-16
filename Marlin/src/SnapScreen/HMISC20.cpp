@@ -899,7 +899,7 @@ void HMI_SC20::PollingCommand(void)
 
       // request the latest line number
       else if (StatuID == 0x08) {
-        LOG_I("SC req line number: %d\n", powerpanic.Data.FilePosition);
+        LOG_I("SC req line number: %d\n", powerpanic.pre_data_.FilePosition);
         SendBreakPointData();
       }
 
@@ -1520,9 +1520,9 @@ void HMI_SC20::SendBreakPointData()
   //EventID
   tmpBuff[i++] = EID_STATUS_RESP;
   tmpBuff[i++] = 0x08;
-  tmpBuff[i++] = powerpanic.Data.Valid;
-  tmpBuff[i++] = powerpanic.Data.GCodeSource;
-  BITS32_TO_BYTES(powerpanic.Data.FilePosition, tmpBuff, i);
+  tmpBuff[i++] = powerpanic.pre_data_.Valid;
+  tmpBuff[i++] = powerpanic.pre_data_.GCodeSource;
+  BITS32_TO_BYTES(powerpanic.pre_data_.FilePosition, tmpBuff, i);
   PackedProtocal(tmpBuff, i);
 }
 

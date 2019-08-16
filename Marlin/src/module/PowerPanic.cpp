@@ -126,7 +126,7 @@ int PowerPanic::Load(void)
 		//当前位置作为写入位置
 		WriteIndex = 0;
 		//标置无效
-		Data.Valid = 0;
+		pre_data_.Valid = 0;
 		//标志断电错误标置
 		ret = 2;
 	}
@@ -136,17 +136,17 @@ int PowerPanic::Load(void)
 		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 8 + FLASH_MARLIN_POWERPANIC;
 		//读取数据
 		pSrcBuff = (uint8_t*)addr;
-		pDstBuff = (uint8_t*)&Data;
+		pDstBuff = (uint8_t*)&pre_data_;
 		for(uint32_t i=0;i<sizeof(strPowerPanicSave);i++)
 			*pDstBuff++ = *pSrcBuff++;
 
 		//校验
 		uint32_t Checksum;
 		uint32_t tmpChecksum;
-		tmpChecksum = Data.CheckSum;
-		Data.CheckSum = 0;
+		tmpChecksum = pre_data_.CheckSum;
+		pre_data_.CheckSum = 0;
 		Checksum = 0;
-		pSrcBuff = (uint8_t*)&Data;
+		pSrcBuff = (uint8_t*)&pre_data_;
 		for(uint32_t i=0;i<sizeof(strPowerPanicSave);i++)
 			Checksum += pSrcBuff[i];
 		//Checksum = Checksum - (uint8_t)(Data.CheckSum >> 24) - (uint8_t)(Data.CheckSum >> 16) - (uint8_t)(Data.CheckSum >> 8) -
@@ -161,7 +161,7 @@ int PowerPanic::Load(void)
 			FLASH_ProgramWord(addr, 0);
 			FLASH_Lock();
 			//标置无效
-			Data.Valid = 0;
+			pre_data_.Valid = 0;
 			//标志断电错误标置
 			ret = 1;
 		}
@@ -169,7 +169,7 @@ int PowerPanic::Load(void)
 		else
 		{
 			//标置有效
-			Data.Valid = 1;
+			pre_data_.Valid = 1;
 		}
 
 		//地址
@@ -179,7 +179,7 @@ int PowerPanic::Load(void)
 		//完整标置无效
 		if(Flag != 0x5555)
 		{
-			Data.Valid = 0;
+			pre_data_.Valid = 0;
 			//标志断电错误标置
 			ret = 1;
 		}
@@ -356,36 +356,36 @@ void PowerPanic::Resume3DP() {
 	char tmpBuff[32];
 
 	for (int i = 0; i < PP_FAN_COUNT; i++) {
-		sprintf(tmpBuff, "M106 P%d S%d", i, tmp_data.FanSpeed[i]);
+		sprintf(tmpBuff, "M106 P%d S%d", i, pre_data_.FanSpeed[i]);
 		process_cmd_imd(tmpBuff);
 	}
 
 	// enable hotend
-	if(tmp_data.BedTamp > 130) {
+	if(pre_data_.BedTamp > 130) {
 		LOG_W("recorded bed temp [%f] is larger than 150, limited it.\n",
-						tmp_data.BedTamp);
-		tmp_data.BedTamp = 130;
+						pre_data_.BedTamp);
+		pre_data_.BedTamp = 130;
 	}
 
-	if (tmp_data.HeaterTamp[0] > 285) {
+	if (pre_data_.HeaterTamp[0] > 285) {
 		LOG_W("recorded hotend temp [%f] is larger than 285, limited it.\n",
-						tmp_data.BedTamp);
-		tmp_data.HeaterTamp[0] = 285;
+						pre_data_.BedTamp);
+		pre_data_.HeaterTamp[0] = 285;
 	}
 
 	// for now, just care 1 hotend
-	sprintf(tmpBuff, "M104 S%0.2f", tmp_data.HeaterTamp[0]);
+	sprintf(tmpBuff, "M104 S%0.2f", pre_data_.HeaterTamp[0]);
 	process_cmd_imd(tmpBuff);
 
 	// set heated bed temperature
-	sprintf(tmpBuff, "M140 S%0.2f", tmp_data.BedTamp);
+	sprintf(tmpBuff, "M140 S%0.2f", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
 	// home all
 	process_cmd_imd("G28");
 
 	LOOP_XYZ(i) {
-		position_shift[i] = tmp_data.position_shift[i];
+		position_shift[i] = pre_data_.position_shift[i];
 		update_workspace_offset((AxisEnum)i);
 	}
 
@@ -398,15 +398,15 @@ void PowerPanic::Resume3DP() {
 
 
 	// waiting temperature reach target
-	sprintf(tmpBuff, "M109 S%0.2f", tmp_data.HeaterTamp[0]);
+	sprintf(tmpBuff, "M109 S%0.2f", pre_data_.HeaterTamp[0]);
 	process_cmd_imd(tmpBuff);
 
-	sprintf(tmpBuff, "M190 S%0.2f", tmp_data.BedTamp);
+	sprintf(tmpBuff, "M190 S%0.2f", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
 
 	// move Z to target position + 5mm
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", tmp_data.PositionData[Z_AXIS] + 5);
+	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS] + 5);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
 
@@ -417,7 +417,7 @@ void PowerPanic::Resume3DP() {
 
 
 	// set E to previous position
-	current_position[E_AXIS] = tmp_data.PositionData[E_AXIS];
+	current_position[E_AXIS] = pre_data_.PositionData[E_AXIS];
 	planner.set_e_position_mm(current_position[E_AXIS]);
 
 	// try to cut out filament
@@ -427,12 +427,12 @@ void PowerPanic::Resume3DP() {
 	relative_mode = false;
 
 	// move to target X Y
-	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", tmp_data.PositionData[X_AXIS], tmp_data.PositionData[Y_AXIS]);
+	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
 
 	// move to target Z
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", tmp_data.PositionData[Z_AXIS]);
+	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
 
@@ -450,7 +450,7 @@ void PowerPanic::ResumeCNC() {
 	// for CNC recover form power-loss, we need to raise Z firstly.
 	// because the drill bit maybe is in the workpiece
 
-	ExecuterHead.CNC.SetPower(tmp_data.cnc_power);
+	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
 
 	relative_mode = true;
 	process_cmd_imd("G0 Z30 F300");
@@ -463,24 +463,24 @@ void PowerPanic::ResumeCNC() {
 	planner.synchronize();
 
 	LOOP_XYZ(i) {
-		position_shift[i] = tmp_data.position_shift[i];
+		position_shift[i] = pre_data_.position_shift[i];
 		update_workspace_offset((AxisEnum)i);
 	}
 
 	LOG_I("position shift:\n");
-	LOG_I("X: %f, Y: %f, Z: %f\n", tmp_data.position_shift[0],
-				tmp_data.position_shift[1], tmp_data.position_shift[2]);
+	LOG_I("X: %f, Y: %f, Z: %f\n", pre_data_.position_shift[0],
+				pre_data_.position_shift[1], pre_data_.position_shift[2]);
 
 	// move to target X Y
-	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", tmp_data.PositionData[X_AXIS], tmp_data.PositionData[Y_AXIS]);
+	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
 
 	// enable CNC motor
-	ExecuterHead.CNC.SetPower(tmp_data.cnc_power);
+	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
 
 	// move to target Z
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", tmp_data.PositionData[Z_AXIS]);
+	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
 
@@ -498,17 +498,17 @@ void PowerPanic::ResumeLaser() {
 	planner.synchronize();
 
 	LOOP_XYZ(i) {
-		position_shift[i] = tmp_data.position_shift[i];
+		position_shift[i] = pre_data_.position_shift[i];
 		update_workspace_offset((AxisEnum)i);
 	}
 
 	// move to target X Y
-	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", tmp_data.PositionData[X_AXIS], tmp_data.PositionData[Y_AXIS]);
+	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
 
 	// move to target Z
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", tmp_data.PositionData[Z_AXIS]);
+	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
 }
@@ -519,19 +519,19 @@ void PowerPanic::ResumeLaser() {
  */
 ErrCode PowerPanic::ResumeWork()
 {
-	if (Data.MachineType != ExecuterHead.MachineType) {
+	if (pre_data_.MachineType != ExecuterHead.MachineType) {
 		LOG_E("current[%d] machine is not same as previous[%d]\n",
-						ExecuterHead.MachineType, Data.MachineType);
+						ExecuterHead.MachineType, pre_data_.MachineType);
 		return E_HARDWARE;
 	}
 
-	if (Data.Valid == 0) {
+	if (pre_data_.Valid == 0) {
 		LOG_E("previous power-loss data is invalid!\n");
 		return E_NO_RESRC;
 	}
 
-	if (Data.GCodeSource != GCODE_SOURCE_SCREEN) {
-		LOG_E("previous Gcode-source is not screen: %d\n", Data.GCodeSource);
+	if (pre_data_.GCodeSource != GCODE_SOURCE_SCREEN) {
+		LOG_E("previous Gcode-source is not screen: %d\n", pre_data_.GCodeSource);
 		return E_INVALID_STATE;
 	}
 
@@ -540,20 +540,16 @@ ErrCode PowerPanic::ResumeWork()
 		return E_INVALID_STATE;
 	}
 
-	// Data may be change during resuming work
-	tmp_data = Data;
-  Data.FilePosition = 0;
-  Data.Valid = 0;
 
-	LOG_I("restore point(X,Y,Z,E): (%f, %f, %f, %f)\n", tmp_data.PositionData[X_AXIS],
-			tmp_data.PositionData[Y_AXIS], tmp_data.PositionData[Z_AXIS], tmp_data.PositionData[E_AXIS]);
-	LOG_I("line number: %d\n", tmp_data.FilePosition);
+	LOG_I("restore point(X,Y,Z,E): (%f, %f, %f, %f)\n", pre_data_.PositionData[X_AXIS],
+			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
+	LOG_I("line number: %d\n", pre_data_.FilePosition);
 
-	switch (tmp_data.MachineType) {
+	switch (pre_data_.MachineType) {
 	case MACHINE_TYPE_3DPRINT:
-		if (tmp_data.HeaterTamp[0] < 185) {
+		if (pre_data_.HeaterTamp[0] < 185) {
 			LOG_E("cannot restore work, previous recorded hotend temperature is less than 185: %f\n",
-							tmp_data.HeaterTamp[0]);
+							pre_data_.HeaterTamp[0]);
 			return E_INVALID_STATE;
 		}
 		if (runout.sensor_state()) {
@@ -572,7 +568,7 @@ ErrCode PowerPanic::ResumeWork()
 		break;
 
 	default:
-		LOG_W("invalid machine type saved in power-loss: %d\n", tmp_data.MachineType);
+		LOG_W("invalid machine type saved in power-loss: %d\n", pre_data_.MachineType);
 		return E_HARDWARE;
 		break;
 	}
@@ -581,11 +577,11 @@ ErrCode PowerPanic::ResumeWork()
 
 	// resume stopwatch
 	print_job_timer.start();
-	Stopwatch::resume(tmp_data.accumulator);
+	Stopwatch::resume(pre_data_.accumulator);
 
 	// restore speed for G0 G1
-	saved_g1_feedrate_mm_s = Data.PrintFeedRate;
-	saved_g0_feedrate_mm_s = Data.TravelFeedRate;
+	saved_g1_feedrate_mm_s = pre_data_.PrintFeedRate;
+	saved_g0_feedrate_mm_s = pre_data_.TravelFeedRate;
 
 	SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
 
@@ -609,9 +605,6 @@ void PowerPanic::TurnOffPower(void) {
   // HMI, all addones
   WRITE(POWER0_SUPPLY_PIN, HIGH);
   WRITE(POWER2_SUPPLY_PIN, POWER_SUPPLY_OFF);
-
-  BreathLightClose();
-
 }
 
 /*
