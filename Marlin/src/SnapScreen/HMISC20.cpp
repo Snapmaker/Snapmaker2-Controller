@@ -1522,7 +1522,16 @@ void HMI_SC20::SendBreakPointData()
   tmpBuff[i++] = 0x08;
   tmpBuff[i++] = powerpanic.pre_data_.Valid;
   tmpBuff[i++] = powerpanic.pre_data_.GCodeSource;
-  BITS32_TO_BYTES(powerpanic.pre_data_.FilePosition, tmpBuff, i);
+
+  if (SystemStatus.GetCurrentStage() == SYSTAGE_PAUSE) {
+    // resume from pause, use this line
+    BITS32_TO_BYTES(powerpanic.Data.FilePosition, tmpBuff, i);
+  }
+  else {
+    // resume form power-loss, use this line
+    BITS32_TO_BYTES(powerpanic.pre_data_.FilePosition, tmpBuff, i);
+  }
+
   PackedProtocal(tmpBuff, i);
 }
 

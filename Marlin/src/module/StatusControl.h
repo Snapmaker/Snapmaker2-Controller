@@ -120,6 +120,7 @@ private:
   void inline resume_3dp(void);
   void inline resume_cnc(void);
   void inline resume_laser(void);
+  void inline RestoreXYZ(void);
   void PauseProcess();
   void StopProcess();
   void ResumeProcess();

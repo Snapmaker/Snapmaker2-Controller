@@ -293,6 +293,8 @@ int PowerPanic::SaveEnv(void) {
 
 	LOOP_XYZ(i) Data.position_shift[i] = position_shift[i];
 
+	Data.FilePosition = last_line;
+
   // heated bed
   Data.BedTamp = thermalManager.temp_bed.target;
 
@@ -307,8 +309,10 @@ int PowerPanic::SaveEnv(void) {
     Data.FanSpeed[i] = Periph.GetFanSpeed(i);
 
   // if power loss, we have record the position to Data.PositionData[]
-	for (i=0; i<NUM_AXIS; i++)
-		Data.PositionData[i] = current_position[i];
+	for (i=0; i<NUM_AXIS; i++) {
+		Data.PositionData[i] = (i == E_AXIS) ?
+				current_position[i] : NATIVE_TO_LOGICAL(current_position[i], i);
+	}
 
 #if (BOARD_VER == BOARD_SNAPMAKER1)
   if (Data.GCodeSource == GCODE_SOURCE_UDISK)
@@ -381,21 +385,12 @@ void PowerPanic::Resume3DP() {
 	sprintf(tmpBuff, "M140 S%0.2f", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
-	// home all
-	process_cmd_imd("G28");
-
-	LOOP_XYZ(i) {
-		position_shift[i] = pre_data_.position_shift[i];
-		update_workspace_offset((AxisEnum)i);
-	}
-
 	// absolut mode
 	relative_mode = false;
 
-	// disable leveling
-	// because the recorded position is un-leveling position
-	set_bed_leveling_enabled(false);
-
+	// enable leveling
+	// because the recorded position is logical position
+	set_bed_leveling_enabled(true);
 
 	// waiting temperature reach target
 	sprintf(tmpBuff, "M109 S%0.2f", pre_data_.HeaterTamp[0]);
@@ -404,6 +399,7 @@ void PowerPanic::Resume3DP() {
 	sprintf(tmpBuff, "M190 S%0.2f", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
+	RestoreWorkspace();
 
 	// move Z to target position + 5mm
 	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS] + 5);
@@ -415,13 +411,12 @@ void PowerPanic::Resume3DP() {
 	process_cmd_imd("G0 E15 F100");
 	planner.synchronize();
 
-
 	// set E to previous position
 	current_position[E_AXIS] = pre_data_.PositionData[E_AXIS];
 	planner.set_e_position_mm(current_position[E_AXIS]);
 
 	// try to cut out filament
-	process_cmd_imd("G0 E-6.5");
+	process_cmd_imd("G0 E-6.5 F2400");
 
 	// absolute mode
 	relative_mode = false;
@@ -437,11 +432,7 @@ void PowerPanic::Resume3DP() {
 	planner.synchronize();
 
 	// enable runout
-	if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-		process_cmd_imd("M412 S1");
-
-	// enable leveling
-	set_bed_leveling_enabled(true);
+	process_cmd_imd("M412 S1");
 }
 
 void PowerPanic::ResumeCNC() {
@@ -449,23 +440,17 @@ void PowerPanic::ResumeCNC() {
 
 	// for CNC recover form power-loss, we need to raise Z firstly.
 	// because the drill bit maybe is in the workpiece
-
+	// and we need to keep CNC motor running when raising Z
 	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
 
 	relative_mode = true;
-	process_cmd_imd("G0 Z30 F300");
+	process_cmd_imd("G28 Z");
 	relative_mode = false;
 
 	ExecuterHead.CNC.SetPower(0);
 
-	// homing
-	process_cmd_imd("G28");
-	planner.synchronize();
-
-	LOOP_XYZ(i) {
-		position_shift[i] = pre_data_.position_shift[i];
-		update_workspace_offset((AxisEnum)i);
-	}
+	// homing and restore workspace
+	RestoreWorkspace();
 
 	LOG_I("position shift:\n");
 	LOG_I("X: %f, Y: %f, Z: %f\n", pre_data_.position_shift[0],
@@ -483,7 +468,6 @@ void PowerPanic::ResumeCNC() {
 	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
-
 }
 
 
@@ -493,14 +477,8 @@ void PowerPanic::ResumeLaser() {
 	// enable laser is disable
 	ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 
-	// homing
-	process_cmd_imd("G28");
-	planner.synchronize();
-
-	LOOP_XYZ(i) {
-		position_shift[i] = pre_data_.position_shift[i];
-		update_workspace_offset((AxisEnum)i);
-	}
+	// homing and restore workspace
+	RestoreWorkspace();
 
 	// move to target X Y
 	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
@@ -513,6 +491,20 @@ void PowerPanic::ResumeLaser() {
 	planner.synchronize();
 }
 
+
+void PowerPanic::RestoreWorkspace() {
+	// home first
+	process_cmd_imd("G28");
+
+	planner.synchronize();
+
+	LOOP_XYZ(i) {
+		position_shift[i] = pre_data_.position_shift[i];
+		update_workspace_offset((AxisEnum)i);
+	}
+
+	// TODO: whether we need to sync plan position??
+}
 /**
  *Resume work after power panic if exist valid power panic data
  *return :true is resume success, or else false
@@ -539,7 +531,6 @@ ErrCode PowerPanic::ResumeWork()
 		LOG_E("trigger RESTORE: failed, door is open\n");
 		return E_INVALID_STATE;
 	}
-
 
 	LOG_I("restore point(X,Y,Z,E): (%f, %f, %f, %f)\n", pre_data_.PositionData[X_AXIS],
 			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
@@ -595,16 +586,15 @@ void PowerPanic::TurnOffPower(void) {
 
   // disable power of heated bed
   thermalManager.setTargetBed(0);
-  WRITE(HEATER_BED_PIN, LOW);
 
   // close laser
   if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
     ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 
   // these 2 statement will disable power supply for
-  // HMI, all addones
-  WRITE(POWER0_SUPPLY_PIN, HIGH);
-  WRITE(POWER2_SUPPLY_PIN, POWER_SUPPLY_OFF);
+  // HMI, BED, and all addones
+  WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_OFF);
+  WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
 }
 
 /*
@@ -613,8 +603,7 @@ void PowerPanic::TurnOffPower(void) {
  * when powerloss happened, no need to record line num.
  */
 void PowerPanic::SaveCmdLine(uint32_t l) {
-  if (READ(POWER_DETECT_PIN) != POWER_LOSS_STATE)
-    Data.FilePosition = l;
+	last_line = l;
 }
 
 /*

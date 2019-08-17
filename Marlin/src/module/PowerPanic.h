@@ -81,12 +81,15 @@ public:
 
 private:
   uint32_t WriteIndex;
+	uint32_t last_line;
 
   int Load(void);
 
 	void Resume3DP();
 	void ResumeCNC();
 	void ResumeLaser();
+
+	void RestoreWorkspace();
 };
 
 extern PowerPanic powerpanic;

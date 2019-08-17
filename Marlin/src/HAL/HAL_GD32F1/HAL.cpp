@@ -36,6 +36,7 @@
 #include "../../inc/MarlinConfig.h"
 
 #include <libmaple/usart.h>
+#include "HardwareSerial.h"
 // --------------------------------------------------------------------------
 // Externals
 // --------------------------------------------------------------------------
@@ -344,26 +345,8 @@ void EnterCritical(uint8_t option)
 }
 
 
-void HAL_power_loss(void) {
-  // disable power supply
-  WRITE(POWER0_SUPPLY_PIN, POWER_SUPPLY_OFF);
-
-  // disable other unnecessary soc peripherals
-  // disable usart
-  rcc_clk_disable(MSerial1.c_dev()->clk_id);
-  rcc_clk_disable(MSerial2.c_dev()->clk_id);
-  rcc_clk_disable(MSerial3.c_dev()->clk_id);
-
-  // disble timer except the stepper's
-  rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
-  rcc_clk_disable(TIMER7->clk_id);
-
-  // disalbe ADC
-  rcc_clk_disable(ADC1->clk_id);
-  rcc_clk_disable(ADC2->clk_id);
-
-  //disble DMA
-  rcc_clk_disable(DMA1->clk_id);
-  rcc_clk_disable(DMA2->clk_id);
+void HAL_uart_reset_rx(HardwareSerial &serial) {
+  usart_reset_rx(serial.c_dev());
 }
+
 #endif // __STM32F1__

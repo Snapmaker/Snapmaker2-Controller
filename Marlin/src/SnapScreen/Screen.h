@@ -29,8 +29,6 @@ class HMIScreen
       void SendMachineFaultFlag();
       void SendGcode(char *GCode, uint8_t EventID);
       void SendUpdateComplete(uint8_t Type);
-      HMIReq RequestStatus();
-      void RequestStatus(HMIReq req);
 
     #else
       FORCE_INLINE static void SendMachineStatusChange(uint8_t, uint8_t){}

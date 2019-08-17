@@ -270,7 +270,7 @@ void StatusControl::StopProcess()
 #endif
 #define RESUME_PROCESS_CMD_SIZE 40
 
-static void restore_xyz(void) {
+void inline StatusControl::RestoreXYZ(void) {
   LOG_I("restore XYZE to (%f, %f, %f, %f)\n", powerpanic.Data.PositionData[X_AXIS],
         powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
         powerpanic.Data.PositionData[E_AXIS]);
@@ -283,7 +283,7 @@ static void restore_xyz(void) {
   planner.synchronize();
 
   // restore Z
-  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F4000", powerpanic.Data.PositionData[Z_AXIS]);
+  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F2400", powerpanic.Data.PositionData[Z_AXIS]);
   process_cmd_imd(cmd);
   planner.synchronize();
 }
@@ -305,7 +305,7 @@ void inline StatusControl::resume_3dp(void) {
 
   // retract filament to cut it out
   relative_mode = true;
-  process_cmd_imd("G0 E-5 F3600");
+  process_cmd_imd("G0 E-6.5 F3600");
   relative_mode = false;
 
   planner.synchronize();
@@ -316,12 +316,10 @@ void inline StatusControl::resume_cnc(void) {
   // enable CNC motor
   LOG_I("restore CNC power: %f\n", powerpanic.Data.cnc_power);
   ExecuterHead.CNC.SetPower(powerpanic.Data.cnc_power);
-
 }
 
 void inline StatusControl::resume_laser(void) {
-  // enable door check
-  Periph.StartDoorCheck();
+
 }
 
 /**
@@ -332,6 +330,8 @@ void StatusControl::ResumeProcess() {
     return;
 
   cur_status_ = SYSTAT_RESUME_MOVING;
+
+  set_bed_leveling_enabled(true);
 
   switch(ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
@@ -350,11 +350,11 @@ void StatusControl::ResumeProcess() {
     break;
   }
 
+  RestoreXYZ();
+
   // restore speed
   saved_g0_feedrate_mm_s = powerpanic.Data.TravelFeedRate;
   saved_g1_feedrate_mm_s = powerpanic.Data.PrintFeedRate;
-
-  restore_xyz();
 
   // clear command queue
   clear_command_queue();
@@ -364,6 +364,8 @@ void StatusControl::ResumeProcess() {
 
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
+
+  Periph.StartDoorCheck();
 
   // reset the state of quick stop handler
   quickstop.Reset();
@@ -575,9 +577,11 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
 
   if (s == TRIGGER_SOURCE_SC) {
     powerpanic.Data.GCodeSource = GCODE_SOURCE_SCREEN;
+    work_port_ = WORKING_PORT_SC;
   }
   else if (s == TRIGGER_SOURCE_PC) {
     powerpanic.Data.GCodeSource = GCODE_SOURCE_PC;
+    work_port_ = WORKING_PORT_PC;
   }
 
 
@@ -593,7 +597,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
 
   // set state
   cur_status_ = SYSTAT_WORK;
-  work_port_ = WORKING_PORT_SC;
 
   lightbar.set_state(LB_STATE_WORKING);
 

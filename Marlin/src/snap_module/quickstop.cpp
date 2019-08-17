@@ -74,7 +74,7 @@ void QuickStop::CheckISR(block_t *blk) {
   if ((sync_flag_ == QS_SYNC_TRIGGER) ||
       (new_event == QS_EVENT_ISR_POWER_LOSS && sync_flag_ != QS_SYNC_ISR_END)) {
     if (blk)
-      powerpanic.Data.FilePosition = blk->filePos;
+      powerpanic.SaveCmdLine(blk->filePos);
     set_current_from_steppers_for_axis(ALL_AXES);
     powerpanic.SaveEnv();
   }
@@ -92,7 +92,7 @@ void QuickStop::CheckISR(block_t *blk) {
 ErrCode QuickStop::Trigger(QuickStopEvent e) {
   ErrCode ret = E_SUCCESS;
 
-  // only stepper ISR may call SetEvent() at the same time
+  // only stepper ISR may read/write event_ at the same time
   DISABLE_STEPPER_DRIVER_INTERRUPT();
   if (event_ != QS_EVENT_NONE) {
     ret = E_BUSY;
@@ -132,7 +132,7 @@ void QuickStop::TowardStop() {
   case MACHINE_TYPE_3DPRINT:
     // if temperature permitted, will raise Z with retracting E
     if(thermalManager.temp_hotend[0].current > 180) {
-      current_position[E_AXIS] -= 4;
+      current_position[E_AXIS] -= 6.5;
       line_to_current_position(60);
     }
 
@@ -140,15 +140,15 @@ void QuickStop::TowardStop() {
       //to avoid pre-block has been aborted, we input a block again
       move_to_limited_z(current_position[Z_AXIS] + 5, 10);
     }
-    else
+    else {
       move_to_limited_z(current_position[Z_AXIS] + 30, 10);
+    }
 
     // if runout, move X to max
-    if (event_ == QS_EVENT_RUNOUT) {
-      move_to_limited_x(X_MAX_POS, 35);
+    if (X_HOME_DIR) {
+      move_to_limited_x(home_offset[Y_AXIS] + X_MAX_POS, 35);
     }
     else {
-      // move X to original point
       move_to_limited_x(0, 35);
     }
 
@@ -182,6 +182,8 @@ void QuickStop::TowardStop() {
     if (event_ != QS_EVENT_ISR_POWER_LOSS)
       idle();
   }
+
+  set_bed_leveling_enabled(true);
 }
 
 
