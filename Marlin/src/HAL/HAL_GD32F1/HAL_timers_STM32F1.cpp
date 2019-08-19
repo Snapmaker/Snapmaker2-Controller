@@ -120,10 +120,13 @@ void HAL_timer_start(const uint8_t timer_num, const uint32_t frequency) {
   switch (timer_num) {
     case STEP_TIMER_NUM:
       timer_pause(STEP_TIMER_DEV);
+      timer_set_mode(STEP_TIMER_DEV, STEP_TIMER_CHAN, TIMER_OUTPUT_COMPARE); // counter
       timer_set_count(STEP_TIMER_DEV, 0);
       timer_set_prescaler(STEP_TIMER_DEV, (uint16_t)(STEPPER_TIMER_PRESCALE - 1));
       timer_set_reload(STEP_TIMER_DEV, 0xFFFF);
+      timer_oc_set_mode(STEP_TIMER_DEV, STEP_TIMER_CHAN, TIMER_OC_MODE_FROZEN, TIMER_OC_NO_PRELOAD);
       timer_set_compare(STEP_TIMER_DEV, STEP_TIMER_CHAN, MIN(HAL_TIMER_TYPE_MAX, (STEPPER_TIMER_RATE / frequency)));
+      timer_no_ARR_preload_ARPE(STEP_TIMER_DEV); // Need to be sure no preload on ARR register
       timer_attach_interrupt(STEP_TIMER_DEV, STEP_TIMER_CHAN, stepTC_Handler);
       nvic_irq_set_priority(irq_num, 1);
       timer_generate_update(STEP_TIMER_DEV);
@@ -160,7 +163,7 @@ void HAL_timer_disable_interrupt(const uint8_t timer_num) {
 }
 
 static inline bool timer_irq_enabled(const timer_dev * const dev, const uint8_t interrupt) {
-  return bool(*bb_perip(&(dev->regs).adv->DIER, interrupt));
+  return bool(*bb_perip(&(dev->regs).gen->DIER, interrupt));
 }
 
 bool HAL_timer_interrupt_enabled(const uint8_t timer_num) {
