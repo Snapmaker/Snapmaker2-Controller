@@ -1,6 +1,7 @@
 #ifndef ERROR_H_
 #define ERROR_H_
 
+#include <stdio.h>
 
 typedef uint8_t ErrCode;
 
@@ -24,5 +25,7 @@ typedef uint8_t ErrCode;
 #define E_HARDWARE        (COMMON_ERR_BASE + 7)     /* hardware errors such as invalid bus state */
 
 #define E_INVALID_STATE   (COMMON_ERR_BASE + 8)     /* state is invalid for current operation */
+
+#define E_SAME_STATE      (COMMON_ERR_BASE + 8)     /* current state is same with new state */
 
 #endif // #ifndef ERROR_H_

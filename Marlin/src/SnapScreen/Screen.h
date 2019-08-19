@@ -6,6 +6,15 @@
 #ifndef _SCREEN_H_
 #define _SCREEN_H_
 
+enum HMIReq : uint8_t {
+  HMI_REQ_NONE = 0,
+  HMI_REQ_PAUSE = 0x4,
+  HMI_REQ_RESUME = 0x5,
+  HMI_REQ_STOP = 0x6,
+  HMI_REQ_FINISH = 0x7,
+  HMI_REQ_INVALID
+};
+
 class HMIScreen
 {
     public:
@@ -20,6 +29,7 @@ class HMIScreen
       void SendMachineFaultFlag();
       void SendGcode(char *GCode, uint8_t EventID);
       void SendUpdateComplete(uint8_t Type);
+
     #else
       FORCE_INLINE static void SendMachineStatusChange(uint8_t, uint8_t){}
       FORCE_INLINE static void SendMachineFaultFlag() {}
@@ -34,8 +44,6 @@ class HMIScreen
       FORCE_INLINE static void Show(void){}
       FORCE_INLINE static void ChangePage(uint8_t){}
     #endif
-
-    private:
 
     public:
     uint32_t ScreenLockTick;

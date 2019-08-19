@@ -6,6 +6,8 @@
 #ifndef _HMI_SC20_H_
 #define _HMI_SC20_H_
 
+#include "Screen.h"
+
 class HMI_SC20
 {
 public:
@@ -60,7 +62,7 @@ private:
   void MovementProcess(float X, float Y, float Z, uint8_t Option);
 
 public:
-  uint8_t HmiRequestStatus;
+  HMIReq RequestStatus;
 
 private:
   uint8_t CalibrateMethod;

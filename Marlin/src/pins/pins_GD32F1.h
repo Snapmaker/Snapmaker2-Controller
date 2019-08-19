@@ -131,14 +131,18 @@ enum BoardVer {
 
 #define SCREEN_DET_PIN PD14
 
-#define POWER_SUPPLY_OFF  LOW
-#define POWER_SUPPLY_ON   HIGH
+#define POWER0_SUPPLY_OFF  HIGH
+#define POWER0_SUPPLY_ON   LOW
+
+#define POWER2_SUPPLY_OFF  LOW
+#define POWER2_SUPPLY_ON   HIGH
 
 //
 // to detect power loss
 //
 #define POWER_DETECT_PIN PE0
 #define POWER_LOSS_STATE LOW
+#define POWER_NORMAL_STATE  HIGH
 
 //
 // Heatedbed error detect pin

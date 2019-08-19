@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../inc/MarlinConfig.h"
+#include "../snap_module/error.h"
 
 #ifndef _POWER_PANIC_H_
 #define _POWER_PANIC_H_
@@ -15,36 +16,48 @@ typedef enum
 #define PP_FILE_NAME_LEN  270
 #define PP_FAN_COUNT      4
 #define PP_HEATER         4
+
+// delay for debounce, uint: ms, for now we use 10ms
+#define POWERPANIC_DEBOUNCE	10
 typedef struct
 {
-	//校验
+	// checksum of this section
 	uint32_t CheckSum;
-	//挤出头温度
+	// temperature of extrucders
 	float HeaterTamp[PP_HEATER];
-	//速度
+	// speed of work
 	float PrintFeedRate;
-	//空跑速度
+	// speed of travel
 	float TravelFeedRate;
-	//热床温度
+	// CNC power
+	float cnc_power;
+	// laser Power
+	float laser_percent;
+	uint16_t laser_pwm;
+	// target temperature of heat bed
 	float BedTamp;
-	//坐标,  计数器反算的坐标
+	// position of stepper on last move
 	float PositionData[NUM_AXIS];
-	//文件位置
+	// position shift between home offset and workspace offset
+	float position_shift[XYZ];
+	// line number of last gcode
 	int FilePosition;
-	//时间记录
+	// 
 	uint32_t accumulator;
-	//风扇速度
+	// fans' speed
 	uint8_t FanSpeed[PP_FAN_COUNT];
-	//数据有效标志
+	// if this section is valid
 	uint8_t Valid;
-	//机器类型
+	// working machineType when power-loss
 	uint8_t MachineType;
-	//打印数据源
+	// Gcode source
 	uint8_t GCodeSource;
-  //激活的挤出头
+  // active extruder
   uint8_t active_extruder;
-	//文件名
+#if (BOARD_VER == BOARD_SNAPMAKER1)
+	// file name
 	char FileName[PP_FILE_NAME_LEN];
+#endif
 }strPowerPanicSave;
 
 
@@ -52,31 +65,33 @@ class PowerPanic
 {
 public:
   PowerPanic(){};
-  void init(void);
-  bool check(block_t *blk);
-  void save(void);
+  void Init(void);
+  void WriteFlash(void);
   void ClearPowerPanicData(void);
   void MaskPowerPanicData(void);
-  int  saveWork(void);
-  bool PowerPanicResumeWork(uint8_t *Err);
-  void stopWorking(void);
-  void towardStopPoint(void);
-  void process(void);
-  void saveCmdLine(uint32_t l);
+  int  SaveEnv(void);
+  ErrCode ResumeWork();
+  void SaveCmdLine(uint32_t l);
+  void TurnOffPower(void);
+	void Reset();
 
 public:
   strPowerPanicSave Data;
+  strPowerPanicSave pre_data_;
 
 private:
-  bool restoring;
-  bool powerloss;
   uint32_t WriteIndex;
-  strPowerPanicSave tmpPowerPanicData;
+	uint32_t last_line;
 
-  void turnoffPower(void);
   int Load(void);
+
+	void Resume3DP();
+	void ResumeCNC();
+	void ResumeLaser();
+
+	void RestoreWorkspace();
 };
 
-extern PowerPanic PowerPanicData;
+extern PowerPanic powerpanic;
 
 #endif //def _STATUS_CONTROL_H_

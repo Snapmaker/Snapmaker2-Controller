@@ -7,6 +7,8 @@
 #include "../HAL/HAL_GD32F1/HAL_exti_STM32F1.h"
 #include "CanBus.h"
 #include "CanModule.h"
+#include "StatusControl.h"
+#include "../snap_module/error.h"
 
 PeriphDevice Periph;
 
@@ -15,7 +17,7 @@ PeriphDevice Periph;
  */
 void PeriphDevice::Init()
 {
-  
+  latest_enclosure_event_ = ENCLOSURE_EVENT_NONE;
 }
 
 #if ENABLED(CAN_FAN)
@@ -71,7 +73,7 @@ void PeriphDevice::SetDoorCheck(bool Enable) {
  * para percent:
  */
 void PeriphDevice::StartDoorCheck() {
-  
+
 }
 
 /**
@@ -80,5 +82,47 @@ void PeriphDevice::StartDoorCheck() {
  */
 void PeriphDevice::StopDoorCheck() {
 }
+
+/**
+ * set new latest enclosure event
+ * para percent:
+ */
+void PeriphDevice::LatestEnclosureEvent(EnclosureEvent e) {
+  if (e < ENCLOSURE_EVENT_INVALID)
+    latest_enclosure_event_ = e;
+}
+
 #endif //ENABLED(DOOR_SWITCH)
 
+void PeriphDevice::Process() {
+
+#if ENABLED(DOOR_SWITCH)
+  if (IOSwitch & PERIPH_IOSW_DOOR) {
+    if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ != ENCLOSURE_EVENT_OPEN)) {
+      SystemStatus.PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
+      latest_enclosure_event_ = ENCLOSURE_EVENT_OPEN;
+    }
+
+    if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ == ENCLOSURE_EVENT_OPEN)
+        && (SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_FINISH)) {
+      // TODO: tell screen we have paused by door opened
+
+      latest_enclosure_event_ = ENCLOSURE_EVENT_OPEN_FINISH;
+    }
+
+    if (!TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ == ENCLOSURE_EVENT_OPEN_FINISH)
+          && SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_FINISH) {
+      if (SystemStatus.ResumeTrigger(TRIGGER_SOURCE_DOOR_CLOSE) == E_SUCCESS)
+        latest_enclosure_event_ = ENCLOSURE_EVENT_CLOSE;
+    }
+
+    if ((latest_enclosure_event_ = ENCLOSURE_EVENT_CLOSE) && (SystemStatus.GetCurrentStatus() == SYSTAT_RESUME_WAITING
+          || SystemStatus.GetCurrentStage() == SYSTAGE_WORK)) {
+      // TODO: tell screen we have finish reuming
+
+      latest_enclosure_event_ = ENCLOSURE_EVENT_NONE;
+    }
+  }
+#endif
+
+}

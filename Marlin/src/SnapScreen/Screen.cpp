@@ -79,7 +79,7 @@ void HMIScreen::SendGcode(char *GCode, uint8_t EventID) {
 }
 
 void HMIScreen::SendMachineFaultFlag() {
-  SC20HMI.SendMachineStatus();
+  SC20HMI.SendMachineFaultFlag();
 }
 
 void HMIScreen::SendMachineStatusChange(uint8_t Status, uint8_t Result) {
@@ -91,11 +91,11 @@ void HMIScreen::SendUpdateComplete(uint8_t Type) {
 }
 
 uint8_t HMIScreen::GetRequestStatus() {
-  return SC20HMI.HmiRequestStatus;
+  return SC20HMI.RequestStatus;
 }
 
 void HMIScreen::ClearRequestStatus() {
-  SC20HMI.HmiRequestStatus = STAT_IDLE;
+  SC20HMI.RequestStatus = HMI_REQ_NONE;
 }
 
 

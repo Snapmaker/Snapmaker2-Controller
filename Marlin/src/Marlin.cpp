@@ -48,6 +48,7 @@
 #include "libs/GenerialFunctions.h"
 #include "module/PowerPanic.h"
 #include "snap_module/lightbar.h"
+#include "snap_module/quickstop.h"
 
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
@@ -416,10 +417,7 @@ void disable_all_steppers() {
       if (run_runout_script)
         enqueue_and_echo_commands_P(PSTR(FILAMENT_RUNOUT_SCRIPT));
     #else
-      uint8_t curstatus;
-      curstatus = SystemStatus.GetCurrentPrinterStatus();
-      if((curstatus == STAT_RUNNING) || (curstatus == STAT_RUNNING_ONLINE))
-        SystemStatus.PauseTriggle(FilamentFaultPause);
+      SystemStatus.PauseTrigger(TRIGGER_SOURCE_RUNOUT);
     #endif
   }
 
@@ -884,6 +882,7 @@ void stop() {
  *    • status LEDs
  */
 void setup() {
+  SystemStatus.Init();
 
   #ifdef HAL_INIT
     HAL_init();
@@ -999,7 +998,10 @@ void setup() {
   (void)settings.load();
 
   // init power panic handler and load data from flash
-  PowerPanicData.init();
+  powerpanic.Init();
+
+  // reset the status of quickstop
+  quickstop.Reset();
 
   #if HAS_M206_COMMAND
     // Initialize current position based on home_offset
@@ -1273,6 +1275,8 @@ void loop() {
   }
   //ExecuterHead.MachineType = MACHINE_TYPE_LASER;
   //ExecuterHead.Laser.Init();
+  
+  SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
   for (;;) {
 
@@ -1306,14 +1310,13 @@ void loop() {
         SERIAL_ECHO(" ");
       }
     }
-    
     if (commands_in_queue < BUFSIZE) get_available_commands();
     advance_command_queue();
-    PowerPanicData.process();
+    quickstop.Process();
     endstops.event_handler();
-    SystemStatus.StopProcess();
-    SystemStatus.PauseProcess();
     SystemStatus.CheckFatalError();
+    SystemStatus.Process();
+    Periph.Process();
     idle();
   }
 }

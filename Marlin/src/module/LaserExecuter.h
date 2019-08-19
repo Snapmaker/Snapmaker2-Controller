@@ -7,7 +7,7 @@ void Tim1SetCCR1(uint16_t Value);
 void Tim1SetCCR2(uint16_t Value);
 void Tim1SetCCR3(uint16_t Value);
 void Tim1SetCCR4(uint16_t Value);
-
+uint16_t Tim1GetCCR4(void);
 
 class LaserExecuter 
 {
@@ -21,6 +21,9 @@ public:
   void Off();
   void On();
   uint32_t GetPower() { return (uint32_t)(last_percent * 1000.0f); };
+  uint16_t GetTimPwm();
+  void RestorePower(float percent, uint16_t pwm);
+
   void UpdateLaserPower(float NewPower);
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)
     void SaveFocusHeight(float height);

@@ -17,6 +17,8 @@
 #include "printcounter.h"
 #include "StatusControl.h"
 #include "stepper.h"
+#include "../snap_module/snap_dbg.h"
+#include "../feature/runout.h"
 
 #include "PowerPanic.h"
 
@@ -24,7 +26,7 @@
 #define FLASH_RECORD_PAGES	(MARLIN_POWERPANIC_SIZE / 2048)
 #define RECORD_COUNT_PER_PAGE	(FLASH_PAGE_SIZE / (sizeof(strPowerPanicSave) + 8))
 
-PowerPanic PowerPanicData;
+PowerPanic powerpanic;
 
 #if ENABLED(VARIABLE_G0_FEEDRATE)
   extern float saved_g0_feedrate_mm_s;
@@ -34,11 +36,9 @@ PowerPanic PowerPanicData;
  /**
  * need to initialize the power detect pin
  */
-void PowerPanic::init(void) {
+void PowerPanic::Init(void) {
   int ret;
 
-  restoring = false;
-  powerloss = false;
 	SET_INPUT(POWER_DETECT_PIN);
 
   ret = Load();
@@ -62,63 +62,8 @@ void PowerPanic::init(void) {
     SERIAL_ECHOLNPGM("No power panic data!");
     break;
   }
-
 }
 
- /**
- * check the state of power detect pin
- * if power loss and saved the data successfully, return true, otherwise return false.
- */
-bool PowerPanic::check(block_t *blk) {
-	if (READ(POWER_DETECT_PIN) != POWER_LOSS_STATE)
-		return false;
-
-
-  powerloss = true;
-
-  turnoffPower();
-
-  /* when we are reading data from flash or resume work, restoring = true
-   * for this condition, we just disable power and move to stop point
-   */
-  if (!restoring)
-    return false;
-
-  /* see if there is a block is handling
-   * if yes, its file position is we needed
-   * if no, need to see if command queue have any command
-   */
-  if (blk)
-    Data.FilePosition = blk->filePos;
-
-
-  /* if power-loss happened, need to disable all interrupts,
-   * then do some critical actions to save data, and then enable
-   * ISR to move executer to stop
-   */
-  DISABLE_ISRS();
-
-  // stop stepper, clean buffer and queue
-	stopWorking();
-
-  // for now, we only handle power-loss in follow two conditions
-  if (SystemStatus.CurrentStatus != STAT_PAUSE ||
-        SystemStatus.CurrentStatus != STAT_RUNNING) {
-    ENABLE_ISRS();
-    return false;
-  }
-
-  // save information to buffer
-	saveWork();
-
-  // write buffer to flash
-  save();
-
-  // enable interrupt
-  ENABLE_ISRS();
-
-  return true;
-}
 
  /**
  *Load power panic data from flash
@@ -137,8 +82,6 @@ int PowerPanic::Load(void)
 	uint32_t TotalCount;
 	uint32_t Flag;
   int ret = 0;
-
-  restoring = true;
 
 	//记录大小
 	RecordSize = (sizeof(strPowerPanicSave) + 8);
@@ -183,7 +126,7 @@ int PowerPanic::Load(void)
 		//当前位置作为写入位置
 		WriteIndex = 0;
 		//标置无效
-		Data.Valid = 0;
+		pre_data_.Valid = 0;
 		//标志断电错误标置
 		ret = 2;
 	}
@@ -193,17 +136,17 @@ int PowerPanic::Load(void)
 		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 8 + FLASH_MARLIN_POWERPANIC;
 		//读取数据
 		pSrcBuff = (uint8_t*)addr;
-		pDstBuff = (uint8_t*)&Data;
+		pDstBuff = (uint8_t*)&pre_data_;
 		for(uint32_t i=0;i<sizeof(strPowerPanicSave);i++)
 			*pDstBuff++ = *pSrcBuff++;
 
 		//校验
 		uint32_t Checksum;
 		uint32_t tmpChecksum;
-		tmpChecksum = Data.CheckSum;
-		Data.CheckSum = 0;
+		tmpChecksum = pre_data_.CheckSum;
+		pre_data_.CheckSum = 0;
 		Checksum = 0;
-		pSrcBuff = (uint8_t*)&Data;
+		pSrcBuff = (uint8_t*)&pre_data_;
 		for(uint32_t i=0;i<sizeof(strPowerPanicSave);i++)
 			Checksum += pSrcBuff[i];
 		//Checksum = Checksum - (uint8_t)(Data.CheckSum >> 24) - (uint8_t)(Data.CheckSum >> 16) - (uint8_t)(Data.CheckSum >> 8) -
@@ -218,7 +161,7 @@ int PowerPanic::Load(void)
 			FLASH_ProgramWord(addr, 0);
 			FLASH_Lock();
 			//标置无效
-			Data.Valid = 0;
+			pre_data_.Valid = 0;
 			//标志断电错误标置
 			ret = 1;
 		}
@@ -226,7 +169,7 @@ int PowerPanic::Load(void)
 		else
 		{
 			//标置有效
-			Data.Valid = 1;
+			pre_data_.Valid = 1;
 		}
 
 		//地址
@@ -236,7 +179,7 @@ int PowerPanic::Load(void)
 		//完整标置无效
 		if(Flag != 0x5555)
 		{
-			Data.Valid = 0;
+			pre_data_.Valid = 0;
 			//标志断电错误标置
 			ret = 1;
 		}
@@ -254,19 +197,16 @@ int PowerPanic::Load(void)
 		}
 	}
 
-  restoring = false;
-
   return ret;
 }
 
  /**
  * save the power panic data to flash
  */
-void PowerPanic::save(void)
+void PowerPanic::WriteFlash(void)
 {
   uint32_t addr;
 	uint32_t RecordSize;
-	uint32_t checksum;
 	uint32_t u32data;
 	uint8_t *pBuff;
 
@@ -306,7 +246,7 @@ void PowerPanic::ClearPowerPanicData(void)
 
 	addr = FLASH_MARLIN_POWERPANIC;
 	FLASH_Unlock();
-	for(int i=0;i<FLASH_RECORD_PAGES;i++)
+	for(int i=0; i<FLASH_RECORD_PAGES; i++)
 	{
 		FLASH_ErasePage(addr);
 		addr += 2048;
@@ -344,14 +284,16 @@ void PowerPanic::MaskPowerPanicData(void)
  *    0  - sucess
  *    -1 - failed
  */
-int PowerPanic::saveWork(void) {
+int PowerPanic::SaveEnv(void) {
   int     i = 0;
   uint8_t *pBuff;
-  if (restoring)
-    return -1;
 
   // extruders' temperature
 	HOTEND_LOOP() Data.HeaterTamp[e] = thermalManager.temp_hotend[e].target;
+
+	LOOP_XYZ(i) Data.position_shift[i] = position_shift[i];
+
+	Data.FilePosition = last_line;
 
   // heated bed
   Data.BedTamp = thermalManager.temp_bed.target;
@@ -366,16 +308,28 @@ int PowerPanic::saveWork(void) {
   for (i = 0; i < PP_FAN_COUNT; i++)
     Data.FanSpeed[i] = Periph.GetFanSpeed(i);
 
-  for (i = 0; i < NUM_AXIS; i++)
-    Data.PositionData[i] = current_position[i];
+  // if power loss, we have record the position to Data.PositionData[]
+	for (i=0; i<NUM_AXIS; i++) {
+		Data.PositionData[i] = (i == E_AXIS) ?
+				current_position[i] : NATIVE_TO_LOGICAL(current_position[i], i);
+	}
 
-  if (Data.GCodeSource == GCODE_SOURCE_SCREEN)
+#if (BOARD_VER == BOARD_SNAPMAKER1)
+  if (Data.GCodeSource == GCODE_SOURCE_UDISK)
     strcpy(Data.FileName, card.filename);
   else {
     // 0xff will reduce the write times for the flash
     memset((void *)Data.FileName, 0xFF, PP_FILE_NAME_LEN);
-    PowerPanicData.Data.FileName[0] = 0;
-  }
+    Data.FileName[0] = 0;
+	}
+#elif (BOARD_VER == BOARD_SNAPMAKER2_V2)
+	if (SystemStatus.GetWorkingPort() == WORKING_PORT_SC) {
+		Data.GCodeSource = GCODE_SOURCE_SCREEN;
+	}
+	else {
+		Data.GCodeSource = GCODE_SOURCE_PC;
+	}
+#endif
 
   Data.Valid = 1;
 
@@ -384,706 +338,283 @@ int PowerPanic::saveWork(void) {
 	for(i = 0; i < sizeof(strPowerPanicSave); i++)
 		Data.CheckSum += pBuff[i];
 
+	switch (ExecuterHead.MachineType)
+	{
+	case MACHINE_TYPE_CNC:
+		Data.cnc_power = ExecuterHead.CNC.GetRPM();
+		break;
+
+	case MACHINE_TYPE_LASER:
+		Data.laser_percent = ExecuterHead.Laser.GetPower();
+		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+	break;
+
+	default:
+		break;
+	}
+
   return 0;
 }
 
+void PowerPanic::Resume3DP() {
+	char tmpBuff[32];
 
-// for snapmaker2, we don't have Udisk on MCU
-#if 1
- /**
+	for (int i = 0; i < PP_FAN_COUNT; i++) {
+		sprintf(tmpBuff, "M106 P%d S%d", i, pre_data_.FanSpeed[i]);
+		process_cmd_imd(tmpBuff);
+	}
+
+	// enable hotend
+	if(pre_data_.BedTamp > 130) {
+		LOG_W("recorded bed temp [%f] is larger than 150, limited it.\n",
+						pre_data_.BedTamp);
+		pre_data_.BedTamp = 130;
+	}
+
+	if (pre_data_.HeaterTamp[0] > 285) {
+		LOG_W("recorded hotend temp [%f] is larger than 285, limited it.\n",
+						pre_data_.BedTamp);
+		pre_data_.HeaterTamp[0] = 285;
+	}
+
+	// for now, just care 1 hotend
+	sprintf(tmpBuff, "M104 S%0.2f", pre_data_.HeaterTamp[0]);
+	process_cmd_imd(tmpBuff);
+
+	// set heated bed temperature
+	sprintf(tmpBuff, "M140 S%0.2f", pre_data_.BedTamp);
+	process_cmd_imd(tmpBuff);
+
+	// absolut mode
+	relative_mode = false;
+
+	// enable leveling
+	// because the recorded position is logical position
+	set_bed_leveling_enabled(true);
+
+	// waiting temperature reach target
+	sprintf(tmpBuff, "M109 S%0.2f", pre_data_.HeaterTamp[0]);
+	process_cmd_imd(tmpBuff);
+
+	sprintf(tmpBuff, "M190 S%0.2f", pre_data_.BedTamp);
+	process_cmd_imd(tmpBuff);
+
+	RestoreWorkspace();
+
+	// move Z to target position + 5mm
+	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS] + 5);
+	process_cmd_imd(tmpBuff);
+	planner.synchronize();
+
+	// pre-extrude
+	relative_mode = true;
+	process_cmd_imd("G0 E15 F100");
+	planner.synchronize();
+
+	// set E to previous position
+	current_position[E_AXIS] = pre_data_.PositionData[E_AXIS];
+	planner.set_e_position_mm(current_position[E_AXIS]);
+
+	// try to cut out filament
+	process_cmd_imd("G0 E-6.5 F2400");
+
+	// absolute mode
+	relative_mode = false;
+
+	// move to target X Y
+	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
+	process_cmd_imd(tmpBuff);
+	planner.synchronize();
+
+	// move to target Z
+	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
+	process_cmd_imd(tmpBuff);
+	planner.synchronize();
+
+	// enable runout
+	process_cmd_imd("M412 S1");
+}
+
+void PowerPanic::ResumeCNC() {
+	char tmpBuff[32];
+
+	// for CNC recover form power-loss, we need to raise Z firstly.
+	// because the drill bit maybe is in the workpiece
+	// and we need to keep CNC motor running when raising Z
+	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
+
+	relative_mode = true;
+	process_cmd_imd("G28 Z");
+	relative_mode = false;
+
+	ExecuterHead.CNC.SetPower(0);
+
+	// homing and restore workspace
+	RestoreWorkspace();
+
+	LOG_I("position shift:\n");
+	LOG_I("X: %f, Y: %f, Z: %f\n", pre_data_.position_shift[0],
+				pre_data_.position_shift[1], pre_data_.position_shift[2]);
+
+	// move to target X Y
+	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
+	process_cmd_imd(tmpBuff);
+	planner.synchronize();
+
+	// enable CNC motor
+	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
+
+	// move to target Z
+	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
+	process_cmd_imd(tmpBuff);
+	planner.synchronize();
+}
+
+
+void PowerPanic::ResumeLaser() {
+	char tmpBuff[32];
+
+	// enable laser is disable
+	ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+
+	// homing and restore workspace
+	RestoreWorkspace();
+
+	// move to target X Y
+	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
+	process_cmd_imd(tmpBuff);
+	planner.synchronize();
+
+	// move to target Z
+	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
+	process_cmd_imd(tmpBuff);
+	planner.synchronize();
+}
+
+
+void PowerPanic::RestoreWorkspace() {
+	// home first
+	process_cmd_imd("G28");
+
+	planner.synchronize();
+
+	LOOP_XYZ(i) {
+		position_shift[i] = pre_data_.position_shift[i];
+		update_workspace_offset((AxisEnum)i);
+	}
+
+	// TODO: whether we need to sync plan position??
+}
+/**
  *Resume work after power panic if exist valid power panic data
  *return :true is resume success, or else false
  */
-bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
+ErrCode PowerPanic::ResumeWork()
 {
-  restoring = true;
-
-	char tmpBuff[32];
-
-	//暂存文件位置，运动会更新PowerPanicData  中的数据
-	tmpPowerPanicData = Data;
-  Data.FilePosition = 0;
-  Data.Valid = 0;
-
-	//数据有效
-	if(tmpPowerPanicData.Valid != 0)
-	{
-		//power loss when printing from screen
-		if(tmpPowerPanicData.GCodeSource == GCODE_SOURCE_SCREEN)
-		{
-      //发送启动成功
-      //HMI_SendPowerPanicResume(0x0c, 0);
-      //风扇开启
-      for (int i = 0; i < PP_FAN_COUNT; i++) {
-        sprintf(tmpBuff, "M106 P%d S%d", i, tmpPowerPanicData.FanSpeed[i]);
-        process_cmd_imd(tmpBuff);
-      }
-
-      //加热
-      if(tmpPowerPanicData.BedTamp > 20)
-      {
-        sprintf(tmpBuff, "M140 S%0.2f", tmpPowerPanicData.BedTamp);
-        process_cmd_imd(tmpBuff);
-      }
-
-      //目前只考虑加热头1
-      sprintf(tmpBuff, "M104 S%0.2f", tmpPowerPanicData.HeaterTamp[0]);
-      process_cmd_imd(tmpBuff);
-
-      //X  Y  回原点
-      process_cmd_imd("G28");
-
-      //等待加热
-      if(tmpPowerPanicData.BedTamp > 20)
-      {
-        sprintf(tmpBuff, "M190 S%0.2f", tmpPowerPanicData.BedTamp);
-        process_cmd_imd(tmpBuff);
-      }
-
-      //目前只考虑加热头1
-      sprintf(tmpBuff, "M109 S%0.2f", tmpPowerPanicData.HeaterTamp[0]);
-      process_cmd_imd(tmpBuff);
-
-      //绝对模式
-      relative_mode = false;
-
-      //移动到恢复点
-      //调平失效
-      set_bed_leveling_enabled(false);
-      //移动到续点高度加5mm  位置
-      sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS] + 5);
-      process_cmd_imd(tmpBuff);
-      planner.synchronize();
-
-      //预挤出
-      //相对模式
-      relative_mode = true;
-      process_cmd_imd("G0 E25 F100");
-      planner.synchronize();
-      //坐标更新
-      current_position[E_AXIS] = tmpPowerPanicData.PositionData[E_AXIS];
-      planner.set_e_position_mm(current_position[E_AXIS]);
-      //绝对模式
-      relative_mode = false;
-      //暂停3  秒
-      process_cmd_imd("G4 S3");
-      //移动到续点XY  坐标
-      sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", tmpPowerPanicData.PositionData[X_AXIS], tmpPowerPanicData.PositionData[Y_AXIS]);
-      process_cmd_imd(tmpBuff);
-      planner.synchronize();
-      //移动到打印高度
-      sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS]);
-      process_cmd_imd(tmpBuff);
-      planner.synchronize();
-      //计时器开始工作
-      print_job_timer.start();
-      Stopwatch::resume(tmpPowerPanicData.accumulator);
-
-      //绝对模式
-      relative_mode = false;
-      //同步坐标计数器
-      //Sync_PCounter();
-
-      //速度还原
-      saved_g1_feedrate_mm_s = Data.PrintFeedRate;
-      saved_g0_feedrate_mm_s = Data.TravelFeedRate;
-
-      //调平使能
-      set_bed_leveling_enabled(true);
-
-      *Err = 0;
-      SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING);
-      //EnablePowerPanicCheck();
-      if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-        Periph.StartDoorCheck();
-      if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-        process_cmd_imd("M412 S1");
-      //清除断电数据
-      restoring = false;
-      MaskPowerPanicData();
-      return 0;
-		}
-		//联机打印断电
-		else
-		{
-			//发送启动成功
-			//HMI_SendPowerPanicResume(0x0b, 0);
-			//风扇开启
-			#ifdef H_FAN2_PORT
-			H_FAN2_PORT->BSRR = H_FAN2_PIN;
-			#endif
-			//机型是3D  打印
-			if(MACHINE_TYPE_3DPRINT == tmpPowerPanicData.MachineType)
-			{
-				//加热
-				if(tmpPowerPanicData.BedTamp > 20)
-				{
-					sprintf(tmpBuff, "M140 S%0.2f", tmpPowerPanicData.BedTamp);
-					process_cmd_imd(tmpBuff);
-				}
-
-				//目前只考虑加热头1
-				sprintf(tmpBuff, "M104 S%0.2f", tmpPowerPanicData.HeaterTamp[0]);
-				process_cmd_imd(tmpBuff);
-			}
-
-			//X  Y  回原点
-			strcpy(tmpBuff, "G28");
-			process_cmd_imd(tmpBuff);
-
-			//机型是3D  打印
-			if(MACHINE_TYPE_3DPRINT == tmpPowerPanicData.MachineType)
-			{
-				//等待加热
-				if(tmpPowerPanicData.BedTamp > 20)
-				{
-					sprintf(tmpBuff, "M190 S%0.2f", tmpPowerPanicData.BedTamp);
-					process_cmd_imd(tmpBuff);
-				}
-
-				//目前只考虑加热头1
-				sprintf(tmpBuff, "M109 S%0.2f", tmpPowerPanicData.HeaterTamp[0]);
-				process_cmd_imd(tmpBuff);
-			}
-
-			//绝对模式
-			relative_mode = false;
-
-			//移动到恢复点
-			//调平失效
-			set_bed_leveling_enabled(false);
-			//移动到续点高度加5mm  位置
-			sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS] + 5);
-			process_cmd_imd(tmpBuff);
-			planner.synchronize();
-			//机型是3D  打印
-			if(MACHINE_TYPE_3DPRINT == tmpPowerPanicData.MachineType)
-			{
-				//预挤出
-				//相对模式
-				relative_mode = true;
-				strcpy(tmpBuff, "G0 E25 F100");
-				process_cmd_imd(tmpBuff);
-				planner.synchronize();
-				//坐标更新
-				current_position[E_AXIS] = tmpPowerPanicData.PositionData[E_AXIS];
-				planner.set_e_position_mm(current_position[E_AXIS]);
-			}
-			//绝对模式
-			relative_mode = false;
-			//暂停3  秒
-			strcpy(tmpBuff, "G4 S3");
-			process_cmd_imd(tmpBuff);
-			//移动到续点XY  坐标
-			sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", tmpPowerPanicData.PositionData[X_AXIS], tmpPowerPanicData.PositionData[Y_AXIS]);
-			process_cmd_imd(tmpBuff);
-			planner.synchronize();
-			//移动到打印高度
-			sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS]);
-			process_cmd_imd(tmpBuff);
-			planner.synchronize();
-
-			//绝对模式
-			relative_mode = false;
-			//同步坐标计数器
-			//Sync_PCounter();
-
-			//速度还原
-			saved_g1_feedrate_mm_s = Data.PrintFeedRate;
-      saved_g0_feedrate_mm_s = Data.TravelFeedRate;
-
-			//调平使能
-			set_bed_leveling_enabled(true);
-
-			*Err = 0;
-      SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING_ONLINE);
-			//EnablePowerPanicCheck();
-			if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-				Periph.StartDoorCheck();
-			#if((HAVE_FILAMENT_SENSOR == 1) || (HAVE_FILAMENT_SWITCH == 1))
-			if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-				Periph.StartFilamentCheck();
-			#endif
-			//清除断电数据
-			MaskPowerPanicData();
-      restoring = false;
-			return 0;
-		}
+	if (pre_data_.MachineType != ExecuterHead.MachineType) {
+		LOG_E("current[%d] machine is not same as previous[%d]\n",
+						ExecuterHead.MachineType, pre_data_.MachineType);
+		return E_HARDWARE;
 	}
-	/*
-	else
-	{
-		//发送失败
-		HMI_SendPowerPanicResume(0x0c, 1);
-		if(Err != NULL)
-			*Err = 1;
-		return false;
-	}
-	*/
-    restoring = false;
 
-    if(Err != NULL)
-        *Err = 1;
-    return false;
+	if (pre_data_.Valid == 0) {
+		LOG_E("previous power-loss data is invalid!\n");
+		return E_NO_RESRC;
+	}
+
+	if (pre_data_.GCodeSource != GCODE_SOURCE_SCREEN) {
+		LOG_E("previous Gcode-source is not screen: %d\n", pre_data_.GCodeSource);
+		return E_INVALID_STATE;
+	}
+
+	if (Periph.IsDoorOpened()) {
+		LOG_E("trigger RESTORE: failed, door is open\n");
+		return E_INVALID_STATE;
+	}
+
+	LOG_I("restore point(X,Y,Z,E): (%f, %f, %f, %f)\n", pre_data_.PositionData[X_AXIS],
+			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
+	LOG_I("line number: %d\n", pre_data_.FilePosition);
+
+	switch (pre_data_.MachineType) {
+	case MACHINE_TYPE_3DPRINT:
+		if (pre_data_.HeaterTamp[0] < 185) {
+			LOG_E("cannot restore work, previous recorded hotend temperature is less than 185: %f\n",
+							pre_data_.HeaterTamp[0]);
+			return E_INVALID_STATE;
+		}
+		if (runout.sensor_state()) {
+			LOG_E("trigger RESTORE: failed, filament runout\n");
+			return E_HARDWARE;
+		}
+		Resume3DP();
+		break;
+
+	case MACHINE_TYPE_CNC:
+		ResumeCNC();
+		break;
+
+	case MACHINE_TYPE_LASER:
+		ResumeLaser();
+		break;
+
+	default:
+		LOG_W("invalid machine type saved in power-loss: %d\n", pre_data_.MachineType);
+		return E_HARDWARE;
+		break;
+	}
+
+  Periph.StartDoorCheck();
+
+	// resume stopwatch
+	print_job_timer.start();
+	Stopwatch::resume(pre_data_.accumulator);
+
+	// restore speed for G0 G1
+	saved_g1_feedrate_mm_s = pre_data_.PrintFeedRate;
+	saved_g0_feedrate_mm_s = pre_data_.TravelFeedRate;
+
+	SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
+
+	return E_SUCCESS;
 }
-
-#else
- /**
- *Resume work after power panic if exist valid power panic data
- *return :true is resume success, or else false
- */
-bool PowerPanic::PowerPanicResumeWork(uint8_t *Err)
-{
-  restoring = true;
-
-	char tmpBuff[32];
-
-	//暂存文件位置，运动会更新PowerPanicData  中的数据
-	tmpPowerPanicData = Data;
-
-	//数据有效
-	if(tmpPowerPanicData.Valid != 0)
-	{
-		//U  盘打印断电
-		if(tmpPowerPanicData.GCodeSource == GCODE_SOURCE_UDISK)
-		{
-      card.initsd();
-      //尝试打开文件
-      card.openFile(Data.FileName, true);
-
-			//文件成功打开
-			if(card.isFileOpen() == true)
-			{
-				//发送启动成功
-				//HMI_SendPowerPanicResume(0x0c, 0);
-				//风扇开启
-				#ifdef H_FAN2_PORT
-				H_FAN2_PORT->BSRR = H_FAN2_PIN;
-				#endif
-				//加热
-				if(tmpPowerPanicData.BedTamp > 20)
-				{
-					sprintf(tmpBuff, "M140 S%0.2f", tmpPowerPanicData.BedTamp);
-					process_cmd_imd(tmpBuff);
-				}
-
-				//目前只考虑加热头1
-				sprintf(tmpBuff, "M104 S%0.2f", tmpPowerPanicData.HeaterTamp[0]);
-				process_cmd_imd(tmpBuff);
-
-				//X  Y  回原点
-				strcpy(tmpBuff, "G28");
-				process_cmd_imd(tmpBuff);
-
-				//等待加热
-				if(tmpPowerPanicData.BedTamp > 20)
-				{
-					sprintf(tmpBuff, "M190 S%0.2f", tmpPowerPanicData.BedTamp);
-					process_cmd_imd(tmpBuff);
-				}
-
-				//目前只考虑加热头1
-				sprintf(tmpBuff, "M109 S%0.2f", tmpPowerPanicData.HeaterTamp[0]);
-				process_cmd_imd(tmpBuff);
-
-				//绝对模式
-				relative_mode = false;
-
-				//移动到恢复点
-				//调平失效
-				set_bed_leveling_enabled(false);
-				//移动到续点高度加5mm  位置
-				sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS] + 5);
-				process_cmd_imd(tmpBuff);
-				planner.synchronize();
-
-				//预挤出
-				//相对模式
-				relative_mode = true;
-				strcpy(tmpBuff, "G0 E25 F100");
-        process_cmd_imd(tmpBuff);
-				planner.synchronize();
-				//坐标更新
-				current_position[E_AXIS] = tmpPowerPanicData.PositionData[E_AXIS];
-        planner.set_e_position_mm(current_position[E_AXIS]);
-				//绝对模式
-				relative_mode = false;
-				//暂停3  秒
-				strcpy(tmpBuff, "G4 S3");
-				process_cmd_imd(tmpBuff);
-				//移动到续点XY  坐标
-				sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", tmpPowerPanicData.PositionData[X_AXIS], tmpPowerPanicData.PositionData[Y_AXIS]);
-				process_cmd_imd(tmpBuff);
-				planner.synchronize();
-				//移动到打印高度
-				sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS]);
-				process_cmd_imd(tmpBuff);
-				planner.synchronize();
-				//计时器开始工作
-				print_job_timer.start();
-        Stopwatch::resume(tmpPowerPanicData.accumulator);
-
-				//文件跳转
-				card.setIndex(tmpPowerPanicData.FilePosition);
-				//启动打印
-				card.startFileprint();
-				//绝对模式
-				relative_mode = false;
-				//同步坐标计数器
-				//Sync_PCounter();
-
-				//速度还原
-				//SetG0FeedRate(Data.TravelFeedRate);
-				//SetG1FeedRate(Data.PrintFeedRate);
-				saved_g1_feedrate_mm_s = Data.PrintFeedRate;
-        saved_g0_feedrate_mm_s = Data.TravelFeedRate;
-
-				//调平使能
-				set_bed_leveling_enabled(true);
-
-				//Gcode  带Z  坐标
-				if(tmpPowerPanicData.ZMove == 1)
-				{
-
-				}
-				//Gcode  不带Z  坐标
-				else
-				{
-					sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS]);
-					process_cmd_imd(tmpBuff);
-					planner.synchronize();
-				}
-
-				*Err = 0;
-        SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING);
-				//EnablePowerPanicCheck();
-				if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-          Periph.StartDoorCheck();
-				#if((HAVE_FILAMENT_SENSOR == 1) || (HAVE_FILAMENT_SWITCH == 1))
-				if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-					Periph.StartFilamentCheck();
-				#endif
-				//清除断电数据
-        restoring = false;
-				MaskPowerPanicData();
-				return 0;
-			}
-			else
-			{
-        restoring = false;
-				//发送失败
-				//HMI_SendPowerPanicResume(0x0c, 1);
-				if(Err != NULL)
-					*Err = 1;
-				return false;
-			}
-		}
-		//联机打印断电
-		else
-		{
-			//发送启动成功
-			//HMI_SendPowerPanicResume(0x0b, 0);
-			//风扇开启
-			#ifdef H_FAN2_PORT
-			H_FAN2_PORT->BSRR = H_FAN2_PIN;
-			#endif
-			//机型是3D  打印
-			if(MACHINE_TYPE_3DPRINT == tmpPowerPanicData.MachineType)
-			{
-				//加热
-				if(tmpPowerPanicData.BedTamp > 20)
-				{
-					sprintf(tmpBuff, "M140 S%0.2f", tmpPowerPanicData.BedTamp);
-					process_cmd_imd(tmpBuff);
-				}
-
-				//目前只考虑加热头1
-				sprintf(tmpBuff, "M104 S%0.2f", tmpPowerPanicData.HeaterTamp[0]);
-				process_cmd_imd(tmpBuff);
-			}
-
-			//X  Y  回原点
-			strcpy(tmpBuff, "G28");
-			process_cmd_imd(tmpBuff);
-
-			//机型是3D  打印
-			if(MACHINE_TYPE_3DPRINT == tmpPowerPanicData.MachineType)
-			{
-				//等待加热
-				if(tmpPowerPanicData.BedTamp > 20)
-				{
-					sprintf(tmpBuff, "M190 S%0.2f", tmpPowerPanicData.BedTamp);
-					process_cmd_imd(tmpBuff);
-				}
-
-				//目前只考虑加热头1
-				sprintf(tmpBuff, "M109 S%0.2f", tmpPowerPanicData.HeaterTamp[0]);
-				process_cmd_imd(tmpBuff);
-			}
-
-			//绝对模式
-			relative_mode = false;
-
-			//移动到恢复点
-			//调平失效
-			set_bed_leveling_enabled(false);
-			//移动到续点高度加5mm  位置
-			sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS] + 5);
-			process_cmd_imd(tmpBuff);
-			planner.synchronize();
-			//机型是3D  打印
-			if(MACHINE_TYPE_3DPRINT == tmpPowerPanicData.MachineType)
-			{
-				//预挤出
-				//相对模式
-				relative_mode = true;
-				strcpy(tmpBuff, "G0 E25 F100");
-				process_cmd_imd(tmpBuff);
-				planner.synchronize();
-				//坐标更新
-				current_position[E_AXIS] = tmpPowerPanicData.PositionData[E_AXIS];
-				planner.set_e_position_mm(current_position[E_AXIS]);
-			}
-			//绝对模式
-			relative_mode = false;
-			//暂停3  秒
-			strcpy(tmpBuff, "G4 S3");
-			process_cmd_imd(tmpBuff);
-			//移动到续点XY  坐标
-			sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", tmpPowerPanicData.PositionData[X_AXIS], tmpPowerPanicData.PositionData[Y_AXIS]);
-			process_cmd_imd(tmpBuff);
-			planner.synchronize();
-			//移动到打印高度
-			sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS]);
-			process_cmd_imd(tmpBuff);
-			planner.synchronize();
-
-			//绝对模式
-			relative_mode = false;
-			//同步坐标计数器
-			//Sync_PCounter();
-
-			//速度还原
-			saved_g1_feedrate_mm_s = Data.PrintFeedRate;
-      saved_g0_feedrate_mm_s = Data.TravelFeedRate;
-
-			//调平使能
-			set_bed_leveling_enabled(true);
-
-			//Gcode  带Z  坐标
-			if(tmpPowerPanicData.ZMove == 1)
-			{
-
-			}
-			//Gcode  不带Z  坐标
-			else
-			{
-				sprintf(tmpBuff, "G0 Z%0.2f F2000", tmpPowerPanicData.PositionData[Z_AXIS]);
-				process_cmd_imd(tmpBuff);
-				planner.synchronize();
-			}
-
-			*Err = 0;
-      SystemStatus.SetCurrentPrinterStatus(STAT_RUNNING_ONLINE);
-			//EnablePowerPanicCheck();
-			if(MACHINE_TYPE_LASER == ExecuterHead.MachineType)
-				Periph.StartDoorCheck();
-			#if((HAVE_FILAMENT_SENSOR == 1) || (HAVE_FILAMENT_SWITCH == 1))
-			if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-				Periph.StartFilamentCheck();
-			#endif
-			//清除断电数据
-			MaskPowerPanicData();
-      restoring = false;
-			return 0;
-		}
-	}
-	/*
-	else
-	{
-		//发送失败
-		HMI_SendPowerPanicResume(0x0c, 1);
-		if(Err != NULL)
-			*Err = 1;
-		return false;
-	}
-	*/
-    restoring = false;
-
-    if(Err != NULL)
-        *Err = 1;
-    return false;
-}
-#endif
 
 /*
  * disable other unused peripherals
  */
-void PowerPanic::turnoffPower(void) {
-  // these 3 statement will disable power supply for
-  // HMI, all axes, all addones
-  WRITE(POWER0_SUPPLY_PIN, POWER_SUPPLY_OFF);
-  WRITE(POWER1_SUPPLY_PIN, POWER_SUPPLY_OFF);
-  WRITE(POWER2_SUPPLY_PIN, POWER_SUPPLY_OFF);
-
-  BreathLightClose();
+void PowerPanic::TurnOffPower(void) {
 
   // disable power of heated bed
-  WRITE(HEATER_BED_PIN, LOW);
+  thermalManager.setTargetBed(0);
 
-  // disable other unnecessary soc peripherals
-  // disable usart
-  rcc_clk_disable(MSerial1.c_dev()->clk_id);
-  rcc_clk_disable(MSerial2.c_dev()->clk_id);
-  rcc_clk_disable(MSerial3.c_dev()->clk_id);
+  // close laser
+  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
+    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 
-  // disble timer except the stepper's
-  rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
-  rcc_clk_disable(TIMER7->clk_id);
-
-  // disalbe ADC
-  rcc_clk_disable(ADC1->clk_id);
-  rcc_clk_disable(ADC2->clk_id);
-
-  //disble DMA
-  rcc_clk_disable(DMA1->clk_id);
-  rcc_clk_disable(DMA2->clk_id);
-}
-
-/*
- * stop current working and recover stepper postion to current_position
- */
-void PowerPanic::stopWorking(void) {
-
-  /* NOTE: this is executed in stepper ISR!
-   * to avoid race condition, we cannot clear block buffer or command queue
-   * here, just delay next block/queue to be performed. Then do it in
-   * powerpanic::process()
-   */
-
-  // stop stepper, it will abort the current block if it have
-  stepper.quick_stop();
-
-  // it will delay the stepper to get next avaible block
-  planner.delay_before_delivering = 100;
-
-  // it will delay planner to plan next movement
-  planner.cleaning_buffer_counter = 1000;
-
-  // above two variables will be cleared in powerpanic::process()
-
-  // set current stepper position to current_position
-  // then we can get current stepper position from current_position[4]
-  set_current_from_steppers_for_axis(ALL_AXES);
-
-  // stop stopwatch
-  print_job_timer.stop();
-}
-
-/*
- * move axes to stop point
- * NOTE: this function is also called by pause/stop process
- */
-void PowerPanic::towardStopPoint(void) {
-	
-  //切换到绝对坐标模式
-  relative_mode = false;
-
-  switch (ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
-    if(thermalManager.temp_hotend[0].current > 180) {
-        current_position[E_AXIS] -= 4;
-        line_to_current_position(40);
-        while(planner.movesplanned()) {
-          // only we are not in powerloss, then do other things
-          if (!powerloss)
-            thermalManager.manage_heater();
-        }
-      }
-
-      if(all_axes_known != false) {
-        if (powerloss)
-        {
-          move_to_limited_z(current_position[Z_AXIS] + 5, 10);  // if power loss, raise z for 5 mm
-        }
-        else 
-        {
-          if((current_position[Z_AXIS] + 30) < Z_MAX_POS)
-            move_to_limited_z(current_position[Z_AXIS] + 30, 10); // raise z for 30mm
-          else
-            move_to_limited_z(Z_MAX_POS, 10); // else raise z to max position
-        }
-        //X  轴走到限位开关位置
-        move_to_limited_x(0, 35);
-        //Y  轴走到最大位置
-        move_to_limited_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
-      }
-      //关闭断料检测
-      process_cmd_imd("M412 S0");
-    break;
-
-  case MACHINE_TYPE_CNC:
-    // Shut down the CNC
-    ExecuterHead.CNC.SetPower(0);
-    if((current_position[Z_AXIS] + 30) < Z_MAX_POS)
-      move_to_limited_z(current_position[Z_AXIS] + 30, 10); // raise z for 30mm
-    else
-      move_to_limited_z(Z_MAX_POS, 10); // else raise z for 30mm
-    while(planner.movesplanned()) {
-      // only we are not in powerloss, then do other things
-      if (!powerloss)
-        thermalManager.manage_heater();
-    }
-
-    // Move to the origin point
-    move_to_limited_xy(0, 0, 50);
-    break;
-
-  case MACHINE_TYPE_LASER:
-    if (powerloss)
-      Periph.StopDoorCheck();
-    else
-      //启动检测
-      Periph.StartDoorCheck();
-    break;
-
-  default:
-    break;
-  }
+  // these 2 statement will disable power supply for
+  // HMI, BED, and all addones
+  WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_OFF);
+  WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
 }
 
 /*
  * when a block is output ended, save it's line number
  * this function is called by stepper isr()
- *
+ * when powerloss happened, no need to record line num.
  */
-void PowerPanic::saveCmdLine(uint32_t l) {
-  Data.FilePosition = l;
+void PowerPanic::SaveCmdLine(uint32_t l) {
+	last_line = l;
 }
 
+/*
+ * reset the power-loss data, generally called in starting work
+ */
+void PowerPanic::Reset() {
+	int i;
+	int size = sizeof(strPowerPanicSave);
+	char *ptr = (char *)&Data;
 
-void PowerPanic::process(void) {
-  if (!powerloss)
-    return;
-
-  // enable power for all axes, we need to move executer
-  // to a specific position
-  WRITE(POWER1_SUPPLY_PIN, POWER_SUPPLY_ON);
-
-  // clear block queue
-  planner.block_buffer_nonbusy = planner.block_buffer_planned \
-      = planner.block_buffer_head = planner.block_buffer_tail;
-
-  // clear command queue
-  clear_command_queue();
-
-  // these two variables will clean the latency in planning commands
-  // and outputing blocks
-  planner.delay_before_delivering = 0;
-  planner.cleaning_buffer_counter = 0;
-
-  towardStopPoint();
-
-  // wait to die
-  while (1);
+	for (i=0; i<size; i++) {
+		*ptr++ = 0;
+	}
 }

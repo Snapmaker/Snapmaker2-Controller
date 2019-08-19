@@ -90,24 +90,24 @@ void Tim1PwmInit() {
   //USART_Init(USART3, &USART_InitStruct);
 }
 
-void Tim1SetCCR1(uint16_t Value)
-{
+void Tim1SetCCR1(uint16_t Value) {
   TIM1->CCR1 = Value;
 }
 
-void Tim1SetCCR2(uint16_t Value)
-{
+void Tim1SetCCR2(uint16_t Value) {
   TIM1->CCR2 = Value;
 }
 
-void Tim1SetCCR3(uint16_t Value)
-{
+void Tim1SetCCR3(uint16_t Value) {
   TIM1->CCR3 = Value;
 }
 
-void Tim1SetCCR4(uint16_t Value)
-{
+void Tim1SetCCR4(uint16_t Value) {
   TIM1->CCR4 = Value;
+}
+
+uint16_t Tim1GetCCR4(void) {
+	return TIM1->CCR4;
 }
 
 #endif

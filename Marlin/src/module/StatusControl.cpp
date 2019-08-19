@@ -19,7 +19,8 @@
 #include "stepper.h"
 #include "../feature/runout.h"
 #include "../snap_module/lightbar.h"
-
+#include "../snap_module/quickstop.h"
+#include "../snap_module/snap_dbg.h"
 
 StatusControl SystemStatus;
 
@@ -27,9 +28,10 @@ StatusControl SystemStatus;
 /**
  * Init
  */
-void StatusControl::Init()
-{
-
+void StatusControl::Init() {
+  cur_status_ = SYSTAT_INIT;
+  work_port_ = WORKING_PORT_NONE;
+  fault_flag_ = 0;
 }
 
 /**
@@ -37,7 +39,7 @@ void StatusControl::Init()
  */
 void StatusControl::CheckFatalError() {
   uint32_t Flag = FAULT_FLAG_BED | FAULT_FLAG_HEATER0 | FAULT_FLAG_LOAD;
-  if((Flag & FaultFlag) != 0) {
+  if((Flag & fault_flag_) != 0) {
     #if PIN_EXISTS(POWER2_SUPPLY)
       OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
     #endif
@@ -50,122 +52,146 @@ void StatusControl::CheckFatalError() {
   }
 }
 
-
-/**
- * InterruptAllCommand:Clean all motion and actions
- */
-void StatusControl::InterruptAllCommand()
-{
-  clear_command_queue();
-  quickstop_stepper();
-  print_job_timer.stop();
-  if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-  {
-    thermalManager.disable_all_heaters();
-    thermalManager.zero_fan_speeds();
-  }
-  wait_for_heatup = false;
-}
-
 /**
  * PauseTriggle:Triggle the pause
  * return: true if pause triggle success, or false
  */
-bool StatusControl::PauseTriggle(PausePrintType type)
+ErrCode StatusControl::PauseTrigger(TriggerSource type)
 {
-  block_t *pBlock;
-  if((CurrentStatus != STAT_IDLE) && (TriggleStat == TRIGGLE_STAT_IDLE)) {
-    switch(type) {
-      case FilamentFaultPause:
-        CRITICAL_SECTION_START;
-      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
-  			//U盘打印
-        if(GetCurrentPrinterStatus() == STAT_RUNNING)
-          card.pauseSDPrint();
-      #endif
-        SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-        InterruptAllCommand();
-        //保存文件位置
-        //PowerPanicData.Data.FilePosition = pBlock->FilePosition;
-        //保存空跑速度
-        //PowerPanicData.Data.TravelFeedRate = pBlock->TravelFeedRate;
-        //保存打印速度
-        //PowerPanicData.Data.PrintFeedRate = pBlock->PrintFeedRate;
-        CRITICAL_SECTION_END;
-      break;
+  SysStage stage = GetCurrentStage();
 
-      case DoorOpenPause:
-      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
-        //U盘打印
-        if(GetCurrentPrinterStatus() == STAT_RUNNING)
-          card.pauseSDPrint();
-      #endif
-        InterruptAllCommand();
-      break;
-
-      case ManualPause:
-      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
-        //U盘打印
-        if(GetCurrentPrinterStatus() == STAT_RUNNING)
-          card.pauseSDPrint();
-      #endif
-        InterruptAllCommand();
-      break;
-
-      default:
-      break;
-    }
-    TriggleStat = TRIGGLE_STAT_PAUSE;
-    PauseType = type;
-    return true;
+  if (stage != SYSTAGE_WORK) {
+    LOG_W("cannot pause in current status: %d\n", cur_status_);
+    return E_INVALID_STATE;
   }
-  return false;
+
+  // if pause is triggered at first time
+  // we need to do some operation which only can be performed at most once
+  SetCurrentStatus(SYSTAT_PAUSE_TRIG);
+  print_job_timer.pause();
+
+  // here the operations can be performed many times
+  pause_source_ = type;
+
+  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    ExecuterHead.Laser.SetLaserPower(0.0f);
+  }
+
+  switch (type) {
+  case TRIGGER_SOURCE_RUNOUT:
+    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    parser.parse("M412 S0");
+    gcode.process_parsed_command();
+    HMI.SendMachineFaultFlag();
+    quickstop.Trigger(QS_EVENT_RUNOUT);
+    break;
+
+  case TRIGGER_SOURCE_DOOR_OPEN:
+    quickstop.Trigger(QS_EVENT_DOOR_OPEN);
+    break;
+
+  case TRIGGER_SOURCE_SC:
+    if (work_port_ != WORKING_PORT_SC) {
+      LOG_W("current working port is not SC!");
+      return E_INVALID_STATE;
+    }
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  case TRIGGER_SOURCE_PC:
+    if (work_port_ != WORKING_PORT_PC) {
+      LOG_W("current working port is not PC!");
+      return E_INVALID_STATE;
+    }
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  default:
+    LOG_W("invlaid trigger source： %d\n", type);
+    return E_PARAM;
+    break;
+  }
+
+  lightbar.set_state(LB_STATE_STANDBY);
+
+  return E_SUCCESS;
 }
 
 /**
  * Triggle the stop
  * return: true if stop triggle success, or false
  */
-bool StatusControl::StopTriggle(StopPrintType type)
+ErrCode StatusControl::StopTrigger(TriggerSource type)
 {
-  if((CurrentStatus != STAT_IDLE) && (TriggleStat == TRIGGLE_STAT_IDLE)) {
-    switch(type) {
-      case EndPrint:
-      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
-        //U盘打印
-        if(GetCurrentPrinterStatus() == STAT_RUNNING)
-          card.pauseSDPrint();
-      #endif
-        InterruptAllCommand();
-      break;
+  SysStage stage = GetCurrentStage();
 
-      case ManualStop:
-        #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
-        //U盘打印
-        if(GetCurrentPrinterStatus() == STAT_RUNNING)
-          card.pauseSDPrint();
-        #endif
-        InterruptAllCommand();
-      break;
-
-      case PowerPanicStop:
-      #if (BOARD_VER == BOARD_SNAPMAKER2_v1)
-        //U盘打印
-        if(GetCurrentPrinterStatus() == STAT_RUNNING)
-          card.pauseSDPrint();
-      #endif
-        InterruptAllCommand();
-      break;
-
-      default:
-        return false;
-      break;
-    }
-    TriggleStat = TRIGGLE_STAT_STOP;
-    StopType = type;
-    return true;
+  if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
+      cur_status_ != SYSTAT_PAUSE_FINISH) {
+    LOG_W("cannot stop in current status[%d]\n", cur_status_);
+    return E_INVALID_STATE;
   }
-  return false;
+
+  if ((type == TRIGGER_SOURCE_SC) && (work_port_ != WORKING_PORT_SC)) {
+      LOG_W("current working port is not SC!");
+      return E_INVALID_STATE;
+  }
+
+  if ((type == TRIGGER_SOURCE_PC) && (work_port_ != WORKING_PORT_PC)) {
+    LOG_W("current working port is not PC!");
+    return E_INVALID_STATE;
+  }
+
+  stop_source_ = type;
+
+  print_job_timer.stop();
+
+  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
+    Periph.StopDoorCheck();
+
+  // diable power panic data
+  powerpanic.Data.Valid = 0;
+
+  // disable filament checking
+  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
+    process_cmd_imd("M412 S0");
+
+  lightbar.set_state(LB_STATE_STANDBY);
+
+  // if we already finish quick stop, just change system status
+  // disable power-loss data, and exit with success
+  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
+    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
+    cur_status_ = SYSTAT_END_FINISH;
+    LOG_I("Stop in pauseing, trigger source: %d\n", type);
+    return E_SUCCESS;
+  }
+
+  cur_status_ = SYSTAT_END_TRIG;
+
+  switch(type) {
+  case TRIGGER_SOURCE_SC:
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  case TRIGGER_SOURCE_PC:
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  case TRIGGER_SOURCE_FINISH:
+    quickstop.Trigger(QS_EVENT_STOP);
+    break;
+
+  case TRIGGER_SOURCE_STOP_BUTTON:
+    quickstop.Trigger(QS_EVENT_BUTTON);
+    break;
+
+  default:
+    LOG_W("invalid trigger source: %d\n", type);
+    return E_PARAM;
+    break;
+  }
+
+  return E_SUCCESS;
 }
 
 /**
@@ -173,81 +199,37 @@ bool StatusControl::StopTriggle(StopPrintType type)
  */
 void StatusControl::PauseProcess()
 {
-  block_t *current_blk;
+  if (GetCurrentStatus() != SYSTAT_PAUSE_STOPPED)
+    return;
 
-  if(TriggleStat == TRIGGLE_STAT_PAUSE) {
-    TriggleStat = TRIGGLE_STAT_IDLE;
-    if((PauseType == ManualPause) || (PauseType == FilamentFaultPause) || (PauseType == DoorOpenPause) || (PauseType == ExecuterLostPause))  {
-			//标置暂停状态
-			if(CurrentStatus == STAT_RUNNING_ONLINE)
-				CurrentStatus = STAT_PAUSE_ONLINE;
-			else
-				CurrentStatus = STAT_PAUSE;
+   // switch to rellated pages in HMI
+  switch(ExecuterHead.MachineType) {
+  case MACHINE_TYPE_3DPRINT:
+    // disable filament runout
+    parser.parse("M412 S0");
+    gcode.process_parsed_command();
+    break;
 
-      // disable all interrupt, then stepper will be stopped
-      DISABLE_ISRS();
+  case MACHINE_TYPE_CNC:
+    break;
 
-      stepper.quick_stop();
-      set_current_from_steppers_for_axis(ALL_AXES);
+  case MACHINE_TYPE_LASER:
+    // make sure door checking is enabled
+    Periph.StartDoorCheck();
+    break;
 
-      current_blk = stepper.get_current_block();
-      if (current_blk) {
-        PowerPanicData.Data.FilePosition = current_blk->filePos;
-      }
-
-      planner.clear_block_buffer();
-      clear_command_queue();
-
-      print_job_timer.pause();
-
-      // save panic data to buffer
-			PowerPanicData.saveWork();
-
-      ENABLE_ISRS();
-
-      //上报状态
-  		if(PauseType == FilamentFaultPause)
-				HMI.SendMachineFaultFlag();
-
-      // move to stop point
-      PowerPanicData.towardStopPoint();
-
-      // switch to rellated pages in HMI
-      switch(ExecuterHead.MachineType) {
-        case MACHINE_TYPE_3DPRINT:
-          //切换到主界面
-          HMI.ChangePage(PAGE_PRINT);
-          //关闭断料检测
-          process_cmd_imd("M412 S0");
-          break;
-
-        case MACHINE_TYPE_CNC:
-        	HMI.ChangePage(PAGE_CNC);
-          break;
-
-        case MACHINE_TYPE_LASER:
-          //切换到主界面
-          HMI.ChangePage(PAGE_LASER);
-          //启动检测
-          Periph.StartDoorCheck();
-          break;
-
-        default:
-          break;
-      }
-
-			//回应上位机
-			if((HMI.GetRequestStatus() == STAT_PAUSE) || (HMI.GetRequestStatus() == STAT_PAUSE_ONLINE))
-			{
-				HMI.SendMachineStatusChange(0x04, 0);
-			}
-			// Clear HmiRequestStat to STAT_IDLE
-			HMI.ClearRequestStatus();
-
-			//清除标置
-			PauseType = NonePause;
-		}
+  default:
+    break;
   }
+
+  if (HMI.GetRequestStatus() == HMI_REQ_PAUSE) {
+    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
+    // clear request flag of HMI
+    HMI.ClearRequestStatus();
+  }
+
+  LOG_I("Finish pause\n");
+  cur_status_ = SYSTAT_PAUSE_FINISH;
 }
 
 /**
@@ -255,50 +237,27 @@ void StatusControl::PauseProcess()
  */
 void StatusControl::StopProcess()
 {
-  if(TriggleStat == TRIGGLE_STAT_STOP) {
-    TriggleStat = TRIGGLE_STAT_IDLE;
-    if(StopType == ManualStop) {
+  if (cur_status_ != SYSTAT_END_FINISH)
+    return;
 
-      quickstop_stepper();
-
-      // move to stop point
-      PowerPanicData.towardStopPoint();
-
-      // switch to rellated pages in HMI
-      switch(ExecuterHead.MachineType) {
-        case MACHINE_TYPE_3DPRINT:
-          //切换到主界面
-          HMI.ChangePage(PAGE_PRINT);
-          break;
-
-        case MACHINE_TYPE_CNC:
-        	HMI.ChangePage(PAGE_CNC);
-          break;
-
-        case MACHINE_TYPE_LASER:
-          //切换到主界面
-          HMI.ChangePage(PAGE_LASER);
-          //启动检测
-          Periph.StartDoorCheck();
-          break;
-
-        default:
-          break;
-      }
-
-			//回应上位机
-			if((HMI.GetRequestStatus() == STAT_PAUSE) || (HMI.GetRequestStatus() == STAT_PAUSE_ONLINE)) {
-				HMI.SendMachineStatusChange(0x06, 0);
-			}
-			// Clear HmiRequestStat to STAT_IDLE
-			HMI.ClearRequestStatus();
-
-			//清除标置
-			PauseType = NonePause;
-      //状态切换
-      CurrentStatus = STAT_IDLE;
-    }
+  // tell Screen we finish stop
+  if (HMI.GetRequestStatus() == HMI_REQ_STOP || HMI.GetRequestStatus() == HMI_REQ_FINISH) {
+    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
+    work_port_ = WORKING_PORT_NONE;
+    // clear flag
+    HMI.ClearRequestStatus();
   }
+
+  // clear stop type because stage will be changed
+  stop_source_ = TRIGGER_SOURCE_NONE;
+  pause_source_ = TRIGGER_SOURCE_NONE;
+  cur_status_ = SYSTAT_IDLE;
+  quickstop.Reset();
+
+  process_cmd_imd("M140 S0");
+  process_cmd_imd("M104 S0");
+
+  LOG_I("Finish stop\n");
 }
 
 
@@ -311,18 +270,20 @@ void StatusControl::StopProcess()
 #endif
 #define RESUME_PROCESS_CMD_SIZE 40
 
-static void restore_xyz(void) {
-
+void inline StatusControl::RestoreXYZ(void) {
+  LOG_I("restore XYZE to (%f, %f, %f, %f)\n", powerpanic.Data.PositionData[X_AXIS],
+        powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
+        powerpanic.Data.PositionData[E_AXIS]);
   char cmd[RESUME_PROCESS_CMD_SIZE] = {0};
 
   // restore X, Y
   snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 X%.2f Y%.2f F4000",
-      PowerPanicData.Data.PositionData[X_AXIS], PowerPanicData.Data.PositionData[Y_AXIS]);
+      powerpanic.Data.PositionData[X_AXIS], powerpanic.Data.PositionData[Y_AXIS]);
   process_cmd_imd(cmd);
   planner.synchronize();
 
   // restore Z
-  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F4000", PowerPanicData.Data.PositionData[Z_AXIS]);
+  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F2400", powerpanic.Data.PositionData[Z_AXIS]);
   process_cmd_imd(cmd);
   planner.synchronize();
 }
@@ -330,60 +291,47 @@ static void restore_xyz(void) {
 void inline StatusControl::resume_3dp(void) {
   enable_all_steppers();
 
-  // pre-extrude
-  relative_mode = true;
+  process_cmd_imd("M412 S1");
 
-  process_cmd_imd("G0 E15 F800");
+  process_cmd_imd("G92 E0");
 
-  process_cmd_imd("G0 E-4 F2400");
+  process_cmd_imd("G0 E15 F400");
 
   planner.synchronize();
 
-  relative_mode = false;
-
-  // sync E position
-  current_position[E_AXIS] = PowerPanicData.Data.PositionData[E_AXIS];
+  // restore E position
+  current_position[E_AXIS] = powerpanic.Data.PositionData[E_AXIS];
   sync_plan_position_e();
 
-  restore_xyz();
+  // retract filament to cut it out
+  relative_mode = true;
+  process_cmd_imd("G0 E-6.5 F3600");
+  relative_mode = false;
 
-  // switch printing page
-  HMI.ChangePage(PAGE_PRINT);
+  planner.synchronize();
 }
 
 
 void inline StatusControl::resume_cnc(void) {
   // enable CNC motor
-
-  restore_xyz();
-
-  HMI.ChangePage(PAGE_CNC);
+  LOG_I("restore CNC power: %f\n", powerpanic.Data.cnc_power);
+  ExecuterHead.CNC.SetPower(powerpanic.Data.cnc_power);
 }
 
 void inline StatusControl::resume_laser(void) {
-  HMI.ChangePage(PAGE_LASER);
 
-  // enable door check
-  Periph.StartDoorCheck();
 }
 
 /**
- * Resume Pause
+ * Resume Process
  */
-ErrCode StatusControl::PauseResume()
-{
-  if ((CurrentStatus != STAT_PAUSE_ONLINE) && (CurrentStatus != STAT_PAUSE))
-    return E_INVALID_STATE;
+void StatusControl::ResumeProcess() {
+  if (cur_status_ != SYSTAT_RESUME_TRIG)
+    return;
 
-  TriggleStat = TRIGGLE_STAT_IDLE;
+  cur_status_ = SYSTAT_RESUME_MOVING;
 
-#if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  // need to check if we have filament ready
-  if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) &&  runout.sensor_state()) {
-    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-    return E_NO_RESRC;
-  }
-#endif
+  set_bed_leveling_enabled(true);
 
   switch(ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
@@ -402,9 +350,11 @@ ErrCode StatusControl::PauseResume()
     break;
   }
 
+  RestoreXYZ();
+
   // restore speed
-  saved_g0_feedrate_mm_s = PowerPanicData.Data.TravelFeedRate;
-  saved_g1_feedrate_mm_s = PowerPanicData.Data.PrintFeedRate;
+  saved_g0_feedrate_mm_s = powerpanic.Data.TravelFeedRate;
+  saved_g1_feedrate_mm_s = powerpanic.Data.PrintFeedRate;
 
   // clear command queue
   clear_command_queue();
@@ -412,33 +362,160 @@ ErrCode StatusControl::PauseResume()
   // resume stopwatch
   if (print_job_timer.isPaused()) print_job_timer.start();
 
-  // status change
-  if (CurrentStatus == STAT_PAUSE_ONLINE)
-    CurrentStatus = STAT_RUNNING_ONLINE;
-  else
-    CurrentStatus = STAT_RUNNING;
+  pause_source_ = TRIGGER_SOURCE_NONE;
+  cur_status_ = SYSTAT_RESUME_WAITING;
 
-  lightbar.set_state(LB_STATE_WORKING);
+  Periph.StartDoorCheck();
+
+  // reset the state of quick stop handler
+  quickstop.Reset();
+
+  // tell screen we are ready  to work
+  if (HMI.GetRequestStatus() == HMI_REQ_RESUME) {
+    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
+    HMI.ClearRequestStatus();
+  }
+}
+
+/**
+ * trigger resuming from other event
+ */
+ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
+  if (cur_status_ != SYSTAT_PAUSE_FINISH) {
+    LOG_W("cannot trigger in current status: %d\n", cur_status_);
+    return E_INVALID_STATE;
+  }
+
+  switch (s) {
+  case TRIGGER_SOURCE_SC:
+    if (work_port_ != WORKING_PORT_SC) {
+      LOG_W("current working port is not SC!");
+      return E_INVALID_STATE;
+    }
+    break;
+
+  case TRIGGER_SOURCE_PC:
+    if (work_port_ != WORKING_PORT_PC) {
+      LOG_W("current working port is not PC!");
+      return E_INVALID_STATE;
+    }
+    break;
+
+  case TRIGGER_SOURCE_DOOR_CLOSE:
+    break;
+
+  default:
+    LOG_W("invalid trigger source: %d\n", s);
+    return E_PARAM;
+    break;
+  }
+
+  if (Periph.IsDoorOpened())
+    return E_HARDWARE;
+
+#if ENABLED(FILAMENT_RUNOUT_SENSOR)
+  // need to check if we have filament ready
+  if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && runout.sensor_state()) {
+    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    LOG_W("filament is runout, cannot resuem 3D print\n");
+    return E_HARDWARE;
+  }
+#endif
+
+  cur_status_ = SYSTAT_RESUME_TRIG;
 
   return E_SUCCESS;
 }
 
 /**
- * Get current machine working status
- * return:Current Status,(STAT_IDLE,STAT_PAUSE,STAT_WORKING)
+ * when receive gcode in resume_waiting, we need to change state to work
+ * and make some env ready
  */
-uint8_t StatusControl::GetCurrentPrinterStatus()
-{
-  return CurrentStatus;
+void StatusControl::ResumeOver() {
+  switch (ExecuterHead.MachineType) {
+  case MACHINE_TYPE_3DPRINT:
+    break;
+
+  case MACHINE_TYPE_LASER:
+    ExecuterHead.Laser.RestorePower(powerpanic.Data.laser_percent, powerpanic.Data.laser_pwm);
+    break;
+
+  case MACHINE_TYPE_CNC:
+    break;
+
+  default:
+    LOG_E("invalid machine type: %d\n", ExecuterHead.MachineType);
+    break;
+  }
+
+  cur_status_ = SYSTAT_WORK;
+  lightbar.set_state(LB_STATE_WORKING);
 }
 
 /**
- * Set current machine working status
- * para newstatus:STAT_IDLE,STAT_PAUSE,STAT_WORKING
+ * Get current working stage of system
+ * return:Current Status,(STAT_IDLE,STAT_PAUSE,STAT_WORKING)
  */
-void StatusControl::SetCurrentPrinterStatus(uint8_t newstatus)
-{
-  CurrentStatus = newstatus;
+SysStage StatusControl::GetCurrentStage() {
+    switch (cur_status_) {
+    case SYSTAT_INIT:
+      return SYSTAGE_INIT;
+      break;
+
+    case SYSTAT_IDLE:
+      return SYSTAGE_IDLE;
+      break;
+
+    case SYSTAT_WORK:
+      return SYSTAGE_WORK;
+      break;
+
+    case SYSTAT_PAUSE_TRIG:
+    case SYSTAT_PAUSE_STOPPED:
+    case SYSTAT_PAUSE_FINISH:
+      return SYSTAGE_PAUSE;
+      break;
+
+    case SYSTAT_RESUME_TRIG:
+    case SYSTAT_RESUME_MOVING:
+    case SYSTAT_RESUME_WAITING:
+      return SYSTAGE_RESUMING;
+      break;
+
+    case SYSTAT_END_TRIG:
+    case SYSTAT_END_FINISH:
+      return SYSTAGE_END;
+      break;
+
+    default:
+      return SYSTAGE_INVALID;
+      break;
+    }
+}
+
+/**
+ * Map system status for screen
+ * for screen:
+ * 0 - idle
+ * 1 - working with screen ports
+ * 2 - pause with screen port
+ * 3 - working with PC port
+ * 4 - pause with port
+ */
+uint8_t StatusControl::MapCurrentStatusForSC() {
+  SysStage stage = GetCurrentStage();
+  uint8_t status;
+
+  // idle for neither working and pause to screen
+  if (stage != SYSTAGE_PAUSE && stage != SYSTAGE_WORK)
+    return 0;
+
+  if (stage == SYSTAGE_WORK)
+    status = 3;
+  else
+    status = 4;
+
+  return status;
 }
 
 /**
@@ -456,7 +533,7 @@ uint8_t StatusControl::StatusControl::GetPeriphDeviceStatus()
  */
 uint32_t StatusControl::GetSystemFault()
 {
-  return FaultFlag;
+  return fault_flag_;
 }
 
 /**
@@ -464,7 +541,7 @@ uint32_t StatusControl::GetSystemFault()
  */
 void StatusControl::ClearSystemFaultBit(uint32_t BitsToClear)
 {
-  FaultFlag &= ~BitsToClear;
+  fault_flag_ &= ~BitsToClear;
 }
 
 /**
@@ -472,6 +549,65 @@ void StatusControl::ClearSystemFaultBit(uint32_t BitsToClear)
  */
 void StatusControl::SetSystemFaultBit(uint32_t BitsToSet)
 {
-  FaultFlag |= BitsToSet;
+  fault_flag_ |= BitsToSet;
 }
 
+/**
+ * screen start a work
+ */
+ErrCode StatusControl::StartWork(TriggerSource s) {
+
+  if (cur_status_ != SYSTAT_IDLE) {
+    LOG_W("cannot start work in current status: %d\n", cur_status_);
+    return E_INVALID_STATE;
+  }
+
+  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    // z is un-homed
+    if (axes_homed(Z_AXIS) == false) {
+      // home
+      process_cmd_imd("G28");
+    }
+
+    // move to original point
+    do_blocking_move_to_logical_xy(0, 0);
+  }
+
+  powerpanic.Reset();
+
+  if (s == TRIGGER_SOURCE_SC) {
+    powerpanic.Data.GCodeSource = GCODE_SOURCE_SCREEN;
+    work_port_ = WORKING_PORT_SC;
+  }
+  else if (s == TRIGGER_SOURCE_PC) {
+    powerpanic.Data.GCodeSource = GCODE_SOURCE_PC;
+    work_port_ = WORKING_PORT_PC;
+  }
+
+
+  // enable runout or not
+  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
+    process_cmd_imd("M412 S1");
+  else
+    process_cmd_imd("M412 S0");
+
+  Periph.StartDoorCheck();
+
+  print_job_timer.start();
+
+  // set state
+  cur_status_ = SYSTAT_WORK;
+
+  lightbar.set_state(LB_STATE_WORKING);
+
+  return E_SUCCESS;
+}
+
+/**
+ * process Pause / Resume / Stop event
+ */
+void StatusControl::Process() {
+  PauseProcess();
+  StopProcess();
+  ResumeProcess();
+}
