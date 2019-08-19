@@ -228,6 +228,13 @@ void StatusControl::PauseProcess()
     HMI.ClearRequestStatus();
   }
 
+  LOG_I("\nstop point:\n");
+  LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", powerpanic.Data.PositionData[0],
+        powerpanic.Data.PositionData[1], powerpanic.Data.PositionData[2], powerpanic.Data.PositionData[3]);
+  LOG_I("position shift:\n");
+  LOG_I("X: %.2f, Y:%.2f, Z:%.2f\n", powerpanic.Data.position_shift[0],
+        powerpanic.Data.position_shift[1], powerpanic.Data.position_shift[2]);
+
   LOG_I("Finish pause\n");
   cur_status_ = SYSTAT_PAUSE_FINISH;
 }
@@ -271,7 +278,7 @@ void StatusControl::StopProcess()
 #define RESUME_PROCESS_CMD_SIZE 40
 
 void inline StatusControl::RestoreXYZ(void) {
-  LOG_I("restore XYZE to (%f, %f, %f, %f)\n", powerpanic.Data.PositionData[X_AXIS],
+  LOG_I("\nrestore ponit:\n X:%.2f, Y:%.2f, Z:%.2f, E:%.2f)\n", powerpanic.Data.PositionData[X_AXIS],
         powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
         powerpanic.Data.PositionData[E_AXIS]);
   char cmd[RESUME_PROCESS_CMD_SIZE] = {0};

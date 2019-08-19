@@ -122,11 +122,12 @@ void QuickStop::TowardStop() {
   // make sure we are in absolute position mode
   relative_mode = false;
 
-  // Disable the leveling to reduce execution time
-  #if HAS_LEVELING
-    set_bed_leveling_enabled(false);
-    planner.leveling_active = false;
-  #endif
+  set_current_from_steppers_for_axis(ALL_AXES);
+  sync_plan_position();
+
+  LOG_I("\nTowardStop: start ponit\n");
+  LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", current_position[0],
+        current_position[1], current_position[2], current_position[3]);
 
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
@@ -145,12 +146,10 @@ void QuickStop::TowardStop() {
     }
 
     // if runout, move X to max
-    if (X_HOME_DIR) {
-      move_to_limited_x(home_offset[Y_AXIS] + X_MAX_POS, 35);
-    }
-    else {
+    if (X_HOME_DIR)
+      move_to_limited_x(home_offset[X_AXIS] + X_MAX_POS, 30);
+    else
       move_to_limited_x(0, 35);
-    }
 
     // move Y to max position
     move_to_limited_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
@@ -243,6 +242,13 @@ void QuickStop::Process() {
     }
   }
 
+  while (stepper.get_current_block()) {
+    if ((int32_t)(timeout - millis()) < 0) {
+      timeout = millis() + 1000UL;
+      LOG_I("wait block to NULL timeout!\n");
+    }
+  }
+
   // make it false, will not abort block, then we can output moves
   disable_stepper_ = false;
 
@@ -252,6 +258,10 @@ void QuickStop::Process() {
   // and outputing blocks
   planner.delay_before_delivering = 0;
   planner.cleaning_buffer_counter = 0;
+
+  LOG_I("\nProcess: start ponit\n");
+  LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", current_position[0],
+        current_position[1], current_position[2], current_position[3]);
 
   TowardStop();
 
