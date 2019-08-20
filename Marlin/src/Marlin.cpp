@@ -1242,7 +1242,7 @@ void CheckAppValidFlag(void)
  */
 void loop() {
   millis_t tmptick;
-  
+
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
   #endif
