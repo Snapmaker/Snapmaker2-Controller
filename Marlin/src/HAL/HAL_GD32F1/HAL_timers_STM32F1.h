@@ -45,7 +45,7 @@
 typedef uint16_t hal_timer_t;
 #define HAL_TIMER_TYPE_MAX 0xFFFF
 
-#define HAL_TIMER_RATE         (F_CPU)  // frequency of timers peripherals
+#define HAL_TIMER_RATE         uint32_t(F_CPU)  // frequency of timers peripherals
 
 #define STEP_TIMER_CHAN 1 // Channel of the timer to use for compare and interrupts
 #define TEMP_TIMER_CHAN 1 // Channel of the timer to use for compare and interrupts
@@ -127,7 +127,8 @@ FORCE_INLINE static void HAL_timer_set_compare(const uint8_t timer_num, const ha
   //compare = MIN(compare, HAL_TIMER_TYPE_MAX);
   switch (timer_num) {
   case STEP_TIMER_NUM:
-    timer_set_compare(STEP_TIMER_DEV, STEP_TIMER_CHAN, compare);
+//    timer_set_compare(STEP_TIMER_DEV, STEP_TIMER_CHAN, compare);
+    timer_set_reload(STEP_TIMER_DEV, compare);
     return;
   case TEMP_TIMER_NUM:
     timer_set_compare(TEMP_TIMER_DEV, TEMP_TIMER_CHAN, compare);
@@ -151,7 +152,7 @@ FORCE_INLINE static hal_timer_t HAL_timer_get_compare(const uint8_t timer_num) {
 FORCE_INLINE static void HAL_timer_isr_prologue(const uint8_t timer_num) {
   switch (timer_num) {
   case STEP_TIMER_NUM:
-    timer_set_count(STEP_TIMER_DEV, 0);
+//    timer_set_count(STEP_TIMER_DEV, 0);
     timer_generate_update(STEP_TIMER_DEV);
     return;
   case TEMP_TIMER_NUM:
@@ -164,3 +165,9 @@ FORCE_INLINE static void HAL_timer_isr_prologue(const uint8_t timer_num) {
 }
 
 #define HAL_timer_isr_epilogue(TIMER_NUM)
+
+FORCE_INLINE static void timer_no_ARR_preload_ARPE(timer_dev *dev) {
+  bb_peri_set_bit(&(dev->regs).gen->CR1, TIMER_CR1_ARPE_BIT, 0);
+}
+
+#define TIMER_OC_NO_PRELOAD 0
