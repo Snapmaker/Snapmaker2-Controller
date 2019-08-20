@@ -125,9 +125,11 @@ void QuickStop::TowardStop() {
   set_current_from_steppers_for_axis(ALL_AXES);
   sync_plan_position();
 
-  LOG_I("\nTowardStop: start ponit\n");
-  LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", current_position[0],
-        current_position[1], current_position[2], current_position[3]);
+  if (event_ != QS_EVENT_ISR_POWER_LOSS) {
+    LOG_I("\nTowardStop: start ponit\n");
+    LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", current_position[0],
+          current_position[1], current_position[2], current_position[3]);
+  }
 
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
@@ -202,7 +204,8 @@ void QuickStop::Process() {
   while (sync_flag_ != QS_SYNC_ISR_END) {
     if ((int32_t)(timeout - millis()) < 0) {
       timeout = millis() + 1000UL;
-      LOG_I("wait sync flag timeout\n");
+      if (event_ != QS_EVENT_ISR_POWER_LOSS)
+        LOG_I("wait sync flag timeout\n");
     }
   }
 
@@ -238,14 +241,16 @@ void QuickStop::Process() {
   while (planner.movesplanned()) {
     if ((int32_t)(timeout - millis()) < 0) {
       timeout = millis() + 1000UL;
-      LOG_I("wait moves empty timeout\n");
+      if (event_ != QS_EVENT_ISR_POWER_LOSS)
+        LOG_I("wait moves empty timeout\n");
     }
   }
 
   while (stepper.get_current_block()) {
     if ((int32_t)(timeout - millis()) < 0) {
       timeout = millis() + 1000UL;
-      LOG_I("wait block to NULL timeout!\n");
+      if (event_ != QS_EVENT_ISR_POWER_LOSS)
+        LOG_I("wait block to NULL timeout!\n");
     }
   }
 
@@ -259,9 +264,11 @@ void QuickStop::Process() {
   planner.delay_before_delivering = 0;
   planner.cleaning_buffer_counter = 0;
 
-  LOG_I("\nProcess: start ponit\n");
-  LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", current_position[0],
-        current_position[1], current_position[2], current_position[3]);
+  if (event_ != QS_EVENT_ISR_POWER_LOSS) {
+    LOG_I("\nProcess: start ponit\n");
+    LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", current_position[0],
+          current_position[1], current_position[2], current_position[3]);
+  }
 
   TowardStop();
 
