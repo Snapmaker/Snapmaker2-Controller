@@ -962,11 +962,13 @@ void HMI_SC20::PollingCommand(void)
 
         // enble manual level bed
         case 4:
+          LOG_I("SC req manual level\n");
           MarkNeedReack(ManualCalibrateStart());
           break;
 
         // move to leveling point
         case 5:
+          LOG_I("SC req move to pont: %d\n", tmpBuff[10]);
           if ((tmpBuff[10] < 10) && (tmpBuff[10] > 0)) {
             // check point index
             if (PointIndex < 10) {
@@ -985,6 +987,7 @@ void HMI_SC20::PollingCommand(void)
 
         // move z axis
         case 6:
+          LOG_I("SC req move Z in leveling\n");
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
           move_to_limited_z(current_position[Z_AXIS] + fZ, 20.0f);
@@ -993,12 +996,12 @@ void HMI_SC20::PollingCommand(void)
 
         // save the cordinate of leveling points
         case 7:
+          LOG_I("SC req save data of leveling\n");
           if (CMD_BUFF_EMPTY() == true) {
             process_cmd_imd("G1029 S");
 
             // home all axes
-            strcpy(tmpBuff, "G28");
-            process_cmd_imd(tmpBuff);
+            process_cmd_imd("G28");
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1016,11 +1019,15 @@ void HMI_SC20::PollingCommand(void)
 
         // exit leveling
         case 8:
+          LOG_I("SC req exit level\n");
           if (CMD_BUFF_EMPTY() == true) {
             //Load
             settings.load();
+
             process_cmd_imd("G28");
             HMICommandSave = 0;
+
+            CalibrateMethod = 0;
 
             // make sure we are in absolute mode
             relative_mode = false;

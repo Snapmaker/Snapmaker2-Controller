@@ -580,9 +580,9 @@ ErrCode PowerPanic::ResumeWork()
 }
 
 /*
- * disable other unused peripherals
+ * disable other unused peripherals in ISR
  */
-void PowerPanic::TurnOffPower(void) {
+void PowerPanic::TurnOffPowerISR(void) {
 
   // disable power of heated bed
   thermalManager.setTargetBed(0);
@@ -595,6 +595,38 @@ void PowerPanic::TurnOffPower(void) {
   // HMI, BED, and all addones
   WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_OFF);
   WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
+}
+
+/*
+ * disable other unused peripherals after ISR
+ */
+void PowerPanic::TurnOffPower(void) {
+	BreathLightClose();
+
+	// disble timer except the stepper's
+	rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
+	rcc_clk_disable(TIMER7->clk_id);
+
+	// disalbe ADC
+	rcc_clk_disable(ADC1->clk_id);
+	rcc_clk_disable(ADC2->clk_id);
+
+	//disble DMA
+	rcc_clk_disable(DMA1->clk_id);
+	rcc_clk_disable(DMA2->clk_id);
+
+	// disable other unnecessary soc peripherals
+	// disable usart
+	//rcc_clk_disable(MSerial1.c_dev()->clk_id);
+	//rcc_clk_disable(MSerial2.c_dev()->clk_id);
+	//rcc_clk_disable(MSerial3.c_dev()->clk_id);
+
+#if ENABLED(EXECUTER_CANBUS_SUPPORT)
+  // turn off hot end and FAN
+	// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+	// 	ExecuterHead.SetTemperature(0, 0);
+	// }
+#endif
 }
 
 /*
