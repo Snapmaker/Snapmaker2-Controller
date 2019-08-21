@@ -385,6 +385,8 @@ void PowerPanic::Resume3DP() {
 	sprintf(tmpBuff, "M140 S%0.2f", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
+	RestoreWorkspace();
+
 	// absolut mode
 	relative_mode = false;
 
@@ -393,18 +395,11 @@ void PowerPanic::Resume3DP() {
 	set_bed_leveling_enabled(true);
 
 	// waiting temperature reach target
-	sprintf(tmpBuff, "M109 S%0.2f", pre_data_.HeaterTamp[0]);
-	process_cmd_imd(tmpBuff);
-
 	sprintf(tmpBuff, "M190 S%0.2f", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
-	RestoreWorkspace();
-
-	// move Z to target position + 5mm
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS] + 5);
+	sprintf(tmpBuff, "M109 S%0.2f", pre_data_.HeaterTamp[0]);
 	process_cmd_imd(tmpBuff);
-	planner.synchronize();
 
 	// pre-extrude
 	relative_mode = true;
@@ -498,6 +493,10 @@ void PowerPanic::RestoreWorkspace() {
 
 	planner.synchronize();
 
+	LOG_I("\nposition shift:\n");
+	LOG_I("X: %.2f, Y: %.2f, Z: %.2f\n", pre_data_.position_shift[0],
+						pre_data_.position_shift[1], pre_data_.position_shift[2]);
+
 	LOOP_XYZ(i) {
 		position_shift[i] = pre_data_.position_shift[i];
 		update_workspace_offset((AxisEnum)i);
@@ -509,8 +508,7 @@ void PowerPanic::RestoreWorkspace() {
  *Resume work after power panic if exist valid power panic data
  *return :true is resume success, or else false
  */
-ErrCode PowerPanic::ResumeWork()
-{
+ErrCode PowerPanic::ResumeWork() {
 	if (pre_data_.MachineType != ExecuterHead.MachineType) {
 		LOG_E("current[%d] machine is not same as previous[%d]\n",
 						ExecuterHead.MachineType, pre_data_.MachineType);
@@ -532,7 +530,7 @@ ErrCode PowerPanic::ResumeWork()
 		return E_INVALID_STATE;
 	}
 
-	LOG_I("restore point(X,Y,Z,E): (%f, %f, %f, %f)\n", pre_data_.PositionData[X_AXIS],
+	LOG_I("restore point: X:%.2f, Y: %.2f, Y: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
 			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
 	LOG_I("line number: %d\n", pre_data_.FilePosition);
 
@@ -573,8 +571,6 @@ ErrCode PowerPanic::ResumeWork()
 	// restore speed for G0 G1
 	saved_g1_feedrate_mm_s = pre_data_.PrintFeedRate;
 	saved_g0_feedrate_mm_s = pre_data_.TravelFeedRate;
-
-	SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
 
 	return E_SUCCESS;
 }

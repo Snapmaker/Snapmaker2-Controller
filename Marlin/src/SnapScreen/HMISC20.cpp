@@ -775,8 +775,8 @@ void HMI_SC20::PollingCommand(void)
     //gcode from screen
     else if (eventId == EID_FILE_GCODE_REQ) {
       // need to check if we are in working with screen
-      if (SystemStatus.GetWorkingPort() == WORKING_PORT_SC && (cur_status == SYSTAT_WORK ||
-            cur_status == SYSTAT_RESUME_WAITING)) {
+      if (SystemStatus.GetWorkingPort() == WORKING_PORT_SC &&
+          (cur_status == SYSTAT_WORK || cur_status == SYSTAT_RESUME_WAITING)) {
         // line number
         ID = BYTES_TO_32BITS(tmpBuff, 9);
 
@@ -890,7 +890,10 @@ void HMI_SC20::PollingCommand(void)
 
       // request the latest line number
       else if (StatuID == 0x08) {
-        LOG_I("SC req line number: %d\n", powerpanic.pre_data_.FilePosition);
+        if (cur_stage == SYSTAGE_PAUSE)
+          LOG_I("SC req line number: %d\n", powerpanic.Data.FilePosition);
+        else
+          LOG_I("SC req line number: %d\n", powerpanic.pre_data_.FilePosition);
         SendBreakPointData();
       }
 
@@ -929,6 +932,8 @@ void HMI_SC20::PollingCommand(void)
         else {
           err = powerpanic.ResumeWork();
           if (E_SUCCESS == err) {
+            SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
+            SystemStatus.SetWorkingPort(WORKING_PORT_SC);
             MarkNeedReack(0);
             LOG_I("trigger RESTORE: ok\n");
           }

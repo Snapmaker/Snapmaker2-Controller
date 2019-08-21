@@ -35,11 +35,11 @@ enum QuickStopSync : uint8_t {
 class QuickStop {
   public:
     void Reset();
-    void CheckISR(block_t *blk);
+    bool CheckISR(block_t *blk);
     ErrCode Trigger(QuickStopEvent e);
     void Process();
 
-    bool IsStopped() { return !!stopped_; };
+    bool IsStopped() { return stopped_; };
     bool IsTriggered() { return !!event_; }
 
     void Debug(QuickStopEvent e) { debug_ = e; }

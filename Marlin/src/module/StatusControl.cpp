@@ -455,6 +455,7 @@ void StatusControl::ResumeOver() {
     break;
   }
 
+  LOG_I("Receive first cmd after resume\n");
   cur_status_ = SYSTAT_WORK;
   lightbar.set_state(LB_STATE_WORKING);
 }

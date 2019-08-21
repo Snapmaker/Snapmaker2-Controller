@@ -11,7 +11,12 @@
 
 QuickStop quickstop;
 
-void QuickStop::CheckISR(block_t *blk) {
+/*
+ * check if event of quick stop happened
+ * if need to stop stepper output, return true
+ * otherwise return false
+ */
+bool QuickStop::CheckISR(block_t *blk) {
   QuickStopEvent new_event = QS_EVENT_NONE;
   static millis_t last_powerloss = 0;
 
@@ -39,12 +44,15 @@ void QuickStop::CheckISR(block_t *blk) {
   if (event_ == QS_EVENT_NONE) {
     if (powerstat != POWER_LOSS_STATE) {
       // power loss doesn't appear
-      return;
+      return false;
     }
     else {
       // power loss happened
       event_ = QS_EVENT_ISR_POWER_LOSS;
       new_event = QS_EVENT_ISR_POWER_LOSS;
+      // delay movement to be planned when power loss
+      planner.delay_before_delivering = 100;
+      planner.cleaning_buffer_counter = 1000;
     }
   }
   else {
@@ -63,8 +71,9 @@ void QuickStop::CheckISR(block_t *blk) {
   // which has no new event
   if (new_event == QS_EVENT_NONE) {
     if (disable_stepper_)
-      stepper.quick_stop();
-    return;
+      return true;
+    else
+      return false;
   }
 
   if (new_event == QS_EVENT_ISR_POWER_LOSS)
@@ -79,14 +88,20 @@ void QuickStop::CheckISR(block_t *blk) {
     powerpanic.SaveEnv();
   }
 
-  if (new_event == QS_EVENT_ISR_POWER_LOSS)
-    powerpanic.WriteFlash();
+  if (new_event == QS_EVENT_ISR_POWER_LOSS) {
+    if (SystemStatus.GetCurrentStage() == SYSTAGE_WORK ||
+        SystemStatus.GetCurrentStage() == SYSTAGE_PAUSE) {
+      powerpanic.WriteFlash();
+    }
+  }
 
   sync_flag_ = QS_SYNC_ISR_END;
 
+  disable_stepper_ = true;
+
   stepper.quick_stop();
 
-  disable_stepper_ = true;
+  return false;
 }
 
 ErrCode QuickStop::Trigger(QuickStopEvent e) {
@@ -101,6 +116,9 @@ ErrCode QuickStop::Trigger(QuickStopEvent e) {
   else {
     event_ = e;
     sync_flag_ = QS_SYNC_TRIGGER;
+    // delay movement to be planned when quick stop is triggered
+    planner.delay_before_delivering = 100;
+    planner.cleaning_buffer_counter = 1000;
   }
   ENABLE_STEPPER_DRIVER_INTERRUPT();
 
@@ -138,16 +156,17 @@ void QuickStop::CleanMoves() {
     }
   }
 
+  // make it false, will not abort block, then we can output moves
+  disable_stepper_ = false;
+
   while (stepper.get_current_block()) {
+    stepper.quick_stop();
     if ((int32_t)(timeout - millis()) < 0) {
       timeout = millis() + 1000UL;
       if (event_ != QS_EVENT_ISR_POWER_LOSS)
         LOG_I("wait block to NULL timeout!\n");
     }
   }
-
-  // make it false, will not abort block, then we can output moves
-  disable_stepper_ = false;
 
   // maker sure 'abort_current_block' is false
   stepper.allow_current_block();
@@ -159,47 +178,45 @@ void QuickStop::CleanMoves() {
 }
 
 void QuickStop::TowardStop() {
+  bool leveling_active = planner.leveling_active;
+  float retract = 0;
   // make sure we are in absolute position mode
   relative_mode = false;
 
   set_current_from_steppers_for_axis(ALL_AXES);
   sync_plan_position();
 
-  if (event_ != QS_EVENT_ISR_POWER_LOSS) {
-    LOG_I("\nTowardStop: start ponit\n");
-    LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", current_position[0],
-          current_position[1], current_position[2], current_position[3]);
-  }
+  // we need to move to Z max
+  if (leveling_active)
+    set_bed_leveling_enabled(false);
 
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
-    // if temperature permitted, will raise Z with retracting E
-    if(thermalManager.temp_hotend[0].current > 180) {
-      //current_position[E_AXIS] -= 6.5;
-      //line_to_current_position(60);
+    if(thermalManager.temp_hotend[0].current > 180)
+      retract = 6.5;
 
-      move_to_limited_ze(current_position[Z_AXIS] + 1, current_position[E_AXIS] - 6.5, 30);
+    // for power loss, we don't have enough time, so raise Z with retracting E
+    if (event_ == QS_EVENT_ISR_POWER_LOSS) {
+      move_to_limited_ze(current_position[Z_AXIS] + 5, current_position[E_AXIS] - retract, 20);
+    }
+    else {
+      // if we are not in power loss, retrace E quickly
+      move_to_limited_ze(Z_MAX_POS, current_position[E_AXIS] - retract, 20);
     }
 
-    move_to_limited_z(Z_MAX_POS, 15);
-    if (event_ != QS_EVENT_ISR_POWER_LOSS) {
-      set_current_from_steppers_for_axis(ALL_AXES);
-      sync_plan_position();
-    }
-
-    // if runout, move X to max
+    // move X to max position of home dir
     if (X_HOME_DIR > 0)
-      move_to_limited_x(home_offset[X_AXIS] + X_MAX_POS, 30);
+      move_to_limited_x(X_MAX_POS, 30);
     else
       move_to_limited_x(0, 35);
 
     // move Y to max position
-    move_to_limited_xy(current_position[X_AXIS], home_offset[Y_AXIS] + Y_MAX_POS, 30);
+    move_to_limited_xy(current_position[X_AXIS], Y_MAX_POS, 30);
     break;
 
   case MACHINE_TYPE_CNC:
   case MACHINE_TYPE_LASER:
-    move_to_limited_z(Z_MAX_POS, 15);
+    move_to_limited_z(Z_MAX_POS, 20);
     break;
 
   default:
@@ -211,13 +228,8 @@ void QuickStop::TowardStop() {
       idle();
   }
 
-  // actually, Z_MAX_POS is larger than position of endstop when level is enable
-  // so moving will stop in endstop, we must recover stepper's position to
-  // current position.
-  if (event_ != QS_EVENT_ISR_POWER_LOSS) {
-    set_current_from_steppers_for_axis(ALL_AXES);
-    sync_plan_position();
-  }
+  if (leveling_active)
+    set_bed_leveling_enabled(true);
 }
 
 
@@ -242,8 +254,6 @@ void QuickStop::Process() {
   if (ExecuterHead.MachineType == MACHINE_TYPE_CNC)
     ExecuterHead.CNC.SetPower(0);
 
-  stopped_ = true;
-
   if (event_ == QS_EVENT_ISR_POWER_LOSS)
     while (1);
 
@@ -252,6 +262,8 @@ void QuickStop::Process() {
 
   if (SystemStatus.GetCurrentStatus() == SYSTAT_END_TRIG)
     SystemStatus.SetCurrentStatus(SYSTAT_END_FINISH);
+
+  stopped_ = true;
 }
 
 void QuickStop::Reset() {
