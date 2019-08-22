@@ -378,11 +378,11 @@ void PowerPanic::Resume3DP() {
 	}
 
 	// for now, just care 1 hotend
-	sprintf(tmpBuff, "M104 S%0.2f", pre_data_.HeaterTamp[0]);
+	sprintf(tmpBuff, "M104 S%0.2f\n", pre_data_.HeaterTamp[0]);
 	process_cmd_imd(tmpBuff);
 
 	// set heated bed temperature
-	sprintf(tmpBuff, "M140 S%0.2f", pre_data_.BedTamp);
+	sprintf(tmpBuff, "M140 S%d\n", (int)pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
 	RestoreWorkspace();
@@ -395,10 +395,10 @@ void PowerPanic::Resume3DP() {
 	set_bed_leveling_enabled(true);
 
 	// waiting temperature reach target
-	sprintf(tmpBuff, "M190 S%0.2f", pre_data_.BedTamp);
+	sprintf(tmpBuff, "M190 S%0.2f\n", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
-	sprintf(tmpBuff, "M109 S%0.2f", pre_data_.HeaterTamp[0]);
+	sprintf(tmpBuff, "M109 S%0.2f\n", pre_data_.HeaterTamp[0]);
 	process_cmd_imd(tmpBuff);
 
 	// pre-extrude
@@ -579,9 +579,6 @@ ErrCode PowerPanic::ResumeWork() {
  * disable other unused peripherals in ISR
  */
 void PowerPanic::TurnOffPowerISR(void) {
-
-  // disable power of heated bed
-  thermalManager.setTargetBed(0);
 
   // close laser
   if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)

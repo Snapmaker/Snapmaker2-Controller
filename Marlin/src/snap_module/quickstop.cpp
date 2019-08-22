@@ -195,13 +195,17 @@ void QuickStop::TowardStop() {
     if(thermalManager.temp_hotend[0].current > 180)
       retract = 6.5;
 
-    // for power loss, we don't have enough time, so raise Z with retracting E
+    // for power loss, we don't have enough time
     if (event_ == QS_EVENT_ISR_POWER_LOSS) {
-      move_to_limited_ze(current_position[Z_AXIS] + 5, current_position[E_AXIS] - retract, 20);
+      current_position[E_AXIS] -= 2;
+      line_to_current_position(60);
+      move_to_limited_ze(current_position[Z_AXIS] + 5, current_position[E_AXIS] - retract - 10, 20);
     }
     else {
+      current_position[E_AXIS] -= retract;
+      line_to_current_position(60);
       // if we are not in power loss, retrace E quickly
-      move_to_limited_ze(Z_MAX_POS, current_position[E_AXIS] - retract, 20);
+      move_to_limited_z(Z_MAX_POS, 20);
     }
 
     // move X to max position of home dir
