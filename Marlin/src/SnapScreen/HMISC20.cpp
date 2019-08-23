@@ -414,10 +414,10 @@ void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
   process_cmd_imd("G28");
 
   // Move to the Certain point
-  do_blocking_move_to_logical_xy(X, Y, 30.0f);
+  move_to_limited_xy(X, Y, 30.0f);
 
   // Move to the Z
-  do_blocking_move_to_logical_z(Z, 10.0f);
+  move_to_limited_z(Z, 20.0f);
 }
 
 /********************************************************
@@ -485,7 +485,7 @@ void HMI_SC20::DrawLaserCalibrateShape() {
 /**
  * DrawLaserCalibrateShape
  */
-bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float CameraFocusHeight, float Z_Increase, uint8_t Count, bool RunToCenter) {
+bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count) {
   int i;
   float next_x, next_y, next_z;
   float line_space;
@@ -499,9 +499,6 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Ca
   next_y = StartY;
   next_z = StartZ - ((float)(Count - 1) / 2.0 * Z_Increase);
 
-  if((CameraFocusHeight < StartZ) && (RunToCenter == true))
-    CameraFocusHeight = StartZ;
-
   if(next_z <= 5)
     return false;
 
@@ -509,7 +506,6 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Ca
   move_to_limited_z(next_z, 20.0f);
 
   LOG_I("start ponit: X=%.2f, Y=%.2f, Z=%.2f\n", StartX, StartY, StartZ);
-  LOG_I("start Z: %.2f\n", next_z);
 
   i = 0;
 
@@ -536,6 +532,8 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Ca
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
+    LOG_I("current Z: %.2f\n", current_position[Z_AXIS]);
+
     // Move up Z increase
     if(i != (Count - 1))
       move_to_limited_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
@@ -550,12 +548,10 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Ca
   planner.synchronize();
 
   // Move to the center
-  if(RunToCenter == true) {
-    next_x = (current_position[X_AXIS] + StartX) / 2.0f - camera_x_offset;
-    next_y = (current_position[Y_AXIS] + StartY) / 2.0f - camera_y_offset;
-    move_to_limited_xy(next_x, next_y, 20.0f);
-    move_to_limited_z(CameraFocusHeight, 10.0f);
-  }
+  next_x = (current_position[X_AXIS] + StartX) / 2.0f - camera_x_offset;
+  next_y = (current_position[Y_AXIS] + StartY) / 2.0f - camera_y_offset;
+  move_to_limited_xy(next_x, next_y, 20.0f);
+
   return true;
 }
 
@@ -1114,7 +1110,7 @@ void HMI_SC20::PollingCommand(void)
         case 13:
           LOG_I("Laser: SC req draw ruler\n");
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-            DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 110, 0.1f, 21, true);
+            DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5f, 21);
             MarkNeedReack(0);
           }
           else {
@@ -1252,21 +1248,25 @@ void HMI_SC20::PollingCommand(void)
 
         //查询主控版本号
         case 3:
+          LOG_I("SC req FW ver\n");
           RequestFirmwareVersion();
           break;
 
         //固件版本检测
         case 4:
+          LOG_I("SC check FW ver\n");
           CheckFirmwareVersion(&tmpBuff[10]);
           break;
 
         //查询升级状态
         case 5:
+          LOG_I("SC req up state\n");
           SendUpdateStatus(CanModules.GetUpdateStatus());
           break;
 
         //查询模块
         case 7:
+          LOG_I("SC req MODULE ver\n");
           CanModules.EnumFirmwareVersion(true, false);
           break;
       }
