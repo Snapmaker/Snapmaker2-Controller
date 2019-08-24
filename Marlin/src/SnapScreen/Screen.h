@@ -29,6 +29,7 @@ class HMIScreen
       void SendMachineFaultFlag();
       void SendGcode(char *GCode, uint8_t EventID);
       void SendUpdateComplete(uint8_t Type);
+      void SendHalfCalibratePoint(uint8_t Opcode, uint8_t Index);
 
     #else
       FORCE_INLINE static void SendMachineStatusChange(uint8_t, uint8_t){}

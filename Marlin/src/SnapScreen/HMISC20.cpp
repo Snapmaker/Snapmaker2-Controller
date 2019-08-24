@@ -66,6 +66,9 @@ static char SendBuff[1024];
   #define CHECK_RUNOUT_SENSOR     (0)
 #endif
 
+extern uint32_t GRID_MAX_POINTS_X;
+extern uint32_t GRID_MAX_POINTS_Y;
+
 /**
  *PackedProtocal:Pack up the data in protocal
  */
@@ -576,6 +579,8 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     // Turn off the heaters
     thermalManager.disable_all_heaters();
     process_cmd_imd("G28");
+    process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
+
     set_bed_leveling_enabled(false);
 
     // Set the Z max feedrate to 50mm/s
@@ -584,27 +589,13 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     // Set the current position of Z to Z_MAX_POS
     current_position[Z_AXIS] = Z_MAX_POS;
     sync_plan_position();
-    indexx = 0;
-    indexy = 0;
-    Index = 0;
+
     endstops.enable_z_probe(true);
-    for (j = 0; j < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y); j++) {
-      indexx = CalibrateIndeX[Index];
-      indexy = CalibrateIndeY[Index];
-      Index++;
-      // Move Z to 15mm
-      do_blocking_move_to_logical_z(15);
-      MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx] = probe_pt(RAW_X_POSITION(_GET_MESH_X(indexx)), RAW_Y_POSITION(_GET_MESH_Y(indexy)), PROBE_PT_RAISE, 2);
-      SERIAL_ECHOLNPAIR("Zvalue:", MeshPointZ[indexy * GRID_MAX_POINTS_X + indexx]);
 
-      // Send the point index to HMI
-      SendHalfCalibratePoint(0x03, indexy * GRID_MAX_POINTS_X + indexx + 1);
-    }
+
+    auto_probing(true);
+
     endstops.enable_z_probe(false);
-
-    //Zoffset
-    do_blocking_move_to_logical_z(7, 50);
-    do_blocking_move_to_logical_xy(_GET_MESH_X(1), _GET_MESH_Y(1), 50.0f);
 
     // Recover the Z max feedrate to 20mm/s
     planner.settings.max_feedrate_mm_s[Z_AXIS] = 20;
@@ -1003,34 +994,7 @@ void HMI_SC20::PollingCommand(void)
         // save the cordinate of leveling points
         case 7:
           if (CMD_BUFF_EMPTY() == true) {
-            float delCenter = MeshPointZ[4] - current_position[Z_AXIS];
-            // auto leveling
-            if (CalibrateMethod == 1) {
-              // set leveling data to marlin
-              for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-                for (j = 0; j < GRID_MAX_POINTS_X; j++) {
-                  sprintf(tmpBuff, "G29 W I%d J%d Z%0.3f", j, i, MeshPointZ[i * GRID_MAX_POINTS_X + j] - delCenter);
-                  process_cmd_imd(tmpBuff);
-                }
-              }
-              settings.save();
-            }
-
-            // manual leveling
-            else if (CalibrateMethod == 2) {
-              if (PointIndex != 99) {
-                MeshPointZ[PointIndex] = current_position[Z_AXIS];
-
-                // set leveling data to marlin
-                for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-                  for (j = 0; j < GRID_MAX_POINTS_X; j++) {
-                    sprintf(tmpBuff, "G29 W I0 J0 Z%0.3f", MeshPointZ[i * GRID_MAX_POINTS_X + j]);
-                    process_cmd_imd(tmpBuff);
-                  }
-                }
-                settings.save();
-              }
-            }
+            process_cmd_imd("G1029 S");
 
             // home all axes
             strcpy(tmpBuff, "G28");

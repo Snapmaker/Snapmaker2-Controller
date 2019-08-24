@@ -31,6 +31,9 @@
 #include "../../gcode.h"
 #include "../../../feature/bedlevel/abl/abl.h"
 
+extern uint32_t  GRID_MAX_POINTS_X;
+extern uint32_t  GRID_MAX_POINTS_Y;
+
 /**
  * M421: Set a single Mesh Bed Leveling Z coordinate
  *

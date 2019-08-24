@@ -171,7 +171,7 @@ typedef struct SettingsDataStruct {
   int bilinear_grid_spacing[2],
       bilinear_start[2];                                // G29 L F
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-    float z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y]; // G29
+    float z_values[GRID_MAX_NUM][GRID_MAX_NUM]; // G29
   #else
     float z_values[3][3];
   #endif
@@ -309,6 +309,8 @@ typedef struct SettingsDataStruct {
     float Y_MIN_POS;
     float Z_MIN_POS;
   #endif
+
+  uint8_t PROBE_MARGIN;
 
   //
   // brightness for lightbar
@@ -612,8 +614,10 @@ void MarlinSettings::postprocess() {
           "Bilinear Z array is the wrong size."
         );
         const uint8_t grid_max_x = GRID_MAX_POINTS_X, grid_max_y = GRID_MAX_POINTS_Y;
+        const uint8_t probe_margin = PROBE_MARGIN;
         EEPROM_WRITE(grid_max_x);            // 1 byte
         EEPROM_WRITE(grid_max_y);            // 1 byte
+        EEPROM_WRITE(probe_margin);          // 1 byte
         EEPROM_WRITE(bilinear_grid_spacing); // 2 ints
         EEPROM_WRITE(bilinear_start);        // 2 ints
         EEPROM_WRITE(z_values);              // 9-256 floats
@@ -1368,25 +1372,25 @@ void MarlinSettings::postprocess() {
       // Bilinear Auto Bed Leveling
       //
       {
-        uint8_t grid_max_x, grid_max_y;
+        uint8_t grid_max_x, grid_max_y, probe_margin;
         EEPROM_READ_ALWAYS(grid_max_x);                       // 1 byte
         EEPROM_READ_ALWAYS(grid_max_y);                       // 1 byte
+        EEPROM_READ_ALWAYS(probe_margin);
         #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
-          if (grid_max_x == GRID_MAX_POINTS_X && grid_max_y == GRID_MAX_POINTS_Y) {
-            if (!validating) set_bed_leveling_enabled(false);
-            EEPROM_READ(bilinear_grid_spacing);        // 2 ints
-            EEPROM_READ(bilinear_start);               // 2 ints
-            EEPROM_READ(z_values);                     // 9 to 256 floats
-          }
-          else // EEPROM data is stale
+          GRID_MAX_POINTS_X = grid_max_x;
+          GRID_MAX_POINTS_Y = grid_max_y;
+          PROBE_MARGIN = probe_margin;
+
+
+          ABL_GRID_POINTS_VIRT_X = (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1;
+          ABL_GRID_POINTS_VIRT_Y = (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1;
+          ABL_TEMP_POINTS_X = (GRID_MAX_POINTS_X + 2);
+          ABL_TEMP_POINTS_Y = (GRID_MAX_POINTS_Y + 2);
+
+          EEPROM_READ(bilinear_grid_spacing);        // 2 ints
+          EEPROM_READ(bilinear_start);               // 2 ints
+          EEPROM_READ(z_values);                     // 9 to 256 floats
         #endif // AUTO_BED_LEVELING_BILINEAR
-          {
-            // Skip past disabled (or stale) Bilinear Grid data
-            int bgs[2], bs[2];
-            EEPROM_READ(bgs);
-            EEPROM_READ(bs);
-            for (uint16_t q = grid_max_x * grid_max_y; q--;) EEPROM_READ(dummy);
-          }
       }
 
       //
@@ -2478,6 +2482,15 @@ void MarlinSettings::reset() {
     soft_endstop[Z_AXIS].max = Z_MAX_POS;
     #endif
   #endif //ENABLED(SW_MACHINE_SIZE)
+
+  GRID_MAX_POINTS_X = 3;
+  GRID_MAX_POINTS_Y = 3;
+  PROBE_MARGIN = 30;
+
+  ABL_GRID_POINTS_VIRT_X = (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1;
+  ABL_GRID_POINTS_VIRT_Y = (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1;
+  ABL_TEMP_POINTS_X = (GRID_MAX_POINTS_X + 2);
+  ABL_TEMP_POINTS_Y = (GRID_MAX_POINTS_Y + 2);
 
   lightbar.set_brightness(MAX_BRIGHTNESS);
 

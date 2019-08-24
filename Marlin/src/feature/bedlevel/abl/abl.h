@@ -25,7 +25,7 @@
 
 extern int bilinear_grid_spacing[2], bilinear_start[2];
 extern float bilinear_grid_factor[2],
-             z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+             z_values[GRID_MAX_NUM][GRID_MAX_NUM];
 float bilinear_z_offset(const float raw[XYZ]);
 void bilinear_grid_manual(float startx, float starty, float endx, float endy);
 
@@ -44,3 +44,8 @@ void refresh_bed_level();
 #define _GET_MESH_X(I) (bilinear_start[X_AXIS] + (I) * bilinear_grid_spacing[X_AXIS])
 #define _GET_MESH_Y(J) (bilinear_start[Y_AXIS] + (J) * bilinear_grid_spacing[Y_AXIS])
 #define Z_VALUES_ARR  z_values
+
+
+void auto_probing(bool reply_screen);
+void compensate_offset();
+void compensate_offset(float offset);
