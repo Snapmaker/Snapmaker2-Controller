@@ -282,6 +282,7 @@ void GcodeSuite::execute_command(void) {
       #if ENABLED(DEBUG_GCODE_PARSER)
         case 800: parser.debug(); break;                          // G800: GCode Parser Test for G
       #endif
+      case 1029: G1029(); break;
 
       default: parser.unknown_command_error(); break;
     }

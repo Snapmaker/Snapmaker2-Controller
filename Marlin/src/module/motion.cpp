@@ -1678,7 +1678,9 @@ void homeaxis(const AxisEnum axis) {
 
     #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
       SERIAL_ECHOLN("grid manual");
-      bilinear_grid_manual(X_MAX_POS / 4.0f, Y_MAX_POS / 4.0f, X_MAX_POS / 4.0f * 3.0f, Y_MAX_POS / 4.0f * 3.0f);
+      float margin = PROBE_MARGIN;
+      bilinear_grid_manual(RAW_X_POSITION(margin), RAW_Y_POSITION(margin),
+          RAW_X_POSITION(X_MAX_POS - margin), RAW_Y_POSITION(Y_MAX_POS - margin));
     #endif
     do_blocking_move_to(current_position[X_AXIS] +0.05f, current_position[Y_AXIS] +0.05f, current_position[Z_AXIS] +0.05f, 16);
     do_blocking_move_to(current_position[X_AXIS] -0.05f, current_position[Y_AXIS] -0.05f, current_position[Z_AXIS] -0.05f, 16);

@@ -240,6 +240,15 @@ millis_t max_inactive_time, // = 0
   float Z_MIN_POS;
 #endif //ENABLED(SW_MACHINE_SIZE)
 
+uint32_t GRID_MAX_POINTS_X;
+uint32_t GRID_MAX_POINTS_Y;
+uint32_t PROBE_MARGIN;
+
+
+uint32_t ABL_GRID_POINTS_VIRT_X;
+uint32_t ABL_GRID_POINTS_VIRT_Y;
+uint32_t ABL_TEMP_POINTS_X;
+uint32_t ABL_TEMP_POINTS_Y;
 
 /**
  * ***************************************************************************

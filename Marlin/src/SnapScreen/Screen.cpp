@@ -97,7 +97,9 @@ uint8_t HMIScreen::GetRequestStatus() {
 void HMIScreen::ClearRequestStatus() {
   SC20HMI.RequestStatus = HMI_REQ_NONE;
 }
-
+void HMIScreen::SendHalfCalibratePoint(uint8_t op_code, uint8_t index) {
+  SC20HMI.SendHalfCalibratePoint(op_code, index);
+}
 
 #endif
 

@@ -20,6 +20,8 @@
  *
  */
 
+#include <src/module/probe.h>
+#include <src/SnapScreen/Screen.h>
 #include "../../../inc/MarlinConfig.h"
 
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
@@ -34,7 +36,7 @@
 
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
-      z_values[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+      z_values[GRID_MAX_NUM][GRID_MAX_NUM];
 
 /**
  * Extrapolate a single point from its neighbors
@@ -102,7 +104,7 @@ void extrapolate_unprobed_bed_level() {
   #ifdef HALF_IN_X
     constexpr uint8_t ctrx2 = 0, xlen = GRID_MAX_POINTS_X - 1;
   #else
-    constexpr uint8_t ctrx1 = (GRID_MAX_POINTS_X - 1) / 2, // left-of-center
+     uint8_t ctrx1 = (GRID_MAX_POINTS_X - 1) / 2, // left-of-center
                       ctrx2 = (GRID_MAX_POINTS_X) / 2,     // right-of-center
                       xlen = ctrx1;
   #endif
@@ -110,7 +112,7 @@ void extrapolate_unprobed_bed_level() {
   #ifdef HALF_IN_Y
     constexpr uint8_t ctry2 = 0, ylen = GRID_MAX_POINTS_Y - 1;
   #else
-    constexpr uint8_t ctry1 = (GRID_MAX_POINTS_Y - 1) / 2, // top-of-center
+     uint8_t ctry1 = (GRID_MAX_POINTS_Y - 1) / 2, // top-of-center
                       ctry2 = (GRID_MAX_POINTS_Y) / 2,     // bottom-of-center
                       ylen = ctry1;
   #endif
@@ -145,11 +147,16 @@ void print_bilinear_leveling_grid() {
 
 #if ENABLED(ABL_BILINEAR_SUBDIVISION)
 
-  #define ABL_GRID_POINTS_VIRT_X (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1
-  #define ABL_GRID_POINTS_VIRT_Y (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1
-  #define ABL_TEMP_POINTS_X (GRID_MAX_POINTS_X + 2)
-  #define ABL_TEMP_POINTS_Y (GRID_MAX_POINTS_Y + 2)
-  float z_values_virt[ABL_GRID_POINTS_VIRT_X][ABL_GRID_POINTS_VIRT_Y];
+//  uint32_t ABL_GRID_POINTS_VIRT_X = (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1;
+//  uint32_t ABL_GRID_POINTS_VIRT_Y = (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1;
+//  uint32_t ABL_TEMP_POINTS_X = (GRID_MAX_POINTS_X + 2);
+//  uint32_t ABL_TEMP_POINTS_Y = (GRID_MAX_POINTS_Y + 2);
+  extern uint32_t ABL_GRID_POINTS_VIRT_X;
+  extern uint32_t ABL_GRID_POINTS_VIRT_Y;
+  extern uint32_t ABL_TEMP_POINTS_X;
+  extern uint32_t ABL_TEMP_POINTS_Y;
+
+  float z_values_virt[VIRTUAL_GRID_MAX_NUM][VIRTUAL_GRID_MAX_NUM];
   int bilinear_grid_spacing_virt[2] = { 0 };
   float bilinear_grid_factor_virt[2] = { 0 };
 
@@ -433,6 +440,66 @@ void bilinear_grid_manual(float startx, float starty, float endx, float endy)
   bilinear_start[Y_AXIS] = starty;
   SERIAL_ECHOLNPAIR("X:", bilinear_start[X_AXIS], " - ", bilinear_grid_spacing[X_AXIS]);
   SERIAL_ECHOLNPAIR("Y:", bilinear_start[Y_AXIS], " - ", bilinear_grid_spacing[Y_AXIS]);
+}
+
+bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
+
+void auto_probing(bool reply_screen) {
+  float margin = PROBE_MARGIN;
+  bilinear_grid_manual(RAW_X_POSITION(margin), RAW_Y_POSITION(margin),
+                         RAW_X_POSITION(X_MAX_POS - margin), RAW_Y_POSITION(Y_MAX_POS - margin));
+
+  static int direction [4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
+  memset(visited, 0, sizeof(visited[0][0]) * GRID_MAX_NUM * GRID_MAX_NUM);
+
+  int cur_x = 0;
+  int cur_y = 0;
+
+  int dir_idx = 0;
+
+
+  for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
+    SERIAL_ECHOLNPAIR("Probing No. ", k);
+
+    do_blocking_move_to_z(15);
+
+    float z = probe_pt(_GET_MESH_X(cur_x), _GET_MESH_Y(cur_y)); // raw position
+    z_values[cur_x][cur_y] = z;
+    visited[cur_x][cur_y] = true;
+    if (reply_screen) {
+        HMI.SendHalfCalibratePoint(0x03, cur_y * GRID_MAX_POINTS_X + cur_x + 1);
+    }
+
+    int new_x = cur_x + direction[dir_idx][0];
+    int new_y = cur_y + direction[dir_idx][1];
+
+    if (new_x >= GRID_MAX_POINTS_X || new_x < 0 || new_y >= GRID_MAX_POINTS_Y || new_y < 0
+      || visited[new_x][new_y]) {
+      dir_idx = (dir_idx + 1) % 4; // turn 90 degree
+      new_x = cur_x + direction[dir_idx][0];
+      new_y = cur_y + direction[dir_idx][1];
+    }
+
+    cur_x = new_x;
+    cur_y = new_y;
+  }
+
+  do_blocking_move_to_z(7, 50);
+  do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), 50.0f);
+}
+
+void compensate_offset(float offset) {
+  for (int i = 0; i < GRID_MAX_POINTS_X; ++i) {
+    for (int j = 0; j < GRID_MAX_POINTS_Y; ++j) {
+      z_values[i][j] -= offset;
+    }
+  }
+}
+
+void compensate_offset() {
+  float offset = z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] - current_position[Z_AXIS];
+
+  compensate_offset(offset);
 }
 
 #endif // AUTO_BED_LEVELING_BILINEAR

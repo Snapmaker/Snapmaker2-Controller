@@ -20,7 +20,7 @@
     "variant": "gd32f105"
   },
   "debug": {
-    "jlink_device": "GD32F105VE",
+    "jlink_device": "GD32F305VE",
     "openocd_target": "gd32f1x",
     "svd_path": "STM32F105xx.svd"
   },

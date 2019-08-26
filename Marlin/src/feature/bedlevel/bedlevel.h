@@ -39,6 +39,13 @@ typedef struct {
 #else
   constexpr bool g29_in_progress = false;
 #endif
+extern uint32_t GRID_MAX_POINTS_X;
+extern uint32_t GRID_MAX_POINTS_Y;
+extern uint32_t ABL_GRID_POINTS_VIRT_X;
+extern uint32_t ABL_GRID_POINTS_VIRT_Y;
+extern uint32_t ABL_TEMP_POINTS_X;
+extern uint32_t ABL_TEMP_POINTS_Y;
+extern uint32_t PROBE_MARGIN;
 
 bool leveling_is_valid();
 void set_bed_leveling_enabled(const bool enable=true);
@@ -54,7 +61,7 @@ void reset_bed_level();
 
 #if HAS_MESH
 
-  typedef float (&bed_mesh_t)[GRID_MAX_POINTS_X][GRID_MAX_POINTS_Y];
+  typedef float (&bed_mesh_t)[GRID_MAX_NUM][GRID_MAX_NUM];
 
   #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
     #include "abl/abl.h"
