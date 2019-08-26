@@ -588,27 +588,26 @@ void clean_up_after_endstop_or_probe_move() {
 
     #else
 
-      #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MIN_SOFTWARE_ENDSTOP_X)
-        NOLESS(target[X_AXIS], soft_endstop[X_AXIS].min);
-      #endif
-      #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_X)
-        NOMORE(target[X_AXIS], soft_endstop[X_AXIS].max);
-      #endif
-      #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MIN_SOFTWARE_ENDSTOP_Y)
-        NOLESS(target[Y_AXIS], soft_endstop[Y_AXIS].min);
-      #endif
-      #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_Y)
-        NOMORE(target[Y_AXIS], soft_endstop[Y_AXIS].max);
-      #endif
-
+        #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MIN_SOFTWARE_ENDSTOP_X)
+          NOLESS(target[X_AXIS], soft_endstop[X_AXIS].min);
+        #endif
+        #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_X)
+          NOMORE(target[X_AXIS], soft_endstop[X_AXIS].max);
+        #endif
+        #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MIN_SOFTWARE_ENDSTOP_Y)
+          NOLESS(target[Y_AXIS], soft_endstop[Y_AXIS].min);
+        #endif
+        #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_Y)
+          NOMORE(target[Y_AXIS], soft_endstop[Y_AXIS].max);
+        #endif
     #endif
 
-    #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MIN_SOFTWARE_ENDSTOP_Z)
-      NOLESS(target[Z_AXIS], soft_endstop[Z_AXIS].min);
-    #endif
-    #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_Z)
-      NOMORE(target[Z_AXIS], soft_endstop[Z_AXIS].max);
-    #endif
+      #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MIN_SOFTWARE_ENDSTOP_Z)
+        NOLESS(target[Z_AXIS], soft_endstop[Z_AXIS].min);
+      #endif
+      #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_Z)
+        NOMORE(target[Z_AXIS], soft_endstop[Z_AXIS].max);
+      #endif
   }
 
 #endif // HAS_SOFTWARE_ENDSTOPS
@@ -1478,7 +1477,7 @@ void homeaxis(const AxisEnum axis) {
     #endif
   }
 
-  
+
   do_homing_move(axis, axis_home_dir * -3, get_homing_bump_feedrate(axis));
 
   #if HAS_EXTRA_ENDSTOPS
@@ -1691,21 +1690,22 @@ void  move_to_limited_position(const float (&target)[XYZE], const float fr_mm_s)
   const float z_feedrate  = fr_mm_s ? fr_mm_s : homing_feedrate(Z_AXIS),
             xy_feedrate = fr_mm_s ? fr_mm_s : XY_PROBE_FEEDRATE_MM_S;
 
-  apply_motion_limits(target);
+  float dest[XYZ] = {target[X_AXIS], target[Y_AXIS], target[Z_AXIS]};
+  apply_motion_limits(dest);
 
   // If Z needs to raise, do it before moving XY
-  if (current_position[Z_AXIS] < target[Z_AXIS]) {
-    current_position[Z_AXIS] = target[Z_AXIS];
+  if (current_position[Z_AXIS] < dest[Z_AXIS]) {
+    current_position[Z_AXIS] = dest[Z_AXIS];
     line_to_current_position(z_feedrate);
   }
 
-  current_position[X_AXIS] = target[X_AXIS];
-  current_position[Y_AXIS] = target[Y_AXIS];
+  current_position[X_AXIS] = dest[X_AXIS];
+  current_position[Y_AXIS] = dest[Y_AXIS];
   line_to_current_position(xy_feedrate);
 
   // If Z needs to lower, do it after moving XY
-  if (current_position[Z_AXIS] > target[Z_AXIS]) {
-    current_position[Z_AXIS] = target[Z_AXIS];
+  if (current_position[Z_AXIS] > dest[Z_AXIS]) {
+    current_position[Z_AXIS] = dest[Z_AXIS];
     line_to_current_position(z_feedrate);
   }
 

@@ -1026,6 +1026,9 @@ void setup() {
 
   endstops.init();          // Init endstops and pullups
 
+  // only enable Z probe in leveling
+  endstops.enable_z_probe(false);
+
   stepper.init();           // Init stepper. This enables interrupts!
 
   #if HAS_SERVOS
@@ -1239,7 +1242,7 @@ void CheckAppValidFlag(void)
  */
 void loop() {
   millis_t tmptick;
-  
+
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
   #endif

@@ -378,12 +378,14 @@ void PowerPanic::Resume3DP() {
 	}
 
 	// for now, just care 1 hotend
-	sprintf(tmpBuff, "M104 S%0.2f", pre_data_.HeaterTamp[0]);
+	sprintf(tmpBuff, "M104 S%0.2f\n", pre_data_.HeaterTamp[0]);
 	process_cmd_imd(tmpBuff);
 
 	// set heated bed temperature
-	sprintf(tmpBuff, "M140 S%0.2f", pre_data_.BedTamp);
+	sprintf(tmpBuff, "M140 S%d\n", (int)pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
+
+	RestoreWorkspace();
 
 	// absolut mode
 	relative_mode = false;
@@ -393,18 +395,11 @@ void PowerPanic::Resume3DP() {
 	set_bed_leveling_enabled(true);
 
 	// waiting temperature reach target
-	sprintf(tmpBuff, "M109 S%0.2f", pre_data_.HeaterTamp[0]);
+	sprintf(tmpBuff, "M190 S%0.2f\n", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
-	sprintf(tmpBuff, "M190 S%0.2f", pre_data_.BedTamp);
+	sprintf(tmpBuff, "M109 S%0.2f\n", pre_data_.HeaterTamp[0]);
 	process_cmd_imd(tmpBuff);
-
-	RestoreWorkspace();
-
-	// move Z to target position + 5mm
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS] + 5);
-	process_cmd_imd(tmpBuff);
-	planner.synchronize();
 
 	// pre-extrude
 	relative_mode = true;
@@ -498,6 +493,10 @@ void PowerPanic::RestoreWorkspace() {
 
 	planner.synchronize();
 
+	LOG_I("\nposition shift:\n");
+	LOG_I("X: %.2f, Y: %.2f, Z: %.2f\n", pre_data_.position_shift[0],
+						pre_data_.position_shift[1], pre_data_.position_shift[2]);
+
 	LOOP_XYZ(i) {
 		position_shift[i] = pre_data_.position_shift[i];
 		update_workspace_offset((AxisEnum)i);
@@ -509,8 +508,7 @@ void PowerPanic::RestoreWorkspace() {
  *Resume work after power panic if exist valid power panic data
  *return :true is resume success, or else false
  */
-ErrCode PowerPanic::ResumeWork()
-{
+ErrCode PowerPanic::ResumeWork() {
 	if (pre_data_.MachineType != ExecuterHead.MachineType) {
 		LOG_E("current[%d] machine is not same as previous[%d]\n",
 						ExecuterHead.MachineType, pre_data_.MachineType);
@@ -532,7 +530,7 @@ ErrCode PowerPanic::ResumeWork()
 		return E_INVALID_STATE;
 	}
 
-	LOG_I("restore point(X,Y,Z,E): (%f, %f, %f, %f)\n", pre_data_.PositionData[X_AXIS],
+	LOG_I("restore point: X:%.2f, Y: %.2f, Y: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
 			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
 	LOG_I("line number: %d\n", pre_data_.FilePosition);
 
@@ -574,18 +572,13 @@ ErrCode PowerPanic::ResumeWork()
 	saved_g1_feedrate_mm_s = pre_data_.PrintFeedRate;
 	saved_g0_feedrate_mm_s = pre_data_.TravelFeedRate;
 
-	SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
-
 	return E_SUCCESS;
 }
 
 /*
- * disable other unused peripherals
+ * disable other unused peripherals in ISR
  */
-void PowerPanic::TurnOffPower(void) {
-
-  // disable power of heated bed
-  thermalManager.setTargetBed(0);
+void PowerPanic::TurnOffPowerISR(void) {
 
   // close laser
   if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
@@ -595,6 +588,38 @@ void PowerPanic::TurnOffPower(void) {
   // HMI, BED, and all addones
   WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_OFF);
   WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
+}
+
+/*
+ * disable other unused peripherals after ISR
+ */
+void PowerPanic::TurnOffPower(void) {
+	BreathLightClose();
+
+	// disble timer except the stepper's
+	rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
+	rcc_clk_disable(TIMER7->clk_id);
+
+	// disalbe ADC
+	rcc_clk_disable(ADC1->clk_id);
+	rcc_clk_disable(ADC2->clk_id);
+
+	//disble DMA
+	rcc_clk_disable(DMA1->clk_id);
+	rcc_clk_disable(DMA2->clk_id);
+
+	// disable other unnecessary soc peripherals
+	// disable usart
+	//rcc_clk_disable(MSerial1.c_dev()->clk_id);
+	//rcc_clk_disable(MSerial2.c_dev()->clk_id);
+	//rcc_clk_disable(MSerial3.c_dev()->clk_id);
+
+#if ENABLED(EXECUTER_CANBUS_SUPPORT)
+  // turn off hot end and FAN
+	// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+	// 	ExecuterHead.SetTemperature(0, 0);
+	// }
+#endif
 }
 
 /*

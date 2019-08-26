@@ -417,7 +417,7 @@ void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
   do_blocking_move_to_logical_xy(X, Y, 30.0f);
 
   // Move to the Z
-  do_blocking_move_to_logical_z(Z, 10.0f);
+  do_blocking_move_to_logical_z(Z, 20.0f);
 }
 
 /********************************************************
@@ -481,6 +481,7 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   process_cmd_imd("M107 P0");
 }
 
+
 /**
  * DrawLaserCalibrateShape
  */
@@ -489,44 +490,53 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
   float next_x, next_y, next_z;
   float line_space;
   float line_len_short, line_len_long;
+  float camera_x_offset = 0, camera_y_offset = 0;
 
   line_space = 2;
   line_len_short = 5;
   line_len_long = 10;
   next_x = StartX;
   next_y = StartY;
-  next_z = StartZ - ((float)Count / 2.0 * Z_Increase);
+  next_z = StartZ - ((float)(Count - 1) / 2.0 * Z_Increase);
 
   if(next_z <= 5)
     return false;
 
   // Move to next Z
-  do_blocking_move_to_logical_z(next_z, 20.0f);
+  move_to_limited_z(next_z, 20.0f);
+
+  LOG_I("start ponit: X=%.2f, Y=%.2f, Z=%.2f\n", StartX, StartY, StartZ);
 
   i = 0;
 
   // Fan On
   process_cmd_imd("M106 P0 S255");
 
-  // Draw 10 square
+  // Draw 10 Line
   do {
     // Move to the start point
-    do_blocking_move_to_logical_xy(next_x, next_y, 50.0f);
+    move_to_limited_xy(next_x, next_y, 50.0f);
+    planner.synchronize();
 
     // Laser on
     ExecuterHead.Laser.SetLaserPower(100.0f);
 
     // Draw Line
     if((i % 5) == 0)
-      do_blocking_move_to_logical_xy(next_x, current_position[Y_AXIS] + line_len_long, 3.0f);
+      move_to_limited_xy(next_x, next_y + line_len_long, 3.0f);
     else
-      do_blocking_move_to_logical_xy(next_x, current_position[Y_AXIS] + line_len_short, 3.0f);
+      move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
+
+    planner.synchronize();
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
-    // Move up 1mm
-    do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
+    LOG_I("current Z: %.2f\n", current_position[Z_AXIS]);
+
+    // Move up Z increase
+    if(i != (Count - 1))
+      move_to_limited_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
 
     next_x = next_x + line_space;
     i++;
@@ -535,8 +545,13 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
   // Fan Off
   process_cmd_imd("M107 P0");
 
+  planner.synchronize();
+
   // Move to the center
-  do_blocking_move_to_logical_xy(StartX, StartY, 50.0f);
+  next_x = (current_position[X_AXIS] + StartX) / 2.0f - camera_x_offset;
+  next_y = (current_position[Y_AXIS] + StartY) / 2.0f - camera_y_offset;
+  move_to_limited_xy(next_x, next_y, 20.0f);
+
   return true;
 }
 
@@ -775,8 +790,8 @@ void HMI_SC20::PollingCommand(void)
     //gcode from screen
     else if (eventId == EID_FILE_GCODE_REQ) {
       // need to check if we are in working with screen
-      if (SystemStatus.GetWorkingPort() == WORKING_PORT_SC && (cur_status == SYSTAT_WORK ||
-            cur_status == SYSTAT_RESUME_WAITING)) {
+      if (SystemStatus.GetWorkingPort() == WORKING_PORT_SC &&
+          (cur_status == SYSTAT_WORK || cur_status == SYSTAT_RESUME_WAITING)) {
         // line number
         ID = BYTES_TO_32BITS(tmpBuff, 9);
 
@@ -890,7 +905,10 @@ void HMI_SC20::PollingCommand(void)
 
       // request the latest line number
       else if (StatuID == 0x08) {
-        LOG_I("SC req line number: %d\n", powerpanic.pre_data_.FilePosition);
+        if (cur_stage == SYSTAGE_PAUSE)
+          LOG_I("SC req line number: %d\n", powerpanic.Data.FilePosition);
+        else
+          LOG_I("SC req line number: %d\n", powerpanic.pre_data_.FilePosition);
         SendBreakPointData();
       }
 
@@ -929,6 +947,8 @@ void HMI_SC20::PollingCommand(void)
         else {
           err = powerpanic.ResumeWork();
           if (E_SUCCESS == err) {
+            SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
+            SystemStatus.SetWorkingPort(WORKING_PORT_SC);
             MarkNeedReack(0);
             LOG_I("trigger RESTORE: ok\n");
           }
@@ -962,11 +982,13 @@ void HMI_SC20::PollingCommand(void)
 
         // enble manual level bed
         case 4:
+          LOG_I("SC req manual level\n");
           MarkNeedReack(ManualCalibrateStart());
           break;
 
         // move to leveling point
         case 5:
+          LOG_I("SC req move to pont: %d\n", tmpBuff[10]);
           if ((tmpBuff[10] < 10) && (tmpBuff[10] > 0)) {
             // check point index
             if (PointIndex < 10) {
@@ -985,6 +1007,7 @@ void HMI_SC20::PollingCommand(void)
 
         // move z axis
         case 6:
+          LOG_I("SC req move Z in leveling\n");
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
           move_to_limited_z(current_position[Z_AXIS] + fZ, 20.0f);
@@ -993,12 +1016,12 @@ void HMI_SC20::PollingCommand(void)
 
         // save the cordinate of leveling points
         case 7:
+          LOG_I("SC req save data of leveling\n");
           if (CMD_BUFF_EMPTY() == true) {
             process_cmd_imd("G1029 S");
 
             // home all axes
-            strcpy(tmpBuff, "G28");
-            process_cmd_imd(tmpBuff);
+            process_cmd_imd("G28");
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1016,11 +1039,15 @@ void HMI_SC20::PollingCommand(void)
 
         // exit leveling
         case 8:
+          LOG_I("SC req exit level\n");
           if (CMD_BUFF_EMPTY() == true) {
             //Load
             settings.load();
+
             process_cmd_imd("G28");
             HMICommandSave = 0;
+
+            CalibrateMethod = 0;
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1038,6 +1065,7 @@ void HMI_SC20::PollingCommand(void)
 
         //读取激光Z  轴高度
         case 10:
+          LOG_I("SC req Focus Height\n");
           //读取
           ExecuterHead.Laser.LoadFocusHeight();
           SendLaserFocus(OpCode, ExecuterHead.Laser.FocusHeight);
@@ -1045,6 +1073,7 @@ void HMI_SC20::PollingCommand(void)
 
         //设置激光Z  轴高度
         case 11:
+          LOG_I("Laser: SC set Z axis\n");
           j = 10;
           BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
           ExecuterHead.Laser.SetLaserPower(0.0f);
@@ -1061,11 +1090,13 @@ void HMI_SC20::PollingCommand(void)
 
         //激光焦点粗调
         case 12:
+          LOG_I("Laser: rough focusing\n");
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
             j = 10;
             BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
             BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
             BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+            LOG_I("Laser will move to (%.2f, %.2f, %.2f)\n", fX, fY, fZ);
             LaserCoarseCalibrate(fX, fY, fZ);
             //应答
             MarkNeedReack(0);
@@ -1075,10 +1106,20 @@ void HMI_SC20::PollingCommand(void)
           }
           break;
 
-        // Laser draw square
+        // Laser draw ruler
         case 13:
+          LOG_I("Laser: SC req draw ruler\n");
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-            DrawLaserCalibrateShape();
+            if (cmdLen < 6) {
+              LOG_W("cmd length[%d] is less than 6, use default Z offset: 0.5 mm\n", cmdLen);
+              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5f, 21);
+            }
+            else {
+              j = 10;
+              fX = BYTES_TO_32BITS(tmpBuff, j);
+              LOG_I("Laser: Z offset from SC is %.3f\n", fX);
+              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], fX, 21);
+            }
             MarkNeedReack(0);
           }
           else {
@@ -1086,15 +1127,9 @@ void HMI_SC20::PollingCommand(void)
           }
           break;
 
-        // Laser draw ruler
         case 14:
-          if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-            DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.1f, 21);
-            MarkNeedReack(0);
-          }
-          else {
+          LOG_I("not support 0x9 0xe\n");
             MarkNeedReack(1);
-          }
           break;
 
         //读取尺寸参数
@@ -1222,21 +1257,25 @@ void HMI_SC20::PollingCommand(void)
 
         //查询主控版本号
         case 3:
+          LOG_I("SC req FW ver\n");
           RequestFirmwareVersion();
           break;
 
         //固件版本检测
         case 4:
+          LOG_I("SC check FW ver\n");
           CheckFirmwareVersion(&tmpBuff[10]);
           break;
 
         //查询升级状态
         case 5:
+          LOG_I("SC req up state\n");
           SendUpdateStatus(CanModules.GetUpdateStatus());
           break;
 
         //查询模块
         case 7:
+          LOG_I("SC req MODULE ver\n");
           CanModules.EnumFirmwareVersion(true, false);
           break;
       }
@@ -1554,7 +1593,6 @@ void HMI_SC20::SendMachineStatus()
   float fValue;
   uint32_t u32Value;
   uint16_t i;
-  uint16_t j;
   i = 0;
 
   //EventID

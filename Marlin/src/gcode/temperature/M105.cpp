@@ -32,7 +32,6 @@ void GcodeSuite::M105() {
   if (target_extruder < 0) return;
 
   #if HAS_TEMP_SENSOR
-    SERIAL_ECHOPGM(MSG_OK);
     thermalManager.print_heater_states(target_extruder);
   #else // !HAS_TEMP_SENSOR
     SERIAL_ERROR_MSG(MSG_ERR_NO_THERMISTORS);

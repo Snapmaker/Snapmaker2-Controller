@@ -73,6 +73,7 @@ public:
   ErrCode ResumeWork();
   void SaveCmdLine(uint32_t l);
   void TurnOffPower(void);
+	void TurnOffPowerISR(void);
 	void Reset();
 
 public:

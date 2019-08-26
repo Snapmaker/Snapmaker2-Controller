@@ -1170,16 +1170,11 @@ void _O2 Endstops::M119() {
             #if ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
               if (z_probe_enabled) PROCESS_ENDSTOP(Z, MIN);
             #elif USES_Z_MIN_PROBE_ENDSTOP
-              if (!z_probe_enabled) PROCESS_ENDSTOP(Z, MIN_PROBE);
+              if (z_probe_enabled) PROCESS_ENDSTOP(Z, MIN_PROBE);
             #else
               PROCESS_ENDSTOP(Z, MIN);
             #endif
           #endif
-        #endif
-
-        // When closing the gap check the enabled probe
-        #if USES_Z_MIN_PROBE_ENDSTOP
-          if (z_probe_enabled) PROCESS_ENDSTOP(Z, MIN_PROBE);
         #endif
       }
       else { // Z +direction. Gantry up, bed down.

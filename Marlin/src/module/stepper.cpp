@@ -1295,7 +1295,12 @@ void Stepper::isr() {
     // checking power loss here because when no moves in block buffer, ISR will not
     // execute to endstop.update(), then we cannot check power loss there.
     // But if power loss happened and ISR cannot get block, no need to check again
-    quickstop.CheckISR(current_block);
+    if (quickstop.CheckISR(current_block)) {
+      // interval = 1 ms
+      HAL_timer_set_compare(STEP_TIMER_NUM,
+          hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
+      return;
+    }
 
     // Run main stepping pulse phase ISR if we have to
     if (!nextMainISR) Stepper::stepper_pulse_phase_isr();

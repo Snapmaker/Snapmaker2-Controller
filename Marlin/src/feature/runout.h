@@ -304,14 +304,14 @@ class FilamentSensorBase {
       static inline void run() {
         const bool out = poll_runout_state(active_extruder);
         if (!out) filament_present(active_extruder);
-        #ifdef FILAMENT_RUNOUT_SENSOR_DEBUG
+        //#ifdef FILAMENT_RUNOUT_SENSOR_DEBUG
           static bool was_out = false;
           if (out != was_out) {
             was_out = out;
             SERIAL_ECHOPGM("Filament ");
             serialprintPGM(out ? PSTR("OUT\n") : PSTR("IN\n"));
           }
-        #endif
+        //#endif
       }
   };
 
