@@ -588,7 +588,6 @@ void clean_up_after_endstop_or_probe_move() {
 
     #else
 
-      #if (MOTHERBOARD != BOARD_GD32F1R)
         #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MIN_SOFTWARE_ENDSTOP_X)
           NOLESS(target[X_AXIS], soft_endstop[X_AXIS].min);
         #endif
@@ -601,36 +600,14 @@ void clean_up_after_endstop_or_probe_move() {
         #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_Y)
           NOMORE(target[Y_AXIS], soft_endstop[Y_AXIS].max);
         #endif
-      #else
-
-        if (X_HOME_DIR)
-          NOLESS(target[X_AXIS], soft_endstop[X_AXIS].min);
-        else
-          NOMORE(target[X_AXIS], soft_endstop[X_AXIS].max);
-
-        if (Y_HOME_DIR)
-          NOLESS(target[Y_AXIS], soft_endstop[Y_AXIS].min);
-        else
-          NOMORE(target[Y_AXIS], soft_endstop[Y_AXIS].max);
-      #endif
-
     #endif
 
-    #if (MOTHERBOARD != BOARD_GD32F1R)
       #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MIN_SOFTWARE_ENDSTOP_Z)
         NOLESS(target[Z_AXIS], soft_endstop[Z_AXIS].min);
       #endif
       #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_Z)
         NOMORE(target[Z_AXIS], soft_endstop[Z_AXIS].max);
       #endif
-    #else
-
-      if (Z_HOME_DIR)
-        NOLESS(target[Z_AXIS], soft_endstop[Z_AXIS].min);
-      else
-        NOMORE(target[Z_AXIS], soft_endstop[Z_AXIS].max);
-
-    #endif
   }
 
 #endif // HAS_SOFTWARE_ENDSTOPS

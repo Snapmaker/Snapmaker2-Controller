@@ -414,10 +414,10 @@ void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
   process_cmd_imd("G28");
 
   // Move to the Certain point
-  move_to_limited_xy(X, Y, 30.0f);
+  do_blocking_move_to_logical_xy(X, Y, 30.0f);
 
   // Move to the Z
-  move_to_limited_z(Z, 20.0f);
+  do_blocking_move_to_logical_z(Z, 20.0f);
 }
 
 /********************************************************
@@ -1110,7 +1110,16 @@ void HMI_SC20::PollingCommand(void)
         case 13:
           LOG_I("Laser: SC req draw ruler\n");
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-            DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5f, 21);
+            if (cmdLen < 6) {
+              LOG_W("cmd length[%d] is less than 6, use default Z offset: 0.5 mm\n", cmdLen);
+              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5f, 21);
+            }
+            else {
+              j = 10;
+              fX = BYTES_TO_32BITS(tmpBuff, j);
+              LOG_I("Laser: Z offset from SC is %.3f\n", fX);
+              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], fX, 21);
+            }
             MarkNeedReack(0);
           }
           else {
