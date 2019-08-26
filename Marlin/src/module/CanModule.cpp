@@ -39,6 +39,9 @@ void CanModule::Init(void) {
   UpdateProcess();
   PrepareLinearModules();
   PrepareRestModules();
+
+  // query state of filament sensor
+  SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
   //PrepareExecuterModules();
   //PrepareExtendModules();
   for(int i=0;i<CanBusControlor.ModuleCount;i++) {

@@ -830,7 +830,7 @@ void HMI_SC20::PollingCommand(void)
       else if (StatuID == 0x03) {
         LOG_I("SC req START WORK\n");
         err = SystemStatus.StartWork(TRIGGER_SOURCE_SC);
-        if (E_SUCCESS ==err) {
+        if (E_SUCCESS == err) {
           // lock screen
           HMICommandSave = 1;
 
