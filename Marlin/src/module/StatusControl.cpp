@@ -67,7 +67,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
   // if pause is triggered at first time
   // we need to do some operation which only can be performed at most once
-  SetCurrentStatus(SYSTAT_PAUSE_TRIG);
+  cur_status_ = SYSTAT_PAUSE_TRIG;
   print_job_timer.pause();
 
   // here the operations can be performed many times
@@ -80,8 +80,6 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   switch (type) {
   case TRIGGER_SOURCE_RUNOUT:
     SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-    parser.parse("M412 S0");
-    gcode.process_parsed_command();
     HMI.SendMachineFaultFlag();
     quickstop.Trigger(QS_EVENT_RUNOUT);
     break;
@@ -206,8 +204,7 @@ void StatusControl::PauseProcess()
   switch(ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     // disable filament runout
-    parser.parse("M412 S0");
-    gcode.process_parsed_command();
+    process_cmd_imd("M412 S0");
     break;
 
   case MACHINE_TYPE_CNC:
@@ -422,10 +419,12 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
 
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
   // need to check if we have filament ready
-  if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && runout.sensor_state()) {
+  if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) &&
+        runout.sensor_state()) {
     SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    HMI.SendMachineFaultFlag();
     LOG_W("filament is runout, cannot resuem 3D print\n");
-    return E_HARDWARE;
+    return E_NO_RESRC;
   }
 #endif
 
@@ -592,6 +591,12 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
     work_port_ = WORKING_PORT_PC;
   }
 
+  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
+        runout.sensor_state()) {
+    LOG_E("No filemant! Please insert filemant!\n");
+    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    HMI.SendMachineFaultFlag();
+  }
 
   // enable runout or not
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
