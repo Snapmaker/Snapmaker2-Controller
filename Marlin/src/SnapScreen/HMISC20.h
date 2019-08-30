@@ -39,6 +39,8 @@ public:
   void StartUpdate(void);
   void RequestFirmwareVersion(void);
   void ReportModuleFirmwareVersion(uint32_t ID, char *pVersion);
+  void ReportLinearLength();
+  void ReportLinearLead();
   void CheckFirmwareVersion(char *pNewVersion);
   void PackedProtocal(char *pData, uint16_t len);
 

@@ -747,6 +747,63 @@ void HMI_SC20::ReportModuleFirmwareVersion(uint32_t ID, char *pVersion) {
 
 }
 
+/**
+ * ReportLinearLength:Send linear module length to SC20
+ */
+void HMI_SC20::ReportLinearLength() {
+  uint16_t i;
+  uint16_t j;
+  uint32_t ID;
+  uint32_t Length;
+
+  i = 0;
+
+  tmpBuff[i++] = 0x9A;
+  tmpBuff[i++] = 4;
+  for(j=0;j<CanModules.LinearModuleCount;j++) {
+    ID = CanModules.LinearModuleID[j];
+    tmpBuff[i++] = (uint8_t)(ID >> 24);
+    tmpBuff[i++] = (uint8_t)(ID >> 16);
+    tmpBuff[i++] = (uint8_t)(ID >> 8);
+    tmpBuff[i++] = (uint8_t)(ID);
+    Length = CanModules.LinearModuleLength[j] * 1000.0f;
+    tmpBuff[i++] = (uint8_t)(Length >> 24);
+    tmpBuff[i++] = (uint8_t)(Length >> 16);
+    tmpBuff[i++] = (uint8_t)(Length >> 8);
+    tmpBuff[i++] = (uint8_t)(Length);
+  }
+  
+  PackedProtocal(tmpBuff, i);
+}
+
+/**
+ * ReportLinearLead:Send linear module lead to SC20
+ */
+void HMI_SC20::ReportLinearLead() {
+  uint16_t i;
+  uint16_t j;
+  uint32_t ID;
+  uint32_t Lead;
+
+  i = 0;
+
+  tmpBuff[i++] = 0x9A;
+  tmpBuff[i++] = 6;
+  for(j=0;j<CanModules.LinearModuleCount;j++) {
+    ID = CanModules.LinearModuleID[j];
+    tmpBuff[i++] = (uint8_t)(ID >> 24);
+    tmpBuff[i++] = (uint8_t)(ID >> 16);
+    tmpBuff[i++] = (uint8_t)(ID >> 8);
+    tmpBuff[i++] = (uint8_t)(ID);
+    Lead = CanModules.LinearModuleT[j] * 1000.0f;
+    tmpBuff[i++] = (uint8_t)(Lead >> 24);
+    tmpBuff[i++] = (uint8_t)(Lead >> 16);
+    tmpBuff[i++] = (uint8_t)(Lead >> 8);
+    tmpBuff[i++] = (uint8_t)(Lead);
+  }
+  
+  PackedProtocal(tmpBuff, i);
+}
 
 void HMI_SC20::PollingCommand(void)
 {
@@ -1313,6 +1370,40 @@ void HMI_SC20::PollingCommand(void)
       if (OpCode == 0) {
         // trigger powerloss
         quickstop.Debug(QS_EVENT_ISR_POWER_LOSS);
+      }
+      // Set MacID
+      else if(OpCode == 1) {
+        j = 10;
+        uint32_t old_MacID;
+        uint32_t new_MacID;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(old_MacID, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(new_MacID, tmpBuff, j);
+        if(CanModules.SetMacID(old_MacID, new_MacID) == true)
+          MarkNeedReack(0);
+        else
+          MarkNeedReack(1);
+      }
+      // List out the MacID
+      else if(OpCode == 2) {
+      }
+      // Set linear module length
+      else if(OpCode == 3) {
+      }
+
+      // Get linear module length
+      else if(OpCode == 4) {
+        CanModules.GetAxesLength();
+        ReportLinearLength();
+      }
+
+      // Set linear module lead
+      else if(OpCode == 5) {
+      }
+
+      // Get linear module lead
+      else if(OpCode == 6) {
+        CanModules.GetAxesLead();
+        ReportLinearLead();
       }
     }
 
