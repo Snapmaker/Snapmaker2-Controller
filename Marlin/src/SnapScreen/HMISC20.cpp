@@ -766,7 +766,7 @@ void HMI_SC20::ReportLinearLength() {
     tmpBuff[i++] = (uint8_t)(ID >> 16);
     tmpBuff[i++] = (uint8_t)(ID >> 8);
     tmpBuff[i++] = (uint8_t)(ID);
-    Length = CanModules.LinearModuleLength[j] * 1000.0f;
+    Length = CanModules.GetLinearModuleLength(j) * 1000.0f;
     tmpBuff[i++] = (uint8_t)(Length >> 24);
     tmpBuff[i++] = (uint8_t)(Length >> 16);
     tmpBuff[i++] = (uint8_t)(Length >> 8);
@@ -795,11 +795,34 @@ void HMI_SC20::ReportLinearLead() {
     tmpBuff[i++] = (uint8_t)(ID >> 16);
     tmpBuff[i++] = (uint8_t)(ID >> 8);
     tmpBuff[i++] = (uint8_t)(ID);
-    Lead = CanModules.LinearModuleT[j] * 1000.0f;
+    Lead = CanModules.GetLinearModuleLead(j) * 1000.0f;
     tmpBuff[i++] = (uint8_t)(Lead >> 24);
     tmpBuff[i++] = (uint8_t)(Lead >> 16);
     tmpBuff[i++] = (uint8_t)(Lead >> 8);
     tmpBuff[i++] = (uint8_t)(Lead);
+  }
+  
+  PackedProtocal(tmpBuff, i);
+}
+
+/**
+ * ReportLinearLead:Send linear module lead to SC20
+ */
+void HMI_SC20::ReportLinearModuleMacID(void) {
+  uint16_t i;
+  uint16_t j;
+  uint32_t ID;
+
+  i = 0;
+
+  tmpBuff[i++] = 0x9A;
+  tmpBuff[i++] = 2;
+  for(j=0;j<CanModules.LinearModuleCount;j++) {
+    ID = CanModules.LinearModuleID[j];
+    tmpBuff[i++] = (uint8_t)(ID >> 24);
+    tmpBuff[i++] = (uint8_t)(ID >> 16);
+    tmpBuff[i++] = (uint8_t)(ID >> 8);
+    tmpBuff[i++] = (uint8_t)(ID);
   }
   
   PackedProtocal(tmpBuff, i);
@@ -1385,9 +1408,20 @@ void HMI_SC20::PollingCommand(void)
       }
       // List out the MacID
       else if(OpCode == 2) {
+        ReportLinearModuleMacID();
       }
       // Set linear module length
       else if(OpCode == 3) {
+        j = 10;
+        uint32_t new_length;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(ID, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(new_length, tmpBuff, j);
+        new_length = new_length / 1000.0f;
+        SERIAL_ECHOLNPAIR("ID", ID, "New Len:", new_length);
+        if(CanModules.SetAxesLength(ID, new_length) == true)
+          MarkNeedReack(0);
+        else
+          MarkNeedReack(1);
       }
 
       // Get linear module length
@@ -1398,6 +1432,16 @@ void HMI_SC20::PollingCommand(void)
 
       // Set linear module lead
       else if(OpCode == 5) {
+        j = 10;
+        uint32_t new_lead;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(ID, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(new_lead, tmpBuff, j);
+        new_lead = new_lead / 1000.0f;
+        SERIAL_ECHOLNPAIR("ID", ID, "New Lead:", new_lead);
+        if(CanModules.SetAxesLead(ID, new_lead) == true)
+          MarkNeedReack(0);
+        else
+          MarkNeedReack(1);
       }
 
       // Get linear module lead
@@ -1405,6 +1449,7 @@ void HMI_SC20::PollingCommand(void)
         CanModules.GetAxesLead();
         ReportLinearLead();
       }
+
     }
 
     if (GenReack == true) SendGeneralReack((eventId + 1), OpCode, Result);

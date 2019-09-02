@@ -41,6 +41,7 @@ public:
   void ReportModuleFirmwareVersion(uint32_t ID, char *pVersion);
   void ReportLinearLength();
   void ReportLinearLead();
+  void ReportLinearModuleMacID(void);
   void CheckFirmwareVersion(char *pNewVersion);
   void PackedProtocal(char *pData, uint16_t len);
 

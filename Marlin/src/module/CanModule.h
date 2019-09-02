@@ -36,6 +36,10 @@ public:
   uint16_t SearchModule(uint16_t ModuleTypeID);
   void GetAxesLength();
   void GetAxesLead();
+  bool SetAxesLength(uint32_t ID, uint16_t Length);
+  bool SetAxesLead(uint32_t ID, float Lead);
+  uint16_t GetLinearModuleLength( uint8_t Index ) { return LinearModuleLength[Index]; }
+  float GetLinearModuleLead( uint8_t Index ) { return LinearModuleT[Index]; }
   bool SetMacID(uint32_t OldMacID, uint32_t NewMacID);
   
 public:
