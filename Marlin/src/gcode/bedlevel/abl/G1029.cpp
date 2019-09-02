@@ -145,6 +145,7 @@ void GcodeSuite::G1029() {
       SERIAL_ECHOLNPAIR("Error, it should be less than 1mm", delta);
     } else {
       compensate_offset(delta);
+      bed_level_virt_interpolate();
     }
     return;
   }
