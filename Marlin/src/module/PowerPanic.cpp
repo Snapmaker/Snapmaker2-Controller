@@ -346,7 +346,6 @@ int PowerPanic::SaveEnv(void) {
 
 	case MACHINE_TYPE_LASER:
 		Data.laser_percent = ExecuterHead.Laser.GetPower();
-		Data.laser_pwm = ExecuterHead.Laser.GetPowerPwm();
 	break;
 
 	default:
@@ -541,8 +540,11 @@ ErrCode PowerPanic::ResumeWork() {
 							pre_data_.HeaterTamp[0]);
 			return E_INVALID_STATE;
 		}
+
 		if (runout.sensor_state()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
+			SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+			HMI.SendMachineFaultFlag();
 			return E_HARDWARE;
 		}
 		Resume3DP();
@@ -581,8 +583,10 @@ ErrCode PowerPanic::ResumeWork() {
 void PowerPanic::TurnOffPowerISR(void) {
 
   // close laser
-  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
+  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
+		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
     ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+	}
 
   // these 2 statement will disable power supply for
   // HMI, BED, and all addones

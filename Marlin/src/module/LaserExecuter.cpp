@@ -339,12 +339,3 @@ void LaserExecuter::RestorePower(float percent, uint16_t pwm) {
   last_percent = percent;
   TimSetPwm(pwm);
 }
-
-uint16_t LaserExecuter::GetPowerPwm() {
-  int integer;
-  float decimal;
-
-  integer = last_percent;
-  decimal = last_percent - integer;
-  return (uint16_t)(LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal);
-}

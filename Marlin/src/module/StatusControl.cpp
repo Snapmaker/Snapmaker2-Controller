@@ -74,7 +74,8 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   pause_source_ = type;
 
   if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    ExecuterHead.Laser.SetLaserPower(0.0f);
+    powerpanic.Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
   }
 
   switch (type) {
@@ -143,15 +144,19 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
 
   print_job_timer.stop();
 
-  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
-    Periph.StopDoorCheck();
+  Periph.StopDoorCheck();
+
+  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
+    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+  }
 
   // diable power panic data
   powerpanic.Data.Valid = 0;
 
   // disable filament checking
-  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
+  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
     process_cmd_imd("M412 S0");
+  }
 
   lightbar.set_state(LB_STATE_STANDBY);
 
