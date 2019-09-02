@@ -144,8 +144,13 @@ void GcodeSuite::G1029() {
     if (delta > 1) {
       SERIAL_ECHOLNPAIR("Error, it should be less than 1mm", delta);
     } else {
+      set_bed_leveling_enabled(false);
+      sync_plan_position();
+
       compensate_offset(delta);
       bed_level_virt_interpolate();
+      
+      set_bed_leveling_enabled(true);
     }
     return;
   }
