@@ -21,6 +21,7 @@ public:
   void Off();
   void On();
   uint32_t GetPower() { return (uint32_t)(last_percent * 1000.0f); };
+  uint16_t GetPowerPwm();
   uint16_t GetTimPwm();
   void RestorePower(float percent, uint16_t pwm);
 

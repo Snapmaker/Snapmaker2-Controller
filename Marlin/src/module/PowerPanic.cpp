@@ -346,7 +346,7 @@ int PowerPanic::SaveEnv(void) {
 
 	case MACHINE_TYPE_LASER:
 		Data.laser_percent = ExecuterHead.Laser.GetPower();
-		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+		Data.laser_pwm = ExecuterHead.Laser.GetPowerPwm();
 	break;
 
 	default:
