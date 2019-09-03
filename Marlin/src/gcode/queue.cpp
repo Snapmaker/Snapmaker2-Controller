@@ -50,6 +50,7 @@
  * M110 N<int> sets the current line number.
  */
 long gcode_N, gcode_LastN, Stopped_gcode_LastN = 0;
+bool enable_wait = true;
 
 /**
  * GCode Command Queue
@@ -626,7 +627,7 @@ inline void get_serial_commands() {
   #if NO_TIMEOUTS > 0
     static millis_t last_command_time = 0;
     const millis_t ms = millis();
-    if (commands_in_queue == 0 && !serial_data_available() && ELAPSED(ms, last_command_time + NO_TIMEOUTS)) {
+    if (enable_wait && commands_in_queue == 0 && !serial_data_available() && ELAPSED(ms, last_command_time + NO_TIMEOUTS)) {
       SERIAL_ECHOLNPGM(MSG_WAIT);
       last_command_time = ms;
     }
@@ -883,12 +884,12 @@ void get_available_commands() {
   // if any immediate commands remain, don't get other commands yet
   if (drain_injected_commands_P()) return;
 
-  if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
+  //if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
     get_serial_commands();
-  else {
+  //else {
     // clear buffer of UART to PC
-    HAL_uart_reset_rx(MYSERIAL0);
-  }
+  //  HAL_uart_reset_rx(MYSERIAL0);
+  //}
 
 
   #if ENABLED(SDSUPPORT)

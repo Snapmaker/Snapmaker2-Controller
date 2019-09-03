@@ -1296,9 +1296,24 @@ void Stepper::isr() {
     // execute to endstop.update(), then we cannot check power loss there.
     // But if power loss happened and ISR cannot get block, no need to check again
     if (quickstop.CheckISR(current_block)) {
-      // interval = 1 ms
+      abort_current_block = false;
+      if (current_block) {
+        axis_did_move = 0;
+        current_block = NULL;
+        planner.discard_current_block();
+      }
+      else {
+        // clean blocks quickly and safely
+        // while (planner.get_current_block()) {
+        //   planner.discard_current_block();
+        // }
+        planner.block_buffer_nonbusy = planner.block_buffer_tail = \
+          planner.block_buffer_planned = planner.block_buffer_head;
+      }
+
+      // interval = 500 us
       HAL_timer_set_compare(STEP_TIMER_NUM,
-          hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
+          hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 2000)));
       return;
     }
 

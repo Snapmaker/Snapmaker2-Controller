@@ -345,7 +345,6 @@ int PowerPanic::SaveEnv(void) {
 		break;
 
 	case MACHINE_TYPE_LASER:
-		Data.laser_percent = ExecuterHead.Laser.GetPower();
 	break;
 
 	default:
@@ -468,7 +467,7 @@ void PowerPanic::ResumeCNC() {
 void PowerPanic::ResumeLaser() {
 	char tmpBuff[32];
 
-	// enable laser is disable
+	// make sure laser is disable
 	ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 
 	// homing and restore workspace
@@ -585,7 +584,8 @@ void PowerPanic::TurnOffPowerISR(void) {
   // close laser
   if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
 		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
-    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+		Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
+    ExecuterHead.Laser.RestorePower((float)0, 0);
 	}
 
   // these 2 statement will disable power supply for

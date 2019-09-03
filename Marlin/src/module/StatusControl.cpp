@@ -65,19 +65,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
     return E_INVALID_STATE;
   }
 
-  // if pause is triggered at first time
-  // we need to do some operation which only can be performed at most once
-  cur_status_ = SYSTAT_PAUSE_TRIG;
-  print_job_timer.pause();
-
   // here the operations can be performed many times
-  pause_source_ = type;
-
-  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    powerpanic.Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
-    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
-  }
-
   switch (type) {
   case TRIGGER_SOURCE_RUNOUT:
     SetSystemFaultBit(FAULT_FLAG_FILAMENT);
@@ -111,6 +99,17 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
     break;
   }
 
+  cur_status_ = SYSTAT_PAUSE_TRIG;
+  print_job_timer.pause();
+
+  pause_source_ = type;
+
+  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    powerpanic.Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+    powerpanic.Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
+    ExecuterHead.Laser.RestorePower((float)0, 0);
+  }
+
   lightbar.set_state(LB_STATE_STANDBY);
 
   return E_SUCCESS;
@@ -140,6 +139,51 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
     return E_INVALID_STATE;
   }
 
+  // if we already finish quick stop, just change system status
+  // disable power-loss data, and exit with success
+  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
+    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
+    cur_status_ = SYSTAT_END_FINISH;
+    // diable bed and heater
+    process_cmd_imd("M104 S0");
+    process_cmd_imd("M140 S0");
+    LOG_I("Stop in pauseing, trigger source: %d\n", type);
+    return E_SUCCESS;
+  }
+
+  switch(type) {
+  case TRIGGER_SOURCE_SC:
+    if (work_port_ != WORKING_PORT_SC) {
+      LOG_W("current working port is not SC!");
+      return E_INVALID_STATE;
+    }
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  case TRIGGER_SOURCE_PC:
+    if (work_port_ != WORKING_PORT_PC) {
+      LOG_W("current working port is not PC!");
+      return E_INVALID_STATE;
+    }
+    quickstop.Trigger(QS_EVENT_PAUSE);
+    break;
+
+  case TRIGGER_SOURCE_FINISH:
+    quickstop.Trigger(QS_EVENT_STOP);
+    break;
+
+  case TRIGGER_SOURCE_STOP_BUTTON:
+    quickstop.Trigger(QS_EVENT_BUTTON);
+    break;
+
+  default:
+    LOG_W("invalid trigger source: %d\n", type);
+    return E_PARAM;
+    break;
+  }
+
+  cur_status_ = SYSTAT_END_TRIG;
+
   stop_source_ = type;
 
   print_job_timer.stop();
@@ -160,39 +204,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
 
   lightbar.set_state(LB_STATE_STANDBY);
 
-  // if we already finish quick stop, just change system status
-  // disable power-loss data, and exit with success
-  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
-    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
-    cur_status_ = SYSTAT_END_FINISH;
-    LOG_I("Stop in pauseing, trigger source: %d\n", type);
-    return E_SUCCESS;
-  }
-
-  cur_status_ = SYSTAT_END_TRIG;
-
-  switch(type) {
-  case TRIGGER_SOURCE_SC:
-    quickstop.Trigger(QS_EVENT_PAUSE);
-    break;
-
-  case TRIGGER_SOURCE_PC:
-    quickstop.Trigger(QS_EVENT_PAUSE);
-    break;
-
-  case TRIGGER_SOURCE_FINISH:
-    quickstop.Trigger(QS_EVENT_STOP);
-    break;
-
-  case TRIGGER_SOURCE_STOP_BUTTON:
-    quickstop.Trigger(QS_EVENT_BUTTON);
-    break;
-
-  default:
-    LOG_W("invalid trigger source: %d\n", type);
-    return E_PARAM;
-    break;
-  }
 
   return E_SUCCESS;
 }

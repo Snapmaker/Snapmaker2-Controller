@@ -748,6 +748,14 @@ void GcodeSuite::execute_command(void) {
         case 413: M413(); break;                                  // M413: Enable/disable/query Power-Loss Recovery
         case 1000: M1000(); break;                                // M1000: Resume from power-loss
       #endif
+      case 1026:
+        enable_wait = !enable_wait;
+        if (enable_wait) {
+          SERIAL_ECHOLN("ENABLE Wait heartbeat");
+        } else {
+          SERIAL_ECHOLN("DISABLE Wait heartbeat");
+        }
+        break;
 
       case 2000: M2000(); break;
 
