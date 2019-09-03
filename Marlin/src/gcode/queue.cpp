@@ -884,12 +884,12 @@ void get_available_commands() {
   // if any immediate commands remain, don't get other commands yet
   if (drain_injected_commands_P()) return;
 
-  if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
+  //if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
     get_serial_commands();
-  else {
+  //else {
     // clear buffer of UART to PC
-    HAL_uart_reset_rx(MYSERIAL0);
-  }
+  //  HAL_uart_reset_rx(MYSERIAL0);
+  //}
 
 
   #if ENABLED(SDSUPPORT)

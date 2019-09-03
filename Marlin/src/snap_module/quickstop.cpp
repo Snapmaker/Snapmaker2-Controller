@@ -51,7 +51,6 @@ bool QuickStop::CheckISR(block_t *blk) {
       event_ = QS_EVENT_ISR_POWER_LOSS;
       new_event = QS_EVENT_ISR_POWER_LOSS;
       // delay movement to be planned when power loss
-      planner.delay_before_delivering = 100;
       planner.cleaning_buffer_counter = 1000;
     }
   }
@@ -99,9 +98,7 @@ bool QuickStop::CheckISR(block_t *blk) {
 
   disable_stepper_ = true;
 
-  stepper.quick_stop();
-
-  return false;
+  return true;
 }
 
 ErrCode QuickStop::Trigger(QuickStopEvent e) {
@@ -117,8 +114,8 @@ ErrCode QuickStop::Trigger(QuickStopEvent e) {
     event_ = e;
     sync_flag_ = QS_SYNC_TRIGGER;
     // delay movement to be planned when quick stop is triggered
-    planner.delay_before_delivering = 100;
     planner.cleaning_buffer_counter = 1000;
+    clear_command_queue();
   }
   ENABLE_STEPPER_DRIVER_INTERRUPT();
 
@@ -129,11 +126,6 @@ void QuickStop::CleanMoves() {
   millis_t timeout = millis() + 1000UL;
 
   clear_command_queue();
-
-  DISABLE_STEPPER_DRIVER_INTERRUPT();
-
-  planner.block_buffer_nonbusy = planner.block_buffer_planned = \
-      planner.block_buffer_head = planner.block_buffer_tail;
 
   // make sure stepper ISR is enabled
   // need it to save data
@@ -148,6 +140,7 @@ void QuickStop::CleanMoves() {
     }
   }
 
+  // stepper will clean blocks safely, we had to wait buffer to be empty
   while (planner.movesplanned()) {
     if ((int32_t)(timeout - millis()) < 0) {
       timeout = millis() + 1000UL;
@@ -158,18 +151,6 @@ void QuickStop::CleanMoves() {
 
   // make it false, will not abort block, then we can output moves
   disable_stepper_ = false;
-
-  while (stepper.get_current_block()) {
-    stepper.quick_stop();
-    if ((int32_t)(timeout - millis()) < 0) {
-      timeout = millis() + 1000UL;
-      if (event_ != QS_EVENT_ISR_POWER_LOSS)
-        LOG_I("wait block to NULL timeout!\n");
-    }
-  }
-
-  // maker sure 'abort_current_block' is false
-  stepper.allow_current_block();
 
   // these two variables will clean the latency in planning commands
   // and outputing blocks
@@ -268,13 +249,13 @@ void QuickStop::Process() {
     SystemStatus.SetCurrentStatus(SYSTAT_END_FINISH);
 
   stopped_ = true;
+  // we have stopped, so clear previous event
+  event_ = QS_EVENT_NONE;
+  sync_flag_ = QS_SYNC_NONE;
 }
 
 void QuickStop::Reset() {
   stopped_ = false;
-  event_ = QS_EVENT_NONE;
-  sync_flag_ = QS_SYNC_NONE;
-  disable_stepper_ = false;
 
   debug_ = QS_EVENT_NONE;
 }
