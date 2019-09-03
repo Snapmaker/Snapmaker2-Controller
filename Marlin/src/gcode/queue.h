@@ -34,7 +34,7 @@
  * M110 N<int> sets the current line number.
  */
 extern long gcode_LastN, Stopped_gcode_LastN;
-
+extern bool enable_wait;
 /**
  * GCode Command Queue
  * A simple ring buffer of BUFSIZE command strings.
