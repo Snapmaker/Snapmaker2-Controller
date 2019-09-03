@@ -107,7 +107,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
     powerpanic.Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
     powerpanic.Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
-    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+    ExecuterHead.Laser.RestorePower((float)0, 0);
   }
 
   lightbar.set_state(LB_STATE_STANDBY);
