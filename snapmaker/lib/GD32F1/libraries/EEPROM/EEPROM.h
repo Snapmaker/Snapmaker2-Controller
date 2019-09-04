@@ -3,6 +3,7 @@
 
 #include <wirish.h>
 #include "flash_stm32.h"
+#include "../../../../Marlin/src/core/macros.h"
 
 // HACK ALERT. This definition may not match your processor
 // To Do. Work out correct value for EEPROM_PAGE_SIZE on the STM32F103CT6 etc 
@@ -28,7 +29,7 @@
 	#elif defined (MCU_STM32F103RD)
 		#define EEPROM_START_ADDRESS	((uint32)(0x8000000 + 384 * 1024 - 2 * EEPROM_PAGE_SIZE))
     #elif defined (MCU_GD32F105VE)
-    #define EEPROM_START_ADDRESS	((uint32)(0x8044800))
+    #define EEPROM_START_ADDRESS	((uint32)(FLASH_MARLIN_EEPROM))
     //#define EEPROM_START_ADDRESS	((uint32)(0x8000000 + 512 * 1024 - 2 * EEPROM_PAGE_SIZE))
 	#else
 		#error	"No MCU type specified. Add something like -DMCU_STM32F103RB to your compiler arguments (probably in a Makefile)."

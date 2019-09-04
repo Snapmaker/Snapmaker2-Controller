@@ -59,8 +59,8 @@
 #ifdef __cplusplus
  extern "C" {
 #endif /* __cplusplus */
-  
-#define STM32F10X_CL
+
+  #define STM32F10X_CL
   
 /** @addtogroup Library_configuration_section
   * @{
@@ -124,7 +124,7 @@
  #ifdef STM32F10X_CL   
   #define HSE_VALUE    ((uint32_t)25000000) /*!< Value of the External oscillator in Hz */
  #else 
-  #define HSE_VALUE    ((uint32_t)8000000) /*!< Value of the External oscillator in Hz */
+  #define HSE_VALUE    ((uint32_t)16000000) /*!< Value of the External oscillator in Hz */
  #endif /* STM32F10X_CL */
 #endif /* HSE_VALUE */
 
@@ -133,7 +133,7 @@
    Timeout value 
    */
 #if !defined  (HSE_STARTUP_TIMEOUT) 
-  #define HSE_STARTUP_TIMEOUT    ((uint16_t)0xffff)   /*!< Time out for HSE start up */
+  #define HSE_STARTUP_TIMEOUT    ((uint32_t)0x1ffff)   /*!< Time out for HSE start up */
 #endif /* HSE_STARTUP_TIMEOUT */
 
 #if !defined  (HSI_VALUE)   
@@ -163,7 +163,7 @@
 /**
  * @brief Configuration of the Cortex-M3 Processor and Core Peripherals 
  */
-#ifdef STM32F10X_XL
+#if defined(STM32F10X_XL) || defined(GD32F305VG)
  #define __MPU_PRESENT             1      /*!< STM32 XL-density devices provide an MPU      */
 #else
  #define __MPU_PRESENT             0      /*!< Other STM32 devices does not provide an MPU  */
@@ -391,7 +391,7 @@ typedef enum IRQn
                                              the AFIO_MAPR2 register is set)                      */
 #endif /* STM32F10X_HD_VL */
 
-#ifdef STM32F10X_XL
+#if defined(STM32F10X_XL)
   ADC1_2_IRQn                 = 18,     /*!< ADC1 and ADC2 global Interrupt                       */
   USB_HP_CAN1_TX_IRQn         = 19,     /*!< USB Device High Priority or CAN1 TX Interrupts       */
   USB_LP_CAN1_RX0_IRQn        = 20,     /*!< USB Device Low Priority or CAN1 RX0 Interrupts       */
@@ -486,11 +486,8 @@ typedef enum IRQn
 /**
   * @}
   */
-#ifdef __FPU_PRESENT
-#include "core_cm4.h"
-#else
+
 #include "core_cm3.h"
-#endif
 #include "system_stm32f10x.h"
 #include <stdint.h>
 
@@ -924,7 +921,7 @@ typedef struct
   __IO uint32_t RESERVED;
   __IO uint32_t OBR;
   __IO uint32_t WRPR;
-#ifdef STM32F10X_XL
+#if defined(STM32F10X_XL) || defined(GD32F305VG)
   uint32_t RESERVED1[8]; 
   __IO uint32_t KEYR2;
   uint32_t RESERVED2;   
@@ -1962,7 +1959,7 @@ typedef struct
  #define  RCC_APB2RSTR_IOPGRST               ((uint32_t)0x00000100)        /*!< I/O port G reset */
 #endif
 
-#ifdef STM32F10X_XL
+#if defined(STM32F10X_XL) || defined(GD32F305VG)
  #define  RCC_APB2RSTR_TIM9RST               ((uint32_t)0x00080000)         /*!< TIM9 Timer reset */
  #define  RCC_APB2RSTR_TIM10RST              ((uint32_t)0x00100000)         /*!< TIM10 Timer reset */
  #define  RCC_APB2RSTR_TIM11RST              ((uint32_t)0x00200000)         /*!< TIM11 Timer reset */
@@ -2024,7 +2021,7 @@ typedef struct
  #define  RCC_APB1RSTR_CAN2RST                ((uint32_t)0x04000000)        /*!< CAN2 reset */
 #endif /* STM32F10X_CL */
 
-#ifdef STM32F10X_XL
+#if defined(STM32F10X_XL) || defined(GD32F305VG)
  #define  RCC_APB1RSTR_TIM12RST               ((uint32_t)0x00000040)         /*!< TIM12 Timer reset */
  #define  RCC_APB1RSTR_TIM13RST               ((uint32_t)0x00000080)         /*!< TIM13 Timer reset */
  #define  RCC_APB1RSTR_TIM14RST               ((uint32_t)0x00000100)         /*!< TIM14 Timer reset */
@@ -2094,7 +2091,7 @@ typedef struct
  #define  RCC_APB2ENR_IOPGEN                 ((uint32_t)0x00000100)         /*!< I/O port G clock enable */
 #endif
 
-#ifdef STM32F10X_XL
+#if defined(STM32F10X_XL) || defined(GD32F305VG)
  #define  RCC_APB2ENR_TIM9EN                 ((uint32_t)0x00080000)         /*!< TIM9 Timer clock enable  */
  #define  RCC_APB2ENR_TIM10EN                ((uint32_t)0x00100000)         /*!< TIM10 Timer clock enable  */
  #define  RCC_APB2ENR_TIM11EN                ((uint32_t)0x00200000)         /*!< TIM11 Timer clock enable */
@@ -2156,7 +2153,7 @@ typedef struct
  #define  RCC_APB1ENR_CAN2EN                  ((uint32_t)0x04000000)        /*!< CAN2 clock enable */
 #endif /* STM32F10X_CL */
 
-#ifdef STM32F10X_XL
+#if defined(STM32F10X_XL) || defined(GD32F305VG)
  #define  RCC_APB1ENR_TIM12EN                ((uint32_t)0x00000040)         /*!< TIM12 Timer clock enable  */
  #define  RCC_APB1ENR_TIM13EN                ((uint32_t)0x00000080)         /*!< TIM13 Timer clock enable  */
  #define  RCC_APB1ENR_TIM14EN                ((uint32_t)0x00000100)         /*!< TIM14 Timer clock enable */
@@ -2884,7 +2881,7 @@ typedef struct
 #define AFIO_MAPR2_MISC_REMAP                ((uint32_t)0x00002000)        /*!< Miscellaneous remapping */
 #endif
 
-#ifdef STM32F10X_XL 
+#if defined(STM32F10X_XL) || defined(GD32F305VG) 
 /******************  Bit definition for AFIO_MAPR2 register  ******************/
 #define AFIO_MAPR2_TIM9_REMAP                ((uint32_t)0x00000020)        /*!< TIM9 remapping */
 #define AFIO_MAPR2_TIM10_REMAP               ((uint32_t)0x00000040)        /*!< TIM10 remapping */
@@ -3413,7 +3410,7 @@ typedef struct
 /*                             DMA Controller                                 */
 /*                                                                            */
 /******************************************************************************/
-#if(1)
+
 /*******************  Bit definition for DMA_ISR register  ********************/
 #define  DMA_ISR_GIF1                        ((uint32_t)0x00000001)        /*!< Channel 1 Global interrupt flag */
 #define  DMA_ISR_TCIF1                       ((uint32_t)0x00000002)        /*!< Channel 1 Transfer Complete flag */
@@ -3707,7 +3704,7 @@ typedef struct
 
 /******************  Bit definition for DMA_CMAR7 register  *******************/
 #define  DMA_CMAR7_MA                        ((uint32_t)0xFFFFFFFF)        /*!< Memory Address */
-#endif
+
 /******************************************************************************/
 /*                                                                            */
 /*                        Analog to Digital Converter                         */
@@ -5438,7 +5435,7 @@ typedef struct
 /*                          SD host Interface                                 */
 /*                                                                            */
 /******************************************************************************/
-#if(0)
+
 /******************  Bit definition for SDIO_POWER register  ******************/
 #define  SDIO_POWER_PWRCTRL                  ((uint8_t)0x03)               /*!< PWRCTRL[1:0] bits (Power supply control bits) */
 #define  SDIO_POWER_PWRCTRL_0                ((uint8_t)0x01)               /*!< Bit 0 */
@@ -5591,7 +5588,7 @@ typedef struct
 
 /******************  Bit definition for SDIO_FIFO register  *******************/
 #define  SDIO_FIFO_FIFODATA                  ((uint32_t)0xFFFFFFFF)        /*!< Receive and transmit FIFO data */
-#endif
+
 /******************************************************************************/
 /*                                                                            */
 /*                                   USB Device FS                            */
@@ -8349,7 +8346,7 @@ typedef struct
  /**
   * @}
   */ 
-#define USE_STDPERIPH_DRIVER
+
 #ifdef USE_STDPERIPH_DRIVER
   #include "stm32f10x_conf.h"
 #endif

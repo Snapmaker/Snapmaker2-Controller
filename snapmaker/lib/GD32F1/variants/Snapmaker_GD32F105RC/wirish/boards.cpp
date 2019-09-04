@@ -170,7 +170,7 @@ static void setup_nvic(void) {
     #endif
   #else
     //nvic_sys_reset();
-    nvic_init((uint32)0x08000000, 0x9800);
+    nvic_init((uint32)0x08000000, 0xB800);
   #endif
 }
 

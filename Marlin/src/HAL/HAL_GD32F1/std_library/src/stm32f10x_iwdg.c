@@ -27,6 +27,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "../inc/stm32f10x_iwdg.h"
+#include "../inc/stm32f10x_conf.h"
 
 /** @addtogroup STM32F10x_StdPeriph_Driver
   * @{

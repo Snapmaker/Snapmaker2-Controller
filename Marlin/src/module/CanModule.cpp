@@ -107,8 +107,8 @@ void CanModule::CollectPlugModules() {
   }
 
   //Update Endstops
-  for(int i=0;i<20;i++)
-    CanSendPacked(i, IDTYPE_STDID, BASIC_CAN_NUM, FRAME_DATA, 0, 0);
+  //for(int i=0;i<20;i++)
+  //  CanSendPacked(i, IDTYPE_STDID, BASIC_CAN_NUM, FRAME_DATA, 0, 0);
 }
 
 /**
@@ -912,6 +912,13 @@ bool CanModule::SetMacID(uint32_t OldMacID, uint32_t NewMacID) {
   uint32_t intLen;
   uint16_t datalen;
   millis_t tmptick;
+  uint32_t tmp_new_macid;
+
+  OldMacID = (OldMacID << 1) | 1;
+  tmp_new_macid = (NewMacID << 1) | 1;
+  NewMacID = (OldMacID & (uint32_t)~0x000fffff) | (tmp_new_macid & 0xfffff);
+  NewMacID = (NewMacID >> 1) & 0x7ffff;
+  
   SendBuff[0] = CMD_M_SET_RANDOM;
   SendBuff[1] = 1;
   SendBuff[2] = (uint8_t)(NewMacID >> 24);
@@ -929,7 +936,7 @@ bool CanModule::SetMacID(uint32_t OldMacID, uint32_t NewMacID) {
             intLen = (uint32_t)((RecvBuff[2] << 24) | (RecvBuff[3] << 16) | (RecvBuff[4] << 8) | (RecvBuff[5]));
             for(j=0;j<CanModules.LinearModuleCount;j++) {
               if(CanModules.LinearModuleID[j] == OldMacID) {
-                CanModules.LinearModuleID[j] = NewMacID;
+                CanModules.LinearModuleID[j] = tmp_new_macid;
                 break;
               }
             }
@@ -1172,7 +1179,7 @@ void CanModule::UpdateProcess(void)
         
       }
     }
-    //EraseUpdatePack();
+    EraseUpdatePack();
     HMI.SendUpdateComplete(1);
     tmptick = millis() + 2000;
     while(tmptick > millis());
