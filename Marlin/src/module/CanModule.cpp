@@ -168,6 +168,8 @@ void CanModule::PrepareLinearModules(void) {
   // Get lead of all axes
   GetAxesLead();
 
+  X_MAX_POS = Y_MAX_POS = Z_MAX_POS = 65535;
+
   for(i=0;i<LinearModuleCount;i++) {
     if(LinearModuleMark[i] == X_AXIS) {
       if(LinearModuleLength[i] < 250) {
@@ -185,7 +187,8 @@ void CanModule::PrepareLinearModules(void) {
         X_DIR = false;
         if(endstop_init_status[i] == 0) tmpEndstopBits &= ~(1 << 0);
       }
-      X_MAX_POS = LinearModuleLength[X_AXIS];
+      if(LinearModuleLength[i] < X_MAX_POS)
+        X_MAX_POS = LinearModuleLength[i];
     }
     if(LinearModuleMark[i] == Y_AXIS) {
       if(LinearModuleLength[i] < 250) {
@@ -198,7 +201,8 @@ void CanModule::PrepareLinearModules(void) {
         Y_HOME_DIR = 1;
       }
       Y_DIR = true;
-      Y_MAX_POS = LinearModuleLength[Y_AXIS];
+      if(LinearModuleLength[i] < Y_MAX_POS)
+        Y_MAX_POS = LinearModuleLength[i];
       if(endstop_init_status[i] == 0) tmpEndstopBits &= ~(1 << 5);
     }
     if(LinearModuleMark[i] == Z_AXIS) {
@@ -212,11 +216,21 @@ void CanModule::PrepareLinearModules(void) {
         Z_HOME_DIR = 1;
       }
       Z_DIR = true;
-      Z_MAX_POS = LinearModuleLength[Z_AXIS];
+      if(LinearModuleLength[i] < Z_MAX_POS)
+        Z_MAX_POS = LinearModuleLength[i];
       if(endstop_init_status[i] == 0) tmpEndstopBits &= ~(1 << 6);
     }
     SERIAL_ECHOLNPAIR("Length:", LinearModuleLength[i], " Axis:", LinearModuleMark[i]);
   }
+
+  if(X_MAX_POS == 65535)
+    X_MAX_POS = 0;
+
+  if(Y_MAX_POS == 65535)
+    Y_MAX_POS = 0;
+
+  if(Z_MAX_POS == 65535)
+    Z_MAX_POS = 0;
 
   //Get Linear module function ID
   for(i=0;i<LinearModuleCount;i++) {
@@ -277,8 +291,14 @@ void CanModule::PrepareLinearModules(void) {
   //Reserved 20 for high response
   MsgIDCount = 20;
 
+  tmpEndstopBits = 0xffffffff;
+  Endstop = 0xffffffff;
   // Update the endstops
-  SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LIMIT, 0, 0);
+  for (i=0;i<20;i++) {
+    if (MsgIDTable[i] == FUNC_REPORT_LIMIT) {
+      CanSendPacked(i, IDTYPE_STDID, BASIC_CAN_NUM, FRAME_DATA, 0, 0);
+    } 
+  }
 }
 
 /**

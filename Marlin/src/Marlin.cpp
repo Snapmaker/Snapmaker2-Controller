@@ -1242,15 +1242,14 @@ void CheckAppValidFlag(void)
  */
 void loop() {
   millis_t tmptick;
-
-  #if ENABLED(SW_MACHINE_SIZE)
-    UpdateMachineDefines();
-  #endif
   
   tmptick = millis() + 4000;
   while(tmptick > millis());
   ExecuterHead.Init();
   CanModules.Init();
+  #if ENABLED(SW_MACHINE_SIZE)
+    UpdateMachineDefines();
+  #endif
   CheckUpdateFlag();
   CheckAppValidFlag();
 
