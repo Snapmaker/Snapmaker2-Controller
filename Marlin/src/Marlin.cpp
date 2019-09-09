@@ -1241,6 +1241,8 @@ void CheckAppValidFlag(void)
  *  - Call inactivity manager
  */
 void loop() {
+  CheckUpdateFlag();
+  CheckAppValidFlag();
   millis_t tmptick;
   
   tmptick = millis() + 4000;
@@ -1250,8 +1252,6 @@ void loop() {
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
   #endif
-  CheckUpdateFlag();
-  CheckAppValidFlag();
 
   lightbar.init();
   
