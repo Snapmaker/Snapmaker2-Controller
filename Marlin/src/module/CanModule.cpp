@@ -12,8 +12,13 @@
 #include <EEPROM.h>
 #include "../libs/GenerialFunctions.h"
 #include "../SnapScreen/Screen.h"
+#include "motion.h"
+
 
 CanModule CanModules;
+
+uint8_t CanModule::machine_size_type = MACHINE_SIZE_UNKNOW;
+
 
 #define CANID_BROCAST (1)
 
@@ -172,50 +177,24 @@ void CanModule::PrepareLinearModules(void) {
 
   for(i=0;i<LinearModuleCount;i++) {
     if(LinearModuleMark[i] == X_AXIS) {
-      if(LinearModuleLength[i] < 250) {
-        X_HOME_DIR = 1;
-        X_DIR = true;
+      if(LinearModuleLength[i] < 200) {
         if(endstop_init_status[i] == 0) tmpEndstopBits &= ~(1 << 4);
       }
-      else if(LinearModuleLength[i] < 350) {
-        X_HOME_DIR = -1;
-        X_DIR = false;
+      else if(LinearModuleLength[i] < 300) {
         if(endstop_init_status[i] == 0) tmpEndstopBits &= ~(1 << 0);
       }
       else if(LinearModuleLength[i] < 400) {
-        X_HOME_DIR = -1;
-        X_DIR = false;
         if(endstop_init_status[i] == 0) tmpEndstopBits &= ~(1 << 0);
       }
       if(LinearModuleLength[i] < X_MAX_POS)
         X_MAX_POS = LinearModuleLength[i];
     }
     if(LinearModuleMark[i] == Y_AXIS) {
-      if(LinearModuleLength[i] < 250) {
-        Y_HOME_DIR = 1;
-      }
-      else if(LinearModuleLength[i] < 350) {
-        Y_HOME_DIR = 1;
-      }
-      else if(LinearModuleLength[i] < 400) {
-        Y_HOME_DIR = 1;
-      }
-      Y_DIR = true;
       if(LinearModuleLength[i] < Y_MAX_POS)
         Y_MAX_POS = LinearModuleLength[i];
       if(endstop_init_status[i] == 0) tmpEndstopBits &= ~(1 << 5);
     }
     if(LinearModuleMark[i] == Z_AXIS) {
-      if(LinearModuleLength[i] < 250) {
-        Z_HOME_DIR = 1;
-      }
-      else if(LinearModuleLength[i] < 350) {
-        Z_HOME_DIR = 1;
-      }
-      else if(LinearModuleLength[i] < 400) {
-        Z_HOME_DIR = 1;
-      }
-      Z_DIR = true;
       if(LinearModuleLength[i] < Z_MAX_POS)
         Z_MAX_POS = LinearModuleLength[i];
       if(endstop_init_status[i] == 0) tmpEndstopBits &= ~(1 << 6);
@@ -231,6 +210,55 @@ void CanModule::PrepareLinearModules(void) {
 
   if(Z_MAX_POS == 65535)
     Z_MAX_POS = 0;
+
+  // 3 Axes length are the same
+  if((X_MAX_POS == Y_MAX_POS) && (X_MAX_POS == Z_MAX_POS) && (X_MAX_POS > 0)) {
+    if(X_MAX_POS < 200) {
+      X_MAX_POS = 167;
+      Y_MAX_POS = 169;
+      Z_MAX_POS = 150;
+      X_HOME_DIR = 1;
+      X_DIR = false;
+      Y_HOME_DIR = 1;
+      Y_DIR = false;
+      Z_HOME_DIR = 1;
+      Z_DIR = false;
+      home_offset[X_AXIS] = 0;
+      home_offset[Y_AXIS] = 0;
+      home_offset[Z_AXIS] = 0;
+      machine_size_type = MACHINE_SIZE_S;
+    }
+    else if(Y_MAX_POS < 300) {
+      X_MAX_POS = 244;
+      Y_MAX_POS = 260;
+      Z_MAX_POS = 235;
+      X_HOME_DIR = -1;
+      X_DIR = true;
+      Y_HOME_DIR = 1;
+      Y_DIR = false;
+      Z_HOME_DIR = 1;
+      Z_DIR = false;
+      home_offset[X_AXIS] = -7;
+      home_offset[Y_AXIS] = 0;
+      home_offset[Z_AXIS] = 0;
+      machine_size_type = MACHINE_SIZE_M;
+    }
+    else if(Z_MAX_POS < 400) {
+      X_MAX_POS = 336;
+      Y_MAX_POS = 360;
+      Z_MAX_POS = 334;
+      X_HOME_DIR = -1;
+      X_DIR = true;
+      Y_HOME_DIR = 1;
+      Y_DIR = false;
+      Z_HOME_DIR = 1;
+      Z_DIR = false;
+      home_offset[X_AXIS] = -9;
+      home_offset[Y_AXIS] = 0;
+      home_offset[Z_AXIS] = 0;
+      machine_size_type = MACHINE_SIZE_L;
+    }
+  }
 
   //Get Linear module function ID
   for(i=0;i<LinearModuleCount;i++) {
@@ -806,6 +834,7 @@ bool CanModule::SetAxesLength(uint32_t ID, uint16_t Length) {
   SendBuff[3] = (uint8_t)(intlen >> 16);
   SendBuff[4] = (uint8_t)(intlen >> 8);
   SendBuff[5] = (uint8_t)(intlen);
+  ID |= 1;
   
   for(i=0;i<CanModules.LinearModuleCount;i++) {
     if(CanModules.LinearModuleID[i] == ID) { 
@@ -849,6 +878,7 @@ void CanModule::GetAxesLength() {
           intlen = (uint32_t)((RecvBuff[2] << 24) | (RecvBuff[3] << 16) | (RecvBuff[4] << 8) | (RecvBuff[5]));
           LinearModuleLength[i] = (float)intlen / 1000.0f;
           SERIAL_ECHOLNPAIR("LEN:", LinearModuleLength[i]);
+          break;
         }
       }
     }
@@ -872,6 +902,7 @@ bool CanModule::SetAxesLead(uint32_t ID, float Lead) {
   SendBuff[3] = (uint8_t)(intLead >> 16);
   SendBuff[4] = (uint8_t)(intLead >> 8);
   SendBuff[5] = (uint8_t)(intLead);
+  ID |= 1;
   
   for(i=0;i<CanModules.LinearModuleCount;i++) {
     if(CanModules.LinearModuleID[i] == ID) { 
@@ -914,6 +945,7 @@ void CanModule::GetAxesLead() {
         if(RecvBuff[0] == CMD_S_SET_LINEAR_LEAD_REACK) {
           intLen = (uint32_t)((RecvBuff[2] << 24) | (RecvBuff[3] << 16) | (RecvBuff[4] << 8) | (RecvBuff[5]));
           LinearModuleT[i] = (float)intLen / 1000.0f;
+          break;
         }
       }
     }

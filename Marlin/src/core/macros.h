@@ -274,6 +274,12 @@
 #define MACHINE_TYPE_CNC    2  
 #define MACHINE_TYPE_LASER  3
 
+//Machine size define
+#define MACHINE_SIZE_UNKNOW 0
+#define MACHINE_SIZE_S      1
+#define MACHINE_SIZE_M      2
+#define MACHINE_SIZE_L      3
+
 //Machine Status defines,StatuaControl use this
 #define STAT_IDLE           0
 #define STAT_RUNNING        1

@@ -41,6 +41,7 @@ public:
   uint16_t GetLinearModuleLength( uint8_t Index ) { return LinearModuleLength[Index]; }
   float GetLinearModuleLead( uint8_t Index ) { return LinearModuleT[Index]; }
   bool SetMacID(uint32_t OldMacID, uint32_t NewMacID);
+  static uint8_t GetMachineSizeType() { return machine_size_type; };
   
 public:
   uint32_t ExecuterID[6];
@@ -72,6 +73,7 @@ private:
   uint8_t LinearModuleMark[MAX_CAN_AXES];
   uint8_t SendBuff[256];
   uint8_t RecvBuff[256];
+  static uint8_t machine_size_type;
 };
 
 extern CanModule CanModules;

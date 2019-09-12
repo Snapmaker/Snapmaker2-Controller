@@ -1251,6 +1251,7 @@ void loop() {
   CanModules.Init();
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
+    endstops.reinit_hit_status();
   #endif
 
   lightbar.init();

@@ -1051,8 +1051,8 @@ void HMI_SC20::PollingCommand(void)
       {
         // set size of machine
         case 1:
-          ResizeMachine(&tmpBuff[10]);
-          MarkNeedReack(0);
+          //ResizeMachine(&tmpBuff[10]);
+          //MarkNeedReack(0);
           break;
 
         // enable auto level bed
@@ -1416,6 +1416,7 @@ void HMI_SC20::PollingCommand(void)
         uint32_t new_length;
         BYTES_TO_32BITS_WITH_INDEXMOVE(ID, tmpBuff, j);
         BYTES_TO_32BITS_WITH_INDEXMOVE(new_length, tmpBuff, j);
+        ID = ((uint32_t)ID << 1);
         new_length = new_length / 1000.0f;
         SERIAL_ECHOLNPAIR("ID", ID, "New Len:", new_length);
         if(CanModules.SetAxesLength(ID, new_length) == true)
@@ -1436,6 +1437,7 @@ void HMI_SC20::PollingCommand(void)
         uint32_t new_lead;
         BYTES_TO_32BITS_WITH_INDEXMOVE(ID, tmpBuff, j);
         BYTES_TO_32BITS_WITH_INDEXMOVE(new_lead, tmpBuff, j);
+        ID = ((uint32_t)ID << 1);
         new_lead = new_lead / 1000.0f;
         SERIAL_ECHOLNPAIR("ID", ID, "New Lead:", new_lead);
         if(CanModules.SetAxesLead(ID, new_lead) == true)
@@ -1582,6 +1584,9 @@ void HMI_SC20::SendMachineSize()
   tmpBuff[i++] = 20;
   tmpBuff[i++] = 0;
 
+  //Machine size type
+  tmpBuff[i++] = CanModules.GetMachineSizeType();
+
   //Size
   u32Value = (uint32_t) (X_MAX_POS * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
@@ -1589,6 +1594,22 @@ void HMI_SC20::SendMachineSize()
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
   u32Value = (uint32_t) (Z_MAX_POS * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
+
+  //Home Dir
+  int32Value = (int32_t) (X_HOME_DIR);
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  int32Value = (int32_t) (Y_HOME_DIR);
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  int32Value = (int32_t) (Z_HOME_DIR);
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+
+  //Dir
+  int32Value = X_DIR == true?(int32_t)1:(int32_t)-1;
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  int32Value = Y_DIR == true?(int32_t)1:(int32_t)-1;
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  int32Value = Z_DIR == true?(int32_t)1:(int32_t)-1;
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
 
   //Offset
   int32Value = (int32_t) (home_offset[X_AXIS] *1000.0f);
