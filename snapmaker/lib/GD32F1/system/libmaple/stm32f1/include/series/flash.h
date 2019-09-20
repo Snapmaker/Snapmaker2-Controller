@@ -56,6 +56,14 @@ typedef struct flash_reg_map {
     __IO uint32 AR;             /**< Address register */
     __IO uint32 OBR;            /**< Option byte register */
     __IO uint32 WRPR;           /**< Write protection register */
+    #if defined(STM32F10X_XL) || defined(GD32F305VG)
+    uint32_t RESERVED1[8]; 
+    __IO uint32_t KEYR2;
+    uint32_t RESERVED2;   
+    __IO uint32_t SR2;
+    __IO uint32_t CR2;
+    __IO uint32_t AR2;
+    #endif /* STM32F10X_XL */  
 } flash_reg_map;
 
 #define FLASH_BASE                      ((struct flash_reg_map*)0x40022000)
@@ -86,6 +94,18 @@ typedef struct flash_reg_map {
 #define FLASH_SR_WRPRTERR               (1U << FLASH_SR_WRPRTERR_BIT)
 #define FLASH_SR_PGERR                  (1U << FLASH_SR_PGERR_BIT)
 #define FLASH_SR_BSY                    (1U << FLASH_SR_BSY_BIT)
+
+#define FLASH_SR_EOP                    (1U << FLASH_SR_EOP_BIT)
+#define FLASH_FLAG_BANK1_WRPRTERR       (1U << FLASH_SR_WRPRTERR_BIT)
+#define FLASH_FLAG_BANK1_PGERR          (1U << FLASH_SR_PGERR_BIT)
+#define FLASH_FLAG_BANK1_BSY            (1U << FLASH_SR_BSY_BIT)
+
+#define FLASH_SR_EOP                    (1U << FLASH_SR_EOP_BIT)
+#define FLASH_FLAG_BANK2_WRPRTERR       (1U << FLASH_SR_WRPRTERR_BIT)
+#define FLASH_FLAG_BANK2_PGERR          (1U << FLASH_SR_PGERR_BIT)
+#define FLASH_FLAG_BANK2_BSY            (1U << FLASH_SR_BSY_BIT)
+
+
 
 /* Control register */
 

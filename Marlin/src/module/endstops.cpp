@@ -385,7 +385,6 @@ void Endstops::resync() {
 #endif
 
 void Endstops::event_handler() {
-  static uint8_t prev_hit_state; // = 0
   if (hit_state && hit_state != prev_hit_state) {
     #if ENABLED(ULTRA_LCD)
       char chrX = ' ', chrY = ' ', chrZ = ' ', chrP = ' ';
@@ -1319,6 +1318,18 @@ void _O2 Endstops::M119() {
   }
 
 #endif // PINS_DEBUGGING
+
+/**
+ *reinit_hit_status:Reinitialize the endstops status
+ */
+void Endstops::reinit_hit_status() {
+  hit_state = 0;
+  live_state = 0;
+  prev_hit_state = 0;
+  // Set to untriggle temporary
+  CanModules.Endstop = 0xffffffff;
+  update();
+}
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
   void Endstops::CanSendAxisIndex(EndstopEnum Axis) {

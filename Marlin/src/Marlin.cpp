@@ -1241,18 +1241,18 @@ void CheckAppValidFlag(void)
  *  - Call inactivity manager
  */
 void loop() {
+  CheckUpdateFlag();
+  CheckAppValidFlag();
   millis_t tmptick;
-
-  #if ENABLED(SW_MACHINE_SIZE)
-    UpdateMachineDefines();
-  #endif
   
   tmptick = millis() + 4000;
   while(tmptick > millis());
   ExecuterHead.Init();
   CanModules.Init();
-  CheckUpdateFlag();
-  CheckAppValidFlag();
+  #if ENABLED(SW_MACHINE_SIZE)
+    UpdateMachineDefines();
+    endstops.reinit_hit_status();
+  #endif
 
   lightbar.init();
   

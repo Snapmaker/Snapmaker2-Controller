@@ -16,7 +16,7 @@ typedef enum
 	FLASH_BAD_ADDRESS
 	} FLASH_Status;
 
-#define IS_FLASH_ADDRESS(ADDRESS) (((ADDRESS) >= 0x08000000) && ((ADDRESS) < 0x0807FFFF))
+#define IS_FLASH_ADDRESS(ADDRESS) (((ADDRESS) >= 0x08000000) && ((ADDRESS) < 0x080FFFFF))
 
 FLASH_Status FLASH_WaitForLastOperation(uint32 Timeout);
 FLASH_Status FLASH_ErasePage(uint32 Page_Address);

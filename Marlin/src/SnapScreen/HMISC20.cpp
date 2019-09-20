@@ -747,6 +747,86 @@ void HMI_SC20::ReportModuleFirmwareVersion(uint32_t ID, char *pVersion) {
 
 }
 
+/**
+ * ReportLinearLength:Send linear module length to SC20
+ */
+void HMI_SC20::ReportLinearLength() {
+  uint16_t i;
+  uint16_t j;
+  uint32_t ID;
+  uint32_t Length;
+
+  i = 0;
+
+  tmpBuff[i++] = 0x9A;
+  tmpBuff[i++] = 4;
+  for(j=0;j<CanModules.LinearModuleCount;j++) {
+    ID = CanModules.LinearModuleID[j];
+    tmpBuff[i++] = (uint8_t)(ID >> 24);
+    tmpBuff[i++] = (uint8_t)(ID >> 16);
+    tmpBuff[i++] = (uint8_t)(ID >> 8);
+    tmpBuff[i++] = (uint8_t)(ID);
+    Length = CanModules.GetLinearModuleLength(j) * 1000.0f;
+    tmpBuff[i++] = (uint8_t)(Length >> 24);
+    tmpBuff[i++] = (uint8_t)(Length >> 16);
+    tmpBuff[i++] = (uint8_t)(Length >> 8);
+    tmpBuff[i++] = (uint8_t)(Length);
+  }
+  
+  PackedProtocal(tmpBuff, i);
+}
+
+/**
+ * ReportLinearLead:Send linear module lead to SC20
+ */
+void HMI_SC20::ReportLinearLead() {
+  uint16_t i;
+  uint16_t j;
+  uint32_t ID;
+  uint32_t Lead;
+
+  i = 0;
+
+  tmpBuff[i++] = 0x9A;
+  tmpBuff[i++] = 6;
+  for(j=0;j<CanModules.LinearModuleCount;j++) {
+    ID = CanModules.LinearModuleID[j];
+    tmpBuff[i++] = (uint8_t)(ID >> 24);
+    tmpBuff[i++] = (uint8_t)(ID >> 16);
+    tmpBuff[i++] = (uint8_t)(ID >> 8);
+    tmpBuff[i++] = (uint8_t)(ID);
+    Lead = CanModules.GetLinearModuleLead(j) * 1000.0f;
+    tmpBuff[i++] = (uint8_t)(Lead >> 24);
+    tmpBuff[i++] = (uint8_t)(Lead >> 16);
+    tmpBuff[i++] = (uint8_t)(Lead >> 8);
+    tmpBuff[i++] = (uint8_t)(Lead);
+  }
+  
+  PackedProtocal(tmpBuff, i);
+}
+
+/**
+ * ReportLinearLead:Send linear module lead to SC20
+ */
+void HMI_SC20::ReportLinearModuleMacID(void) {
+  uint16_t i;
+  uint16_t j;
+  uint32_t ID;
+
+  i = 0;
+
+  tmpBuff[i++] = 0x9A;
+  tmpBuff[i++] = 2;
+  for(j=0;j<CanModules.LinearModuleCount;j++) {
+    ID = CanModules.LinearModuleID[j];
+    tmpBuff[i++] = (uint8_t)(ID >> 24);
+    tmpBuff[i++] = (uint8_t)(ID >> 16);
+    tmpBuff[i++] = (uint8_t)(ID >> 8);
+    tmpBuff[i++] = (uint8_t)(ID);
+  }
+  
+  PackedProtocal(tmpBuff, i);
+}
 
 void HMI_SC20::PollingCommand(void)
 {
@@ -971,8 +1051,8 @@ void HMI_SC20::PollingCommand(void)
       {
         // set size of machine
         case 1:
-          ResizeMachine(&tmpBuff[10]);
-          MarkNeedReack(0);
+          //ResizeMachine(&tmpBuff[10]);
+          //MarkNeedReack(0);
           break;
 
         // enable auto level bed
@@ -1314,6 +1394,64 @@ void HMI_SC20::PollingCommand(void)
         // trigger powerloss
         quickstop.Debug(QS_EVENT_ISR_POWER_LOSS);
       }
+      // Set MacID
+      else if(OpCode == 1) {
+        j = 10;
+        uint32_t old_MacID;
+        uint32_t new_MacID;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(old_MacID, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(new_MacID, tmpBuff, j);
+        if(CanModules.SetMacID(old_MacID, new_MacID) == true)
+          MarkNeedReack(0);
+        else
+          MarkNeedReack(1);
+      }
+      // List out the MacID
+      else if(OpCode == 2) {
+        ReportLinearModuleMacID();
+      }
+      // Set linear module length
+      else if(OpCode == 3) {
+        j = 10;
+        uint32_t new_length;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(ID, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(new_length, tmpBuff, j);
+        ID = ((uint32_t)ID << 1);
+        new_length = new_length / 1000.0f;
+        SERIAL_ECHOLNPAIR("ID", ID, "New Len:", new_length);
+        if(CanModules.SetAxesLength(ID, new_length) == true)
+          MarkNeedReack(0);
+        else
+          MarkNeedReack(1);
+      }
+
+      // Get linear module length
+      else if(OpCode == 4) {
+        CanModules.GetAxesLength();
+        ReportLinearLength();
+      }
+
+      // Set linear module lead
+      else if(OpCode == 5) {
+        j = 10;
+        uint32_t new_lead;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(ID, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(new_lead, tmpBuff, j);
+        ID = ((uint32_t)ID << 1);
+        new_lead = new_lead / 1000.0f;
+        SERIAL_ECHOLNPAIR("ID", ID, "New Lead:", new_lead);
+        if(CanModules.SetAxesLead(ID, new_lead) == true)
+          MarkNeedReack(0);
+        else
+          MarkNeedReack(1);
+      }
+
+      // Get linear module lead
+      else if(OpCode == 6) {
+        CanModules.GetAxesLead();
+        ReportLinearLead();
+      }
+
     }
 
     if (GenReack == true) SendGeneralReack((eventId + 1), OpCode, Result);
@@ -1446,6 +1584,9 @@ void HMI_SC20::SendMachineSize()
   tmpBuff[i++] = 20;
   tmpBuff[i++] = 0;
 
+  //Machine size type
+  tmpBuff[i++] = CanModules.GetMachineSizeType();
+
   //Size
   u32Value = (uint32_t) (X_MAX_POS * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
@@ -1453,6 +1594,22 @@ void HMI_SC20::SendMachineSize()
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
   u32Value = (uint32_t) (Z_MAX_POS * 1000);
   BITS32_TO_BYTES(u32Value, tmpBuff, i);
+
+  //Home Dir
+  int32Value = (int32_t) (X_HOME_DIR);
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  int32Value = (int32_t) (Y_HOME_DIR);
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  int32Value = (int32_t) (Z_HOME_DIR);
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+
+  //Dir
+  int32Value = X_DIR == true?(int32_t)1:(int32_t)-1;
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  int32Value = Y_DIR == true?(int32_t)1:(int32_t)-1;
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  int32Value = Z_DIR == true?(int32_t)1:(int32_t)-1;
+  BITS32_TO_BYTES(int32Value, tmpBuff, i);
 
   //Offset
   int32Value = (int32_t) (home_offset[X_AXIS] *1000.0f);

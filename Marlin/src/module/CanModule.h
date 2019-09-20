@@ -6,6 +6,8 @@
 #ifndef _CANMODULE_H_
 #define _CANMODULE_H_
 
+#define MAX_CAN_AXES  9
+
 class CanModule
 {
 public:
@@ -32,10 +34,18 @@ public:
   int SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff);
   int SetFunctionValue(uint8_t CanNum, uint16_t FuncID, uint8_t *pBuff, uint8_t Len);
   uint16_t SearchModule(uint16_t ModuleTypeID);
+  void GetAxesLength();
+  void GetAxesLead();
+  bool SetAxesLength(uint32_t ID, uint16_t Length);
+  bool SetAxesLead(uint32_t ID, float Lead);
+  uint16_t GetLinearModuleLength( uint8_t Index ) { return LinearModuleLength[Index]; }
+  float GetLinearModuleLead( uint8_t Index ) { return LinearModuleT[Index]; }
+  bool SetMacID(uint32_t OldMacID, uint32_t NewMacID);
+  static uint8_t GetMachineSizeType() { return machine_size_type; };
+  
 public:
   uint32_t ExecuterID[6];
-  uint32_t LinearModuleID[9];
-  uint16_t LinearModuleLength[9];
+  uint32_t LinearModuleID[MAX_CAN_AXES];
   uint8_t ExecuterCount;
   uint8_t LinearModuleCount;
   uint32_t Endstop;
@@ -58,8 +68,12 @@ private:
   uint16_t FuncIDList_CAN1[128];
   uint16_t FuncIDPriority_CAN1[128];
   uint16_t MsgIDCount_CAN1;
+  uint16_t LinearModuleLength[MAX_CAN_AXES];
+  float LinearModuleT[MAX_CAN_AXES];
+  uint8_t LinearModuleMark[MAX_CAN_AXES];
   uint8_t SendBuff[256];
   uint8_t RecvBuff[256];
+  static uint8_t machine_size_type;
 };
 
 extern CanModule CanModules;

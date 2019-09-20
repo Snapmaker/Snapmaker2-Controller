@@ -70,7 +70,7 @@ bool PersistentStore::access_finish() {
   pu16value = (uint16_t*)HAL_GD32F1_eeprom_content;
   FLASH_Unlock();
   FLASH_ErasePage(EEPROM_PAGE0_BASE);
-  FLASH_ErasePage(EEPROM_PAGE1_BASE);
+  FLASH_ErasePage(EEPROM_PAGE1_BASE); 
   for (int i=0;i<HAL_GD32F1_EEPROM_SIZE;i=i+2) {
     FLASH_ProgramHalfWord(Address, *pu16value++);
     Address += 2;
@@ -106,4 +106,4 @@ bool PersistentStore::read_data(int &pos, uint8_t* value, const size_t size, uin
 size_t PersistentStore::capacity() { return 4095; }
 
 #endif // EEPROM_SETTINGS && EEPROM FLASH
-#endif // __STM32F1__
+#endif // __GD32F1__

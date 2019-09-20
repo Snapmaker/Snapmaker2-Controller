@@ -28,7 +28,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "../inc/stm32f10x_tim.h"
 #include "../inc/stm32f10x_rcc.h"
-
+#include "../inc/stm32f10x_conf.h"
 /** @addtogroup STM32F10x_StdPeriph_Driver
   * @{
   */
