@@ -329,6 +329,14 @@ void CanModule::PrepareLinearModules(void) {
   }
 }
 
+void CanModule::UpdateEndstops() {
+  for (int i=0;i<20;i++) {
+    if (MsgIDTable[i] == FUNC_REPORT_LIMIT) {
+      CanSendPacked(i, IDTYPE_STDID, BASIC_CAN_NUM, FRAME_DATA, 0, 0);
+    }
+  }
+}
+
 /**
  *PrepareRestModules:Prepare for Rest module
  */

@@ -1330,6 +1330,13 @@ void loop() {
     SystemStatus.Process();
     Periph.Process();
     idle();
+
+    // avoid module proactive reply failure, loop query
+    // case 1: unexpected faliment runout trigger if we startup withou toolhead loaded.
+    // case 2: Z axis hit boundary when we run G28.
+    // case 3: Z_MIN_Probe error, when we do z probe, the triggered message didn't arrive main controller
+    CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
+    CanModules.UpdateEndstops();
   }
 }
 

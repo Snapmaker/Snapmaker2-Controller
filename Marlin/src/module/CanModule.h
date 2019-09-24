@@ -42,7 +42,8 @@ public:
   float GetLinearModuleLead( uint8_t Index ) { return LinearModuleT[Index]; }
   bool SetMacID(uint32_t OldMacID, uint32_t NewMacID);
   static uint8_t GetMachineSizeType() { return machine_size_type; };
-  
+
+  void UpdateEndstops();
 public:
   uint32_t ExecuterID[6];
   uint32_t LinearModuleID[MAX_CAN_AXES];
