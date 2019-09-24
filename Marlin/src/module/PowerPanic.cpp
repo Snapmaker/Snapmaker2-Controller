@@ -528,7 +528,7 @@ ErrCode PowerPanic::ResumeWork() {
 		return E_INVALID_STATE;
 	}
 
-	LOG_I("restore point: X:%.2f, Y: %.2f, Y: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
+	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
 			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
 	LOG_I("line number: %d\n", pre_data_.FilePosition);
 

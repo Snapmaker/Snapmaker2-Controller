@@ -1025,6 +1025,8 @@ void HMI_SC20::PollingCommand(void)
           MarkNeedReack(1);
         }
         else {
+          // bug: why will we receive two consecutive recovery command @TODO
+          SystemStatus.SetCurrentStatus(SYSTAT_RESUME_TRIG);
           err = powerpanic.ResumeWork();
           if (E_SUCCESS == err) {
             SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
@@ -1035,6 +1037,7 @@ void HMI_SC20::PollingCommand(void)
           else {
             LOG_I("trigger RESTORE: failed, err = %d\n", err);
             MarkNeedReack(1);
+            SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
           }
         }
       }
