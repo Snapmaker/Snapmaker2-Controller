@@ -217,12 +217,20 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
  *para pgcode:the pointer to the gcode
  *para Lines:the line position of the gcode in the file
  *para Opcode:operation code
+ * execution guaranteed
  */
 #if ENABLED(HMI_SC20W)
-void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_t Opcode)
+void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_t Opcode, bool force_sync)
 {
-  //缓冲未满
-	if((cmd_queue_index_w + 1) % BUFSIZE != cmd_queue_index_r)
+  if (force_sync) {
+    while ((cmd_queue_index_w + 1) % BUFSIZE == cmd_queue_index_r) {
+      advance_command_queue();
+      idle();
+    }
+  }
+
+	// guaranteed buffer available, shouldn't be missed, or screen status won't sync.
+	if ((cmd_queue_index_w + 1) % BUFSIZE != cmd_queue_index_r)
 	{
 		//指令入队
 		strcpy(command_queue[cmd_queue_index_w], pgcode);

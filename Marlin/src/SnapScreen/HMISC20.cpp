@@ -864,7 +864,7 @@ void HMI_SC20::PollingCommand(void)
       // pad '0' in the end of command
       j = cmdLen + 8;
       tmpBuff[j] = 0;
-      Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02);
+      Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02, false);
     }
 
     //gcode from screen
@@ -884,7 +884,7 @@ void HMI_SC20::PollingCommand(void)
           if (cur_status == SYSTAT_RESUME_WAITING) {
             SystemStatus.ResumeOver();
           }
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
         }
         else
           SendGcode("ok\n", 0x4);

@@ -521,6 +521,8 @@ ErrCode PowerPanic::ResumeWork() {
 	if (pre_data_.GCodeSource != GCODE_SOURCE_SCREEN) {
 		LOG_E("previous Gcode-source is not screen: %d\n", pre_data_.GCodeSource);
 		return E_INVALID_STATE;
+	} else {
+	  powerpanic.Data.GCodeSource = GCODE_SOURCE_SCREEN;
 	}
 
 	if (Periph.IsDoorOpened()) {
