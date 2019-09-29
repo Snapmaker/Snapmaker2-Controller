@@ -118,7 +118,7 @@ bool enqueue_and_echo_command(const char* cmd);
 #endif
 
 #if ENABLED(HMI_SC20W)
-  void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_t Opcode);
+  void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_t Opcode, boolean force_sync);
 #endif
 
 /**

@@ -46,11 +46,11 @@ class QuickStop {
 
   private:
 
-    volatile QuickStopEvent event_;
-    volatile QuickStopSync sync_flag_;
+    volatile QuickStopEvent event_ = QS_EVENT_NONE;
+    volatile QuickStopSync sync_flag_ = QS_SYNC_NONE;
 
-    volatile bool disable_stepper_;
-    volatile bool stopped_;
+    volatile bool disable_stepper_ = false;
+    volatile bool stopped_ = false;
 
     QuickStopEvent debug_;
 

@@ -405,17 +405,19 @@ void Endstops::event_handler() {
     #define ENDSTOP_HIT_TEST_Y() _ENDSTOP_HIT_TEST(Y,'Y')
     #define ENDSTOP_HIT_TEST_Z() _ENDSTOP_HIT_TEST(Z,'Z')
 
-    SERIAL_ECHO_START();
-    SERIAL_ECHOPGM(MSG_ENDSTOPS_HIT);
-    ENDSTOP_HIT_TEST_X();
-    ENDSTOP_HIT_TEST_Y();
-    ENDSTOP_HIT_TEST_Z();
+    if (0) {
+      SERIAL_ECHO_START();
+      SERIAL_ECHOPGM(MSG_ENDSTOPS_HIT);
+      ENDSTOP_HIT_TEST_X();
+      ENDSTOP_HIT_TEST_Y();
+      ENDSTOP_HIT_TEST_Z();
 
-    #if USES_Z_MIN_PROBE_ENDSTOP
-      #define P_AXIS Z_AXIS
+#if USES_Z_MIN_PROBE_ENDSTOP
+#define P_AXIS Z_AXIS
       if (TEST(hit_state, Z_MIN_PROBE)) _ENDSTOP_HIT_ECHO(P, 'P');
-    #endif
-    SERIAL_EOL();
+#endif
+      SERIAL_EOL();
+    }
 
     #if ENABLED(ULTRA_LCD)
       ui.status_printf_P(0, PSTR(MSG_LCD_ENDSTOPS " %c %c %c %c"), chrX, chrY, chrZ, chrP);

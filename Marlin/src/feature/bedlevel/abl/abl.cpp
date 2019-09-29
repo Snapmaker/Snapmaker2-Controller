@@ -484,7 +484,7 @@ void auto_probing(bool reply_screen) {
     cur_y = new_y;
   }
 
-  do_blocking_move_to_z(7, 50);
+  do_blocking_move_to_z(13, 50);
   do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), 50.0f);
 }
 

@@ -50,6 +50,7 @@ extern uint32_t PROBE_MARGIN;
 bool leveling_is_valid();
 void set_bed_leveling_enabled(const bool enable=true);
 void reset_bed_level();
+void reset_bed_level_if_upgraded();
 
 #if ENABLED(ENABLE_LEVELING_FADE_HEIGHT)
   void set_z_fade_height(const float zfh, const bool do_report=true);

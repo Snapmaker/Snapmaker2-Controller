@@ -329,6 +329,14 @@ void CanModule::PrepareLinearModules(void) {
   }
 }
 
+void CanModule::UpdateEndstops() {
+  for (int i=0;i<20;i++) {
+    if (MsgIDTable[i] == FUNC_REPORT_LIMIT) {
+      CanSendPacked(i, IDTYPE_STDID, BASIC_CAN_NUM, FRAME_DATA, 0, 0);
+    }
+  }
+}
+
 /**
  *PrepareRestModules:Prepare for Rest module
  */
@@ -1249,9 +1257,12 @@ int CanModule::UpdateEndstops(uint8_t *pBuff) {
   index = MsgID;
   tmpEndstopBits |= (1 << index);
   if(pBuff[2] == 0) tmpEndstopBits &= ~(1 << index);
-  Endstop = tmpEndstopBits & (tmpEndstopBits >> 7) & (tmpEndstopBits >> 14);
+
+  Endstop &= ~0x7f; // clear bit
+  Endstop |= 0x7f & tmpEndstopBits & (tmpEndstopBits >> 7) & (tmpEndstopBits >> 14); 
   return 0;
 }
+
 
 /**
  * SetFunctionValue:Post Value to the specific Function ID Modules

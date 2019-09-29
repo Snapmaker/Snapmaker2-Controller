@@ -66,6 +66,7 @@
 #include "gcode/gcode.h"
 #include "gcode/parser.h"
 #include "gcode/queue.h"
+#include "feature/bedlevel/bedlevel.h"
 
 #include "module/executermanager.h"
 
@@ -1243,6 +1244,11 @@ void CheckAppValidFlag(void)
 void loop() {
   CheckUpdateFlag();
   CheckAppValidFlag();
+
+  // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
+  reset_bed_level_if_upgraded();
+
+
   millis_t tmptick;
   
   tmptick = millis() + 4000;
@@ -1330,6 +1336,18 @@ void loop() {
     SystemStatus.Process();
     Periph.Process();
     idle();
+
+    // avoid module proactive reply failure, loop query
+    // case 1: unexpected faliment runout trigger if we startup withou toolhead loaded.
+    // case 2: Z axis hit boundary when we run G28.
+    // case 3: Z_MIN_Probe error, when we do z probe, the triggered message didn't arrive main controller
+
+    static int cur_mills = millis() + 3000;
+    if (cur_mills + 2500 <  millis()) {
+      cur_mills = millis();
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
+      CanModules.UpdateEndstops();
+    }
   }
 }
 

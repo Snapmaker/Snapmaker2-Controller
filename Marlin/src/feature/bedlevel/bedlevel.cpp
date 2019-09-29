@@ -147,6 +147,19 @@ void reset_bed_level() {
     planner.bed_level_matrix.set_to_identity();
   #endif
 }
+/**
+ * use this to reset data when we update firmware.
+ */
+void reset_bed_level_if_upgraded() {
+  for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
+    for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+      if (z_values[x][y] > 0.1) {
+        return;
+      }
+    }
+  reset_bed_level();
+  bed_level_virt_interpolate();
+}
 
 #if EITHER(AUTO_BED_LEVELING_BILINEAR, MESH_BED_LEVELING)
 
