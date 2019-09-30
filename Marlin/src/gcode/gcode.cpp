@@ -748,6 +748,13 @@ void GcodeSuite::execute_command(void) {
         case 413: M413(); break;                                  // M413: Enable/disable/query Power-Loss Recovery
         case 1000: M1000(); break;                                // M1000: Resume from power-loss
       #endif
+      case 1005:
+        SERIAL_ECHOPGM(MSG_MARLIN);
+        SERIAL_CHAR(' ');
+        SERIAL_ECHOLNPGM(SHORT_BUILD_VERSION);
+        SERIAL_ECHO_MSG("Compiled: " __DATE__);
+        SERIAL_EOL();
+        break;
       case 1026:
         enable_wait = !enable_wait;
         if (enable_wait) {
