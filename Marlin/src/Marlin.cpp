@@ -988,6 +988,8 @@ void setup() {
   SERIAL_ECHOPGM(MSG_MARLIN);
   SERIAL_CHAR(' ');
   SERIAL_ECHOLNPGM(SHORT_BUILD_VERSION);
+    SERIAL_CHAR(' ');
+  SERIAL_ECHO_MSG("Compiled: " __DATE__);
   SERIAL_EOL();
 
   #if defined(STRING_DISTRIBUTION_DATE) && defined(STRING_CONFIG_H_AUTHOR)
@@ -1342,7 +1344,7 @@ void loop() {
     // case 2: Z axis hit boundary when we run G28.
     // case 3: Z_MIN_Probe error, when we do z probe, the triggered message didn't arrive main controller
 
-    static int cur_mills = millis() + 3000;
+    static int cur_mills = millis() - 3000;
     if (cur_mills + 2500 <  millis()) {
       cur_mills = millis();
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);

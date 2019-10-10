@@ -50,7 +50,7 @@
  * M110 N<int> sets the current line number.
  */
 long gcode_N, gcode_LastN, Stopped_gcode_LastN = 0;
-bool enable_wait = true;
+bool enable_wait = false;
 
 /**
  * GCode Command Queue
