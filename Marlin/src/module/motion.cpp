@@ -1058,12 +1058,12 @@ bool axis_unhomed_error(const bool x/*=true*/, const bool y/*=true*/, const bool
 /**
  * Homing bump feedrate (mm/s)
  */
+extern uint8_t sm_homing_bump_divisor[XYZ];
 float get_homing_bump_feedrate(const AxisEnum axis) {
   #if HOMING_Z_WITH_PROBE
     if (axis == Z_AXIS) return MMM_TO_MMS(Z_PROBE_SPEED_SLOW);
   #endif
-  static const uint8_t homing_bump_divisor[] PROGMEM = HOMING_BUMP_DIVISOR;
-  uint8_t hbd = pgm_read_byte(&homing_bump_divisor[axis]);
+  uint8_t hbd = sm_homing_bump_divisor[axis];
   if (hbd < 1) {
     hbd = 10;
     SERIAL_ECHO_MSG("Warning: Homing Bump Divisor < 1");

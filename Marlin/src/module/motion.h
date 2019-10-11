@@ -75,7 +75,8 @@ extern float cartes[XYZ];
  * but the planner and stepper like mm/s units.
  */
 extern const float homing_feedrate_mm_s[XYZ];
-FORCE_INLINE float homing_feedrate(const AxisEnum a) { return pgm_read_float(&homing_feedrate_mm_s[a]); }
+extern float sm_homing_feedrate[XYZ];
+FORCE_INLINE float homing_feedrate(const AxisEnum a) { return sm_homing_feedrate[a]; }
 float get_homing_bump_feedrate(const AxisEnum axis);
 
 extern float feedrate_mm_s;

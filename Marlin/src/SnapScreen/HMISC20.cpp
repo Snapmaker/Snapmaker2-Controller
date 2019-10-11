@@ -28,6 +28,7 @@
 #include "../feature/runout.h"
 #include "../snap_module/snap_dbg.h"
 #include "../snap_module/quickstop.h"
+#include "../snap_module/M1028.h"
 
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
 char tmpBuff[1024];
@@ -410,14 +411,19 @@ void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
   Y = Y / 1000.0f;
   Z = Z / 1000.0f;
 
+  float max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
+  planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
+
   // All axes home
   process_cmd_imd("G28");
 
   // Move to the Certain point
-  do_blocking_move_to_logical_xy(X, Y, 30.0f);
+  do_blocking_move_to_logical_xy(X, Y, speed_in_calibration[X_AXIS]);
 
   // Move to the Z
-  do_blocking_move_to_logical_z(Z, 20.0f);
+  do_blocking_move_to_logical_z(Z, speed_in_calibration[Z_AXIS]);
+
+  planner.settings.max_feedrate_mm_s[Z_AXIS] = max_z_speed;
 }
 
 /********************************************************
@@ -503,7 +509,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     return false;
 
   // Move to next Z
-  move_to_limited_z(next_z, 20.0f);
+  do_blocking_move_to_logical_z(next_z, 20.0f);
 
   LOG_I("start ponit: X=%.2f, Y=%.2f, Z=%.2f\n", StartX, StartY, StartZ);
 
@@ -515,17 +521,17 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
   // Draw 10 Line
   do {
     // Move to the start point
-    move_to_limited_xy(next_x, next_y, 50.0f);
+    do_blocking_move_to_logical_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
     planner.synchronize();
 
     // Laser on
-    ExecuterHead.Laser.SetLaserPower(100.0f);
+    ExecuterHead.Laser.SetLaserPower(laser_pwr_in_cali);
 
     // Draw Line
     if((i % 5) == 0)
-      move_to_limited_xy(next_x, next_y + line_len_long, 3.0f);
+      do_blocking_move_to_logical_xy(next_x, next_y + line_len_long, 3.0f);
     else
-      move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
+      do_blocking_move_to_logical_xy(next_x, next_y + line_len_short, 3.0f);
 
     planner.synchronize();
 
@@ -536,7 +542,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
     // Move up Z increase
     if(i != (Count - 1))
-      move_to_limited_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
+      do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
 
     next_x = next_x + line_space;
     i++;
@@ -550,7 +556,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
   // Move to the center
   next_x = (current_position[X_AXIS] + StartX) / 2.0f - camera_x_offset;
   next_y = (current_position[Y_AXIS] + StartY) / 2.0f - camera_y_offset;
-  move_to_limited_xy(next_x, next_y, 20.0f);
+  do_blocking_move_to_logical_xy(next_x, next_y, 20.0f);
 
   return true;
 }
@@ -589,17 +595,19 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
   int j;
   int Index;
   int indexx, indexy;
+  float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
     // Turn off the heaters
     thermalManager.disable_all_heaters();
+
     process_cmd_imd("G28");
     process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
 
     set_bed_leveling_enabled(false);
 
     // Set the Z max feedrate to 50mm/s
-    planner.settings.max_feedrate_mm_s[Z_AXIS] = 50;
+    planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     // Set the current position of Z to Z_MAX_POS
     current_position[Z_AXIS] = Z_MAX_POS;
@@ -607,13 +615,15 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
 
     endstops.enable_z_probe(true);
 
+    // move quicky firstly to decrease the time
+    do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
 
     auto_probing(true);
 
     endstops.enable_z_probe(false);
 
     // Recover the Z max feedrate to 20mm/s
-    planner.settings.max_feedrate_mm_s[Z_AXIS] = 20;
+    planner.settings.max_feedrate_mm_s[Z_AXIS] = orig_max_z_speed;
 
     HMICommandSave = 1;
 
@@ -630,12 +640,15 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
 uint8_t HMI_SC20::ManualCalibrateStart()
 {
   int i, j;
+  float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
+
+    planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
+
     // Disable all heaters
     thermalManager.disable_all_heaters();
     process_cmd_imd("G28");
-    set_bed_leveling_enabled(false);
 
     // Z limit switch at the higtest position
     if (Z_HOME_DIR > 0) current_position[Z_AXIS] = Z_MAX_POS;
@@ -645,7 +658,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     sync_plan_position();
 
     // Move Z to 20mm height
-    do_blocking_move_to_logical_z(20);
+    do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
 
     // Preset the index to 99 for initial status
     PointIndex = 99;
@@ -656,6 +669,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
       }
     }
 
+    planner.settings.max_feedrate_mm_s[Z_AXIS] = orig_max_z_speed;
     //标置手动调平
     CalibrateMethod = 2;
     return 0;
@@ -1046,6 +1060,20 @@ void HMI_SC20::PollingCommand(void)
       else if (StatuID == 0x0c) {
         MarkNeedReack(1);
       }
+      // chamber status
+      else if (StatuID == 0x0d) {
+      }
+      // homing status
+      else if (StatuID == 0x0e) {
+        if(all_axes_homed())
+          MarkNeedReack(1);
+        else
+          MarkNeedReack(0);
+      }
+      // not supported command
+      else {
+        MarkNeedReack(1);
+      }
     }
 
     // change settings
@@ -1081,8 +1109,8 @@ void HMI_SC20::PollingCommand(void)
 
             // move to new point
             PointIndex = tmpBuff[10] -1;
-            do_blocking_move_to_logical_z(current_position[Z_AXIS] + 5, 30);
-            do_blocking_move_to_logical_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X), _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), 60.0f);
+            do_blocking_move_to_logical_z(current_position[Z_AXIS] + 5, speed_in_calibration[Z_AXIS]);
+            do_blocking_move_to_logical_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X), _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), speed_in_calibration[X_AXIS]);
             do_blocking_move_to_logical_z(current_position[Z_AXIS] - 5, 0.2);
             MarkNeedReack(0);
           }
@@ -1093,7 +1121,7 @@ void HMI_SC20::PollingCommand(void)
           LOG_I("SC req move Z in leveling\n");
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          move_to_limited_z(current_position[Z_AXIS] + fZ, 20.0f);
+          move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
 
@@ -1104,7 +1132,13 @@ void HMI_SC20::PollingCommand(void)
             process_cmd_imd("G1029 S");
 
             // home all axes
-            process_cmd_imd("G28");
+            if (all_axes_homed()) {
+              // raise Z only
+              set_bed_leveling_enabled(true);
+              move_to_limited_z(z_position_after_calibration, speed_in_calibration[Z_AXIS]);
+            }
+            else
+              process_cmd_imd("G28");
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1127,7 +1161,13 @@ void HMI_SC20::PollingCommand(void)
             //Load
             settings.load();
 
-            process_cmd_imd("G28");
+            if (all_axes_homed()) {
+              // raise Z only
+              set_bed_leveling_enabled(true);
+              move_to_limited_z(z_position_after_calibration, speed_in_calibration[Z_AXIS]);
+            }
+            else
+              process_cmd_imd("G28");
             HMICommandSave = 0;
 
             CalibrateMethod = 0;

@@ -876,6 +876,7 @@ private:
     static void M1000();
   #endif
 
+  static void M1028();
   static void M2000();
 
   static void T(const uint8_t tool_index);
