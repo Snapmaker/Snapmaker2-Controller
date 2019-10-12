@@ -62,9 +62,17 @@ bool GcodeSuite::select_coordinate_system(const int8_t _new) {
 inline void GcodeSuite::G53() {
   const int8_t _system = active_coordinate_system;
   active_coordinate_system = -1;
+
+  // retore workspace to native space
+  LOOP_XYZ(i) {
+    position_shift[i] = 0;
+    update_workspace_offset((AxisEnum)i);
+  }
+
   if (parser.chain()) { // If this command has more following...
     process_parsed_command();
-    active_coordinate_system = _system;
+    // restore work space to pre-workspace
+    select_coordinate_system(_system);
   }
 }
 

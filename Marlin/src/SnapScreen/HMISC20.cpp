@@ -29,6 +29,7 @@
 #include "../snap_module/snap_dbg.h"
 #include "../snap_module/quickstop.h"
 #include "../snap_module/M1028.h"
+#include "../snap_module/coordinate_mgr.h"
 
 extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
 char tmpBuff[1024];
@@ -786,7 +787,7 @@ void HMI_SC20::ReportLinearLength() {
     tmpBuff[i++] = (uint8_t)(Length >> 8);
     tmpBuff[i++] = (uint8_t)(Length);
   }
-  
+
   PackedProtocal(tmpBuff, i);
 }
 
@@ -815,7 +816,7 @@ void HMI_SC20::ReportLinearLead() {
     tmpBuff[i++] = (uint8_t)(Lead >> 8);
     tmpBuff[i++] = (uint8_t)(Lead);
   }
-  
+
   PackedProtocal(tmpBuff, i);
 }
 
@@ -838,7 +839,7 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
     tmpBuff[i++] = (uint8_t)(ID >> 8);
     tmpBuff[i++] = (uint8_t)(ID);
   }
-  
+
   PackedProtocal(tmpBuff, i);
 }
 
@@ -1068,6 +1069,12 @@ void HMI_SC20::PollingCommand(void)
         if(all_axes_homed())
           MarkNeedReack(1);
         else
+          MarkNeedReack(0);
+      }
+      // query coordinates data
+      else if (StatuID == 0xf) {
+        LOG_I("SC req coordinates!\n");
+        if (CoordinateMgrReport(tmpBuff[IDX_DATA0], tmpBuff[IDX_DATA0 + 1]) != E_SUCCESS)
           MarkNeedReack(0);
       }
       // not supported command
