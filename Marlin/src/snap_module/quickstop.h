@@ -42,8 +42,6 @@ class QuickStop {
     bool IsStopped() { return stopped_; };
     bool IsTriggered() { return !!event_; }
 
-    void Debug(QuickStopEvent e) { debug_ = e; }
-
   private:
 
     volatile QuickStopEvent event_ = QS_EVENT_NONE;
@@ -51,8 +49,6 @@ class QuickStop {
 
     volatile bool disable_stepper_ = false;
     volatile bool stopped_ = false;
-
-    QuickStopEvent debug_;
 
     void CleanMoves();
     void TowardStop();

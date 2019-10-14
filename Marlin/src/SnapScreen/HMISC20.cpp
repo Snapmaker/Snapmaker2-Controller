@@ -593,9 +593,6 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
 *********************************************************/
 uint8_t HMI_SC20::HalfAutoCalibrate()
 {
-  int j;
-  int Index;
-  int indexx, indexy;
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
@@ -1447,8 +1444,7 @@ void HMI_SC20::PollingCommand(void)
     }
     else if (eventId == 0x99) {
       if (OpCode == 0) {
-        // trigger powerloss
-        quickstop.Debug(QS_EVENT_ISR_POWER_LOSS);
+        // trigger powerloss, now is disabled
       }
       // Set MacID
       else if(OpCode == 1) {

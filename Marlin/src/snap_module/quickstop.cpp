@@ -20,7 +20,7 @@ bool QuickStop::CheckISR(block_t *blk) {
   QuickStopEvent new_event = QS_EVENT_NONE;
   static millis_t last_powerloss = 0;
 
-  uint8_t powerstat = (debug_ == QS_EVENT_NONE)?  READ(POWER_DETECT_PIN) : POWER_LOSS_STATE;
+  uint8_t powerstat = READ(POWER_DETECT_PIN);
 
   // debounce for power loss, will delay 10ms for responce
   if (powerstat != POWER_LOSS_STATE)
@@ -256,6 +256,4 @@ void QuickStop::Process() {
 
 void QuickStop::Reset() {
   stopped_ = false;
-
-  debug_ = QS_EVENT_NONE;
 }
