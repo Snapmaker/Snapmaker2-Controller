@@ -41,6 +41,7 @@ public:
 private:
   void PackedProtocal(uint8_t *pData, uint16_t len);
   char GetReply(uint8_t *Buff, millis_t Timeout);
+  void CheckFan();
 
 public:
   float FocusHeight;

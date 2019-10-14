@@ -15,6 +15,7 @@ ExecuterManager ExecuterHead;
 void ExecuterManager::Init()
 {
   MachineType = MACHINE_TYPE_UNDEFINE;
+  fan_state_ = 0;
 }
 
 /**
@@ -49,6 +50,17 @@ bool ExecuterManager::Detecte()
       SetFan(1, 0);
   }
 
+
+  void ExecuterManager::SetFanState(uint8_t speed, uint8_t idx) {
+    if (idx > (EXECUTER_FAN_COUNT-1))
+      return;
+
+    if (speed > 0)
+      SBI(fan_state_, idx);
+    else
+      CBI(fan_state_, idx);
+  }
+
   /**
    * SetFanDelayOff:
    * para index:executer index
@@ -59,14 +71,24 @@ bool ExecuterManager::Detecte()
   {
     uint8_t Data[8];
 
+    if (index > (EXECUTER_FAN_COUNT-1))
+      return;
+
     Data[0] = 0;
     Data[1] = time;
     Data[2] = s_value;
-    FanSpeed[index] = s_value;
-    if(index == 0) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 3);
-    else if(index == 1) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 3);
-  }
 
+    FanSpeed[index] = s_value;
+
+    if(index == 0) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 3);
+    }
+    else if(index == 1) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 3);
+    }
+
+    SetFanState(index, s_value);
+  }
   /**
    * SetFan:Set fan 
    * para index:executer index
@@ -76,11 +98,22 @@ bool ExecuterManager::Detecte()
   {
     uint8_t Data[8];
 
+    if (index > (EXECUTER_FAN_COUNT-1))
+      return;
+
     Data[0] = 0;
     Data[1] = s_value;
+
     FanSpeed[index] = s_value;
-    if(index == 0) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 2);
-    else if(index == 1) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 2);
+
+    if(index == 0) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 2);
+    }
+    else if(index == 1) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 2);
+    }
+
+    SetFanState(index, s_value);
   }
 #else
 

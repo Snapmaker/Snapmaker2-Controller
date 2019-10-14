@@ -15,13 +15,19 @@
 
 #define EXECUTER_FAN_COUNT  4
 
+#define FAN1_MASK 0x01
+#define FAN2_MASK 0x02
+#define FAN3_MASK 0x04
+#define FAN4_MASK 0x08
+#define FAN_ALL_MASK 0x0F
+
 class ExecuterManager
 {
 public:
   ExecuterManager(){};
   void Init();
   bool Detecte();
-  
+  bool fan_state(uint8_t mask) { return (bool)(fan_state_ & mask); }
 
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)
     void SetTemperature(uint8_t index, uint16_t temperature);
@@ -34,6 +40,9 @@ private:
   #if DISABLED(EXECUTER_CANBUS_SUPPORT)
     uint8_t GetMachineTypeFromTemperature(void);
   #endif
+    uint8_t fan_state_;
+
+    void SetFanState(uint8_t speed, uint8_t idx);
 
 public:
   LaserExecuter Laser;

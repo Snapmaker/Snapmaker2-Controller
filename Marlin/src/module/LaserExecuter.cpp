@@ -6,6 +6,9 @@
 #include "LaserExecuter.h"
 #include "CanBus.h"
 #include "CanDefines.h"
+#include "ExecuterManager.h"
+
+#define LASER_FAN_MASK  FAN1_MASK
 
 static const uint16_t LaserPowerTable[]=
 {
@@ -31,6 +34,14 @@ void LaserExecuter::Init()
 }
 
 /**
+ * check if FAN is open, if not, will open it
+ */
+void LaserExecuter::CheckFan() {
+  if (!ExecuterHead.fan_state(LASER_FAN_MASK))
+    ExecuterHead.SetFan(0, 255);
+}
+
+/**
  * SetLaserLowPower:Set laser power
  * para percent:
  */
@@ -43,6 +54,10 @@ void LaserExecuter::SetLaserPower(float Percent)
   integer = Percent;
   decimal = Percent - integer;
   pwmvalue = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
+
+  if (Percent > 0)
+    CheckFan();
+
   TimSetPwm(pwmvalue);
 }
 
@@ -52,6 +67,9 @@ void LaserExecuter::SetLaserPower(float Percent)
  */
 void LaserExecuter::SetLaserPower(uint16_t PwmValue)
 {
+  if (PwmValue > 0)
+    CheckFan();
+
   TimSetPwm(PwmValue);
 }
 
@@ -68,6 +86,8 @@ void LaserExecuter::Off()
  */
 void LaserExecuter::On()
 {
+  CheckFan();
+
   SetLaserPower(last_percent);
 }
 
