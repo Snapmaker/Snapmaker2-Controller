@@ -1138,14 +1138,7 @@ void HMI_SC20::PollingCommand(void)
           if (CMD_BUFF_EMPTY() == true) {
             process_cmd_imd("G1029 S");
 
-            // home all axes
-            if (all_axes_homed()) {
-              // raise Z only
-              set_bed_leveling_enabled(true);
-              move_to_limited_z(z_position_after_calibration, speed_in_calibration[Z_AXIS]);
-            }
-            else
-              process_cmd_imd("G28");
+            process_cmd_imd("G28");
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1168,13 +1161,9 @@ void HMI_SC20::PollingCommand(void)
             //Load
             settings.load();
 
-            if (all_axes_homed()) {
-              // raise Z only
-              set_bed_leveling_enabled(true);
-              move_to_limited_z(z_position_after_calibration, speed_in_calibration[Z_AXIS]);
-            }
-            else
-              process_cmd_imd("G28");
+            // home all axis
+            process_cmd_imd("G28");
+
             HMICommandSave = 0;
 
             CalibrateMethod = 0;
@@ -1258,8 +1247,25 @@ void HMI_SC20::PollingCommand(void)
           break;
 
         case 14:
-          LOG_I("not support 0x9 0xe\n");
+          LOG_I("SC req auto probe\n");
+          // auto leveling, only offset between probe and extruder is known
+          extern float nozzle_height_probed;
+          if (nozzle_height_probed == 0) {
+            MarkNeedReack(2);
+            break;
+          }
+
+          if (HalfAutoCalibrate()) {
             MarkNeedReack(1);
+            break;
+          }
+
+          process_cmd_imd("1029 S1");
+          // home all axis
+          process_cmd_imd("G28");
+          CalibrateMethod = 0;
+          HMICommandSave = 0;
+          MarkNeedReack(0);
           break;
 
         //读取尺寸参数

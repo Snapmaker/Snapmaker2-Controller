@@ -37,6 +37,8 @@
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
       z_values[GRID_MAX_NUM][GRID_MAX_NUM];
+// nozzle height when probed bed, will initialize by settings.load()
+float nozzle_height_probed = 0;
 
 /**
  * Extrapolate a single point from its neighbors
@@ -498,7 +500,7 @@ void compensate_offset(float offset) {
 
 void compensate_offset() {
   float offset = z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] - current_position[Z_AXIS];
-
+  nozzle_height_probed = offset;
   compensate_offset(offset);
 }
 

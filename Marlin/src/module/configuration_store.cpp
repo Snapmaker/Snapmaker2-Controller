@@ -111,6 +111,8 @@ typedef struct {     bool X, Y, Z, X2, Y2, Z2, Z3, E0, E1, E2, E3, E4, E5; } tmc
 // Limit an index to an array size
 #define ALIM(I,ARR) MIN(I, COUNT(ARR) - 1)
 
+extern float nozzle_height_probed;
+
 /**
  * Current EEPROM Layout
  *
@@ -316,6 +318,9 @@ typedef struct SettingsDataStruct {
   // brightness for lightbar
   //
   uint32_t  lb_brightness;
+
+  // nozzle height when probed bed
+  float nozzle_height_probed;
 } SettingsData;
 
 MarlinSettings settings;
@@ -1143,7 +1148,7 @@ void MarlinSettings::postprocess() {
       DIR[E_AXIS] = E_DIR==true?1:-1;
       _FIELD_TEST(DIR);
       EEPROM_WRITE(DIR);
-      
+
       DIR[X_AXIS] = X_HOME_DIR>0?1:-1;
       DIR[Y_AXIS] = Y_HOME_DIR>0?1:-1;
       DIR[Z_AXIS] = Z_HOME_DIR>0?1:-1;
@@ -1169,6 +1174,9 @@ void MarlinSettings::postprocess() {
     uint32_t lb_brightness = (uint32_t)lightbar.get_brightness();
     _FIELD_TEST(lb_brightness);
     EEPROM_WRITE(lb_brightness);
+
+    _FIELD_TEST(nozzle_height_probed);
+    EEPROM_WRITE(nozzle_height_probed);
 
     //
     // Validate CRC and Data Size
@@ -1935,7 +1943,10 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(lb_brightness);
         lightbar.set_brightness(lb_brightness);
       }
-      
+
+      _FIELD_TEST(nozzle_height_probed);
+      EEPROM_READ(nozzle_height_probed);
+
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {
         DEBUG_ECHO_START();
@@ -2498,6 +2509,8 @@ void MarlinSettings::reset() {
 
   DEBUG_ECHO_START();
   DEBUG_ECHOLNPGM("Hardcoded Default Settings Loaded");
+
+  nozzle_height_probed = 0;
 }
 
 #if DISABLED(DISABLE_M503)
