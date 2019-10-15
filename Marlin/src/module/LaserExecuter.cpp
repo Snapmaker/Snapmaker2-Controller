@@ -104,7 +104,7 @@ void LaserExecuter::SetLaserPower(float Percent)
   decimal = Percent - integer;
   pwmvalue = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
 
-  last_pwm = last_pwm;
+  last_pwm = pwmvalue;
 
   CheckFan(pwmvalue);
 
@@ -136,7 +136,7 @@ void LaserExecuter::Off()
  */
 void LaserExecuter::On()
 {
-  CheckFan(0);
+  CheckFan(last_pwm);
   TimSetPwm(last_pwm);
 }
 

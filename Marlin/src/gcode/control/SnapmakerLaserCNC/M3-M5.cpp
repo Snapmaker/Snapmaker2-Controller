@@ -71,10 +71,7 @@ void GcodeSuite::M3_M4(const bool is_M4) {
    */
  
   if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    if (parser.seen('S')) {
-      ExecuterHead.Laser.SetLaserPower(parser.value_ushort());
-    }
-    else if(parser.seen('P')) {
+    if(parser.seen('P')) {
       ExecuterHead.Laser.SetLaserPower(parser.value_float());
     }
     else {
