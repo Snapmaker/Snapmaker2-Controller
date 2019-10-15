@@ -1337,6 +1337,7 @@ void loop() {
     SystemStatus.CheckFatalError();
     SystemStatus.Process();
     Periph.Process();
+    ExecuterHead.Process();
     idle();
 
     // avoid module proactive reply failure, loop query

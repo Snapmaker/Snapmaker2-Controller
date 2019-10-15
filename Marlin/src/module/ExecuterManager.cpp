@@ -15,7 +15,6 @@ ExecuterManager ExecuterHead;
 void ExecuterManager::Init()
 {
   MachineType = MACHINE_TYPE_UNDEFINE;
-  fan_state_ = 0;
 }
 
 /**
@@ -28,6 +27,10 @@ bool ExecuterManager::Detecte()
     MachineType = GetMachineTypeFromTemperature();
   #endif
   return (MachineType != MACHINE_TYPE_UNDEFINE);
+}
+
+void ExecuterManager::Process() {
+  Laser.TryCloseFan();
 }
 
 
@@ -50,17 +53,6 @@ bool ExecuterManager::Detecte()
       SetFan(1, 0);
   }
 
-
-  void ExecuterManager::SetFanState(uint8_t speed, uint8_t idx) {
-    if (idx > (EXECUTER_FAN_COUNT-1))
-      return;
-
-    if (speed > 0)
-      SBI(fan_state_, idx);
-    else
-      CBI(fan_state_, idx);
-  }
-
   /**
    * SetFanDelayOff:
    * para index:executer index
@@ -72,6 +64,9 @@ bool ExecuterManager::Detecte()
     uint8_t Data[8];
 
     if (index > (EXECUTER_FAN_COUNT-1))
+      return;
+
+    if (MachineType != MACHINE_TYPE_3DPRINT)
       return;
 
     Data[0] = 0;
@@ -86,8 +81,6 @@ bool ExecuterManager::Detecte()
     else if(index == 1) {
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 3);
     }
-
-    SetFanState(index, s_value);
   }
   /**
    * SetFan:Set fan 
@@ -101,6 +94,9 @@ bool ExecuterManager::Detecte()
     if (index > (EXECUTER_FAN_COUNT-1))
       return;
 
+    if (MachineType != MACHINE_TYPE_3DPRINT)
+      return;
+
     Data[0] = 0;
     Data[1] = s_value;
 
@@ -112,8 +108,6 @@ bool ExecuterManager::Detecte()
     else if(index == 1) {
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 2);
     }
-
-    SetFanState(index, s_value);
   }
 #else
 

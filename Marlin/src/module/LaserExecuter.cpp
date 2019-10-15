@@ -8,11 +8,12 @@
 #include "CanDefines.h"
 #include "ExecuterManager.h"
 
-#define LASER_FAN_MASK  FAN1_MASK
+// time to delay close fan, 5s
+#define TIME_TO_CLOSE_FAN 5000
 
 static const uint16_t LaserPowerTable[]=
 {
-  0, 
+  0,
   20,22,24,26,28,30,31,33,35,37,39,41,43,45,47,49,51,53,54,56,58,60,63,65,67,69,71,73,75,77,79,82,84,86,88,90,93,95,97,
   100,102,103,106,109,111,113,116,119,121,123,125,128,130,133,135,138,140,143,145,148,150,153,156,158,161,164,166,169,
   171,174,177,179,182,185,187,190,192,196,198,200,203,205,208,210,211,214,217,218,221,224,226,228,231,234,236,240,242,
@@ -31,14 +32,62 @@ void LaserExecuter::Init()
   Tim1PwmInit();
   LASERSerial.begin(115200);
   LoadFocusHeight();
+
+  fan_state_ = LAESR_FAN_STA_CLOSED;
+  fan_tick_ = 0;
 }
 
 /**
  * check if FAN is open, if not, will open it
  */
-void LaserExecuter::CheckFan() {
-  if (!ExecuterHead.fan_state(LASER_FAN_MASK))
-    ExecuterHead.SetFan(0, 255);
+void LaserExecuter::CheckFan(uint16_t p) {
+  uint8_t data[2];
+
+  switch (fan_state_) {
+  case LAESR_FAN_STA_OPEN:
+    if (p == 0) {
+      fan_state_ = LAESR_FAN_STA_TO_BE_CLOSED;
+      fan_tick_ = millis();
+    }
+    break;
+
+  case LAESR_FAN_STA_TO_BE_CLOSED:
+    if (p > 0) {
+      fan_state_ = LAESR_FAN_STA_OPEN;
+      fan_tick_ = 0;
+    }
+    break;
+
+  case LAESR_FAN_STA_CLOSED:
+    if (p > 0) {
+      data[0] = 0;
+      data[1] = 255;
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, data, 2);
+      fan_state_ = LAESR_FAN_STA_OPEN;
+      fan_tick_ = 0;
+    }
+    break;
+  }
+}
+
+/**
+ * try to close fan if needed
+ */
+void LaserExecuter::TryCloseFan() {
+  uint8_t data[2];
+
+  if (ExecuterHead.MachineType != MACHINE_TYPE_LASER)
+    return;
+
+  if (fan_state_ == LAESR_FAN_STA_TO_BE_CLOSED) {
+    if ((millis() - fan_tick_) > TIME_TO_CLOSE_FAN) {
+      data[0] = 0;
+      data[1] = 0;
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, data, 2);
+      fan_state_ = LAESR_FAN_STA_CLOSED;
+      fan_tick_ = 0;
+    }
+  }
 }
 
 /**
@@ -55,8 +104,9 @@ void LaserExecuter::SetLaserPower(float Percent)
   decimal = Percent - integer;
   pwmvalue = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
 
-  if (Percent > 0)
-    CheckFan();
+  last_pwm = last_pwm;
+
+  CheckFan(pwmvalue);
 
   TimSetPwm(pwmvalue);
 }
@@ -67,8 +117,7 @@ void LaserExecuter::SetLaserPower(float Percent)
  */
 void LaserExecuter::SetLaserPower(uint16_t PwmValue)
 {
-  if (PwmValue > 0)
-    CheckFan();
+  CheckFan(PwmValue);
 
   TimSetPwm(PwmValue);
 }
@@ -78,6 +127,7 @@ void LaserExecuter::SetLaserPower(uint16_t PwmValue)
  */
 void LaserExecuter::Off()
 {
+  CheckFan(0);
   TimSetPwm(0);
 }
 
@@ -86,9 +136,8 @@ void LaserExecuter::Off()
  */
 void LaserExecuter::On()
 {
-  CheckFan();
-
-  SetLaserPower(last_percent);
+  CheckFan(0);
+  TimSetPwm(last_pwm);
 }
 
 
@@ -204,7 +253,7 @@ void LaserExecuter::PackedProtocal(uint8_t *pData, uint16_t len)
 
 	tmpBuff[6] = checksum >> 8;
 	tmpBuff[7] = checksum;
-	
+
 	LASERSerial.write(tmpBuff, i);
 }
 
@@ -214,7 +263,7 @@ void LaserExecuter::PackedProtocal(uint8_t *pData, uint16_t len)
  * return:0 for connected, 1 for disconnect, -1 for wifi unexisting
  */
 char LaserExecuter::GetReply(uint8_t *Buff, millis_t Timeout) {
-  
+
   int c;
   millis_t tmptick;
   uint16_t i;
@@ -222,7 +271,7 @@ char LaserExecuter::GetReply(uint8_t *Buff, millis_t Timeout) {
   uint16_t DataLen;
   uint32_t GetChecksum;
   uint32_t calCheck = 0;
-  
+
   tmptick = millis() + Timeout;
   i = 0;
   while(1) {
@@ -248,7 +297,7 @@ char LaserExecuter::GetReply(uint8_t *Buff, millis_t Timeout) {
         else Buff[i++] = c;
       }
     }while(c != -1);
-    
+
     if(i > 8) {
       DataLen = ((uint16_t)Buff[2] << 8) | Buff[3];
       if((DataLen + 8) <= i) {
@@ -325,7 +374,7 @@ char LaserExecuter::SetWifiParameter(char *SSID, char *Password)
   uint8_t i;
   uint8_t j;
   uint8_t Buff[90];
-  
+
   i = 0;
   Buff[i++] = 0x01;
   for(j=0;j<32;j++)
@@ -335,7 +384,7 @@ char LaserExecuter::SetWifiParameter(char *SSID, char *Password)
     Buff[i++] = SSID[j];
   }
   Buff[i++] = 0;
-  
+
   for(j=0;j<32;j++)
   {
     if(Password[j] == 0)
@@ -355,7 +404,18 @@ uint16_t LaserExecuter::GetTimPwm() {
   return Tim1GetCCR4();
 }
 
+
+/**
+ * API for power-loss, percent is the last settings from HOST, and pwm maybe 0
+*/
 void LaserExecuter::RestorePower(float percent, uint16_t pwm) {
+  int integer;
+  float decimal;
   last_percent = percent;
+  integer = percent;
+  decimal = percent - integer;
+
+  last_percent = percent;
+  last_pwm = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
   TimSetPwm(pwm);
 }
