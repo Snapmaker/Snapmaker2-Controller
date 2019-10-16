@@ -415,9 +415,6 @@ void HMI_SC20::LaserCoarseCalibrate(float X, float Y, float Z) {
   float max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
   planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
-  // All axes home
-  process_cmd_imd("G28");
-
   // Move to the Certain point
   do_blocking_move_to_logical_xy(X, Y, speed_in_calibration[X_AXIS]);
 
@@ -1063,10 +1060,8 @@ void HMI_SC20::PollingCommand(void)
       }
       // homing status
       else if (StatuID == 0x0e) {
-        if(all_axes_homed())
-          MarkNeedReack(1);
-        else
-          MarkNeedReack(0);
+        LOG_I("SC req coordinate status!\n");
+        CoordinateMgrReportStatus(eventId, OpCode);
       }
       // query coordinates data
       else if (StatuID == 0xf) {
@@ -1207,6 +1202,13 @@ void HMI_SC20::PollingCommand(void)
         //激光焦点粗调
         case 12:
           LOG_I("Laser: rough focusing\n");
+
+          if (!all_axes_homed()) {
+            LOG_E("Machine is not be homed!\n");
+            MarkNeedReack(2);
+            break;
+          }
+
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
             j = 10;
             BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
@@ -1800,7 +1802,7 @@ void HMI_SC20::SendMachineStatusChange(uint8_t Status, uint8_t Result)
 void HMI_SC20::SendMachineStatus()
 {
   float fValue;
-  uint32_t u32Value;
+  int32_t tmp;
   uint16_t i;
   i = 0;
 
@@ -1812,17 +1814,17 @@ void HMI_SC20::SendMachineStatus()
 
   //坐标
   fValue = LOGICAL_X_POSITION(stepper.position(X_AXIS) * planner.steps_to_mm[X_AXIS]);
-  u32Value = (uint32_t) (fValue * 1000);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
+  tmp = (int32_t) (fValue * 1000);
+  BITS32_TO_BYTES(tmp, tmpBuff, i);
   fValue = LOGICAL_Y_POSITION(stepper.position(Y_AXIS) * planner.steps_to_mm[Y_AXIS]);
-  u32Value = (uint32_t) (fValue * 1000);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
+  tmp = (int32_t) (fValue * 1000);
+  BITS32_TO_BYTES(tmp, tmpBuff, i);
   fValue = LOGICAL_Z_POSITION(stepper.position(Z_AXIS) * planner.steps_to_mm[Z_AXIS]);
-  u32Value = (uint32_t) (fValue * 1000);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
+  tmp = (int32_t) (fValue * 1000);
+  BITS32_TO_BYTES(tmp, tmpBuff, i);
   fValue = stepper.position(E_AXIS) *planner.steps_to_mm[E_AXIS];
-  u32Value = (uint32_t) (fValue * 1000);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
+  tmp = (int32_t) (fValue * 1000);
+  BITS32_TO_BYTES(tmp, tmpBuff, i);
 
   //温度
   int16_t T0, TB, T0S, TBS;

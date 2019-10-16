@@ -23,6 +23,7 @@
 #include "../gcode.h"
 #include "../../module/motion.h"
 #include "../../module/stepper.h"
+#include "../../module/configuration_store.h"
 
 #if ENABLED(I2C_POSITION_ENCODERS)
   #include "../../feature/I2CPositionEncoder.h"
@@ -88,8 +89,10 @@ void GcodeSuite::G92() {
 
   #if ENABLED(CNC_COORDINATE_SYSTEMS)
     // Apply workspace offset to the active coordinate system
-    if (WITHIN(active_coordinate_system, 0, MAX_COORDINATE_SYSTEMS - 1))
+    if (WITHIN(active_coordinate_system, 0, MAX_COORDINATE_SYSTEMS - 1)) {
       COPY(coordinate_system[active_coordinate_system], position_shift);
+      settings.save();
+    }
   #endif
 
   if    (didXYZ) sync_plan_position();

@@ -3,6 +3,7 @@
 
 #include "error.h"
 
+void CoordinateMgrReportStatus(uint8_t eventid, uint8_t opcode);
 ErrCode CoordinateMgrReport(uint8_t start, uint8_t tot);
 
 #endif

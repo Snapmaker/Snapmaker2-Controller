@@ -4,10 +4,68 @@
 #include "snap_dbg.h"
 #include "../gcode/gcode.h"
 #include "../SnapScreen/HMISC20.h"
+#include "../module/motion.h"
+
+#if ENABLED(CNC_COORDINATE_SYSTEMS)
 
 extern HMI_SC20 SC20HMI;
 
-ErrCode CoordinateMgrReport(uint8_t start, uint8_t tot) {
+#define BITS32_TO_BYTES(u32bit, buff, index) do { \
+    buff[index++] = (uint8_t)(u32bit >> 24); \
+    buff[index++] = (uint8_t)(u32bit >> 16); \
+    buff[index++] = (uint8_t)(u32bit >> 8); \
+    buff[index++] = (uint8_t)(u32bit); \
+    }while(0)
+
+void CoordinateMgrReportStatus(uint8_t eventid, uint8_t opcode) {
+  uint8_t buff[20] = {0};
+  uint8_t i = 0;
+  int32_t pos_shift[XYZ];
+
+  buff[i++] = eventid + 1;
+  buff[i++] = opcode;
+
+  if (all_axes_homed()) {
+    buff[i++] = 0;
+  }
+  else {
+    buff[i++] = 1;
+  }
+
+  if (gcode.active_coordinate_system < 0) {
+    // number
+    buff[i++] = 0;
+    // state
+    buff[i++] = 0;
+    pos_shift[X_AXIS] = (int32_t)(position_shift[X_AXIS] * 1000);
+    pos_shift[Y_AXIS] = (int32_t)(position_shift[Y_AXIS] * 1000);
+    pos_shift[Z_AXIS] = (int32_t)(position_shift[Z_AXIS] * 1000);
+  }
+  else {
+    buff[i++] = gcode.active_coordinate_system + 1;
+    // check state
+    if ((position_shift[X_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS]) &&
+        (position_shift[Y_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS]) &&
+        (position_shift[Z_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS])) {
+      buff[i++] = 0;
+    }
+    else {
+      buff[i++] = 1;
+    }
+    pos_shift[X_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS] * 1000);
+    pos_shift[Y_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS] * 1000);
+    pos_shift[Z_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS] * 1000);
+  }
+
+  BITS32_TO_BYTES(pos_shift[X_AXIS], buff, i);
+  BITS32_TO_BYTES(pos_shift[Y_AXIS], buff, i);
+  BITS32_TO_BYTES(pos_shift[Z_AXIS], buff, i);
+
+  SC20HMI.PackedProtocal((char *)buff, i + 12);
+}
+
+
+ErrCode CoordinateMgrReportData(uint8_t start, uint8_t tot) {
   if (!tot) {
     LOG_E("must specified how many coordinates data you wanted!");
     return E_PARAM;
@@ -32,4 +90,4 @@ ErrCode CoordinateMgrReport(uint8_t start, uint8_t tot) {
   return E_SUCCESS;
 }
 
-
+#endif
