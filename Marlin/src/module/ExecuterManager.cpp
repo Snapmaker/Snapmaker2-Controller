@@ -6,6 +6,7 @@
 #include "ExecuterManager.h"
 #include "CanBus.h"
 #include "CanDefines.h"
+#include "StatusControl.h"
 
 ExecuterManager ExecuterHead;
 
@@ -15,6 +16,20 @@ ExecuterManager ExecuterHead;
 void ExecuterManager::Init()
 {
   MachineType = MACHINE_TYPE_UNDEFINE;
+  keep_alive_ = 0xff;
+  dead_ = false;
+}
+
+void ExecuterManager::StartCheckHeartbeat() {
+  keep_alive_ = 0x3;
+}
+
+void ExecuterManager::KeepAlive() {
+  keep_alive_ = 0x3;
+}
+
+bool ExecuterManager::IsDead() {
+  return dead_;
 }
 
 /**
@@ -31,6 +46,31 @@ bool ExecuterManager::Detecte()
 
 void ExecuterManager::Process() {
   Laser.TryCloseFan();
+
+  static millis_t next_second = millis() + 1000;
+
+  if (next_second - millis() < 0) {
+    next_second = millis() + 1000;
+    if (keep_alive_ != 0xff && keep_alive_ != 0) {
+      keep_alive_--;
+    }
+
+    // because laser deosn't have heartbeat packet, so need to read it manually
+    // when it return focusheight, ISR will update the keep_alive_
+    if (MACHINE_TYPE_LASER == MachineType) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LASER_FOCUS, NULL, 0);
+    }
+  }
+
+  if ((keep_alive_ == 0) && !dead_) {
+    SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
+    dead_ = true;
+  }
+
+  if (keep_alive_ && dead_) {
+    SystemStatus.ClearException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
+    dead_ = false;
+  }
 }
 
 

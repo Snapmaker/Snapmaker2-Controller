@@ -2049,7 +2049,7 @@ void MarlinSettings::postprocess() {
       return _load();
     }
     else {
-      SystemStatus.SetSystemFaultBit(FAULT_FLAG_SETTING);
+      SystemStatus.ThrowException(EHOST_MC, ETYPE_LOST_CFG);
       reset();
       return true;
     }

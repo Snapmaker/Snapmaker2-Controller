@@ -51,6 +51,11 @@ void GcodeSuite::G0_G1(
   #endif
 ) {
 
+  if (action_ban & ACTION_BAN_NO_MOVING) {
+    SERIAL_ECHOLN("ERROR: System Fault Happened! Now cannot moving!");
+    return;
+  }
+
   if (IsRunning()
     #if ENABLED(NO_MOTION_BEFORE_HOMING)
       && !axis_unhomed_error(parser.seen('X'), parser.seen('Y'), parser.seen('Z'))

@@ -48,12 +48,11 @@ void PowerPanic::Init(void) {
   {
   case 0:
     // got power panic data
-    SystemStatus.SetSystemFaultBit(FAULT_FLAG_POWERPANIC);
+    SystemStatus.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
     SERIAL_ECHOLNPGM("Got power panic data!");
     break;
   case 1:
     // data read from flash is invalid
-    SystemStatus.SetSystemFaultBit(FAULT_FLAG_INVALID_PPD);
     SERIAL_ECHOLNPGM("invalid power panic data!");
     break;
 
@@ -519,6 +518,11 @@ void PowerPanic::RestoreWorkspace() {
  *return :true is resume success, or else false
  */
 ErrCode PowerPanic::ResumeWork() {
+	if (action_ban & ACTION_BAN_NO_WORKING) {
+    LOG_E("System Fault! Now cannot start working!\n");
+    return E_HARDWARE;
+	}
+
 	if (pre_data_.MachineType != ExecuterHead.MachineType) {
 		LOG_E("current[%d] machine is not same as previous[%d]\n",
 						ExecuterHead.MachineType, pre_data_.MachineType);
@@ -553,7 +557,6 @@ ErrCode PowerPanic::ResumeWork() {
 		if (runout.sensor_state()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-			HMI.SendMachineFaultFlag();
 			return E_HARDWARE;
 		}
 		Resume3DP();
@@ -592,8 +595,7 @@ ErrCode PowerPanic::ResumeWork() {
 void PowerPanic::TurnOffPowerISR(void) {
   // these 2 statement will disable power supply for
   // HMI, BED, and all addones except steppers
-  WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_OFF);
-  WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
+	disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
 }
 
 /*

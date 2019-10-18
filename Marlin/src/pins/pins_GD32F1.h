@@ -118,21 +118,22 @@ enum BoardVer {
 // Power 0 supply, for HMI
 //
 #define POWER0_SUPPLY_PIN PB0
+#define POWER0_SUPPLY_OFF HIGH
+#define POWER0_SUPPLY_ON  LOW
 
 //
 // Power1 supply, for motor and extruder
 //
 #define POWER1_SUPPLY_PIN PB1
+#define POWER1_SUPPLY_OFF LOW
+#define POWER1_SUPPLY_ON  HIGH
 
 //
-// Power2 supply, for eed and extern
+// Power2 supply, for bed and add-on
 //
 #define POWER2_SUPPLY_PIN PB2
 
 #define SCREEN_DET_PIN PD14
-
-#define POWER0_SUPPLY_OFF  HIGH
-#define POWER0_SUPPLY_ON   LOW
 
 #define POWER2_SUPPLY_OFF  LOW
 #define POWER2_SUPPLY_ON   HIGH

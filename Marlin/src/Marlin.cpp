@@ -365,6 +365,56 @@ void disable_all_steppers() {
   disable_e_steppers();
 }
 
+
+uint8_t action_ban = 0xff;
+void enable_action_ban(uint8_t ab) {
+  action_ban |= ab;
+}
+
+void disable_action_ban(uint8_t ab) {
+  action_ban &= (~ab);
+}
+
+// default all power domain is available
+uint8_t power_ban = 0xff;
+void enable_power_ban(uint8_t pd) {
+  power_ban |= pd;
+}
+
+void disable_power_ban(uint8_t pd) {
+  power_ban &= (~pd);
+}
+
+void enable_power_domain(uint8_t pd) {
+  pd &= power_ban;
+  #if PIN_EXISTS(POWER0_SUPPLY)
+    if (pd & POWER_DOMAIN_0) WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
+  #endif
+
+  #if PIN_EXISTS(POWER1_SUPPLY)
+    if (pd & POWER_DOMAIN_1) WRITE(POWER1_SUPPLY_PIN, POWER1_SUPPLY_ON);
+  #endif
+
+  #if PIN_EXISTS(POWER2_SUPPLY)
+    if (pd & POWER_DOMAIN_2) WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_ON);
+  #endif
+}
+
+void disable_power_domain(uint8_t pd) {
+  #if PIN_EXISTS(POWER0_SUPPLY)
+    if (pd & POWER_DOMAIN_0) WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_OFF);
+  #endif
+
+  #if PIN_EXISTS(POWER1_SUPPLY)
+    if (pd & POWER_DOMAIN_1) WRITE(POWER1_SUPPLY_PIN, POWER1_SUPPLY_OFF);
+  #endif
+
+  #if PIN_EXISTS(POWER2_SUPPLY)
+    if (pd & POWER_DOMAIN_2) WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
+  #endif
+}
+
+
 #if HAS_FILAMENT_SENSOR
 
   void event_filament_runout() {
@@ -725,6 +775,8 @@ void idle(
     HMI.CommandProcess();
   #endif
 
+  SystemStatus.CheckException();
+
   #if ENABLED(HOST_KEEPALIVE_FEATURE)
     gcode.host_keepalive();
   #endif
@@ -927,8 +979,8 @@ void setup() {
   #if HAS_FILAMENT_SENSOR
     runout.setup();
   #endif
-  
-  // Extruder Power 
+
+  // Extruder Power
   OUT_WRITE(PB10, false);
 
   setup_killpin();
@@ -949,6 +1001,8 @@ void setup() {
   #if ENABLED(HMISUPPORT)
     HMI.Init();
   #endif
+
+  ExecuterHead.Print3D.HeatedBedSelfCheck();
 
   #if NUM_SERIAL > 0
     uint32_t serial_connect_timeout = millis() + 1000UL;
@@ -1212,7 +1266,7 @@ void CheckUpdateFlag(void)
   Flag = *((uint32_t*)Address);
   if(Flag != 0xffffffff)
   {
-    FLASH_Unlock();  
+    FLASH_Unlock();
     FLASH_ErasePage(Address);
     FLASH_Lock();
   }
@@ -1227,7 +1281,7 @@ void CheckAppValidFlag(void)
   uint32_t Address;
   Address = FLASH_BOOT_PARA;
   Value = *((uint32_t*)Address);
-  if(Value != 0xaa55ee11) { 
+  if(Value != 0xaa55ee11) {
     FLASH_Unlock();
     FLASH_ErasePage(Address);
     FLASH_ProgramWord(Address, 0xaa55ee11);
@@ -1252,18 +1306,21 @@ void loop() {
 
 
   millis_t tmptick;
-  
+
   tmptick = millis() + 4000;
   while(tmptick > millis());
   ExecuterHead.Init();
   CanModules.Init();
+  if (CanModules.LinearModuleCount == 0) {
+    SystemStatus.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
+  }
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
     endstops.reinit_hit_status();
   #endif
 
   lightbar.init();
-  
+
   //endstops.CanPrepareAxis();
   while(ExecuterHead.MachineType == MACHINE_TYPE_UNDEFINE) {
     #if ENABLED(HMISUPPORT)
@@ -1276,7 +1333,7 @@ void loop() {
       HMI.ChangePage(PAGE_PRINT);
     else
       HMI.ChangePage(PAGE_CNC);
-    
+
     if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
       SERIAL_ECHOLNPGM("Laser Module\r\n");
       ExecuterHead.Laser.Init();
@@ -1290,12 +1347,17 @@ void loop() {
       ExecuterHead.Print3D.Init();
     }
     else {
-      SERIAL_ECHOLNPGM("Undefined Module\r\n");
+      SERIAL_ECHOLNPGM("No Executor detected!");
+      SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_NO_HOST);
+    }
+
+    if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
+      ExecuterHead.StartCheckHeartbeat();
     }
   }
   //ExecuterHead.MachineType = MACHINE_TYPE_LASER;
   //ExecuterHead.Laser.Init();
-  
+
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
   for (;;) {
@@ -1334,7 +1396,6 @@ void loop() {
     advance_command_queue();
     quickstop.Process();
     endstops.event_handler();
-    SystemStatus.CheckFatalError();
     SystemStatus.Process();
     Periph.Process();
     ExecuterHead.Process();
@@ -1349,12 +1410,11 @@ void loop() {
     if (cur_mills + 2500 <  millis()) {
       cur_mills = millis();
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
-      CanModules.UpdateEndstops();
     }
   }
 }
 
-#if ENABLED(SDSUPPORT)	
+#if ENABLED(SDSUPPORT)
 extern "C"
 {
 void __irq_otg_fs(void)

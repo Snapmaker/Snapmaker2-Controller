@@ -6,16 +6,63 @@
 #ifndef _STATUS_CONTROL_H_
 #define _STATUS_CONTROL_H_
 
-#define FAULT_FLAG_HEATER0	          1
-#define FAULT_FLAG_BED		            (1<<1)
-#define FAULT_FLAG_LOAD		            (1<<2)
+#define FAULT_FLAG_NO_EXECUTOR        1       // lost executor
+#define FAULT_FLAG_NO_LINEAR          (1<<1)  // no any linear module detect
+#define FAULT_FLAG_BED_PORT           (1<<2)  // NMOS for controlling bed is breakdown
 #define FAULT_FLAG_FILAMENT	          (1<<3)
-#define FAULT_FLAG_HEATFAIL	          (1<<4)
-#define FAULT_FLAG_FILAMENT_SENSOR	  (1<<5)
-#define FAULT_FLAG_POWERPANIC	        (1<<6)
-#define FAULT_FLAG_LASER_EEPROM	      (1<<7)
-#define FAULT_FLAG_INVALID_PPD        (1<<8)    /* invalid power panic data */
-#define FAULT_FLAG_SETTING            (1<<9)    /* EEPROM settings lost*/
+#define FAULT_FLAG_LOST_SETTING	      (1<<4)
+#define FAULT_FLAG_LOST_EXECUTOR      (1<<5)
+#define FAULT_FLAG_POWER_LOSS	        (1<<6)
+#define FAULT_FLAG_HOTEND_HEATFAIL    (1<<7)  /* invalid power panic data */
+#define FAULT_FLAG_BED_HEATFAIL       (1<<8)  /* EEPROM settings lost*/
+#define FAULT_FLAG_HOTEND_RUNWAWY     (1<<9) // temperature of hotend is runaway
+#define FAULT_FLAG_BED_RUNAWAY        (1<<10) // temperature of bed is runaway
+#define FAULT_FLAG_HOTEND_SENSOR_BAD  (1<<11) // temperature sensor of hotend is abnormal
+#define FAULT_FLAG_BED_SENSOR_BAD     (1<<12) // temperature sensor of bed is abnormal
+#define FAULT_FLAG_LOST_LINEAR        (1<<13)
+#define FAULT_FLAG_UNKNOW_MODEL       (1<<14)
+
+// this macro mask the bits which are allow to be cleared by screen
+#define FAULT_FLAG_SC_CLEAR_MASK      (FAULT_FLAG_POWER_LOSS | FAULT_FLAG_FILAMENT | FAULT_FLAG_LOST_SETTING)
+
+// exception actions
+#define EACTION_NONE                0
+#define EACTION_PAUSE_WORKING       0x1
+#define EACTION_STOP_WORKING        (0x1<<1)
+#define EACTION_STOP_HEATING_BED    (0x1<<2)
+#define EACTION_STOP_HEATING_HOTEND (0x1<<3)
+
+#define EXCEPTION_ISR_BUFFSER_SIZE  4
+
+enum ExceptionHost : int8_t {
+  EHOST_CHAMBER = -2,  /* -2 ~ 6 just are to match Thermal Manage of Marlin */
+  EHOST_BED = -1,
+  EHOST_HOTEND0 = 0,
+  EHOST_HOTEND1 = 1,
+  EHOST_HOTEND2 = 2,
+  EHOST_EXECUTOR = 7,  /* all executors, 0-6 is reserved for extruders */
+  EHOST_LINEAR,        /* linear modules */
+  EHOST_MC,            /* main control */
+
+  EHOST_INVALID
+};
+
+enum ExceptionType : uint8_t {
+  ETYPE_NO_HOST = 0,
+  ETYPE_LOST_HOST,
+  ETYPE_LOST_CFG,
+  ETYPE_PORT_BAD,
+  ETYPE_POWER_LOSS,
+  ETYPE_HEAT_FAIL,
+  ETYPE_TEMP_RUNAWAY,
+  ETYPE_TEMP_REDUNDANCY,
+  ETYPE_SENSOR_BAD,
+  ETYPE_BELOW_MINTEMP,
+  ETYPE_ABOVE_MAXTEMP,
+
+  ET_INVALID
+};
+
 
 enum TriggerSource : uint8_t {
   TRIGGER_SOURCE_NONE,
@@ -25,8 +72,9 @@ enum TriggerSource : uint8_t {
   TRIGGER_SOURCE_DOOR_OPEN,       // trigger by door opened
   TRIGGER_SOURCE_DOOR_CLOSE,      // trigger by door closed
   TRIGGER_SOURCE_STOP_BUTTON,     // trigger by emergency button
-  TRIGGER_SOURCE_LOST_EXECUTOR,   // trigger by executor lost
   TRIGGER_SOURCE_FINISH,          // trigger by job finished
+  TRIGGER_SOURCE_EXCEPTION,       // trigger by exception
+
   TRIGGER_SOURCE_INVALID
 };
 
@@ -76,11 +124,15 @@ public:
   StatusControl(){};
   void Init();
   uint32_t GetSystemFault();
-  void CheckFatalError();
   uint8_t GetPeriphDeviceStatus();
 
   void ClearSystemFaultBit(uint32_t BitsToClear);
   void SetSystemFaultBit(uint32_t BitsToSet);
+
+  void CheckException();
+  ErrCode ThrowException(ExceptionHost h, ExceptionType t);
+  ErrCode ThrowExceptionISR(ExceptionHost h, ExceptionType t);
+  ErrCode ClearException(ExceptionHost h, ExceptionType t);
 
   ErrCode PauseTrigger(TriggerSource type);
   ErrCode StopTrigger(TriggerSource type);
@@ -134,6 +186,11 @@ private:
   TriggerSource pause_source_;  // record latest pause source
   TriggerSource stop_source_;
   uint32_t fault_flag_;
+
+  int8_t isr_exception[EXCEPTION_ISR_BUFFSER_SIZE][2];
+  uint8_t isr_e_rindex_;
+  uint8_t isr_e_windex_;
+  uint8_t isr_e_len_;
 
   SysStatus cur_status_;
   WorkingPort work_port_;    // indicates we are handling Gcode from which UART
