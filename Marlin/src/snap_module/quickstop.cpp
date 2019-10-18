@@ -57,11 +57,16 @@ bool QuickStop::CheckISR(block_t *blk) {
   else {
     if (powerstat == POWER_LOSS_STATE) {
       if (event_ != QS_EVENT_ISR_POWER_LOSS) {
+        // arive here, event_ should be QS_EVENT_PAUSE or QS_EVENT_STOP
+        // we change event_ to QS_EVENT_ISR_POWER_LOSS, then will not arive here again next ISR
+        // NOTE: at the moment, sync_flag_ maybe QS_SYNC_TRIGGER
         event_ = QS_EVENT_ISR_POWER_LOSS;
         new_event = QS_EVENT_ISR_POWER_LOSS;
       }
     }
     else if (sync_flag_ == QS_SYNC_TRIGGER) {
+      // arive here, power-loss doesn't appear, but other
+      // event trigger the quickstop
       new_event = event_;
     }
   }
@@ -78,9 +83,10 @@ bool QuickStop::CheckISR(block_t *blk) {
   if (new_event == QS_EVENT_ISR_POWER_LOSS)
     powerpanic.TurnOffPowerISR();
 
-
-  if ((sync_flag_ == QS_SYNC_TRIGGER) ||
-      (new_event == QS_EVENT_ISR_POWER_LOSS && sync_flag_ != QS_SYNC_ISR_END)) {
+  // we save env only for two conditions:
+  // 1. non-powerloss triggered quickstop excpet STOP
+  if ((sync_flag_ == QS_SYNC_TRIGGER && event_ != QS_EVENT_STOP) ||
+      (new_event == QS_EVENT_ISR_POWER_LOSS && SystemStatus.GetCurrentStatus() == SYSTAT_WORK)) {
     if (blk)
       powerpanic.SaveCmdLine(blk->filePos);
     set_current_from_steppers_for_axis(ALL_AXES);
@@ -94,8 +100,11 @@ bool QuickStop::CheckISR(block_t *blk) {
     }
   }
 
+  // so whether event source is power-loss or not, we change sync_flag_ to QS_SYNC_ISR_END
+  // then non-ISR env is able to know if we have done ISR
   sync_flag_ = QS_SYNC_ISR_END;
 
+  // disable_stepper_ to be true, CPU will not run to here until next new event happen
   disable_stepper_ = true;
 
   return true;
@@ -115,9 +124,10 @@ ErrCode QuickStop::Trigger(QuickStopEvent e) {
     sync_flag_ = QS_SYNC_TRIGGER;
     // delay movement to be planned when quick stop is triggered
     planner.cleaning_buffer_counter = 1000;
-    clear_command_queue();
   }
   ENABLE_STEPPER_DRIVER_INTERRUPT();
+
+  clear_command_queue();
 
   return ret;
 }

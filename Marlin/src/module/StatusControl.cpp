@@ -70,11 +70,9 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   case TRIGGER_SOURCE_RUNOUT:
     SetSystemFaultBit(FAULT_FLAG_FILAMENT);
     HMI.SendMachineFaultFlag();
-    quickstop.Trigger(QS_EVENT_RUNOUT);
     break;
 
   case TRIGGER_SOURCE_DOOR_OPEN:
-    quickstop.Trigger(QS_EVENT_DOOR_OPEN);
     break;
 
   case TRIGGER_SOURCE_SC:
@@ -82,7 +80,6 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
       LOG_W("current working port is not SC!");
       return E_INVALID_STATE;
     }
-    quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   case TRIGGER_SOURCE_PC:
@@ -90,7 +87,6 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
       LOG_W("current working port is not PC!");
       return E_INVALID_STATE;
     }
-    quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   default:
@@ -100,15 +96,12 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   }
 
   cur_status_ = SYSTAT_PAUSE_TRIG;
+
+  quickstop.Trigger(QS_EVENT_PAUSE);
+
   print_job_timer.pause();
 
   pause_source_ = type;
-
-  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    powerpanic.Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
-    powerpanic.Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
-    ExecuterHead.Laser.RestorePower((float)0, 0);
-  }
 
   lightbar.set_state(LB_STATE_STANDBY);
 
@@ -157,7 +150,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
       LOG_W("current working port is not SC!");
       return E_INVALID_STATE;
     }
-    quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   case TRIGGER_SOURCE_PC:
@@ -165,15 +157,12 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
       LOG_W("current working port is not PC!");
       return E_INVALID_STATE;
     }
-    quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   case TRIGGER_SOURCE_FINISH:
-    quickstop.Trigger(QS_EVENT_STOP);
     break;
 
   case TRIGGER_SOURCE_STOP_BUTTON:
-    quickstop.Trigger(QS_EVENT_BUTTON);
     break;
 
   default:
@@ -183,6 +172,8 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
   }
 
   cur_status_ = SYSTAT_END_TRIG;
+
+  quickstop.Trigger(QS_EVENT_STOP);
 
   stop_source_ = type;
 
