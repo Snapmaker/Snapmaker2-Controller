@@ -1015,7 +1015,9 @@ void HMI_SC20::PollingCommand(void)
           SystemStatus.ClearSystemFaultBit(FAULT_FLAG_POWER_LOSS);
           if (powerpanic.pre_data_.Valid == 1) {
             // clear flash data
+            LOG_I("clearing flash data ...");
             powerpanic.MaskPowerPanicData();
+            LOG_I("Done!\n");
           }
         }
         else {

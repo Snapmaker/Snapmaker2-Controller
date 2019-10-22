@@ -117,18 +117,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
     return E_INVALID_STATE;
   }
 
-  // if we already finish quick stop, just change system status
-  // disable power-loss data, and exit with success
-  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
-    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
-    cur_status_ = SYSTAT_END_FINISH;
-    // diable bed and heater
-    process_cmd_imd("M104 S0");
-    process_cmd_imd("M140 S0");
-    LOG_I("Stop in pauseing, trigger source: %d\n", type);
-    return E_SUCCESS;
-  }
-
   switch(type) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
@@ -156,13 +144,32 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
     break;
   }
 
+  // disable filament checking
+  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+    thermalManager.setTargetBed(0);
+    HOTEND_LOOP() { thermalManager.setTargetHotend(e, 0); }
+  }
+
+  print_job_timer.stop();
+
+  // diable power panic data
+  powerpanic.Data.Valid = 0;
+
+  // if we already finish quick stop, just change system status
+  // disable power-loss data, and exit with success
+  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
+    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
+    cur_status_ = SYSTAT_END_FINISH;
+    pause_source_ = TRIGGER_SOURCE_NONE;
+    LOG_I("Stop in pauseing, trigger source: %d\n", type);
+    return E_SUCCESS;
+  }
+
   cur_status_ = SYSTAT_END_TRIG;
 
   quickstop.Trigger(QS_EVENT_STOP);
 
   stop_source_ = type;
-
-  print_job_timer.stop();
 
   Periph.StopDoorCheck();
 
@@ -170,18 +177,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
     ExecuterHead.Laser.SetLaserPower((uint16_t)0);
   }
 
-  // diable power panic data
-  powerpanic.Data.Valid = 0;
-
-  // disable filament checking
-  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
-    process_cmd_imd("M412 S0");
-    thermalManager.setTargetBed(0);
-    HOTEND_LOOP() { thermalManager.setTargetHotend(e, 0); }
-  }
-
   lightbar.set_state(LB_STATE_STANDBY);
-
 
   return E_SUCCESS;
 }
@@ -194,24 +190,8 @@ void StatusControl::PauseProcess()
   if (GetCurrentStatus() != SYSTAT_PAUSE_STOPPED)
     return;
 
-   // switch to rellated pages in HMI
-  switch(ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
-    // disable filament runout
-    process_cmd_imd("M412 S0");
-    break;
+  Periph.StartDoorCheck();
 
-  case MACHINE_TYPE_CNC:
-    break;
-
-  case MACHINE_TYPE_LASER:
-    // make sure door checking is enabled
-    Periph.StartDoorCheck();
-    break;
-
-  default:
-    break;
-  }
 
   if (HMI.GetRequestStatus() == HMI_REQ_PAUSE) {
     HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
@@ -420,17 +400,6 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
 
   if (Periph.IsDoorOpened())
     return E_HARDWARE;
-
-#if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  // need to check if we have filament ready
-  if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) &&
-        runout.sensor_state()) {
-    fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag();
-    LOG_W("filament is runout, cannot resuem 3D print\n");
-    return E_NO_RESRC;
-  }
-#endif
 
   cur_status_ = SYSTAT_RESUME_TRIG;
 

@@ -244,7 +244,9 @@ void QuickStop::Process() {
           current_position[1], current_position[2], current_position[3]);
   }
 
-  TowardStop();
+  if (SystemStatus.GetCurrentStatus() != SYSTAT_IDLE &&
+      SystemStatus.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
+    TowardStop();
 
   if (ExecuterHead.MachineType == MACHINE_TYPE_CNC)
     ExecuterHead.CNC.SetPower(0);
