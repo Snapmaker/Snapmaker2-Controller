@@ -638,24 +638,23 @@ void StatusControl::Process() {
  * Check if exceptions happened, this should be called in idle()[Marlin.cpp]
  * check follow exceptions:
  *    1. if sensor of bed / hotend is damagd
- *    2. 
  */
 void StatusControl::CheckException() {
   ExceptionHost h;
   ExceptionType t;
   uint8_t got_exception = 0;
 
-  DISABLE_TEMPERATURE_INTERRUPT();
   if (isr_e_len_ > 0) {
+    DISABLE_TEMPERATURE_INTERRUPT();
     h = (ExceptionHost)isr_exception[isr_e_rindex_][0];
     t = (ExceptionType)isr_exception[isr_e_rindex_][1];
     if (++isr_e_rindex_ >= EXCEPTION_ISR_BUFFSER_SIZE)
       isr_e_rindex_ = 0;
     isr_e_len_--;
+    ENABLE_TEMPERATURE_INTERRUPT();
 
     got_exception = 1;
   }
-  ENABLE_TEMPERATURE_INTERRUPT();
   
   if (got_exception)
     ThrowException(h, t);

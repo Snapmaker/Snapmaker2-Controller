@@ -1853,6 +1853,7 @@ void Temperature::init() {
     static float tr_target_temperature[HOTENDS + 1] = { 0.0 };
     static float tr_last_temperature[HOTENDS + 1] = { 0.0 };
 
+    static uint8_t temp_drop[HOTENDS + 1] = { 0 };
     /**
         SERIAL_ECHO_START();
         SERIAL_ECHOPGM("Thermal Thermal Runaway Running. Heater ID: ");
@@ -1894,7 +1895,25 @@ void Temperature::init() {
 
       // When first heating, wait for the temperature to be reached then go to Stable state
       case TRFirstHeating:
-        if (current < tr_target_temperature[heater_index]) break;
+        if (current < tr_target_temperature[heater_index]) {
+          if (tr_last_temperature[heater_index] != 0) {
+            if (current < tr_last_temperature[heater_index]) {
+              if (temp_drop[heater_index] >= 4) {
+                // do nothing bacause we have throw exception
+              }
+              else if (++temp_drop[heater_index] > 3) {
+                SystemStatus.ThrowException((ExceptionHost)heater_id, ETYPE_TEMP_RUNAWAY);
+              }
+            }
+            else {
+              temp_drop[heater_index] = 0;
+            }
+          }
+          else {
+            temp_drop[heater_index] = 0;
+          }
+          break;
+        }
         sm.state = TRStable;
 
       // While the temperature is stable watch for a bad temperature
@@ -1928,6 +1947,8 @@ void Temperature::init() {
         SystemStatus.ThrowException((ExceptionHost)heater_id,ETYPE_TEMP_RUNAWAY);
         break;
     }
+
+    tr_last_temperature[heater_index] = current;
   }
 
 #endif // THERMAL_PROTECTION_HOTENDS || THERMAL_PROTECTION_BED || ENABLED(THERMAL_PROTECTION_CHAMBER)

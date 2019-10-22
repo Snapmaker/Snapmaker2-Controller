@@ -45,9 +45,9 @@ bool ExecuterManager::Detecte()
 }
 
 void ExecuterManager::Process() {
-  Laser.TryCloseFan();
-
   static millis_t next_second = millis() + 1000;
+
+  Laser.TryCloseFan();
 
   if (next_second - millis() < 0) {
     next_second = millis() + 1000;
@@ -76,7 +76,7 @@ void ExecuterManager::Process() {
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
   /**
-   * SetTemperature:Set temperature 
+   * SetTemperature:Set temperature
    * para index:executer index
    * temperature:
    */
@@ -123,7 +123,7 @@ void ExecuterManager::Process() {
     }
   }
   /**
-   * SetFan:Set fan 
+   * SetFan:Set fan
    * para index:executer index
    * percent:fan speed in percent
    */
