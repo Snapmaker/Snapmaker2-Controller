@@ -1816,17 +1816,13 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = 0x01;
 
   //坐标
-  fValue = LOGICAL_X_POSITION(stepper.position(X_AXIS) * planner.steps_to_mm[X_AXIS]);
-  tmp = (int32_t) (fValue * 1000);
+  tmp = (int32_t) (current_position[X_AXIS] * 1000);
   BITS32_TO_BYTES(tmp, tmpBuff, i);
-  fValue = LOGICAL_Y_POSITION(stepper.position(Y_AXIS) * planner.steps_to_mm[Y_AXIS]);
-  tmp = (int32_t) (fValue * 1000);
+  tmp = (int32_t) (current_position[Y_AXIS] * 1000);
   BITS32_TO_BYTES(tmp, tmpBuff, i);
-  fValue = LOGICAL_Z_POSITION(stepper.position(Z_AXIS) * planner.steps_to_mm[Z_AXIS]);
-  tmp = (int32_t) (fValue * 1000);
+  tmp = (int32_t) (current_position[Z_AXIS] * 1000);
   BITS32_TO_BYTES(tmp, tmpBuff, i);
-  fValue = stepper.position(E_AXIS) *planner.steps_to_mm[E_AXIS];
-  tmp = (int32_t) (fValue * 1000);
+  tmp = (int32_t) (current_position[E_AXIS] * 1000);
   BITS32_TO_BYTES(tmp, tmpBuff, i);
 
   //温度
