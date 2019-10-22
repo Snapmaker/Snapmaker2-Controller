@@ -226,6 +226,7 @@ void CanModule::PrepareLinearModules(void) {
       home_offset[Y_AXIS] = 0;
       home_offset[Z_AXIS] = 0;
       machine_size_type = MACHINE_SIZE_S;
+      SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
     }
     else if(Y_MAX_POS < 300) {
       X_MAX_POS = 244;
@@ -241,6 +242,7 @@ void CanModule::PrepareLinearModules(void) {
       home_offset[Y_AXIS] = 0;
       home_offset[Z_AXIS] = 0;
       machine_size_type = MACHINE_SIZE_M;
+      SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
     }
     else if(Z_MAX_POS < 400) {
       X_MAX_POS = 336;
@@ -256,6 +258,7 @@ void CanModule::PrepareLinearModules(void) {
       home_offset[Y_AXIS] = 0;
       home_offset[Z_AXIS] = 0;
       machine_size_type = MACHINE_SIZE_L;
+      SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
     }
     else {
       SystemStatus.ThrowException(EHOST_MC, ETYPE_NO_HOST);

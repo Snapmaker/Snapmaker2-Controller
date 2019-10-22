@@ -654,6 +654,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       fault_flag_ |= FAULT_FLAG_NO_LINEAR;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING);
+      Running = false;
       LOG_E("Cannot detect any Linear Module!\n");
       break;
 
@@ -875,7 +876,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
         return E_INVALID_STATE;
       fault_flag_ &= ~FAULT_FLAG_NO_EXECUTOR;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
-      LOG_I("Cannot detect Executor!\n");
+      LOG_I("detect Executor!\n");
       break;
 
     case EHOST_LINEAR:
@@ -883,7 +884,16 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
         return E_INVALID_STATE;
       fault_flag_ &= ~FAULT_FLAG_NO_LINEAR;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING);
-      LOG_I("Cannot detect any Linear Module!\n");
+      Running = true;
+      LOG_I("detect Linear Module!\n");
+      break;
+
+    case EHOST_MC:
+      if (!(fault_flag_ & FAULT_FLAG_UNKNOW_MODEL))
+        return E_SAME_STATE;
+      fault_flag_ &= FAULT_FLAG_UNKNOW_MODEL;
+      action_ban |= ACTION_BAN_NO_WORKING;
+      LOG_E("Detected Machine model!\n");
       break;
 
     default:
@@ -931,14 +941,14 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     fault_flag_ &= ~FAULT_FLAG_BED_PORT;
     action_ban |= ACTION_BAN_NO_HEATING_BED;
     power_ban |= POWER_DOMAIN_BED;
-    LOG_I("Port of heating bed is damaged!\n");
+    LOG_I("Port of heating bed is recovered!\n");
     break;
 
   case ETYPE_POWER_LOSS:
     if (!(fault_flag_ & FAULT_FLAG_POWER_LOSS))
       return E_INVALID_STATE;
     fault_flag_ &= ~FAULT_FLAG_POWER_LOSS;
-    LOG_I("power-loss apeared at last poweroff!\n");
+    LOG_I("power-loss fault is cleared!\n");
     break;
 
   case ETYPE_HEAT_FAIL:
@@ -984,7 +994,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_TEMP_REDUNDANCY:
-    LOG_I("Not handle exception: TEMP_REDUNDANCY\n");
+    LOG_I("TEMP_REDUNDANCY fault is cleared\n");
     break;
 
   case ETYPE_SENSOR_BAD:
@@ -1013,11 +1023,11 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_BELOW_MINTEMP:
-    LOG_E("Not handle exception: BELOW_MINTEMP\n");
+    LOG_E("BELOW_MINTEMP fault is cleared\n");
     break;
 
   case ETYPE_ABOVE_MAXTEMP:
-    LOG_E("Not handle exception: ABOVE_MAXTEMP\n");
+    LOG_E("ABOVE_MAXTEMP fault is cleared\n");
     break;
 
   default:

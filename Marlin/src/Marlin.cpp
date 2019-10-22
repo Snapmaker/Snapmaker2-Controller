@@ -1321,43 +1321,26 @@ void loop() {
 
   lightbar.init();
 
-  //endstops.CanPrepareAxis();
-  while(ExecuterHead.MachineType == MACHINE_TYPE_UNDEFINE) {
-    #if ENABLED(HMISUPPORT)
-      HMI.CommandProcess();
-    #endif
+  if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    SERIAL_ECHOLNPGM("Laser Module\r\n");
+    ExecuterHead.Laser.Init();
   }
-  if(1)
-  {
-    if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-      HMI.ChangePage(PAGE_PRINT);
-    else
-      HMI.ChangePage(PAGE_CNC);
-
-    if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-      SERIAL_ECHOLNPGM("Laser Module\r\n");
-      ExecuterHead.Laser.Init();
-    }
-    else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-      SERIAL_ECHOLNPGM("CNC Module\r\n");
-      ExecuterHead.CNC.Init();
-    }
-    else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
-      SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
-      ExecuterHead.Print3D.Init();
-    }
-    else {
-      SERIAL_ECHOLNPGM("No Executor detected!");
-      SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_NO_HOST);
-    }
-
-    if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
-      ExecuterHead.StartCheckHeartbeat();
-    }
+  else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+    SERIAL_ECHOLNPGM("CNC Module\r\n");
+    ExecuterHead.CNC.Init();
   }
-  //ExecuterHead.MachineType = MACHINE_TYPE_LASER;
-  //ExecuterHead.Laser.Init();
+  else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+    SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
+    ExecuterHead.Print3D.Init();
+  }
+  else {
+    SERIAL_ECHOLNPGM("No Executor detected!");
+    SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_NO_HOST);
+  }
 
+  if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
+    ExecuterHead.StartCheckHeartbeat();
+  }
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
   for (;;) {
