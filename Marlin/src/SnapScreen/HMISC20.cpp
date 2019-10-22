@@ -1816,11 +1816,11 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = 0x01;
 
   //坐标
-  tmp = (int32_t) (current_position[X_AXIS] * 1000);
+  tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) * 1000);
   BITS32_TO_BYTES(tmp, tmpBuff, i);
-  tmp = (int32_t) (current_position[Y_AXIS] * 1000);
+  tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) * 1000);
   BITS32_TO_BYTES(tmp, tmpBuff, i);
-  tmp = (int32_t) (current_position[Z_AXIS] * 1000);
+  tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) * 1000);
   BITS32_TO_BYTES(tmp, tmpBuff, i);
   tmp = (int32_t) (current_position[E_AXIS] * 1000);
   BITS32_TO_BYTES(tmp, tmpBuff, i);

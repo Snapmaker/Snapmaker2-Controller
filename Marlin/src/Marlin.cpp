@@ -366,7 +366,7 @@ void disable_all_steppers() {
 }
 
 
-uint8_t action_ban = 0xff;
+uint8_t action_ban = 0;
 void enable_action_ban(uint8_t ab) {
   action_ban |= ab;
 }
@@ -376,7 +376,7 @@ void disable_action_ban(uint8_t ab) {
 }
 
 // default all power domain is available
-uint8_t power_ban = 0xff;
+uint8_t power_ban = 0;
 void enable_power_ban(uint8_t pd) {
   power_ban |= pd;
 }
@@ -386,7 +386,7 @@ void disable_power_ban(uint8_t pd) {
 }
 
 void enable_power_domain(uint8_t pd) {
-  pd &= power_ban;
+  pd &= ~power_ban;
   #if PIN_EXISTS(POWER0_SUPPLY)
     if (pd & POWER_DOMAIN_0) WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
   #endif

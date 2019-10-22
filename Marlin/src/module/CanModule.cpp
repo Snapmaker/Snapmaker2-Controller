@@ -261,6 +261,9 @@ void CanModule::PrepareLinearModules(void) {
       SystemStatus.ThrowException(EHOST_MC, ETYPE_NO_HOST);
     }
   }
+  else {
+    SystemStatus.ThrowException(EHOST_MC, ETYPE_NO_HOST);
+  }
 
   //Get Linear module function ID
   for(i=0;i<LinearModuleCount;i++) {
