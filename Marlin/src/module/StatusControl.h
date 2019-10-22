@@ -167,6 +167,7 @@ public:
   }
 
   SysStage GetCurrentStage();
+  uint32_t GetFaultFlag() { return fault_flag_; }
 
 private:
   void inline resume_3dp(void);

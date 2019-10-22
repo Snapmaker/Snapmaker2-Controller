@@ -2,6 +2,9 @@
 #include "snap_dbg.h"
 #include "../module/StatusControl.h"
 #include "../module/PowerPanic.h"
+#include "../Marlin.h"
+#include "../gcode/gcode.h"
+
 #if (SNAP_DEBUG == 1)
 
 SnapDebug debug;
@@ -86,6 +89,11 @@ void SnapDebug::ShowInfo() {
   Log(SNAP_DEBUG_LEVEL_INFO, "PC cmd chksum error count: %u\n", info.pc_cmd_checksum_err);
   Log(SNAP_DEBUG_LEVEL_INFO, "Last SC Gcode line: %d\n", info.last_line_num_of_sc_gcode);
   Log(SNAP_DEBUG_LEVEL_INFO, "Last save Gcode line: %d\n", powerpanic.Data.FilePosition);
+  Log(SNAP_DEBUG_LEVEL_INFO, "Fault flag: 0x%08X, action ban: 0x%X, power ban: 0x%X\n",
+        SystemStatus.GetFaultFlag(), action_ban, power_ban);
+  Log(SNAP_DEBUG_LEVEL_INFO, "active coordinate: %d\n", gcode.active_coordinate_system);
+  Log(SNAP_DEBUG_LEVEL_INFO, "coordinate 1: X: %.3f, Y: %.3f, Z: %.3f\n",
+      gcode.coordinate_system[0][X_AXIS], gcode.coordinate_system[0][Y_AXIS], gcode.coordinate_system[0][Z_AXIS]);
 }
 
 #endif // #if (SNAP_DEBUG == 1)
