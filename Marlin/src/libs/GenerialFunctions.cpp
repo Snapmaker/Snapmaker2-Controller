@@ -47,6 +47,7 @@ char* Value8BitToString(uint8_t Value) {
 int TempReport(uint8_t *pBuff) {
   ExecuterHead.temp_hotend[0] = (float)((pBuff[0] << 8) | pBuff[1]) / 10.0f;
   ExecuterHead.CanTempMeasReady = true;
+  ExecuterHead.KeepAlive();
   return 0;
 }
 
@@ -77,6 +78,7 @@ int CNCRpmReport(uint8_t *pBuff) {
   uint16_t RPM;
   RPM = (pBuff[0] << 8) | pBuff[1];
   ExecuterHead.CNC.UpdateWorkingRPM(RPM);
+  ExecuterHead.KeepAlive();
   return 0;
 }
 
@@ -84,6 +86,7 @@ int LaserFocusReport(uint8_t *pBuff) {
   uint16_t u16Value;
   u16Value = ((uint8_t)pBuff[0] << 8) | pBuff[1];
   ExecuterHead.Laser.FocusHeight = (float)u16Value / 1000.0f;
+  ExecuterHead.KeepAlive();
   return 0;
 }
 

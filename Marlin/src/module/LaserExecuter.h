@@ -9,6 +9,15 @@ void Tim1SetCCR3(uint16_t Value);
 void Tim1SetCCR4(uint16_t Value);
 uint16_t Tim1GetCCR4(void);
 
+enum LAESR_FAN_STATE : uint8_t {
+  LAESR_FAN_STA_OPEN,
+  LAESR_FAN_STA_TO_BE_CLOSED,
+  LAESR_FAN_STA_CLOSED,
+
+  LAESR_FAN_STA_INVALID
+};
+
+
 class LaserExecuter 
 {
 public:
@@ -38,15 +47,22 @@ public:
   char ReadWifiStatus(char *SSID, char *Password, char *IP);
   char SetWifiParameter(char *SSID, char *Password);
 
+  void TryCloseFan();
+
 private:
   void PackedProtocal(uint8_t *pData, uint16_t len);
   char GetReply(uint8_t *Buff, millis_t Timeout);
+  void CheckFan(uint16_t p);
 
 public:
   float FocusHeight;
   
 private:
-  float last_percent;
-  uint8_t tmpBuff[128];
+  float     last_percent;
+  uint16_t  last_pwm;
+  uint8_t   tmpBuff[128];
+
+  uint8_t   fan_state_;
+  millis_t  fan_tick_;
 };
 

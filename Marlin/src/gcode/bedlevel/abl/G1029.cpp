@@ -32,7 +32,6 @@
  */
 
 
-
 extern uint32_t GRID_MAX_POINTS_X;
 extern uint32_t GRID_MAX_POINTS_Y;
 extern uint32_t ABL_GRID_POINTS_VIRT_X;
@@ -40,6 +39,7 @@ extern uint32_t ABL_GRID_POINTS_VIRT_Y;
 extern uint32_t ABL_TEMP_POINTS_X;
 extern uint32_t ABL_TEMP_POINTS_Y;
 
+extern float nozzle_height_probed;
 /**
  * G1029
  *
@@ -113,7 +113,19 @@ void GcodeSuite::G1029() {
 
   const bool seen_s = parser.seen("S");
   if (seen_s) {
-    compensate_offset();
+    uint8_t opt_s = (uint8_t)parser.byteval('S', (uint8_t)0);
+    if (opt_s == 0) {
+      compensate_offset();
+    }
+    else {
+      if (nozzle_height_probed == 0) {
+        SERIAL_ECHOLNPAIR("Error: nozzle height from probe is ", nozzle_height_probed);
+        return;
+      }
+      else
+        compensate_offset(nozzle_height_probed);
+    }
+
     do_blocking_move_to_z(15, 50);
     bed_level_virt_interpolate();
     settings.save();
@@ -149,7 +161,7 @@ void GcodeSuite::G1029() {
 
       compensate_offset(delta);
       bed_level_virt_interpolate();
-      
+
       set_bed_leveling_enabled(true);
     }
     return;

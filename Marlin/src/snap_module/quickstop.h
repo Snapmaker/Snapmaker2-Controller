@@ -15,13 +15,9 @@
 // 1. power loss
 enum QuickStopEvent : uint8_t {
   QS_EVENT_NONE = 0,
+  QS_EVENT_PAUSE,           // screen or PC pause working, filament runout, door open
+  QS_EVENT_STOP,            // screen or PC stop/finish working, button stop
   QS_EVENT_ISR_POWER_LOSS,  // power loss
-  QS_EVENT_DOOR_OPEN,       // door open of chamber
-  QS_EVENT_BUTTON,          // quick stop button on add-on
-  QS_EVENT_RUNOUT,          // filament run out
-  QS_EVENT_PAUSE,           // screen or PC pause working
-  QS_EVENT_STOP,            // screen or PC stop working
-  QS_EVENT_LOST_EXECUTOR,   // executor lost when working
   QS_EVENT_INVALID
 };
 
@@ -42,17 +38,13 @@ class QuickStop {
     bool IsStopped() { return stopped_; };
     bool IsTriggered() { return !!event_; }
 
-    void Debug(QuickStopEvent e) { debug_ = e; }
-
   private:
 
     volatile QuickStopEvent event_ = QS_EVENT_NONE;
     volatile QuickStopSync sync_flag_ = QS_SYNC_NONE;
 
-    volatile bool disable_stepper_ = false;
-    volatile bool stopped_ = false;
-
-    QuickStopEvent debug_;
+    bool disable_stepper_ = false;
+    bool stopped_ = false;
 
     void CleanMoves();
     void TowardStop();

@@ -21,7 +21,11 @@ public:
   ExecuterManager(){};
   void Init();
   bool Detecte();
-  
+  void Process();
+
+  void StartCheckHeartbeat();
+  void KeepAlive();
+  bool IsDead();
 
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)
     void SetTemperature(uint8_t index, uint16_t temperature);
@@ -34,6 +38,9 @@ private:
   #if DISABLED(EXECUTER_CANBUS_SUPPORT)
     uint8_t GetMachineTypeFromTemperature(void);
   #endif
+
+  uint8_t keep_alive_;
+  bool dead_;
 
 public:
   LaserExecuter Laser;

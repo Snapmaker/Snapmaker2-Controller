@@ -37,6 +37,8 @@
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
       z_values[GRID_MAX_NUM][GRID_MAX_NUM];
+// nozzle height when probed bed, will initialize by settings.load()
+float nozzle_height_probed = 0;
 
 /**
  * Extrapolate a single point from its neighbors
@@ -442,8 +444,9 @@ void bilinear_grid_manual(float startx, float starty, float endx, float endy)
   SERIAL_ECHOLNPAIR("Y:", bilinear_start[Y_AXIS], " - ", bilinear_grid_spacing[Y_AXIS]);
 }
 
-bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
+#include "../../../snap_module/M1028.h"
 
+bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
 void auto_probing(bool reply_screen) {
   float margin = PROBE_MARGIN;
   bilinear_grid_manual(RAW_X_POSITION(margin), RAW_Y_POSITION(margin),
@@ -457,13 +460,12 @@ void auto_probing(bool reply_screen) {
 
   int dir_idx = 0;
 
+  do_blocking_move_to_z(15, 10);
 
   for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
     SERIAL_ECHOLNPAIR("Probing No. ", k);
 
-    do_blocking_move_to_z(15);
-
-    float z = probe_pt(_GET_MESH_X(cur_x), _GET_MESH_Y(cur_y)); // raw position
+    float z = probe_pt(_GET_MESH_X(cur_x), _GET_MESH_Y(cur_y), PROBE_PT_RAISE); // raw position
     z_values[cur_x][cur_y] = z;
     visited[cur_x][cur_y] = true;
     if (reply_screen) {
@@ -484,8 +486,8 @@ void auto_probing(bool reply_screen) {
     cur_y = new_y;
   }
 
-  do_blocking_move_to_z(13, 50);
-  do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), 50.0f);
+  do_blocking_move_to_z(z_position_in_cali_offset, speed_in_calibration[Z_AXIS]);
+  do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
 }
 
 void compensate_offset(float offset) {
@@ -498,7 +500,7 @@ void compensate_offset(float offset) {
 
 void compensate_offset() {
   float offset = z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] - current_position[Z_AXIS];
-
+  nozzle_height_probed = offset;
   compensate_offset(offset);
 }
 

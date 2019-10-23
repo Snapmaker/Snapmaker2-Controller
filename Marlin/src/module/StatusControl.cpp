@@ -32,24 +32,10 @@ void StatusControl::Init() {
   cur_status_ = SYSTAT_INIT;
   work_port_ = WORKING_PORT_NONE;
   fault_flag_ = 0;
-}
 
-/**
- *  CheckFatalError:Check if the machine have fatal error
- */
-void StatusControl::CheckFatalError() {
-  uint32_t Flag = FAULT_FLAG_BED | FAULT_FLAG_HEATER0 | FAULT_FLAG_LOAD;
-  if((Flag & fault_flag_) != 0) {
-    #if PIN_EXISTS(POWER2_SUPPLY)
-      OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
-    #endif
-    #if PIN_EXISTS(POWER1_SUPPLY)
-      OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
-    #endif
-    while(1) {
-      HMI.CommandProcess();
-    }
-  }
+  isr_e_rindex_ = 0;
+  isr_e_windex_ = 0;
+  isr_e_len_ = 0;
 }
 
 /**
@@ -68,13 +54,11 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   // here the operations can be performed many times
   switch (type) {
   case TRIGGER_SOURCE_RUNOUT:
-    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    fault_flag_ |= FAULT_FLAG_FILAMENT;
     HMI.SendMachineFaultFlag();
-    quickstop.Trigger(QS_EVENT_RUNOUT);
     break;
 
   case TRIGGER_SOURCE_DOOR_OPEN:
-    quickstop.Trigger(QS_EVENT_DOOR_OPEN);
     break;
 
   case TRIGGER_SOURCE_SC:
@@ -82,7 +66,6 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
       LOG_W("current working port is not SC!");
       return E_INVALID_STATE;
     }
-    quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   case TRIGGER_SOURCE_PC:
@@ -90,7 +73,6 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
       LOG_W("current working port is not PC!");
       return E_INVALID_STATE;
     }
-    quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   default:
@@ -100,15 +82,12 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   }
 
   cur_status_ = SYSTAT_PAUSE_TRIG;
+
+  quickstop.Trigger(QS_EVENT_PAUSE);
+
   print_job_timer.pause();
 
   pause_source_ = type;
-
-  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    powerpanic.Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
-    powerpanic.Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
-    ExecuterHead.Laser.RestorePower((float)0, 0);
-  }
 
   lightbar.set_state(LB_STATE_STANDBY);
 
@@ -119,8 +98,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
  * Triggle the stop
  * return: true if stop triggle success, or false
  */
-ErrCode StatusControl::StopTrigger(TriggerSource type)
-{
+ErrCode StatusControl::StopTrigger(TriggerSource type) {
   SysStage stage = GetCurrentStage();
 
   if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
@@ -139,25 +117,12 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
     return E_INVALID_STATE;
   }
 
-  // if we already finish quick stop, just change system status
-  // disable power-loss data, and exit with success
-  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
-    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
-    cur_status_ = SYSTAT_END_FINISH;
-    // diable bed and heater
-    process_cmd_imd("M104 S0");
-    process_cmd_imd("M140 S0");
-    LOG_I("Stop in pauseing, trigger source: %d\n", type);
-    return E_SUCCESS;
-  }
-
   switch(type) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
       LOG_W("current working port is not SC!");
       return E_INVALID_STATE;
     }
-    quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   case TRIGGER_SOURCE_PC:
@@ -165,15 +130,12 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
       LOG_W("current working port is not PC!");
       return E_INVALID_STATE;
     }
-    quickstop.Trigger(QS_EVENT_PAUSE);
     break;
 
   case TRIGGER_SOURCE_FINISH:
-    quickstop.Trigger(QS_EVENT_STOP);
     break;
 
   case TRIGGER_SOURCE_STOP_BUTTON:
-    quickstop.Trigger(QS_EVENT_BUTTON);
     break;
 
   default:
@@ -182,11 +144,32 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
     break;
   }
 
-  cur_status_ = SYSTAT_END_TRIG;
-
-  stop_source_ = type;
+  // disable filament checking
+  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+    thermalManager.setTargetBed(0);
+    HOTEND_LOOP() { thermalManager.setTargetHotend(e, 0); }
+  }
 
   print_job_timer.stop();
+
+  // diable power panic data
+  powerpanic.Data.Valid = 0;
+
+  // if we already finish quick stop, just change system status
+  // disable power-loss data, and exit with success
+  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
+    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
+    cur_status_ = SYSTAT_END_FINISH;
+    pause_source_ = TRIGGER_SOURCE_NONE;
+    LOG_I("Stop in pauseing, trigger source: %d\n", type);
+    return E_SUCCESS;
+  }
+
+  cur_status_ = SYSTAT_END_TRIG;
+
+  quickstop.Trigger(QS_EVENT_STOP);
+
+  stop_source_ = type;
 
   Periph.StopDoorCheck();
 
@@ -194,16 +177,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type)
     ExecuterHead.Laser.SetLaserPower((uint16_t)0);
   }
 
-  // diable power panic data
-  powerpanic.Data.Valid = 0;
-
-  // disable filament checking
-  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
-    process_cmd_imd("M412 S0");
-  }
-
   lightbar.set_state(LB_STATE_STANDBY);
-
 
   return E_SUCCESS;
 }
@@ -216,24 +190,8 @@ void StatusControl::PauseProcess()
   if (GetCurrentStatus() != SYSTAT_PAUSE_STOPPED)
     return;
 
-   // switch to rellated pages in HMI
-  switch(ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
-    // disable filament runout
-    process_cmd_imd("M412 S0");
-    break;
+  Periph.StartDoorCheck();
 
-  case MACHINE_TYPE_CNC:
-    break;
-
-  case MACHINE_TYPE_LASER:
-    // make sure door checking is enabled
-    Periph.StartDoorCheck();
-    break;
-
-  default:
-    break;
-  }
 
   if (HMI.GetRequestStatus() == HMI_REQ_PAUSE) {
     HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
@@ -395,12 +353,22 @@ void StatusControl::ResumeProcess() {
     HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
     HMI.ClearRequestStatus();
   }
+
+  if (action_ban & ACTION_BAN_NO_WORKING) {
+    LOG_E("System Fault! Now cannot start working!\n");
+    StopTrigger(TRIGGER_SOURCE_EXCEPTION);
+  }
 }
 
 /**
  * trigger resuming from other event
  */
 ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
+  if (action_ban & ACTION_BAN_NO_WORKING) {
+    LOG_E("System Fault! Now cannot start working!\n");
+    return E_HARDWARE;
+  }
+
   if (cur_status_ != SYSTAT_PAUSE_FINISH) {
     LOG_W("cannot trigger in current status: %d\n", cur_status_);
     return E_INVALID_STATE;
@@ -432,17 +400,6 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
 
   if (Periph.IsDoorOpened())
     return E_HARDWARE;
-
-#if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  // need to check if we have filament ready
-  if ((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) &&
-        runout.sensor_state()) {
-    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-    HMI.SendMachineFaultFlag();
-    LOG_W("filament is runout, cannot resuem 3D print\n");
-    return E_NO_RESRC;
-  }
-#endif
 
   cur_status_ = SYSTAT_RESUME_TRIG;
 
@@ -580,6 +537,11 @@ void StatusControl::SetSystemFaultBit(uint32_t BitsToSet)
  */
 ErrCode StatusControl::StartWork(TriggerSource s) {
 
+  if (action_ban & ACTION_BAN_NO_WORKING) {
+    LOG_E("System Fault! Now cannot start working!\n");
+    return E_HARDWARE;
+  }
+
   if (cur_status_ != SYSTAT_IDLE) {
     LOG_W("cannot start work in current status: %d\n", cur_status_);
     return E_INVALID_STATE;
@@ -610,7 +572,7 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
         runout.sensor_state()) {
     LOG_E("No filemant! Please insert filemant!\n");
-    SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+    fault_flag_ |= FAULT_FLAG_FILAMENT;
     HMI.SendMachineFaultFlag();
   }
 
@@ -639,4 +601,446 @@ void StatusControl::Process() {
   PauseProcess();
   StopProcess();
   ResumeProcess();
+}
+
+/**
+ * Check if exceptions happened, this should be called in idle()[Marlin.cpp]
+ * check follow exceptions:
+ *    1. if sensor of bed / hotend is damagd
+ */
+void StatusControl::CheckException() {
+  ExceptionHost h;
+  ExceptionType t;
+  uint8_t got_exception = 0;
+
+  if (isr_e_len_ > 0) {
+    DISABLE_TEMPERATURE_INTERRUPT();
+    h = (ExceptionHost)isr_exception[isr_e_rindex_][0];
+    t = (ExceptionType)isr_exception[isr_e_rindex_][1];
+    if (++isr_e_rindex_ >= EXCEPTION_ISR_BUFFSER_SIZE)
+      isr_e_rindex_ = 0;
+    isr_e_len_--;
+    ENABLE_TEMPERATURE_INTERRUPT();
+
+    got_exception = 1;
+  }
+  
+  if (got_exception)
+    ThrowException(h, t);
+}
+
+/**
+ * Use to throw a excetion, system will handle it, and return to Screen
+ */
+ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
+  uint8_t action = EACTION_NONE;
+  uint8_t action_ban = ACTION_BAN_NONE;
+  uint8_t power_ban = POWER_DOMAIN_NONE;
+  uint8_t power_disable = POWER_DOMAIN_NONE;
+
+  switch (t) {
+  case ETYPE_NO_HOST:
+    switch (h) {
+    case EHOST_EXECUTOR:
+      if (fault_flag_ & FAULT_FLAG_NO_EXECUTOR)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_NO_EXECUTOR;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
+      LOG_E("Cannot detect Executor!\n");
+      break;
+
+    case EHOST_LINEAR:
+      if (fault_flag_ & FAULT_FLAG_NO_LINEAR)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_NO_LINEAR;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING);
+      Running = false;
+      LOG_E("Cannot detect any Linear Module!\n");
+      break;
+
+    case EHOST_MC:
+      if (fault_flag_ & FAULT_FLAG_UNKNOW_MODEL)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_UNKNOW_MODEL;
+      action_ban |= ACTION_BAN_NO_WORKING;
+      LOG_E("Cannot detect Machine model!\n");
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_LOST_HOST:
+    switch (h) {
+    case EHOST_EXECUTOR:
+      if (fault_flag_ & FAULT_FLAG_LOST_EXECUTOR)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_LOST_EXECUTOR;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
+      action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_HOTEND;
+      LOG_E("Executor Lost!\n");
+      break;
+
+    case EHOST_LINEAR:
+      if (fault_flag_ & FAULT_FLAG_LOST_LINEAR)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_LOST_LINEAR;
+      action_ban |= ACTION_BAN_NO_WORKING;
+      action = EACTION_STOP_WORKING;
+      LOG_E("Linear Module Lost!\n");
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_LOST_CFG:
+    if (fault_flag_ & FAULT_FLAG_LOST_SETTING)
+      return E_SAME_STATE;
+    fault_flag_ |= FAULT_FLAG_LOST_SETTING;
+    LOG_E("Configuration Lost!\n");
+    break;
+
+  case ETYPE_PORT_BAD:
+    if (fault_flag_ & FAULT_FLAG_BED_PORT)
+      return E_SAME_STATE;
+    fault_flag_ |= FAULT_FLAG_BED_PORT;
+    action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
+    action_ban |= ACTION_BAN_NO_HEATING_BED;
+    power_ban |= POWER_DOMAIN_BED;
+    power_disable |= POWER_DOMAIN_BED;
+    LOG_E("Port of heating bed is damaged!\n");
+    break;
+
+  case ETYPE_POWER_LOSS:
+    if (fault_flag_ & FAULT_FLAG_POWER_LOSS)
+      return E_SAME_STATE;
+    fault_flag_ |= FAULT_FLAG_POWER_LOSS;
+    LOG_E("power-loss apeared at last poweroff!\n");
+    break;
+
+  case ETYPE_HEAT_FAIL:
+    switch (h) {
+    case EHOST_HOTEND0:
+      if (fault_flag_ & FAULT_FLAG_HOTEND_HEATFAIL)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_HOTEND_HEATFAIL;
+      action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_HOTEND;
+      break;
+
+    case EHOST_BED:
+      if (fault_flag_ & FAULT_FLAG_BED_HEATFAIL)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_BED_HEATFAIL;
+      action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_TEMP_RUNAWAY:
+    switch (h) {
+    case EHOST_HOTEND0:
+      if (fault_flag_ & FAULT_FLAG_HOTEND_RUNWAWY)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_HOTEND_RUNWAWY;
+      action = EACTION_PAUSE_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
+      break;
+
+    case EHOST_BED:
+      if (fault_flag_ & FAULT_FLAG_BED_RUNAWAY)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_BED_RUNAWAY;
+      action = EACTION_PAUSE_WORKING | EACTION_STOP_HEATING_BED;
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_TEMP_REDUNDANCY:
+    LOG_E("Not handle exception: TEMP_REDUNDANCY\n");
+    return E_FAILURE;
+    break;
+
+  case ETYPE_SENSOR_BAD:
+    switch (h) {
+    case EHOST_HOTEND0:
+      if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_BAD)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_HOTEND_SENSOR_BAD;
+      action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
+      LOG_E("Error happened in Thermistor of Hotend!\n");
+      break;
+
+    case EHOST_BED:
+      if (fault_flag_ & FAULT_FLAG_BED_SENSOR_BAD)
+        return E_SAME_STATE;
+      fault_flag_ |= FAULT_FLAG_BED_SENSOR_BAD;
+      action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_BED);
+      LOG_E("Error happened in Thermistor of Heated Bed!\n");
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_BELOW_MINTEMP:
+    LOG_E("Not handle exception: BELOW_MINTEMP\n");
+    return E_FAILURE;
+    break;
+
+  case ETYPE_ABOVE_MAXTEMP:
+    LOG_E("Not handle exception: ABOVE_MAXTEMP\n");
+    return E_FAILURE;
+    break;
+
+  default:
+    LOG_E("unknown Exception [%d] happened with Host [%d]\n", t, h);
+    return E_FAILURE;
+    break;
+  }
+
+  if (power_disable)
+    disable_power_domain(power_disable);
+
+  if (power_ban)
+    enable_power_ban(power_ban);
+
+  if (action_ban)
+    enable_action_ban(action_ban);
+
+  if (action & EACTION_STOP_HEATING_HOTEND) {
+    HOTEND_LOOP() thermalManager.setTargetHotend(e, 0);
+  }
+    
+  if (action & EACTION_STOP_HEATING_BED)
+    thermalManager.setTargetBed(0);
+
+  if (action & EACTION_STOP_WORKING) {
+    StopTrigger(TRIGGER_SOURCE_EXCEPTION);
+  }
+  else if (action & EACTION_PAUSE_WORKING) {
+    PauseTrigger(TRIGGER_SOURCE_EXCEPTION);
+  }
+
+  HMI.SendMachineFaultFlag();
+
+  return E_SUCCESS;
+}
+
+
+ErrCode StatusControl::ThrowExceptionISR(ExceptionHost h, ExceptionType t) {
+  if (isr_e_len_ >= EXCEPTION_ISR_BUFFSER_SIZE)
+    return E_NO_RESRC;
+  
+  isr_exception[isr_e_windex_][0] = h;
+  isr_exception[isr_e_windex_][1] = t;
+
+  if (++isr_e_windex_ >= EXCEPTION_ISR_BUFFSER_SIZE)
+    isr_e_windex_ = 0;
+
+  isr_e_len_++;
+
+  return E_SUCCESS;
+}
+
+
+ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
+  uint8_t action_ban = ACTION_BAN_NONE;
+  uint8_t power_ban = POWER_DOMAIN_NONE;
+
+  switch (t) {
+  case ETYPE_NO_HOST:
+    switch (h) {
+    case EHOST_EXECUTOR:
+      if (!(fault_flag_ & FAULT_FLAG_NO_EXECUTOR))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_NO_EXECUTOR;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
+      LOG_I("detect Executor!\n");
+      break;
+
+    case EHOST_LINEAR:
+      if (!(fault_flag_ & FAULT_FLAG_NO_LINEAR))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_NO_LINEAR;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING);
+      Running = true;
+      LOG_I("detect Linear Module!\n");
+      break;
+
+    case EHOST_MC:
+      if (!(fault_flag_ & FAULT_FLAG_UNKNOW_MODEL))
+        return E_SAME_STATE;
+      fault_flag_ &= FAULT_FLAG_UNKNOW_MODEL;
+      action_ban |= ACTION_BAN_NO_WORKING;
+      LOG_E("Detected Machine model!\n");
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_LOST_HOST:
+    switch (h) {
+    case EHOST_EXECUTOR:
+      if (!(fault_flag_ & FAULT_FLAG_LOST_EXECUTOR))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_LOST_EXECUTOR;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
+      LOG_I("Executor Lost!\n");
+      break;
+
+    case EHOST_LINEAR:
+      if (!(fault_flag_ & FAULT_FLAG_LOST_LINEAR))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_LOST_LINEAR;
+      action_ban |= ACTION_BAN_NO_WORKING;
+      LOG_I("Linear Module Lost!\n");
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_LOST_CFG:
+    LOG_I("clear error of configiration lost!\n");
+    if (!(fault_flag_ & FAULT_FLAG_LOST_SETTING))
+      return E_INVALID_STATE;
+    fault_flag_ &= ~FAULT_FLAG_LOST_SETTING;
+    break;
+
+  case ETYPE_PORT_BAD:
+    if (!(fault_flag_ & FAULT_FLAG_BED_PORT))
+      return E_INVALID_STATE;
+    fault_flag_ &= ~FAULT_FLAG_BED_PORT;
+    action_ban |= ACTION_BAN_NO_HEATING_BED;
+    power_ban |= POWER_DOMAIN_BED;
+    LOG_I("Port of heating bed is recovered!\n");
+    break;
+
+  case ETYPE_POWER_LOSS:
+    if (!(fault_flag_ & FAULT_FLAG_POWER_LOSS))
+      return E_INVALID_STATE;
+    fault_flag_ &= ~FAULT_FLAG_POWER_LOSS;
+    LOG_I("power-loss fault is cleared!\n");
+    break;
+
+  case ETYPE_HEAT_FAIL:
+    switch (h) {
+    case EHOST_HOTEND0:
+      if (!(fault_flag_ & FAULT_FLAG_HOTEND_HEATFAIL))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_HOTEND_HEATFAIL;
+      break;
+
+    case EHOST_BED:
+      if (!(fault_flag_ & FAULT_FLAG_BED_HEATFAIL))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_BED_HEATFAIL;
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_TEMP_RUNAWAY:
+    switch (h) {
+    case EHOST_HOTEND0:
+      if (!(fault_flag_ & FAULT_FLAG_HOTEND_RUNWAWY))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_HOTEND_RUNWAWY;
+      break;
+
+    case EHOST_BED:
+      if (!(fault_flag_ & FAULT_FLAG_BED_RUNAWAY))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_BED_RUNAWAY;
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_TEMP_REDUNDANCY:
+    LOG_I("TEMP_REDUNDANCY fault is cleared\n");
+    break;
+
+  case ETYPE_SENSOR_BAD:
+    switch (h) {
+    case EHOST_HOTEND0:
+      if (!(fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_BAD))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_BAD;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
+      LOG_I("Error happened in Thermistor of Hotend!\n");
+      break;
+
+    case EHOST_BED:
+      if (!(fault_flag_ & FAULT_FLAG_BED_SENSOR_BAD))
+        return E_INVALID_STATE;
+      fault_flag_ &= ~FAULT_FLAG_BED_SENSOR_BAD;
+      action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_BED);
+      LOG_I("Error happened in Thermistor of Heated Bed!\n");
+      break;
+
+    default:
+      LOG_E("Exception [%d] happened with unknown Host [%d]\n", t, h);
+      return E_FAILURE;
+      break;
+    }
+    break;
+
+  case ETYPE_BELOW_MINTEMP:
+    LOG_E("BELOW_MINTEMP fault is cleared\n");
+    break;
+
+  case ETYPE_ABOVE_MAXTEMP:
+    LOG_E("ABOVE_MAXTEMP fault is cleared\n");
+    break;
+
+  default:
+    LOG_E("unknown Exception [%d] happened with Host [%d]\n", t, h);
+    return E_FAILURE;
+    break;
+  }
+
+  if (action_ban)
+    disable_action_ban(action_ban);
+
+  if (power_ban)
+    disable_power_domain(power_ban);
+
+  return E_SUCCESS;
 }

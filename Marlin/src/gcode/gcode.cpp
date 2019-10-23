@@ -262,6 +262,16 @@ void GcodeSuite::execute_command(void) {
           break;
       #endif
 
+      #if ENABLED(CNC_COORDINATE_SYSTEMS)
+        case 53: G53(); break;
+        case 54: G54(); break;
+        case 55: G55(); break;
+        case 56: G56(); break;
+        case 57: G57(); break;
+        case 58: G58(); break;
+        case 59: G59(); break;
+      #endif
+
       #if ENABLED(GCODE_MOTION_MODES)
         case 80: G80(); break;                                    // G80: Reset the current motion mode
       #endif
@@ -763,6 +773,8 @@ void GcodeSuite::execute_command(void) {
           SERIAL_ECHOLN("DISABLE Wait heartbeat");
         }
         break;
+
+      case 1028: M1028(); break;
 
       case 2000: M2000(); break;
 

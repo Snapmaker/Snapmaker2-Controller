@@ -13,7 +13,7 @@
 #include "../libs/GenerialFunctions.h"
 #include "../SnapScreen/Screen.h"
 #include "motion.h"
-
+#include "StatusControl.h"
 
 CanModule CanModules;
 
@@ -30,12 +30,11 @@ uint8_t CanModule::machine_size_type = MACHINE_SIZE_UNKNOW;
 void CanModule::Init(void) {
   CanBusControlor.Init();
   millis_t tmptick;
-  OUT_WRITE(POWER1_SUPPLY_PIN, LOW);
-  OUT_WRITE(POWER2_SUPPLY_PIN, LOW);
+
+  disable_power_domain(POWER_DOMAIN_1 | POWER_DOMAIN_2);
   tmptick = millis() + 500;
   while(tmptick > millis());
-  OUT_WRITE(POWER1_SUPPLY_PIN, HIGH);
-  OUT_WRITE(POWER2_SUPPLY_PIN, HIGH);
+  enable_power_domain(POWER_DOMAIN_1 | POWER_DOMAIN_2);
   tmptick = millis() + 500;
   while(tmptick > millis());
 
@@ -227,6 +226,7 @@ void CanModule::PrepareLinearModules(void) {
       home_offset[Y_AXIS] = 0;
       home_offset[Z_AXIS] = 0;
       machine_size_type = MACHINE_SIZE_S;
+      SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
     }
     else if(Y_MAX_POS < 300) {
       X_MAX_POS = 244;
@@ -242,6 +242,7 @@ void CanModule::PrepareLinearModules(void) {
       home_offset[Y_AXIS] = 0;
       home_offset[Z_AXIS] = 0;
       machine_size_type = MACHINE_SIZE_M;
+      SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
     }
     else if(Z_MAX_POS < 400) {
       X_MAX_POS = 336;
@@ -257,7 +258,14 @@ void CanModule::PrepareLinearModules(void) {
       home_offset[Y_AXIS] = 0;
       home_offset[Z_AXIS] = 0;
       machine_size_type = MACHINE_SIZE_L;
+      SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
     }
+    else {
+      SystemStatus.ThrowException(EHOST_MC, ETYPE_NO_HOST);
+    }
+  }
+  else {
+    SystemStatus.ThrowException(EHOST_MC, ETYPE_NO_HOST);
   }
 
   //Get Linear module function ID
@@ -352,7 +360,7 @@ void CanModule::PrepareRestModules(void) {
   uint8_t ExecuterMark[6];
   uint8_t Buff[3] = {CMD_M_CONFIG , 0x00, 0x00};
   int Pins[] = {E0_DIR_PIN};
- 
+
   WRITE(E0_DIR_PIN, LOW);
 
   for(i=0;i<ExecuterCount;i++) {
@@ -516,9 +524,11 @@ void CanModule::PrepareRestModules(void) {
     CanBusControlor.SendLongData(EXTEND_CAN_NUM, MacIDofFuncID[i], SendBuff, k);
   }
 
-  if((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_PRINT)) ExecuterHead.MachineType = MACHINE_TYPE_3DPRINT;
-  else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_CNC)) && (ExecuterMark[0] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_CNC;
-  else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_LASER)) && (ExecuterMark[0] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_LASER;
+  if (ExecuterCount > 0) {
+    if((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_PRINT)) ExecuterHead.MachineType = MACHINE_TYPE_3DPRINT;
+    else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_CNC)) && (ExecuterMark[0] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_CNC;
+    else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_LASER)) && (ExecuterMark[0] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_LASER;
+  }
 }
 
 

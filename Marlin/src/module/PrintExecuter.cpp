@@ -65,12 +65,22 @@ void PrintExecuter::EStepperInit()
  */
 bool PrintExecuter::HeatedBedSelfCheck(void) {
   millis_t tmptick;
+
+  enable_power_domain(POWER_DOMAIN_BED);
+  // disable heated bed firstly
+  OUT_WRITE(HEATER_BED_PIN, LOW);
+  // and set input for the detect pin
   SET_INPUT_PULLUP(HEATEDBED_ON_PIN);
   tmptick = millis() + 10;
   while(tmptick > millis());
+  // if we get LOW, indicate the NMOS is breakdown
+  // we need to disable its power supply immediately
   if(READ(HEATEDBED_ON_PIN) == LOW) {
-    SystemStatus.SetSystemFaultBit(FAULT_FLAG_BED);
+    enable_power_ban(POWER_DOMAIN_BED);
+    SystemStatus.ThrowException(EHOST_MC, ETYPE_PORT_BAD);
   }
+
+  disable_power_domain(POWER_DOMAIN_BED);
 }
 
 /**

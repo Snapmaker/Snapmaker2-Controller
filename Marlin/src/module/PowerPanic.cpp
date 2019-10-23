@@ -48,12 +48,11 @@ void PowerPanic::Init(void) {
   {
   case 0:
     // got power panic data
-    SystemStatus.SetSystemFaultBit(FAULT_FLAG_POWERPANIC);
+    SystemStatus.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
     SERIAL_ECHOLNPGM("Got power panic data!");
     break;
   case 1:
     // data read from flash is invalid
-    SystemStatus.SetSystemFaultBit(FAULT_FLAG_INVALID_PPD);
     SERIAL_ECHOLNPGM("invalid power panic data!");
     break;
 
@@ -155,6 +154,7 @@ int PowerPanic::Load(void)
 		//校验失败
 		if(Checksum != tmpChecksum)
 		{
+			SERIAL_ECHOLNPAIR("checksum of power-loss data: ", tmpChecksum, " is error, calculated result is: ", Checksum);
 			//清除标志
 			FLASH_Unlock();
 			addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
@@ -333,11 +333,6 @@ int PowerPanic::SaveEnv(void) {
 
   Data.Valid = 1;
 
-	pBuff = (uint8_t*)&Data;
-	Data.CheckSum = 0;
-	for(i = 0; i < sizeof(strPowerPanicSave); i++)
-		Data.CheckSum += pBuff[i];
-
 	switch (ExecuterHead.MachineType)
 	{
 	case MACHINE_TYPE_CNC:
@@ -345,11 +340,21 @@ int PowerPanic::SaveEnv(void) {
 		break;
 
 	case MACHINE_TYPE_LASER:
+		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+		Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
+		ExecuterHead.Laser.RestorePower((float)0, 0);
 	break;
 
 	default:
 		break;
 	}
+
+	// checksum need to be calculate at the end,
+	// when all data will not be changed again
+	pBuff = (uint8_t*)&Data;
+	Data.CheckSum = 0;
+	for(i = 0; i < sizeof(strPowerPanicSave); i++)
+		Data.CheckSum += pBuff[i];
 
   return 0;
 }
@@ -482,6 +487,12 @@ void PowerPanic::ResumeLaser() {
 	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
+
+	// Because we open laser when receive first command after resuming,
+	// and there will set laser power with Data.laser_percent&Data.laser_pwm
+	// So we recover the value to them
+	Data.laser_percent = pre_data_.laser_percent;
+	Data.laser_pwm = pre_data_.laser_pwm;
 }
 
 
@@ -491,7 +502,7 @@ void PowerPanic::RestoreWorkspace() {
 
 	planner.synchronize();
 
-	LOG_I("\nposition shift:\n");
+	LOG_I("position shift:\n");
 	LOG_I("X: %.2f, Y: %.2f, Z: %.2f\n", pre_data_.position_shift[0],
 						pre_data_.position_shift[1], pre_data_.position_shift[2]);
 
@@ -507,6 +518,11 @@ void PowerPanic::RestoreWorkspace() {
  *return :true is resume success, or else false
  */
 ErrCode PowerPanic::ResumeWork() {
+	if (action_ban & ACTION_BAN_NO_WORKING) {
+    LOG_E("System Fault! Now cannot start working!\n");
+    return E_HARDWARE;
+	}
+
 	if (pre_data_.MachineType != ExecuterHead.MachineType) {
 		LOG_E("current[%d] machine is not same as previous[%d]\n",
 						ExecuterHead.MachineType, pre_data_.MachineType);
@@ -536,16 +552,11 @@ ErrCode PowerPanic::ResumeWork() {
 
 	switch (pre_data_.MachineType) {
 	case MACHINE_TYPE_3DPRINT:
-		if (pre_data_.HeaterTamp[0] < 185) {
-			LOG_E("cannot restore work, previous recorded hotend temperature is less than 185: %f\n",
-							pre_data_.HeaterTamp[0]);
-			return E_INVALID_STATE;
-		}
+		LOG_I("previous recorded target hotend temperature is %.2f\n", pre_data_.HeaterTamp[0]);
 
 		if (runout.sensor_state()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-			HMI.SendMachineFaultFlag();
 			return E_HARDWARE;
 		}
 		Resume3DP();
@@ -582,18 +593,9 @@ ErrCode PowerPanic::ResumeWork() {
  * disable other unused peripherals in ISR
  */
 void PowerPanic::TurnOffPowerISR(void) {
-
-  // close laser
-  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
-		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
-		Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
-    ExecuterHead.Laser.RestorePower((float)0, 0);
-	}
-
   // these 2 statement will disable power supply for
-  // HMI, BED, and all addones
-  WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_OFF);
-  WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
+  // HMI, BED, and all addones except steppers
+	disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
 }
 
 /*

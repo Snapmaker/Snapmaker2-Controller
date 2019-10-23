@@ -1302,14 +1302,9 @@ void Stepper::isr() {
         current_block = NULL;
         planner.discard_current_block();
       }
-      else {
-        // clean blocks quickly and safely
-        // while (planner.get_current_block()) {
-        //   planner.discard_current_block();
-        // }
-        planner.block_buffer_nonbusy = planner.block_buffer_tail = \
-          planner.block_buffer_planned = planner.block_buffer_head;
-      }
+
+      planner.block_buffer_nonbusy = planner.block_buffer_tail = \
+        planner.block_buffer_planned = planner.block_buffer_head;
 
       // interval = 500 us
       HAL_timer_set_compare(STEP_TIMER_NUM,

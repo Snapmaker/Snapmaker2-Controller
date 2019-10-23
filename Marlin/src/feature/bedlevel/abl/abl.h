@@ -45,6 +45,9 @@ void refresh_bed_level();
 #define _GET_MESH_Y(J) (bilinear_start[Y_AXIS] + (J) * bilinear_grid_spacing[Y_AXIS])
 #define Z_VALUES_ARR  z_values
 
+#define MAX_NOZZLE_HEIGHT_PROBED  20
+extern float nozzle_height_probed;
+
 
 void auto_probing(bool reply_screen);
 void compensate_offset();

@@ -6,6 +6,7 @@
 #include "ExecuterManager.h"
 #include "CanBus.h"
 #include "CanDefines.h"
+#include "StatusControl.h"
 
 ExecuterManager ExecuterHead;
 
@@ -15,6 +16,20 @@ ExecuterManager ExecuterHead;
 void ExecuterManager::Init()
 {
   MachineType = MACHINE_TYPE_UNDEFINE;
+  keep_alive_ = 0xff;
+  dead_ = false;
+}
+
+void ExecuterManager::StartCheckHeartbeat() {
+  keep_alive_ = 0x3;
+}
+
+void ExecuterManager::KeepAlive() {
+  keep_alive_ = 0x3;
+}
+
+bool ExecuterManager::IsDead() {
+  return dead_;
 }
 
 /**
@@ -29,10 +44,39 @@ bool ExecuterManager::Detecte()
   return (MachineType != MACHINE_TYPE_UNDEFINE);
 }
 
+void ExecuterManager::Process() {
+  static millis_t next_second = millis() + 1000;
+
+  Laser.TryCloseFan();
+
+  if (next_second - millis() < 0) {
+    next_second = millis() + 1000;
+    if (keep_alive_ != 0xff && keep_alive_ != 0) {
+      keep_alive_--;
+    }
+
+    // because laser deosn't have heartbeat packet, so need to read it manually
+    // when it return focusheight, ISR will update the keep_alive_
+    if (MACHINE_TYPE_LASER == MachineType) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LASER_FOCUS, NULL, 0);
+    }
+  }
+
+  if ((keep_alive_ == 0) && !dead_) {
+    SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
+    dead_ = true;
+  }
+
+  if (keep_alive_ && dead_) {
+    SystemStatus.ClearException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
+    dead_ = false;
+  }
+}
+
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
   /**
-   * SetTemperature:Set temperature 
+   * SetTemperature:Set temperature
    * para index:executer index
    * temperature:
    */
@@ -59,16 +103,27 @@ bool ExecuterManager::Detecte()
   {
     uint8_t Data[8];
 
+    if (index > (EXECUTER_FAN_COUNT-1))
+      return;
+
+    if (MachineType != MACHINE_TYPE_3DPRINT)
+      return;
+
     Data[0] = 0;
     Data[1] = time;
     Data[2] = s_value;
-    FanSpeed[index] = s_value;
-    if(index == 0) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 3);
-    else if(index == 1) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 3);
-  }
 
+    FanSpeed[index] = s_value;
+
+    if(index == 0) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 3);
+    }
+    else if(index == 1) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 3);
+    }
+  }
   /**
-   * SetFan:Set fan 
+   * SetFan:Set fan
    * para index:executer index
    * percent:fan speed in percent
    */
@@ -76,11 +131,23 @@ bool ExecuterManager::Detecte()
   {
     uint8_t Data[8];
 
+    if (index > (EXECUTER_FAN_COUNT-1))
+      return;
+
+    if (MachineType != MACHINE_TYPE_3DPRINT)
+      return;
+
     Data[0] = 0;
     Data[1] = s_value;
+
     FanSpeed[index] = s_value;
-    if(index == 0) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 2);
-    else if(index == 1) CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 2);
+
+    if(index == 0) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 2);
+    }
+    else if(index == 1) {
+      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN2, Data, 2);
+    }
   }
 #else
 
