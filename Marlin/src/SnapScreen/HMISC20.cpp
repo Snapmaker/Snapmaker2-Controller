@@ -601,7 +601,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
 
     set_bed_leveling_enabled(false);
 
-    // Set the Z max feedrate to 50mm/s
+    // change the Z max feedrate
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     // Set the current position of Z to Z_MAX_POS
@@ -1253,8 +1253,7 @@ void HMI_SC20::PollingCommand(void)
         case 14:
           LOG_I("SC req auto probe\n");
           // auto leveling, only offset between probe and extruder is known
-          extern float nozzle_height_probed;
-          if (nozzle_height_probed == 0) {
+          if (nozzle_height_probed == 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
             MarkNeedReack(2);
             break;
           }
@@ -1264,7 +1263,7 @@ void HMI_SC20::PollingCommand(void)
             break;
           }
 
-          process_cmd_imd("1029 S1");
+          process_cmd_imd("G1029 S1");
           // home all axis
           process_cmd_imd("G28");
           CalibrateMethod = 0;
