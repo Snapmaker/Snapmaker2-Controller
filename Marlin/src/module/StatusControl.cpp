@@ -363,6 +363,14 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
     return E_INVALID_STATE;
   }
 
+  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
+        runout.sensor_state()) {
+    LOG_E("No filemant! Please insert filemant!\n");
+    fault_flag_ |= FAULT_FLAG_FILAMENT;
+    HMI.SendMachineFaultFlag();
+    return E_NO_RESRC;
+  }
+
   switch (s) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
@@ -542,9 +550,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
       // home
       process_cmd_imd("G28");
     }
-
-    // move to original point
-    do_blocking_move_to_logical_xy(0, 0);
   }
 
   powerpanic.Reset();
@@ -563,13 +568,8 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
     LOG_E("No filemant! Please insert filemant!\n");
     fault_flag_ |= FAULT_FLAG_FILAMENT;
     HMI.SendMachineFaultFlag();
+    return E_NO_RESRC;
   }
-
-  // enable runout or not
-  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)
-    process_cmd_imd("M412 S1");
-  else
-    process_cmd_imd("M412 S0");
 
   Periph.StartDoorCheck();
 

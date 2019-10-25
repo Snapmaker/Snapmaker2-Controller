@@ -114,7 +114,10 @@ class TFilamentMonitor : public FilamentMonitorBase {
 
     // query current state of sensor
     static uint8_t sensor_state() {
-      return sensor.poll_runout_states();
+      if (enabled)
+        return sensor.poll_runout_states();
+      else
+        return enabled;
     }
 };
 
