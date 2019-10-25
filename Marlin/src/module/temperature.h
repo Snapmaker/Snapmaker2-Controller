@@ -323,6 +323,8 @@ class Temperature {
 
     #if WATCH_HOTENDS
       static heater_watch_t watch_hotend[HOTENDS];
+      static heater_watch_t watch_hotend_tempdrop[HOTENDS];
+      static heater_watch_t watch_hotend_notheated[HOTENDS];
     #endif
 
     #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
@@ -340,6 +342,8 @@ class Temperature {
     #if HAS_HEATED_BED
       #if WATCH_BED
         static heater_watch_t watch_bed;
+        static heater_watch_t watch_bed_tempdrop;
+        static heater_watch_t watch_bed_notheated;
       #endif
       #if DISABLED(PIDTEMPBED)
         static millis_t next_bed_check_ms;
@@ -546,6 +550,8 @@ class Temperature {
 
     #if WATCH_HOTENDS
       static void start_watching_heater(const uint8_t e=0);
+      static void start_watching_heater_tempdrop(const uint8_t e=0);
+      static void start_watching_heater_notheated(bool first_heating, const uint8_t e=0);
     #else
       static inline void start_watching_heater(const uint8_t e=0) { UNUSED(e); }
     #endif
@@ -563,8 +569,10 @@ class Temperature {
       E_UNUSED();
 
       if (action_ban & ACTION_BAN_NO_HEATING_HOTEND) {
-        SERIAL_ECHOLN("ERROR: System Fault! NOW cannot heat hotend!");
-        return;
+        if (celsius > 0) {
+          SERIAL_ECHOLN("ERROR: System Fault! NOW cannot heat hotend!");
+          return;
+        }
       }
       #ifdef MILLISECONDS_PREHEAT_TIME
         if (celsius == 0)
@@ -633,6 +641,8 @@ class Temperature {
 
       #if WATCH_BED
         static void start_watching_bed();
+        static void start_watching_bed_tempdrop();
+        static void start_watching_bed_notheated(bool first_heating);
       #else
         static inline void start_watching_bed() {}
       #endif
@@ -640,8 +650,10 @@ class Temperature {
       static void setTargetBed(const int16_t celsius) {
 
         if (action_ban & ACTION_BAN_NO_HEATING_BED) {
-          SERIAL_ECHOLN("ERROR: System Fault! now cannot heat Bed!");
-          return;
+          if (celsius > 0) {
+            SERIAL_ECHOLN("ERROR: System Fault! now cannot heat Bed!");
+            return;
+          }
         }
         #if ENABLED(AUTO_POWER_CONTROL)
           powerManager.power_on();
