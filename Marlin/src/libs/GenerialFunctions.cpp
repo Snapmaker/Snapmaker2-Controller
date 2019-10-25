@@ -45,7 +45,7 @@ char* Value8BitToString(uint8_t Value) {
 }
 
 int TempReport(uint8_t *pBuff) {
-  ExecuterHead.temp_hotend[0] = (float)((pBuff[0] << 8) | pBuff[1]) / 10.0f;
+  ExecuterHead.temp_hotend[0] = (float)(((int16_t)(pBuff[0] << 8) | pBuff[1])) / 10.0f;
   ExecuterHead.CanTempMeasReady = true;
   ExecuterHead.KeepAlive();
   return 0;
