@@ -99,10 +99,10 @@
 
   #define WATCH_TEMP_TARGET_START   45
   #define WATCH_TEMP_DROP_PERIOD    1
-  #define WATCH_TEMP_DROP_DECREASE  3
+  #define WATCH_TEMP_DROP_DELTA  3
 
   #define WATCH_TEMP_NOTHEATED_PERIOD 2   // Seconds
-  #define WATCH_TEMP_NOTHEATED_DELTA  0.5 // Degrees Celsius
+  #define WATCH_TEMP_NOTHEATED_DELTA  1 // Degrees Celsius
 #endif
 
 /**

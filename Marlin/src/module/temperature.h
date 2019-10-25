@@ -585,6 +585,8 @@ class Temperature {
       #endif
       temp_hotend[HOTEND_INDEX].target = MIN(celsius, temp_range[HOTEND_INDEX].maxtemp - 15);
       start_watching_heater(HOTEND_INDEX);
+      start_watching_heater_tempdrop(HOTEND_INDEX);
+      start_watching_heater_notheated(true, HOTEND_INDEX);
       #if ENABLED(EXECUTER_CANBUS_SUPPORT)
         ExecuterHead.SetTemperature(HOTEND_INDEX, temp_hotend[HOTEND_INDEX].target);
       #endif
@@ -666,6 +668,8 @@ class Temperature {
           #endif
         ;
         start_watching_bed();
+        start_watching_bed_tempdrop();
+        start_watching_bed_notheated(true);
       }
 
       static bool wait_for_bed(const bool no_wait_for_cooling=true
