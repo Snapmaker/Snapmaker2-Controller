@@ -22,12 +22,7 @@ extern float current_position[XYZE];
 
 void GcodeSuite::M2000() {
   uint8_t l;
-  uint8_t s = (uint8_t)parser.byteval('S', (uint8_t)10);
-
-  if (!WITHIN(s, 0, 1)) {
-    SERIAL_ECHOLNPGM("S out of range (0-1).");
-    return;
-  }
+  uint8_t s = (uint8_t)parser.byteval('S', (uint8_t)0);
 
   switch (s) {
   case 0:
@@ -51,6 +46,10 @@ void GcodeSuite::M2000() {
       return;
     }
     SNAP_DEBUG_SET_LEVEL((SnapDebugLevel)l);
+    break;
+
+  case 2:
+    SNAP_DEBUG_SHOW_EXCEPTION();
     break;
   }
 
