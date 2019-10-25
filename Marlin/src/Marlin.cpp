@@ -1002,8 +1002,6 @@ void setup() {
     HMI.Init();
   #endif
 
-  ExecuterHead.Print3D.HeatedBedSelfCheck();
-
   #if NUM_SERIAL > 0
     uint32_t serial_connect_timeout = millis() + 1000UL;
     while (!MYSERIAL0 && PENDING(millis(), serial_connect_timeout)) { /*nada*/ }
@@ -1341,6 +1339,8 @@ void loop() {
   if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
     ExecuterHead.StartCheckHeartbeat();
   }
+
+  ExecuterHead.Print3D.HeatedBedSelfCheck();
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
   for (;;) {
