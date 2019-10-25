@@ -1099,7 +1099,7 @@ void Temperature::manage_heater() {
 
     // check if abrupt temperature drop happened
     if (watch_bed_tempdrop.elapsed(ms) && temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
-      if (degBed() < watch_bed_tempdrop.target) {
+      if (degBed() < watch_bed_tempdrop.target - WATCH_BED_TEMP_DROP_DECREASE) {
         if (++bed_temp_drop == 3)
           SystemStatus.ThrowException(EHOST_BED, ETYPE_ABRUPT_TEMP_DROP);
         else if (bed_temp_drop > 3)
@@ -1971,7 +1971,7 @@ void Temperature::init() {
 
   void Temperature::start_watching_bed_tempdrop() {
     if (temp_bed.target > WATCH_BED_TEMP_TARGET_START && (temp_bed.target - temp_bed.current) > 5) {
-      watch_bed_tempdrop.target = temp_bed.current - WATCH_BED_TEMP_DROP_DECREASE;
+      watch_bed_tempdrop.target = temp_bed.current;
       watch_bed_tempdrop.next_ms = millis() + (WATCH_BED_TEMP_DROP_PERIOD) * 1000UL;
     }
 

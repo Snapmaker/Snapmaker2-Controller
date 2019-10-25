@@ -102,7 +102,7 @@
   #define WATCH_TEMP_DROP_DELTA  3
 
   #define WATCH_TEMP_NOTHEATED_PERIOD 2   // Seconds
-  #define WATCH_TEMP_NOTHEATED_DELTA  1 // Degrees Celsius
+  #define WATCH_TEMP_NOTHEATED_DELTA  10 // Degrees Celsius
 #endif
 
 /**
@@ -123,7 +123,7 @@
   #define WATCH_BED_TEMP_DROP_DECREASE  2   // Degrees Celsius
 
   #define WATCH_BED_TEMP_NOTHEATED_PERIOD 2   // Seconds
-  #define WATCH_BED_TEMP_NOTHEATED_DELTA  0.5 // Degrees Celsius
+  #define WATCH_BED_TEMP_NOTHEATED_DELTA  1 // Degrees Celsius
 #endif
 
 /**
