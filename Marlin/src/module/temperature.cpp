@@ -3236,6 +3236,9 @@ void Temperature::isr() {
           if (no_wait_for_cooling && wants_to_cool) break;
         }
 
+        if (degTargetHotend(target_extruder) == 0)
+          break;
+
         now = millis();
         if (ELAPSED(now, next_temp_ms)) { // Print temp & remaining time every 1s while waiting
           next_temp_ms = now + 1000UL;
@@ -3363,6 +3366,9 @@ void Temperature::isr() {
           // Exit if S<lower>, continue if S<higher>, R<lower>, or R<higher>
           if (no_wait_for_cooling && wants_to_cool) break;
         }
+
+        if (degTargetBed() == 0)
+          break;
 
         now = millis();
         if (ELAPSED(now, next_temp_ms)) { //Print Temp Reading every 1 second while heating up.
