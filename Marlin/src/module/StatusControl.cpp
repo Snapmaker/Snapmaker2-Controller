@@ -865,7 +865,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING;
       }
-      LOG_E("current temp of hotend is more higher than MAXTEMP: %d!\n", HEATER_0_MAXTEMP);
+      LOG_E("current temp of hotend is more higher than MAXTEMP: %d!\n", HEATER_0_MAXTEMP + 10);
       break;
 
     case EHOST_BED:
@@ -879,7 +879,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("current temp of Bed is more higher than MAXTEMP: %d!\n", BED_MAXTEMP);
+      LOG_E("current temp of Bed is more higher than MAXTEMP: %d!\n", BED_MAXTEMP + 5);
       break;
 
     default:
@@ -901,7 +901,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("current temperature of hotend dropped abruptly!\n", HEATER_0_MAXTEMP);
+      LOG_E("current temperature of hotend dropped abruptly!\n");
       break;
 
     case EHOST_BED:
@@ -913,7 +913,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("current temperature of bed dropped abruptly!\n", BED_MAXTEMP);
+      LOG_E("current temperature of bed dropped abruptly!\n");
       break;
 
     default:
@@ -935,7 +935,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("current temp of hotend is more higher than MAXTEMP: %d!\n");
+      LOG_E("Thermistor of hotend maybe is comed off!\n");
       break;
 
     case EHOST_BED:
@@ -947,7 +947,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("current temp of Bed is more higher than MAXTEMP: %d!\n");
+      LOG_E("Thermistor of bed maybe is comed off!\n");
       break;
 
     default:
