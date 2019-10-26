@@ -23,7 +23,6 @@ extern float current_position[XYZE];
 
 void GcodeSuite::M2000() {
   uint8_t l;
-  uint8_t i;
   uint8_t s = (uint8_t)parser.byteval('S', (uint8_t)0);
 
   switch (s) {

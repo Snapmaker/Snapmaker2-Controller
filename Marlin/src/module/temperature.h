@@ -233,10 +233,24 @@ typedef struct {
 
 // Heater watch handling
 typedef struct {
-  uint16_t target;
+  float target;
   millis_t next_ms;
+  uint8_t debounce_cnt;
+  uint8_t debounce_max;
   inline bool elapsed(const millis_t &ms) { return next_ms && ELAPSED(ms, next_ms); }
   inline bool elapsed() { return elapsed(millis()); }
+  inline bool debounce(bool has_exception) {
+    if (has_exception) {
+      if (++debounce_cnt == debounce_max)
+        return true;
+      else if (debounce_cnt > debounce_max)
+        debounce_cnt = debounce_max;
+    }
+    else if (debounce_cnt < debounce_max)
+      debounce_cnt = 0;
+
+    return false;
+  }
 } heater_watch_t;
 
 // Temperature sensor read value ranges

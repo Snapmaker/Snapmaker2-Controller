@@ -1181,14 +1181,14 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
   case ETYPE_OVERRUN_MAXTEMP:
     switch (h) {
     case EHOST_HOTEND0:
-      if (fault_flag_ & FAULT_FLAG_HOTEND_MAXTEMP)
+      if (!(fault_flag_ & FAULT_FLAG_HOTEND_MAXTEMP))
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_HOTEND_MAXTEMP;
       LOG_I("current temp of hotend is lower than MAXTEMP!\n");
       break;
 
     case EHOST_BED:
-      if (fault_flag_ & FAULT_FLAG_BED_MAXTEMP)
+      if (!(fault_flag_ & FAULT_FLAG_BED_MAXTEMP))
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_BED_MAXTEMP;
       LOG_I("current temp of Bed is lower than MAXTEMP!\n");
@@ -1204,7 +1204,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
   case ETYPE_OVERRUN_MAXTEMP_AGAIN:
     switch (h) {
     case EHOST_HOTEND0:
-      if (fault_flag_ & FAULT_FLAG_HOTEND_SHORTCIRCUIT)
+      if (!(fault_flag_ & FAULT_FLAG_HOTEND_SHORTCIRCUIT))
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SHORTCIRCUIT;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
@@ -1216,7 +1216,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
       break;
 
     case EHOST_BED:
-      if (fault_flag_ & FAULT_FLAG_BED_SHORTCIRCUIT)
+      if (!(fault_flag_ & FAULT_FLAG_BED_SHORTCIRCUIT))
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_BED_SHORTCIRCUIT;
       action_ban = ACTION_BAN_NO_HEATING_BED;
@@ -1234,7 +1234,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
   case ETYPE_ABRUPT_TEMP_DROP:
     switch (h) {
     case EHOST_HOTEND0:
-      if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_COMEOFF)
+      if (!(fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_COMEOFF))
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
@@ -1245,7 +1245,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
       break;
 
     case EHOST_BED:
-      if (fault_flag_ & FAULT_FLAG_BED_SENSOR_COMEOFF)
+      if (!(fault_flag_ & FAULT_FLAG_BED_SENSOR_COMEOFF))
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_BED_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_BED;
@@ -1262,7 +1262,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
   case ETYPE_SENSOR_COME_OFF:
     switch (h) {
     case EHOST_HOTEND0:
-      if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_COMEOFF)
+      if (!(fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_COMEOFF))
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
@@ -1273,7 +1273,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
       break;
 
     case EHOST_BED:
-      if (fault_flag_ & FAULT_FLAG_BED_SENSOR_COMEOFF)
+      if (!(fault_flag_ & FAULT_FLAG_BED_SENSOR_COMEOFF))
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_BED_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_BED;
@@ -1303,7 +1303,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
 }
 
 
-void MapFaultFlagToException(uint32_t flag, ExceptionHost &host, ExceptionType &type) {
+void StatusControl::MapFaultFlagToException(uint32_t flag, ExceptionHost &host, ExceptionType &type) {
   switch (flag) {
   case FAULT_FLAG_NO_EXECUTOR:
     host = EHOST_EXECUTOR;
@@ -1411,6 +1411,7 @@ void MapFaultFlagToException(uint32_t flag, ExceptionHost &host, ExceptionType &
     break;
 
   default:
+    LOG_W("cannot map fault flag: 0x%08X\n", flag);
     break;
   }
 }
@@ -1426,6 +1427,7 @@ ErrCode StatusControl::ClearExceptionByFaultFlag(uint32_t flag) {
     index = 1<<i;
     if (flag & index) {
       MapFaultFlagToException(flag, host, type);
+      LOG_I("will clear except: host: %d, type: %u\n", host, type);
       ClearException(host, type);
     }
   }
