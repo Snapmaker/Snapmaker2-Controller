@@ -12,6 +12,7 @@
 #include "CNCExecuter.h"
 #include "LaserExecuter.h"
 #include "PrintExecuter.h"
+#include "../snap_module/heartbeat_watch.h"
 
 #define EXECUTER_FAN_COUNT  4
 
@@ -23,9 +24,7 @@ public:
   bool Detecte();
   void Process();
 
-  void StartCheckHeartbeat();
-  void KeepAlive();
-  bool IsDead();
+  void CheckAlive();
 
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)
     void SetTemperature(uint8_t index, uint16_t temperature);
@@ -43,6 +42,7 @@ private:
   bool dead_;
 
 public:
+  HeartbeatWatch watch;
   LaserExecuter Laser;
   CNCExecuter CNC;
   PrintExecuter Print3D;

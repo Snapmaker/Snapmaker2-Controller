@@ -776,6 +776,7 @@ void idle(
   #endif
 
   SystemStatus.CheckException();
+  ExecuterHead.CheckAlive();
 
   #if ENABLED(HOST_KEEPALIVE_FEATURE)
     gcode.host_keepalive();
@@ -1337,7 +1338,7 @@ void loop() {
   }
 
   if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
-    ExecuterHead.StartCheckHeartbeat();
+    ExecuterHead.watch.Start();
   }
 
   ExecuterHead.Print3D.HeatedBedSelfCheck();
