@@ -1756,7 +1756,7 @@ void HMI_SC20::SendBreakPointData()
 /***********************************************
 发送报警
 ************************************************/
-void HMI_SC20::SendMachineFaultFlag()
+void HMI_SC20::SendMachineFaultFlag(uint32_t flag)
 {
   uint16_t i;
   i = 0;
@@ -1768,9 +1768,10 @@ void HMI_SC20::SendMachineFaultFlag()
   tmpBuff[i++] = 0x02;
 
   //异常标志
-  uint32_t SysFaultFlag;
-  SysFaultFlag = SystemStatus.GetSystemFault();
-  BITS32_TO_BYTES(SysFaultFlag, tmpBuff, i);
+  if (!flag) {
+    flag = SystemStatus.GetSystemFault();
+  }
+  BITS32_TO_BYTES(flag, tmpBuff, i);
 
   //打印文件源
   if (SystemStatus.GetCurrentStage() == SYSTAGE_IDLE) tmpBuff[i++] = 3;

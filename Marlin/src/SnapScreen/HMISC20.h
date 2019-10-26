@@ -16,7 +16,7 @@ public:
   void SendGcode(char *GCode, uint8_t EventID);
   void SendChDirResult(uint8_t Result);
   void SendMachineStatusChange(uint8_t Status, uint8_t Result);
-  void SendMachineFaultFlag();
+  void SendMachineFaultFlag(uint32_t flag = 0);
   void SendBreakPointData();
   void SendMachineStatus();
   

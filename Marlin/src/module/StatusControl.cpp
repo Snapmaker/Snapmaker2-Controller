@@ -55,7 +55,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   switch (type) {
   case TRIGGER_SOURCE_RUNOUT:
     fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag();
+    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
     break;
 
   case TRIGGER_SOURCE_DOOR_OPEN:
@@ -367,7 +367,7 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
         runout.sensor_state()) {
     LOG_E("No filemant! Please insert filemant!\n");
     fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag();
+    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
     return E_NO_RESRC;
   }
 
@@ -567,7 +567,7 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
         runout.sensor_state()) {
     LOG_E("No filemant! Please insert filemant!\n");
     fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag();
+    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
     return E_NO_RESRC;
   }
 
@@ -626,6 +626,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
   uint8_t action_ban = ACTION_BAN_NONE;
   uint8_t power_ban = POWER_DOMAIN_NONE;
   uint8_t power_disable = POWER_DOMAIN_NONE;
+  uint32_t new_fault_flag = 0;
 
   switch (t) {
   case ETYPE_NO_HOST:
@@ -633,7 +634,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_EXECUTOR:
       if (fault_flag_ & FAULT_FLAG_NO_EXECUTOR)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_NO_EXECUTOR;
+      new_fault_flag = FAULT_FLAG_NO_EXECUTOR;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
       LOG_E("Cannot detect Executor!\n");
       break;
@@ -641,7 +642,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_LINEAR:
       if (fault_flag_ & FAULT_FLAG_NO_LINEAR)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_NO_LINEAR;
+      new_fault_flag = FAULT_FLAG_NO_LINEAR;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING);
       Running = false;
       LOG_E("Cannot detect any Linear Module!\n");
@@ -650,7 +651,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_MC:
       if (fault_flag_ & FAULT_FLAG_UNKNOW_MODEL)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_UNKNOW_MODEL;
+      new_fault_flag = FAULT_FLAG_UNKNOW_MODEL;
       action_ban |= ACTION_BAN_NO_WORKING;
       LOG_E("Cannot detect Machine model!\n");
       break;
@@ -667,7 +668,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_EXECUTOR:
       if (fault_flag_ & FAULT_FLAG_LOST_EXECUTOR)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_LOST_EXECUTOR;
+      new_fault_flag = FAULT_FLAG_LOST_EXECUTOR;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_HOTEND;
       LOG_E("Executor Lost!\n");
@@ -676,7 +677,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_LINEAR:
       if (fault_flag_ & FAULT_FLAG_LOST_LINEAR)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_LOST_LINEAR;
+      new_fault_flag = FAULT_FLAG_LOST_LINEAR;
       action_ban |= ACTION_BAN_NO_WORKING;
       action = EACTION_STOP_WORKING;
       LOG_E("Linear Module Lost!\n");
@@ -692,21 +693,21 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
   case ETYPE_RUNOUT:
     if (fault_flag_ & FAULT_FLAG_FILAMENT)
       return E_INVALID_STATE;
-    fault_flag_ |= FAULT_FLAG_FILAMENT;
+    new_fault_flag = FAULT_FLAG_FILAMENT;
     LOG_I("runout fault is cleared!\n");
     break;
 
   case ETYPE_LOST_CFG:
     if (fault_flag_ & FAULT_FLAG_LOST_SETTING)
       return E_SAME_STATE;
-    fault_flag_ |= FAULT_FLAG_LOST_SETTING;
+    new_fault_flag = FAULT_FLAG_LOST_SETTING;
     LOG_E("Configuration Lost!\n");
     break;
 
   case ETYPE_PORT_BAD:
     if (fault_flag_ & FAULT_FLAG_BED_PORT)
       return E_SAME_STATE;
-    fault_flag_ |= FAULT_FLAG_BED_PORT;
+    new_fault_flag = FAULT_FLAG_BED_PORT;
     if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
     action_ban |= ACTION_BAN_NO_HEATING_BED;
@@ -718,7 +719,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
   case ETYPE_POWER_LOSS:
     if (fault_flag_ & FAULT_FLAG_POWER_LOSS)
       return E_SAME_STATE;
-    fault_flag_ |= FAULT_FLAG_POWER_LOSS;
+    new_fault_flag = FAULT_FLAG_POWER_LOSS;
     LOG_E("power-loss apeared at last poweroff!\n");
     break;
 
@@ -729,14 +730,14 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_HEATFAIL)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_HEATFAIL;
+      new_fault_flag = FAULT_FLAG_HOTEND_HEATFAIL;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_HOTEND;
       break;
 
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_HEATFAIL)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_HEATFAIL;
+      new_fault_flag = FAULT_FLAG_BED_HEATFAIL;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
       break;
 
@@ -754,7 +755,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_RUNWAWY)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_RUNWAWY;
+      new_fault_flag = FAULT_FLAG_HOTEND_RUNWAWY;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
       break;
 
@@ -762,7 +763,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       LOG_W("Not handle exception: BED TEMP RUNAWAY\n");
       if (fault_flag_ & FAULT_FLAG_BED_RUNAWAY)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_RUNAWAY;
+      new_fault_flag = FAULT_FLAG_BED_RUNAWAY;
       // action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
       break;
 
@@ -787,7 +788,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SUCCESS;
       if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_BAD)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_SENSOR_BAD;
+      new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_BAD;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
       LOG_E("Error happened in Thermistor of Hotend!\n");
@@ -796,7 +797,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_SENSOR_BAD)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_SENSOR_BAD;
+      new_fault_flag = FAULT_FLAG_BED_SENSOR_BAD;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
@@ -824,7 +825,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_MAXTEMP)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_MAXTEMP;
+      new_fault_flag = FAULT_FLAG_HOTEND_MAXTEMP;
       action = EACTION_STOP_HEATING_HOTEND;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
@@ -835,7 +836,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_MAXTEMP)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_MAXTEMP;
+      new_fault_flag = FAULT_FLAG_BED_MAXTEMP;
       action = EACTION_STOP_HEATING_BED;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
@@ -855,7 +856,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SHORTCIRCUIT)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_SHORTCIRCUIT;
+      new_fault_flag = FAULT_FLAG_HOTEND_SHORTCIRCUIT;
       action = EACTION_STOP_HEATING_HOTEND;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       power_disable = POWER_DOMAIN_HOTEND;
@@ -870,7 +871,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_SHORTCIRCUIT)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_SHORTCIRCUIT;
+      new_fault_flag = FAULT_FLAG_BED_SHORTCIRCUIT;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
       power_disable = POWER_DOMAIN_BED;
@@ -893,7 +894,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_COMEOFF)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
+      new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_HOTEND;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
@@ -906,7 +907,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_SENSOR_COMEOFF)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_SENSOR_COMEOFF;
+      new_fault_flag = FAULT_FLAG_BED_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
@@ -927,7 +928,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_COMEOFF)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
+      new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_HOTEND;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
@@ -940,7 +941,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_SENSOR_COMEOFF)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_SENSOR_COMEOFF;
+      new_fault_flag = FAULT_FLAG_BED_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
@@ -985,7 +986,8 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     PauseTrigger(TRIGGER_SOURCE_EXCEPTION);
   }
 
-  HMI.SendMachineFaultFlag();
+  fault_flag_ |= new_fault_flag;
+  HMI.SendMachineFaultFlag(new_fault_flag);
 
   return E_SUCCESS;
 }
@@ -1181,14 +1183,14 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_MAXTEMP)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_MAXTEMP;
+      fault_flag_ &= ~FAULT_FLAG_HOTEND_MAXTEMP;
       LOG_I("current temp of hotend is lower than MAXTEMP!\n");
       break;
 
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_MAXTEMP)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_MAXTEMP;
+      fault_flag_ &= ~FAULT_FLAG_BED_MAXTEMP;
       LOG_I("current temp of Bed is lower than MAXTEMP!\n");
       break;
 
@@ -1204,7 +1206,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SHORTCIRCUIT)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_SHORTCIRCUIT;
+      fault_flag_ &= ~FAULT_FLAG_HOTEND_SHORTCIRCUIT;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       power_ban = POWER_DOMAIN_HOTEND;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
@@ -1216,7 +1218,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_SHORTCIRCUIT)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_SHORTCIRCUIT;
+      fault_flag_ &= ~FAULT_FLAG_BED_SHORTCIRCUIT;
       action_ban = ACTION_BAN_NO_HEATING_BED;
       power_ban = POWER_DOMAIN_BED;
       LOG_I("current temp of Bed is now lower than MAX TEMP: %d!\n", BED_MAXTEMP);
@@ -1234,7 +1236,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_COMEOFF)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
+      fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action_ban |= ACTION_BAN_NO_WORKING;
@@ -1245,7 +1247,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_SENSOR_COMEOFF)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_SENSOR_COMEOFF;
+      fault_flag_ &= ~FAULT_FLAG_BED_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_BED;
       LOG_I("abrupt temperature drop in bed recover.\n");
       break;
@@ -1262,20 +1264,20 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_COMEOFF)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
+      fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("current temp of hotend is more higher than MAXTEMP: %d!\n", HEATER_0_MAXTEMP);
+      LOG_I("fault of HOTEND SENSOR COME OFF is cleared!\n");
       break;
 
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_SENSOR_COMEOFF)
         return E_SAME_STATE;
-      fault_flag_ |= FAULT_FLAG_BED_SENSOR_COMEOFF;
+      fault_flag_ &= ~FAULT_FLAG_BED_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_BED;
-      LOG_E("current temp of Bed is more higher than MAXTEMP: %d!\n", BED_MAXTEMP);
+      LOG_I("fault of BED SENSOR COME OFF is cleared!\n");
       break;
 
     default:
