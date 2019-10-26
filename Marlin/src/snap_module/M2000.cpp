@@ -3,6 +3,7 @@
 #include "../gcode/gcode.h"
 #include "../gcode/queue.h"
 #include "../core/macros.h"
+#include "../module/StatusControl.h"
 
 #if HAS_POSITION_SHIFT
   // The distance that XYZ has been offset by G92. Reset by G28.
@@ -22,6 +23,7 @@ extern float current_position[XYZE];
 
 void GcodeSuite::M2000() {
   uint8_t l;
+  uint8_t i;
   uint8_t s = (uint8_t)parser.byteval('S', (uint8_t)0);
 
   switch (s) {
@@ -50,6 +52,15 @@ void GcodeSuite::M2000() {
 
   case 2:
     SNAP_DEBUG_SHOW_EXCEPTION();
+    break;
+
+  case 3:
+    l = (uint8_t)parser.byteval('L', (uint8_t)0);
+    if (!WITHIN(l, 1, 32)) {
+      LOG_E("L is out of range (1-32)\n");
+      return;
+    }
+    SystemStatus.ClearExceptionByFaultFlag(1<<(l-1));
     break;
   }
 

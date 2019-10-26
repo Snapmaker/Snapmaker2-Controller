@@ -689,6 +689,13 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     }
     break;
 
+  case ETYPE_RUNOUT:
+    if (fault_flag_ & FAULT_FLAG_FILAMENT)
+      return E_INVALID_STATE;
+    fault_flag_ |= FAULT_FLAG_FILAMENT;
+    LOG_I("runout fault is cleared!\n");
+    break;
+
   case ETYPE_LOST_CFG:
     if (fault_flag_ & FAULT_FLAG_LOST_SETTING)
       return E_SAME_STATE;
@@ -812,7 +819,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     return E_FAILURE;
     break;
 
-  case ETYPE_ABOVE_MAXTEMP:
+  case ETYPE_OVERRUN_MAXTEMP:
     switch (h) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_MAXTEMP)
@@ -843,7 +850,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     }
     break;
 
-  case ETYPE_ABOVE_MAXTEMP_ADDITION:
+  case ETYPE_OVERRUN_MAXTEMP_AGAIN:
     switch (h) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SHORTCIRCUIT)
@@ -1064,6 +1071,13 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     }
     break;
 
+  case ETYPE_RUNOUT:
+    if (!(fault_flag_ & FAULT_FLAG_FILAMENT))
+      return E_INVALID_STATE;
+    fault_flag_ &= ~FAULT_FLAG_FILAMENT;
+    LOG_I("runout fault is cleared!\n");
+    break;
+
   case ETYPE_LOST_CFG:
     LOG_I("clear error of configiration lost!\n");
     if (!(fault_flag_ & FAULT_FLAG_LOST_SETTING))
@@ -1162,7 +1176,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     LOG_E("BELOW_MINTEMP fault is cleared\n");
     break;
 
-  case ETYPE_ABOVE_MAXTEMP:
+  case ETYPE_OVERRUN_MAXTEMP:
     switch (h) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_MAXTEMP)
@@ -1185,7 +1199,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     }
     break;
 
-  case ETYPE_ABOVE_MAXTEMP_ADDITION:
+  case ETYPE_OVERRUN_MAXTEMP_AGAIN:
     switch (h) {
     case EHOST_HOTEND0:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SHORTCIRCUIT)
@@ -1284,4 +1298,133 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
     disable_power_domain(power_ban);
 
   return E_SUCCESS;
+}
+
+
+void MapFaultFlagToException(uint32_t flag, ExceptionHost &host, ExceptionType &type) {
+  switch (flag) {
+  case FAULT_FLAG_NO_EXECUTOR:
+    host = EHOST_EXECUTOR;
+    type = ETYPE_NO_HOST;
+    break;
+
+  case FAULT_FLAG_NO_LINEAR:
+    host = EHOST_LINEAR;
+    type = ETYPE_NO_HOST;
+    break;
+
+  case FAULT_FLAG_BED_PORT:
+    host = EHOST_BED;
+    type = ETYPE_PORT_BAD;
+    break;
+
+  case FAULT_FLAG_FILAMENT:
+    host = EHOST_EXECUTOR;
+    type = ETYPE_RUNOUT;
+    break;
+
+  case FAULT_FLAG_LOST_SETTING:
+    host = EHOST_MC;
+    type = ETYPE_LOST_CFG;
+    break;
+
+  case FAULT_FLAG_LOST_EXECUTOR:
+    host = EHOST_EXECUTOR;
+    type = ETYPE_LOST_HOST;
+    break;
+
+  case FAULT_FLAG_POWER_LOSS:
+    host = EHOST_MC;
+    type = ETYPE_POWER_LOSS;
+    break;
+
+  case FAULT_FLAG_HOTEND_HEATFAIL:
+    host = EHOST_HOTEND0;
+    type = ETYPE_HEAT_FAIL;
+    break;
+
+  case FAULT_FLAG_BED_HEATFAIL:
+    host = EHOST_BED;
+    type = ETYPE_HEAT_FAIL;
+    break;
+
+  case FAULT_FLAG_HOTEND_RUNWAWY:
+    host = EHOST_HOTEND0;
+    type = ETYPE_TEMP_RUNAWAY;
+    break;
+
+  case FAULT_FLAG_BED_RUNAWAY:
+    host = EHOST_BED;
+    type = ETYPE_TEMP_RUNAWAY;
+    break;
+
+  case FAULT_FLAG_HOTEND_SENSOR_BAD:
+    host = EHOST_HOTEND0;
+    type = ETYPE_SENSOR_BAD;
+    break;
+
+  case FAULT_FLAG_BED_SENSOR_BAD:
+    host = EHOST_BED;
+    type = ETYPE_SENSOR_BAD;
+    break;
+
+  case FAULT_FLAG_LOST_LINEAR:
+    host = EHOST_LINEAR;
+    type = ETYPE_LOST_HOST;
+    break;
+
+  case FAULT_FLAG_HOTEND_MAXTEMP:
+    host = EHOST_HOTEND0;
+    type = ETYPE_OVERRUN_MAXTEMP;
+    break;
+
+  case FAULT_FLAG_BED_MAXTEMP:
+    host = EHOST_BED;
+    type = ETYPE_OVERRUN_MAXTEMP;
+    break;
+
+  case FAULT_FLAG_HOTEND_SHORTCIRCUIT:
+    host = EHOST_HOTEND0;
+    type = ETYPE_OVERRUN_MAXTEMP_AGAIN;
+    break;
+
+  case FAULT_FLAG_BED_SHORTCIRCUIT:
+    host = EHOST_BED;
+    type = ETYPE_OVERRUN_MAXTEMP_AGAIN;
+    break;
+
+  case FAULT_FLAG_HOTEND_SENSOR_COMEOFF:
+    host = EHOST_HOTEND0;
+    type = ETYPE_SENSOR_COME_OFF;
+    break;
+
+  case FAULT_FLAG_BED_SENSOR_COMEOFF:
+    host = EHOST_BED;
+    type = ETYPE_SENSOR_COME_OFF;
+    break;
+
+  case FAULT_FLAG_UNKNOW_MODEL:
+    host = EHOST_MC;
+    type = ETYPE_NO_HOST;
+    break;
+
+  default:
+    break;
+  }
+}
+
+ErrCode StatusControl::ClearExceptionByFaultFlag(uint32_t flag) {
+  int i;
+  uint32_t index;
+
+  ExceptionHost host;
+  ExceptionType type;
+
+  for (i=0; i<32; i++) {
+    index = 1<<i;
+    if (flag & index) {
+      MapFaultFlagToException(flag, host, type);
+      ClearException(host, type);
+    }
+  }
 }

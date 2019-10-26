@@ -1012,7 +1012,7 @@ void HMI_SC20::PollingCommand(void)
       else if (StatuID == 0x0a) {
         if (cmdLen < 6) {
           LOG_I("SC req clear power loss bits\n");
-          SystemStatus.ClearSystemFaultBit(FAULT_FLAG_POWER_LOSS);
+          SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_POWER_LOSS);
           if (powerpanic.pre_data_.Valid == 1) {
             // clear flash data
             LOG_I("clearing flash data ...");
@@ -1022,9 +1022,9 @@ void HMI_SC20::PollingCommand(void)
         }
         else {
           uint32_t fault_bit = BYTES_TO_32BITS(tmpBuff, 10);
-          LOG_I("SC req clear fault bits: 0x%08X\n", fault_bit);
+          LOG_I("SC req clear exception, fault bits: 0x%08X\n", fault_bit);
           fault_bit &= FAULT_FLAG_SC_CLEAR_MASK;
-          SystemStatus.ClearSystemFaultBit(fault_bit);
+          SystemStatus.ClearExceptionByFaultFlag(fault_bit);
         }
 
         // ack

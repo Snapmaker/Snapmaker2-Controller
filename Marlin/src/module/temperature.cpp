@@ -740,7 +740,7 @@ void Temperature::_temp_error(const int8_t heater, PGM_P const serial_msg, PGM_P
 
 void Temperature::max_temp_error(const int8_t heater) {
   _temp_error(heater, PSTR(MSG_T_MAXTEMP), TEMP_ERR_PSTR(MSG_ERR_MAXTEMP, heater));
-  SystemStatus.ThrowException((ExceptionHost)heater,ETYPE_ABOVE_MAXTEMP);
+  SystemStatus.ThrowException((ExceptionHost)heater,ETYPE_OVERRUN_MAXTEMP_AGAIN);
 }
 
 void Temperature::min_temp_error(const int8_t heater) {
@@ -996,9 +996,9 @@ void Temperature::manage_heater() {
       }
 
       if (temp_hotend[e].current > (HEATER_0_MAXTEMP + 10))
-        SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_ABOVE_MAXTEMP_ADDITION);
+        SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP_AGAIN);
       else if (temp_hotend[e].current > HEATER_0_MAXTEMP)
-        SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_ABOVE_MAXTEMP);
+        SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP);
 
       #if ENABLED(THERMAL_PROTECTION_HOTENDS)
         // Check for thermal runaway
@@ -1020,35 +1020,39 @@ void Temperature::manage_heater() {
       #endif
       if (watch_hotend_tempdrop[e].elapsed(ms)) {
         // watch_hotend_tempdrop[e].target is temperature last second
-        if (degHotend(e) < (watch_hotend_tempdrop[e].target - WATCH_TEMP_DROP_DELTA)) {
-          if (++hotend_temp_drop == 3) {
+        if (degHotend(e) < (watch_hotend_tempdrop[e].target)) {
+          if (++hotend_temp_drop == WATCH_TEMP_DEBOUNCE_COUNT) {
             SystemStatus.ThrowException((ExceptionHost)e, ETYPE_ABRUPT_TEMP_DROP);
           }
           // to avoid raising exception again
-          else if (hotend_temp_drop > 3)
-            hotend_temp_drop = 3;
+          else if (hotend_temp_drop > WATCH_TEMP_DEBOUNCE_COUNT)
+            hotend_temp_drop = WATCH_TEMP_DEBOUNCE_COUNT;
         }
-        else {
+        else if (hotend_temp_drop < WATCH_TEMP_DEBOUNCE_COUNT)
           // to avoid raising exception again
-          if (hotend_temp_drop < 3)
-            hotend_temp_drop = 0;
-        }
+          hotend_temp_drop = 0;
 
         start_watching_heater_tempdrop(e);
+      }
+      else {
+        hotend_temp_drop = 0;
       }
 
       // check if temperature doesn't increase when heating
       if (watch_hotend_notheated[e].elapsed(ms)) {
         if (degHotend(e) < watch_hotend_notheated[e].target) {
-          if (++hotend_not_heated == 3)
+          if (++hotend_not_heated == WATCH_TEMP_DEBOUNCE_COUNT)
             SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_COME_OFF);
-          else if (hotend_not_heated > 3)
-            hotend_not_heated = 3;
+          else if (hotend_not_heated > WATCH_TEMP_DEBOUNCE_COUNT)
+            hotend_not_heated = WATCH_TEMP_DEBOUNCE_COUNT;
         }
-        else if (hotend_not_heated < 3)
+        else if (hotend_not_heated < WATCH_TEMP_DEBOUNCE_COUNT)
           hotend_not_heated = 0;
 
         start_watching_heater_notheated(false, e);
+      }
+      else {
+        hotend_not_heated = 0;
       }
 
       #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
@@ -1098,34 +1102,38 @@ void Temperature::manage_heater() {
     #endif // WATCH_BED
 
     // check if abrupt temperature drop happened
-    if (watch_bed_tempdrop.elapsed(ms) && temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
-      if (degBed() < watch_bed_tempdrop.target - WATCH_BED_TEMP_DROP_DECREASE) {
-        if (++bed_temp_drop == 3)
+    if (watch_bed_tempdrop.elapsed(ms)) {
+      if (degBed() < watch_bed_tempdrop.target) {
+        if (++bed_temp_drop == WATCH_BED_TEMP_DEBOUNCE_COUNT)
           SystemStatus.ThrowException(EHOST_BED, ETYPE_ABRUPT_TEMP_DROP);
-        else if (bed_temp_drop > 3)
-          bed_temp_drop = 3;
+        else if (bed_temp_drop > WATCH_BED_TEMP_DEBOUNCE_COUNT)
+          bed_temp_drop = WATCH_BED_TEMP_DEBOUNCE_COUNT;
       }
-      else if (bed_temp_drop < 3)
+      else if (bed_temp_drop < WATCH_BED_TEMP_DEBOUNCE_COUNT)
         bed_temp_drop = 0;
 
       start_watching_bed_tempdrop();
     }
-
+    else {
+      bed_temp_drop = 0;
+    }
 
     // check if temperature doesn't increase when heating
-    if (watch_bed_notheated.elapsed(ms) && temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
+    if (watch_bed_notheated.elapsed(ms)) {
       if (degBed() < watch_bed_notheated.target) {
-        if (++bed_not_heated == 3)
+        if (++bed_not_heated == WATCH_BED_TEMP_DEBOUNCE_COUNT)
           SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_COME_OFF);
-        else if (bed_not_heated > 3)
-          bed_not_heated = 3;
+        else if (bed_not_heated > WATCH_BED_TEMP_DEBOUNCE_COUNT)
+          bed_not_heated = WATCH_BED_TEMP_DEBOUNCE_COUNT;
       }
-      else if (bed_not_heated < 3)
+      else if (bed_not_heated < WATCH_BED_TEMP_DEBOUNCE_COUNT)
         bed_not_heated = 0;
 
       start_watching_bed_notheated(false);
     }
-
+    else {
+      bed_not_heated = 0;
+    }
 
     // check if thermistor is bad
     if (temp_bed.current < 0) {
@@ -1152,9 +1160,9 @@ void Temperature::manage_heater() {
 
     // check if heating is out of control
     if (temp_bed.current > (BED_MAXTEMP + 10))
-      SystemStatus.ThrowException(EHOST_BED, ETYPE_ABOVE_MAXTEMP_ADDITION);
+      SystemStatus.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP_AGAIN);
     else if (temp_bed.current > BED_MAXTEMP)
-      SystemStatus.ThrowException(EHOST_BED, ETYPE_ABOVE_MAXTEMP);
+      SystemStatus.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP);
 
     #if DISABLED(PIDTEMPBED)
       if (PENDING(ms, next_bed_check_ms)
@@ -1932,24 +1940,40 @@ void Temperature::init() {
 
   void Temperature::start_watching_heater_tempdrop(const uint8_t e) {
     E_UNUSED();
-    if (temp_hotend[e].target > WATCH_TEMP_TARGET_START && (temp_hotend[e].target - temp_hotend[e].current) > TEMP_HYSTERESIS) {
-      watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].current;
+    if (temp_hotend[e].target > WATCH_TEMP_TARGET_START) {
+      // now temp should be raising, hotend is being heated
+      if (temp_bed.current < temp_hotend[e].target - WATCH_TEMP_DROP_DELTA) {
+        watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].current;
+      }
+      else {
+        watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].target - WATCH_TEMP_DROP_DELTA;
+      }
+
       watch_hotend_tempdrop[HOTEND_INDEX].next_ms = millis() + (WATCH_TEMP_DROP_PERIOD) * 1000UL;
     }
-
-    if (temp_hotend[e].target == 0)
+    else
       watch_hotend_tempdrop[HOTEND_INDEX].next_ms = 0;
   }
 
   void Temperature::start_watching_heater_notheated(bool first_heating, const uint8_t e) {
     E_UNUSED();
-    if (temp_hotend[e].target > WATCH_TEMP_TARGET_START && (temp_hotend[e].target - temp_hotend[e].current) > 10) {
-      if (first_heating)
-        watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].current + WATCH_TEMP_NOTHEATED_DELTA;
+    if (temp_hotend[e].target > WATCH_BED_TEMP_TARGET_START) {
+      if (first_heating) {
+      // temperature should raise
+        if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_NOTHEATED_DELTA) {
+          watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].current;
+        }
+        else {
+          // temp_bed.current > temp_bed.target - WATCH_BED_TEMP_TARGET_START
+          watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].target - WATCH_TEMP_NOTHEATED_DELTA;
+        }
+      }
+
+      // always check then target > WATCH_BED_TEMP_TARGET_START
       watch_hotend_notheated[HOTEND_INDEX].next_ms = millis() + (WATCH_TEMP_NOTHEATED_PERIOD) * 1000UL;
     }
-
-    if (temp_hotend[e].target == 0)
+    else
+      // cancel the checking
       watch_hotend_notheated[HOTEND_INDEX].next_ms = 0;
   }
 #endif
@@ -1970,12 +1994,18 @@ void Temperature::init() {
   }
 
   void Temperature::start_watching_bed_tempdrop() {
-    if (temp_bed.target > WATCH_BED_TEMP_TARGET_START && (temp_bed.target - temp_bed.current) > 5) {
-      watch_bed_tempdrop.target = temp_bed.current;
-      watch_bed_tempdrop.next_ms = millis() + (WATCH_BED_TEMP_DROP_PERIOD) * 1000UL;
-    }
+    if (temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
+      // now temp should be raising, hotend is being heated
+      if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_DROP_DELTA) {
+        watch_bed_tempdrop.target = temp_bed.current;
+      }
+      else {
+        watch_bed_tempdrop.target = temp_bed.target - WATCH_BED_TEMP_DROP_DELTA;
+      }
 
-    if (temp_bed.target == 0)
+      watch_bed_notheated.next_ms = millis() + (WATCH_BED_TEMP_DROP_PERIOD) * 1000UL;
+    }
+    else
       watch_bed_tempdrop.next_ms = 0;
   }
 
@@ -1985,13 +2015,23 @@ void Temperature::init() {
    * now we must turn off heating.
    */
   void Temperature::start_watching_bed_notheated(bool first_heating) {
-    if (temp_bed.target > WATCH_BED_TEMP_TARGET_START && (temp_bed.target - temp_bed.current) > 5) {
-      if (first_heating)
-        watch_bed_notheated.target = temp_bed.current + WATCH_BED_TEMP_NOTHEATED_DELTA;
+    if (temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
+      if (first_heating) {
+      // temperature should raise
+        if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_NOTHEATED_DELTA) {
+          watch_bed_notheated.target = temp_bed.current;
+        }
+        else {
+          // temp_bed.current > temp_bed.target - WATCH_BED_TEMP_NOTHEATED_DELTA
+          watch_bed_notheated.target = temp_bed.target - WATCH_BED_TEMP_NOTHEATED_DELTA;
+        }
+      }
+
+      // always check then target > WATCH_BED_TEMP_TARGET_START
       watch_bed_notheated.next_ms = millis() + (WATCH_BED_TEMP_NOTHEATED_PERIOD) * 1000UL;
     }
-
-    if (temp_bed.target == 0)
+    else
+      // cancel the checking
       watch_bed_notheated.next_ms = 0;
   }
 #endif
