@@ -1163,7 +1163,7 @@ ErrCode StatusControl::ClearException(ExceptionHost h, ExceptionType t) {
       if (!(fault_flag_ & FAULT_FLAG_BED_SENSOR_BAD))
         return E_INVALID_STATE;
       fault_flag_ &= ~FAULT_FLAG_BED_SENSOR_BAD;
-      action_ban = (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_BED);
+      action_ban = ACTION_BAN_NO_HEATING_BED;
       LOG_I("Thermistor of Bed has recovered!\n");
       break;
 
