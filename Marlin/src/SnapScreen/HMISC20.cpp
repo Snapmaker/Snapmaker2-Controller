@@ -1071,7 +1071,7 @@ void HMI_SC20::PollingCommand(void)
       // query coordinates data
       else if (StatuID == 0xf) {
         LOG_I("SC req coordinates!\n");
-        if (CoordinateMgrReport(tmpBuff[IDX_DATA0], tmpBuff[IDX_DATA0 + 1]) != E_SUCCESS)
+        if (CoordinateMgrReportData(tmpBuff[IDX_DATA0], tmpBuff[IDX_DATA0 + 1]) != E_SUCCESS)
           MarkNeedReack(0);
       }
       // not supported command
@@ -1133,7 +1133,7 @@ void HMI_SC20::PollingCommand(void)
         case 7:
           LOG_I("SC req save data of leveling\n");
           if (CMD_BUFF_EMPTY() == true) {
-            process_cmd_imd("G1029 S");
+            process_cmd_imd("G1029 S0");
 
             process_cmd_imd("G28");
 

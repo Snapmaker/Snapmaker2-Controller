@@ -1598,8 +1598,8 @@ void Temperature::init() {
     }while(0)
 
     #if WATCH_HOTENDS
-      watch_hotend_notheated[0].debounce_max = WATCH_TEMP_DEBOUNCE_MAX;
-      watch_hotend_tempdrop[0].debounce_max = WATCH_TEMP_DEBOUNCE_MAX;
+      watch_hotend_notheated[0].debounce_max = WATCH_TEMP_NOTHEATED_DEBOUNCE;
+      watch_hotend_tempdrop[0].debounce_max = WATCH_TEMP_DROP_DEBOUNCE;
     #endif
     #ifdef HEATER_0_MINTEMP
       _TEMP_MIN_E(0);
@@ -1928,11 +1928,11 @@ void Temperature::init() {
     E_UNUSED();
     if (temp_hotend[e].target > WATCH_TEMP_TARGET_START) {
       // now temp should be raising, hotend is being heated
-      if (temp_bed.current < temp_hotend[e].target - WATCH_TEMP_DROP_DELTA) {
-        watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].current;
+      if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_DROP_LIMIT) {
+        watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].current - WATCH_TEMP_DROP_DELTA;
       }
       else {
-        watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].target - WATCH_TEMP_DROP_DELTA;
+        watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].target - WATCH_TEMP_DROP_LIMIT;
       }
 
       watch_hotend_tempdrop[HOTEND_INDEX].next_ms = millis() + (WATCH_TEMP_DROP_PERIOD) * 1000UL;
@@ -1948,12 +1948,12 @@ void Temperature::init() {
     if (temp_hotend[e].target > WATCH_TEMP_TARGET_START) {
       if (first_heating) {
       // temperature should raise
-        if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_NOTHEATED_DELTA) {
-          watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].current + 2;
+        if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_NOTHEATED_LIMIT) {
+          watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].current + WATCH_TEMP_NOTHEATED_DELTA;
         }
         else {
           // temp_bed.current > temp_bed.target - WATCH_BED_TEMP_TARGET_START
-          watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].target - WATCH_TEMP_NOTHEATED_DELTA;
+          watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].target - WATCH_TEMP_NOTHEATED_LIMIT;
         }
       }
 
@@ -1986,11 +1986,11 @@ void Temperature::init() {
   void Temperature::start_watching_bed_tempdrop() {
     if (temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
       // now temp should be raising, hotend is being heated
-      if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_DROP_DELTA) {
-        watch_bed_tempdrop.target = temp_bed.current;
+      if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_DROP_LIMIT) {
+        watch_bed_tempdrop.target = temp_bed.current - WATCH_BED_TEMP_DROP_DELTA;
       }
       else {
-        watch_bed_tempdrop.target = temp_bed.target - WATCH_BED_TEMP_DROP_DELTA;
+        watch_bed_tempdrop.target = temp_bed.target - WATCH_BED_TEMP_DROP_LIMIT;
       }
 
       watch_bed_notheated.next_ms = millis() + (WATCH_BED_TEMP_DROP_PERIOD) * 1000UL;
@@ -2008,12 +2008,12 @@ void Temperature::init() {
     if (temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
       if (first_heating) {
       // temperature should raise
-        if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_NOTHEATED_DELTA) {
-          watch_bed_notheated.target = temp_bed.current + 1;
+        if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_NOTHEATED_LIMIT) {
+          watch_bed_notheated.target = temp_bed.current + WATCH_BED_TEMP_NOTHEATED_DELTA;
         }
         else {
           // temp_bed.current > temp_bed.target - WATCH_BED_TEMP_NOTHEATED_DELTA
-          watch_bed_notheated.target = temp_bed.target - WATCH_BED_TEMP_NOTHEATED_DELTA;
+          watch_bed_notheated.target = temp_bed.target - WATCH_BED_TEMP_NOTHEATED_LIMIT;
         }
       }
 

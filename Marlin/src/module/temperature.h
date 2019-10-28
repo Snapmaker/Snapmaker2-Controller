@@ -684,8 +684,6 @@ class Temperature {
           #endif
         ;
         start_watching_bed();
-        start_watching_bed_tempdrop();
-        start_watching_bed_notheated(true);
       }
 
       static bool wait_for_bed(const bool no_wait_for_cooling=true

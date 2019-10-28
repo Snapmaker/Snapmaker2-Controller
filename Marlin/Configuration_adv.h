@@ -97,14 +97,17 @@
   #define WATCH_TEMP_PERIOD 20                // Seconds
   #define WATCH_TEMP_INCREASE 2               // Degrees Celsius
 
-  #define WATCH_TEMP_DEBOUNCE_MAX   3
   #define WATCH_TEMP_TARGET_START   50
 
-  #define WATCH_TEMP_DROP_PERIOD    1
-  #define WATCH_TEMP_DROP_DELTA     10
+  #define WATCH_TEMP_DROP_DEBOUNCE  3
+  #define WATCH_TEMP_DROP_PERIOD    2
+  #define WATCH_TEMP_DROP_LIMIT     10
+  #define WATCH_TEMP_DROP_DELTA     2
 
-  #define WATCH_TEMP_NOTHEATED_PERIOD 1   // Seconds
-  #define WATCH_TEMP_NOTHEATED_DELTA  10 // Degrees Celsius
+  #define WATCH_TEMP_NOTHEATED_DEBOUNCE 5
+  #define WATCH_TEMP_NOTHEATED_PERIOD   2   // Seconds
+  #define WATCH_TEMP_NOTHEATED_LIMIT    10  // Degrees Celsius
+  #define WATCH_TEMP_NOTHEATED_DELTA    2   // Degrees Celsius
 #endif
 
 /**
@@ -121,13 +124,17 @@
   #define WATCH_BED_TEMP_INCREASE 2               // Degrees Celsius
 
   #define WATCH_BED_TEMP_DEBOUNCE_MAX   5
-  #define WATCH_BED_TEMP_TARGET_START   45  // Degrees Celsius
+  #define WATCH_BED_TEMP_TARGET_START   50  // Degrees Celsius
 
-  #define WATCH_BED_TEMP_DROP_PERIOD    1   // Seconds
-  #define WATCH_BED_TEMP_DROP_DELTA     5   // Degrees Celsius
+  #define WATCH_BED_TEMP__DROP_DEBOUNCE 3   
+  #define WATCH_BED_TEMP_DROP_PERIOD    2   // Seconds
+  #define WATCH_BED_TEMP_DROP_LIMIT     7  
+  #define WATCH_BED_TEMP_DROP_DELTA     2   // Degrees Celsius
 
-  #define WATCH_BED_TEMP_NOTHEATED_PERIOD 1   // Seconds
-  #define WATCH_BED_TEMP_NOTHEATED_DELTA  5 // Degrees Celsius
+  #define WATCH_BED_TEMP_NOTHEATED_DEBOUNCE   5
+  #define WATCH_BED_TEMP_NOTHEATED_PERIOD     2   // Seconds
+  #define WATCH_BED_TEMP_NOTHEATED_LIMIT      7 // Degrees Celsius
+  #define WATCH_BED_TEMP_NOTHEATED_DELTA      2 // Degrees Celsius
 #endif
 
 /**
