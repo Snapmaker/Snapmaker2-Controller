@@ -1087,7 +1087,6 @@ void Temperature::manage_heater() {
         else                                                            // Start again if the target is still far off
           start_watching_bed();
       }
-    #endif // WATCH_BED
 
     // check if abrupt temperature drop happened
     if (watch_bed_tempdrop.elapsed(ms)) {
@@ -1112,6 +1111,7 @@ void Temperature::manage_heater() {
 
       start_watching_bed_notheated(false);
     }
+    #endif // WATCH_BED
 
     // check if thermistor is bad
     if (temp_bed.current < 0) {
@@ -1945,7 +1945,7 @@ void Temperature::init() {
 
   void Temperature::start_watching_heater_notheated(bool first_heating, const uint8_t e) {
     E_UNUSED();
-    if (temp_hotend[e].target > WATCH_BED_TEMP_TARGET_START) {
+    if (temp_hotend[e].target > WATCH_TEMP_TARGET_START) {
       if (first_heating) {
       // temperature should raise
         if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_NOTHEATED_DELTA) {

@@ -661,6 +661,8 @@ class Temperature {
         static void start_watching_bed_notheated(bool first_heating);
       #else
         static inline void start_watching_bed() {}
+        static void start_watching_bed_tempdrop() {};
+        static void start_watching_bed_notheated(bool first_heating) { UNUSED(first_heating); };
       #endif
 
       static void setTargetBed(const int16_t celsius) {
