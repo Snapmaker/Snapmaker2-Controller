@@ -917,6 +917,7 @@ float Temperature::get_pid_output(const int8_t e) {
  */
 void Temperature::manage_heater() {
   static uint8_t bed_sensor_bad = 0;
+  static millis_t next_check_bed_sensor = millis() + 1000;
   static uint8_t hotend_sensor_bad = 0;
 
   bool CheckTempError = false;
@@ -1114,26 +1115,29 @@ void Temperature::manage_heater() {
     #endif // WATCH_BED
 
     // check if thermistor is bad
-    if (temp_bed.current < 0) {
-      if (++bed_sensor_bad == 3)
-        SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_BAD);
-      else if (bed_sensor_bad > 3)
-        bed_sensor_bad = 3;
-    }
-    else {
-      if (bed_sensor_bad >= 3) {
-        // arive here, exception happened. try to clear execption:
-        // increase hotend_sensor_bad continuously until it is larger than 6,
-        // then clear exception and clear hotend_sensor_bad and
-        // CPU will not come in last loop
-        if (++bed_sensor_bad > 6) {
-          SystemStatus.ClearException(EHOST_BED, ETYPE_SENSOR_BAD);
+    if (ELAPSED(ms, next_bed_check_ms)) {
+      if (temp_bed.current < 0) {
+        if (++bed_sensor_bad == 3)
+          SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_BAD);
+        else if (bed_sensor_bad > 3)
+          bed_sensor_bad = 3;
+      }
+      else {
+        if (bed_sensor_bad >= 3) {
+          // arive here, exception happened. try to clear execption:
+          // increase hotend_sensor_bad continuously until it is larger than 6,
+          // then clear exception and clear hotend_sensor_bad and
+          // CPU will not come in last loop
+          if (++bed_sensor_bad > 6) {
+            SystemStatus.ClearException(EHOST_BED, ETYPE_SENSOR_BAD);
+            bed_sensor_bad = 0;
+          }
+        }
+        else {
           bed_sensor_bad = 0;
         }
       }
-      else {
-        bed_sensor_bad = 0;
-      }
+      next_bed_check_ms = millis() + 1000;
     }
 
     // check if heating is out of control
