@@ -711,8 +711,8 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
     action_ban |= ACTION_BAN_NO_HEATING_BED;
-    power_ban |= POWER_DOMAIN_BED;
-    power_disable |= POWER_DOMAIN_BED;
+    power_ban = POWER_DOMAIN_BED;
+    power_disable = POWER_DOMAIN_BED;
     LOG_E("Port of heating bed is damaged!\n");
     break;
 

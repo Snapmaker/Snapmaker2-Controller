@@ -76,11 +76,10 @@ bool PrintExecuter::HeatedBedSelfCheck(void) {
   // if we get LOW, indicate the NMOS is breakdown
   // we need to disable its power supply immediately
   if(READ(HEATEDBED_ON_PIN) == LOW) {
+    disable_power_domain(POWER_DOMAIN_BED);
     enable_power_ban(POWER_DOMAIN_BED);
     SystemStatus.ThrowException(EHOST_MC, ETYPE_PORT_BAD);
   }
-
-  disable_power_domain(POWER_DOMAIN_BED);
 }
 
 /**
