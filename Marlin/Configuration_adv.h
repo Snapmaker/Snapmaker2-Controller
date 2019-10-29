@@ -120,21 +120,21 @@
   /**
    * As described above, except for the bed (M140/M190/M303).
    */
-  #define WATCH_BED_TEMP_PERIOD 60                // Seconds
+  #define WATCH_BED_TEMP_PERIOD 120                // Seconds
   #define WATCH_BED_TEMP_INCREASE 2               // Degrees Celsius
 
   #define WATCH_BED_TEMP_DEBOUNCE_MAX   5
   #define WATCH_BED_TEMP_TARGET_START   50  // Degrees Celsius
 
-  #define WATCH_BED_TEMP__DROP_DEBOUNCE 3   
+  #define WATCH_BED_TEMP__DROP_DEBOUNCE 3
   #define WATCH_BED_TEMP_DROP_PERIOD    2   // Seconds
-  #define WATCH_BED_TEMP_DROP_LIMIT     7  
-  #define WATCH_BED_TEMP_DROP_DELTA     2   // Degrees Celsius
+  #define WATCH_BED_TEMP_DROP_LIMIT     6
+  #define WATCH_BED_TEMP_DROP_DELTA     1   // Degrees Celsius
 
-  #define WATCH_BED_TEMP_NOTHEATED_DEBOUNCE   5
+  #define WATCH_BED_TEMP_NOTHEATED_DEBOUNCE   10
   #define WATCH_BED_TEMP_NOTHEATED_PERIOD     2   // Seconds
-  #define WATCH_BED_TEMP_NOTHEATED_LIMIT      7 // Degrees Celsius
-  #define WATCH_BED_TEMP_NOTHEATED_DELTA      2 // Degrees Celsius
+  #define WATCH_BED_TEMP_NOTHEATED_LIMIT      6 // Degrees Celsius
+  #define WATCH_BED_TEMP_NOTHEATED_DELTA      1 // Degrees Celsius
 #endif
 
 /**
@@ -429,20 +429,20 @@
  * The inactive carriage is parked automatically to prevent oozing.
  * X1 is the left carriage, X2 the right. They park and home at opposite ends of the X axis.
  * By default the X2 stepper is assigned to the first unused E plug on the board.
- * 
+ *
  * The following Dual X Carriage modes can be selected with M605 S<mode>:
- * 
+ *
  *   0 : (FULL_CONTROL) The slicer has full control over both X-carriages and can achieve optimal travel
  *       results as long as it supports dual X-carriages. (M605 S0)
- * 
+ *
  *   1 : (AUTO_PARK) The firmware automatically parks and unparks the X-carriages on tool-change so
  *       that additional slicer support is not required. (M605 S1)
- * 
+ *
  *   2 : (DUPLICATION) The firmware moves the second X-carriage and extruder in synchronization with
  *       the first X-carriage and extruder, to print 2 copies of the same object at the same time.
  *       Set the constant X-offset and temperature differential with M605 S2 X[offs] R[deg] and
  *       follow with M605 S2 to initiate duplicated movement.
- * 
+ *
  *   3 : (MIRRORED) Formbot/Vivedino-inspired mirrored mode in which the second extruder duplicates
  *       the movement of the first except the second extruder is reversed in the X axis.
  *       Set the initial X offset and temperature differential with M605 S2 X[offs] R[deg] and
