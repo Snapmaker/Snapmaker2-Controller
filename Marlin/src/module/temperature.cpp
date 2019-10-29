@@ -1115,7 +1115,7 @@ void Temperature::manage_heater() {
     #endif // WATCH_BED
 
     // check if thermistor is bad
-    if (ELAPSED(ms, next_bed_check_ms)) {
+    if (ELAPSED(ms, next_check_bed_sensor)) {
       if (temp_bed.current < 0) {
         if (++bed_sensor_bad == 3)
           SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_BAD);
@@ -1137,11 +1137,11 @@ void Temperature::manage_heater() {
           bed_sensor_bad = 0;
         }
       }
-      next_bed_check_ms = millis() + 1000;
+      next_check_bed_sensor = millis() + 1000;
     }
 
     // check if heating is out of control
-    if (temp_bed.current > (BED_MAXTEMP + 10))
+    if (temp_bed.current > (BED_MAXTEMP + 5))
       SystemStatus.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP_AGAIN);
     else if (temp_bed.current > BED_MAXTEMP)
       SystemStatus.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP);
