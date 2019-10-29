@@ -441,7 +441,7 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   SquareSideLength = 10;
 
   // Move down 5
-  do_blocking_move_to_logical_z(current_position[Z_AXIS] - 5, 20.0f);
+  move_to_limited_z(current_position[Z_AXIS] - 5, 20.0f);
 
   NextX = StartX;
   NextY = StartY;
@@ -453,22 +453,22 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   // Draw 10 square
   do {
     // Move to the start point
-    do_blocking_move_to_logical_xy(NextX, NextY, 50.0f);
+    move_to_limited_xy(NextX, NextY, 50.0f);
 
     // Laser on
     ExecuterHead.Laser.SetLaserPower(100.0f);
 
     // Draw square
-    do_blocking_move_to_logical_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
-    do_blocking_move_to_logical_xy(current_position[X_AXIS], current_position[Y_AXIS] - SquareSideLength, 5.0f);
-    do_blocking_move_to_logical_xy(current_position[X_AXIS] - SquareSideLength, current_position[Y_AXIS], 5.0f);
-    do_blocking_move_to_logical_xy(current_position[X_AXIS], current_position[Y_AXIS] + SquareSideLength, 5.0f);
+    move_to_limited_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
+    move_to_limited_xy(current_position[X_AXIS], current_position[Y_AXIS] - SquareSideLength, 5.0f);
+    move_to_limited_xy(current_position[X_AXIS] - SquareSideLength, current_position[Y_AXIS], 5.0f);
+    move_to_limited_xy(current_position[X_AXIS], current_position[Y_AXIS] + SquareSideLength, 5.0f);
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
     // Move up 1mm
-    do_blocking_move_to_logical_z(current_position[Z_AXIS] + 1, 20.0f);
+    move_to_limited_z(current_position[Z_AXIS] + 1, 20.0f);
 
     // Caculate next x y
     if(i % 5 == 0) {
@@ -490,16 +490,15 @@ void HMI_SC20::DrawLaserCalibrateShape() {
  * DrawLaserCalibrateShape
  */
 bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count) {
-  int i;
+  int i = 0;
   float next_x, next_y, next_z;
   float line_space;
   float line_len_short, line_len_long;
-  float camera_x_offset = 0, camera_y_offset = 0;
 
   line_space = 2;
   line_len_short = 5;
   line_len_long = 10;
-  next_x = StartX;
+  next_x = StartX - (int)(Count / 2) * 2;
   next_y = StartY;
   next_z = StartZ - ((float)(Count - 1) / 2.0 * Z_Increase);
 
@@ -507,19 +506,12 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     return false;
 
   // Move to next Z
-  do_blocking_move_to_logical_z(next_z, 20.0f);
-
-  LOG_I("start ponit: X=%.2f, Y=%.2f, Z=%.2f\n", StartX, StartY, StartZ);
-
-  i = 0;
-
-  // Fan On
-  process_cmd_imd("M106 P0 S255");
+  move_to_limited_z(next_z, 20.0f);
 
   // Draw 10 Line
   do {
     // Move to the start point
-    do_blocking_move_to_logical_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
+    move_to_limited_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
     planner.synchronize();
 
     // Laser on
@@ -527,34 +519,28 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
     // Draw Line
     if((i % 5) == 0)
-      do_blocking_move_to_logical_xy(next_x, next_y + line_len_long, 3.0f);
+      move_to_limited_xy(next_x, next_y + line_len_long, 3.0f);
     else
-      do_blocking_move_to_logical_xy(next_x, next_y + line_len_short, 3.0f);
+      move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
 
     planner.synchronize();
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
-    LOG_I("current Z: %.2f\n", current_position[Z_AXIS]);
-
     // Move up Z increase
     if(i != (Count - 1))
-      do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
+      move_to_limited_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
 
     next_x = next_x + line_space;
     i++;
-  }while(i < Count);
-
-  // Fan Off
-  process_cmd_imd("M107 P0");
+  } while(i < Count);
 
   planner.synchronize();
 
-  // Move to the center
-  next_x = (current_position[X_AXIS] + StartX) / 2.0f - camera_x_offset;
-  next_y = (current_position[Y_AXIS] + StartY) / 2.0f - camera_y_offset;
-  do_blocking_move_to_logical_xy(next_x, next_y, 20.0f);
+  // Move to beginning
+  move_to_limited_z(StartZ, 20.0f);
+  move_to_limited_xy(next_x, next_y, 20.0f);
 
   return true;
 }
@@ -567,6 +553,10 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
   X = X / 1000.0f;
   Y = Y / 1000.0f;
   Z = Z / 1000.0f;
+  SERIAL_ECHOLN("SC req relative movement:");
+  SERIAL_ECHOLNPAIR("X: ", X, ", Y: ", Y, ", Z: ", Z);
+  SERIAL_ECHOLN("current position:");
+  SERIAL_ECHOLNPAIR("X: ", LOGICAL_X_POSITION(current_position[X_AXIS]), ", Y: ", LOGICAL_Y_POSITION(current_position[Y_AXIS]), ", Z: ", LOGICAL_Z_POSITION(current_position[Z_AXIS]));
   switch(Option) {
     case 0:
       process_cmd_imd("G28 Z");
@@ -579,10 +569,14 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
       break;
 
     case 2:
-      do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z, 10.0f);
-      do_blocking_move_to_logical_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
+      // current_position[] is native position, so cannot use API 'do_blocking_move_to_logical_<axis>'
+      // it only get logical position
+      move_to_limited_z(current_position[Z_AXIS] + Z, 10.0f);
+      move_to_limited_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
       break;
   }
+  SERIAL_ECHOLN("new position:");
+  SERIAL_ECHOLNPAIR("X: ", LOGICAL_X_POSITION(current_position[X_AXIS]), ", Y: ", LOGICAL_Y_POSITION(current_position[Y_AXIS]), ", Z: ", LOGICAL_Z_POSITION(current_position[Z_AXIS]));
 }
 
 /********************************************************
@@ -1234,7 +1228,7 @@ void HMI_SC20::PollingCommand(void)
           LOG_I("Laser: SC req draw ruler\n");
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
             if (cmdLen < 6) {
-              LOG_W("cmd length[%d] is less than 6, use default Z offset: 0.5 mm\n", cmdLen);
+              LOG_W("Laser: use default Z offset: 0.5 mm\n", cmdLen);
               DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5f, 21);
             }
             else {
@@ -1345,8 +1339,9 @@ void HMI_SC20::PollingCommand(void)
             fY = int32Value / 1000.0f;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fZ = int32Value / 1000.0f;
-            do_blocking_move_to_logical_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
-            do_blocking_move_to_logical_z(current_position[Z_AXIS] +fZ, 40);
+            // current_position[] is native position
+            move_to_limited_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
+            move_to_limited_z(current_position[Z_AXIS] +fZ, 40);
 
             //应答
             MarkNeedReack(0);
