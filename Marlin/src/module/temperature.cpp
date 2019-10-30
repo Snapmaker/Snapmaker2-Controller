@@ -1100,6 +1100,7 @@ void Temperature::manage_heater() {
 
       start_watching_bed_tempdrop();
     }
+    #endif // WATCH_BED
 
     // check if temperature doesn't increase when heating
     if (watch_bed_notheated.elapsed(ms)) {
@@ -1112,7 +1113,6 @@ void Temperature::manage_heater() {
 
       start_watching_bed_notheated(false);
     }
-    #endif // WATCH_BED
 
     // check if thermistor is bad
     if (ELAPSED(ms, next_check_bed_sensor)) {
@@ -1656,8 +1656,8 @@ void Temperature::init() {
 
   #if HAS_HEATED_BED
     #if WATCH_BED
-      watch_bed_notheated.debounce_max = WATCH_BED_TEMP_DEBOUNCE_MAX;
-      watch_bed_tempdrop.debounce_max = WATCH_BED_TEMP_DEBOUNCE_MAX;
+      watch_bed_notheated.debounce_max = WATCH_BED_TEMP_NOTHEATED_DEBOUNCE;
+      watch_bed_tempdrop.debounce_max = WATCH_BED_TEMP__DROP_DEBOUNCE;
     #endif
     #ifdef BED_MINTEMP
       while (analog_to_celsius_bed(mintemp_raw_BED) < BED_MINTEMP) mintemp_raw_BED += TEMPDIR(BED) * (OVERSAMPLENR);
@@ -1997,11 +1997,12 @@ void Temperature::init() {
         watch_bed_tempdrop.target = temp_bed.target - WATCH_BED_TEMP_DROP_LIMIT;
       }
 
-      watch_bed_notheated.next_ms = millis() + (WATCH_BED_TEMP_DROP_PERIOD) * 1000UL;
+      watch_bed_tempdrop.next_ms = millis() + (WATCH_BED_TEMP_DROP_PERIOD) * 1000UL;
     }
     else
       watch_bed_tempdrop.next_ms = 0;
   }
+#endif
 
   /**
    * if we get the current temperature is less or equal than 'last current'
@@ -2028,7 +2029,7 @@ void Temperature::init() {
       // cancel the checking
       watch_bed_notheated.next_ms = 0;
   }
-#endif
+
 #if WATCH_CHAMBER
   /**
    * Start Heating Sanity Check for hotends that are below

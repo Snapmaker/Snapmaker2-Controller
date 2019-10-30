@@ -357,8 +357,9 @@ class Temperature {
       #if WATCH_BED
         static heater_watch_t watch_bed;
         static heater_watch_t watch_bed_tempdrop;
-        static heater_watch_t watch_bed_notheated;
       #endif
+        static heater_watch_t watch_bed_notheated;
+
       #if DISABLED(PIDTEMPBED)
         static millis_t next_bed_check_ms;
       #endif
@@ -658,12 +659,11 @@ class Temperature {
       #if WATCH_BED
         static void start_watching_bed();
         static void start_watching_bed_tempdrop();
-        static void start_watching_bed_notheated(bool first_heating);
       #else
         static inline void start_watching_bed() {}
         static void start_watching_bed_tempdrop() {};
-        static void start_watching_bed_notheated(bool first_heating) { UNUSED(first_heating); };
       #endif
+        static void start_watching_bed_notheated(bool first_heating);
 
       static void setTargetBed(const int16_t celsius) {
 
@@ -684,6 +684,7 @@ class Temperature {
           #endif
         ;
         start_watching_bed();
+        start_watching_bed_notheated(true);
       }
 
       static bool wait_for_bed(const bool no_wait_for_cooling=true

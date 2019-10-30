@@ -123,19 +123,16 @@
   #define WATCH_BED_TEMP_PERIOD 120                // Seconds
   #define WATCH_BED_TEMP_INCREASE 2               // Degrees Celsius
 
-  #define WATCH_BED_TEMP_DEBOUNCE_MAX   5
-  #define WATCH_BED_TEMP_TARGET_START   50  // Degrees Celsius
-
   #define WATCH_BED_TEMP__DROP_DEBOUNCE 3
   #define WATCH_BED_TEMP_DROP_PERIOD    2   // Seconds
   #define WATCH_BED_TEMP_DROP_LIMIT     6
   #define WATCH_BED_TEMP_DROP_DELTA     1   // Degrees Celsius
-
-  #define WATCH_BED_TEMP_NOTHEATED_DEBOUNCE   10
-  #define WATCH_BED_TEMP_NOTHEATED_PERIOD     2   // Seconds
-  #define WATCH_BED_TEMP_NOTHEATED_LIMIT      6 // Degrees Celsius
-  #define WATCH_BED_TEMP_NOTHEATED_DELTA      1 // Degrees Celsius
 #endif
+  #define WATCH_BED_TEMP_TARGET_START   50  // Degrees Celsius
+  #define WATCH_BED_TEMP_NOTHEATED_DEBOUNCE   10
+  #define WATCH_BED_TEMP_NOTHEATED_PERIOD     10   // Seconds
+  #define WATCH_BED_TEMP_NOTHEATED_LIMIT      10 // Degrees Celsius
+  #define WATCH_BED_TEMP_NOTHEATED_DELTA      1 // Degrees Celsius
 
 /**
  * Thermal Protection parameters for the heated chamber.
