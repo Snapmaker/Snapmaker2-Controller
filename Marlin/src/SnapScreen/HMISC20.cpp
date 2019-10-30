@@ -1055,6 +1055,7 @@ void HMI_SC20::PollingCommand(void)
       }
       // homing status
       else if (StatuID == 0x0e) {
+        LOG_I("SC req homing!\n");
         CoordinateMgrReportStatus(eventId, OpCode);
       }
       // query coordinates data
@@ -1111,7 +1112,6 @@ void HMI_SC20::PollingCommand(void)
 
         // move z axis
         case 6:
-          LOG_I("SC req move Z in leveling\n");
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
           move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
@@ -1244,11 +1244,13 @@ void HMI_SC20::PollingCommand(void)
           // auto leveling, only offset between probe and extruder is known
           if (nozzle_height_probed == 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
             MarkNeedReack(2);
+            LOG_E("Invalid Z offset: %.3f, please adjust the Z offset first!\n", nozzle_height_probed);
             break;
           }
 
           if (HalfAutoCalibrate()) {
             MarkNeedReack(1);
+            LOG_E("Auto calibration failed!\n");
             break;
           }
 
@@ -1258,6 +1260,7 @@ void HMI_SC20::PollingCommand(void)
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
+          LOG_I("SC req auto probe: Done!\n");
           break;
 
         //读取尺寸参数

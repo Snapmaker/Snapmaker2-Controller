@@ -61,7 +61,7 @@ void CoordinateMgrReportStatus(uint8_t eventid, uint8_t opcode) {
   BITS32_TO_BYTES(pos_shift[Y_AXIS], buff, i);
   BITS32_TO_BYTES(pos_shift[Z_AXIS], buff, i);
 
-  SC20HMI.PackedProtocal((char *)buff, i + 12);
+  SC20HMI.PackedProtocal((char *)buff, i);
 }
 
 
