@@ -214,8 +214,8 @@ hotend_info_t Temperature::temp_hotend[HOTENDS]; // = { 0 }
   #if WATCH_BED
     heater_watch_t Temperature::watch_bed; // = { 0 }
     heater_watch_t Temperature::watch_bed_tempdrop;
-    heater_watch_t Temperature::watch_bed_notheated;
   #endif
+    heater_watch_t Temperature::watch_bed_notheated;
   #if DISABLED(PIDTEMPBED)
     millis_t Temperature::next_bed_check_ms;
   #endif
