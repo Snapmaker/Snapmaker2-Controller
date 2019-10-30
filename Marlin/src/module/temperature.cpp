@@ -1008,14 +1008,13 @@ void Temperature::manage_heater() {
         if (watch_hotend[e].elapsed(ms)) { // Time to check this extruder?
           if (degHotend(e) < watch_hotend[e].target) {                             // Failed to increase enough?
             _temp_error(e, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, e));
-            SystemStatus.ThrowException((ExceptionHost)e, ETYPE_HEAT_FAIL);
+            //SystemStatus.ThrowException((ExceptionHost)e, ETYPE_HEAT_FAIL);
           }
           else                                                                 // Start again if the target is still far off
             start_watching_heater(e);
         }
       #endif
       if (watch_hotend_tempdrop[e].elapsed(ms)) {
-        SERIAL_ECHOLNPAIR("drop: cur: ", degHotend(e), ", watch target: ", watch_hotend_tempdrop[e].target);
         // watch_hotend_tempdrop[e].target is temperature last second
         if (degHotend(e) < (watch_hotend_tempdrop[e].target)) {
           if (watch_hotend_tempdrop[e].debounce(true)) {
@@ -1025,13 +1024,11 @@ void Temperature::manage_heater() {
         else
           watch_hotend_tempdrop[e].debounce(false);
 
-        SERIAL_ECHOLNPAIR("drop: cnt: ", watch_hotend_tempdrop[e].debounce_cnt);
         start_watching_heater_tempdrop(e);
       }
 
       // check if temperature doesn't increase when heating
       if (watch_hotend_notheated[e].elapsed(ms)) {
-        SERIAL_ECHOLNPAIR("not heated: cur: ", degHotend(e), ", watch target: ", watch_hotend_notheated[e].target);
         if (degHotend(e) < watch_hotend_notheated[e].target) {
           if (watch_hotend_notheated[e].debounce(true))
             SystemStatus.ThrowException((ExceptionHost)e, ETYPE_SENSOR_COME_OFF);
@@ -1039,8 +1036,6 @@ void Temperature::manage_heater() {
         else
           watch_hotend_notheated[e].debounce(false);
 
-        SERIAL_ECHOLNPAIR("notheated: cnt: ", watch_hotend_notheated[e].debounce_cnt);
-        SERIAL_EOL();
         start_watching_heater_notheated(false, e);
       }
 
