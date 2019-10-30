@@ -399,6 +399,99 @@ char LaserExecuter::SetWifiParameter(char *SSID, char *Password)
   return (char)-1;
 }
 
+/**
+ * SetBluetoothName:Set BT name
+ * para Name:The name of the BT
+ * ret  None
+ */
+char LaserExecuter::SetBluetoothName(char *Name)
+{
+  uint8_t i;
+  uint8_t j;
+  uint8_t Buff[90];
+  
+  i = 0;
+  Buff[i++] = 0x11;
+  Buff[i++] = 0;
+  for(j=0;j<32;j++)
+  {
+    if(Name[j] == 0)
+      break;
+    Buff[i++] = Name[j];
+  }
+  Buff[i++] = 0;
+  
+  PackedProtocal(Buff, i);
+  if(GetReply(Buff, 500) == 0) {
+    if((Buff[8] == 0x12) && (Buff[9] == 0)) return 0;
+  }
+  return (char)-1;
+}
+
+/**
+ * ReadBlueToothName:Read BT Name
+ * para Name:The pointer to the Name buffer
+ * return:0 for read success, 1 for unname, 2 for timeout
+ */
+char LaserExecuter::ReadBluetoothName(char *Name) {
+  uint16_t i;
+  uint16_t j;
+  uint8_t buff[70];
+  uint8_t v;
+
+  LASERSerial.flush();
+  // Unused ,for reserved
+  buff[0] = 0x13;
+  buff[1] = 0;
+  PackedProtocal(buff, 2);
+  if(GetReply(buff, 1500) == 0) {
+    if(buff[8] == 0x14) {
+      if(buff[9] == 0) {
+        j = 10;
+        for(i=0;i<32;i++) {
+          v = buff[j++];
+          if(v == 0) break;
+          Name[i] = v;
+        }
+        Name[i] = 0;
+        return 0;
+      }
+      else {
+        Name[0] = 0;
+        return (char)1;
+      }
+    }
+  }
+  return (char)2;
+}
+
+/**
+ * ReadBluetoothMac:Read BlueTooth's MAC
+ * para Name:The pointer to the Name buffer
+ * return:0 for read success,  2 for timeout
+ */
+char LaserExecuter::ReadBluetoothMac(uint8_t *Mac) {
+  uint16_t i;
+  uint8_t buff[32];
+
+  LASERSerial.flush();
+  // Unused ,for reserved
+  buff[0] = 0x15;
+  buff[1] = 0;
+  PackedProtocal(buff, 2);
+  if(GetReply(buff, 1500) == 0) {
+    if(buff[8] == 0x16) {
+      if(buff[9] == 0) {
+        for(i=0;i<6;i++) {
+          Mac[i] = buff[10 + i];
+        }
+        return 0;
+      }
+    }
+  }
+  return (char)2;
+}
+
 
 uint16_t LaserExecuter::GetTimPwm() {
   return Tim1GetCCR4();

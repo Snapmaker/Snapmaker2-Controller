@@ -58,6 +58,8 @@ private:
   uint8_t ManualCalibrateStart();
   void ResizeMachine(char *pBuff);
   void SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PWD, char * IP);
+  void SendBluetoothName(uint8_t OpCode, uint8_t Result, char * Name);
+  void SendBluetoothMac(uint8_t OpCode, uint8_t Result, uint8_t * Mac);
   void SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result);
   void LaserCoarseCalibrate(float X, float Y, float Z);
   void DrawLaserCalibrateShape();
@@ -86,6 +88,8 @@ private:
   char BuildinWifiIP[16];
   char SSID[32];
   char Password[32];
+  char bluetooth_name[32];
+  uint8_t bluetooth_mac[6];
 };
 
 

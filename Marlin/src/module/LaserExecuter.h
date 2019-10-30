@@ -46,6 +46,9 @@ public:
   #endif
   char ReadWifiStatus(char *SSID, char *Password, char *IP);
   char SetWifiParameter(char *SSID, char *Password);
+  char SetBluetoothName(char *Name);
+  char ReadBluetoothName(char *Name);
+  char ReadBluetoothMac(uint8_t *Mac);
 
   void TryCloseFan();
 

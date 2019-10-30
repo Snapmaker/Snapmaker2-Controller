@@ -1298,7 +1298,7 @@ void HMI_SC20::PollingCommand(void)
       //应答
       MarkNeedReack(0);
     }
-    //WIFI
+    //WIFI & Bluetooth
     else if (eventId == EID_LAS_CAM_OP_REQ) {
       if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
         switch (OpCode)
@@ -1339,9 +1339,8 @@ void HMI_SC20::PollingCommand(void)
             fY = int32Value / 1000.0f;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fZ = int32Value / 1000.0f;
-            // current_position[] is native position
-            move_to_limited_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
-            move_to_limited_z(current_position[Z_AXIS] +fZ, 40);
+            do_blocking_move_to_logical_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
+            do_blocking_move_to_logical_z(current_position[Z_AXIS] +fZ, 40);
 
             //应答
             MarkNeedReack(0);
@@ -1360,6 +1359,37 @@ void HMI_SC20::PollingCommand(void)
 
             //应答
             MarkNeedReack(0);
+            break;
+
+          // Set bluetooth name
+          case 0x05:
+            j = 10;
+            for (i = 0; i < 31; i++) {
+              bluetooth_name[i] = tmpBuff[j++];
+              if (bluetooth_name[i] == 0) break;
+            }
+            bluetooth_name[31] = 0;
+            
+            SERIAL_ECHOLNPAIR("BlueTooth Name:", bluetooth_name);
+            if(ExecuterHead.Laser.SetBluetoothName(bluetooth_name) == 0) MarkNeedReack(0);
+            else MarkNeedReack(1);
+            break;
+
+          // Read Bluetooth name
+          case 0x06:
+            bluetooth_name[0] = 0;
+            result = ExecuterHead.Laser.ReadBluetoothName(bluetooth_name);
+            SERIAL_ECHOLNPAIR("Bluetooth Name:", bluetooth_name);
+            if (result == 0) SendBluetoothName(OpCode, 0, bluetooth_name);
+            else if(result == 1) SendBluetoothName(OpCode, 1, (char*)"");
+            else if(result == 2) SendBluetoothName(OpCode, 2, (char*)"");
+            break;
+
+          // Read Bluetooth MAC
+          case 0x07:
+            result = ExecuterHead.Laser.ReadBluetoothMac(bluetooth_mac);
+            if (result == 0) SendBluetoothMac(OpCode, 0, bluetooth_mac);
+            else if(result == 2) SendBluetoothMac(OpCode, 2, bluetooth_mac);
             break;
         }
       }
@@ -1596,6 +1626,57 @@ void HMI_SC20::SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PW
   PackedProtocal(tmpBuff, i);
 }
 
+/***********************************************
+发送蓝牙名字查询应答
+参数    OpCode:操作码
+      Result:结果，0表示成功，非0表示失败
+************************************************/
+void HMI_SC20::SendBluetoothName(uint8_t OpCode, uint8_t Result, char * Name)
+{
+  uint16_t i;
+  i = 0;
+
+  //EventID
+  tmpBuff[i++] = EID_LAS_CAM_OP_RESP;
+
+  //Operation ID
+  tmpBuff[i++] = OpCode;
+
+  //结果
+  tmpBuff[i++] = Result;
+  for (int j = 0; j < 31; j++) {
+    if (Name[j] == 0) break;
+    tmpBuff[i++] = Name[j];
+  }
+  tmpBuff[i++] = 0;
+
+  PackedProtocal(tmpBuff, i);
+}
+
+/***********************************************
+发送蓝牙名字查询应答
+参数    OpCode:操作码
+      Result:结果，0表示成功，非0表示失败
+************************************************/
+void HMI_SC20::SendBluetoothMac(uint8_t OpCode, uint8_t Result, uint8_t * Mac)
+{
+  uint16_t i;
+  i = 0;
+
+  //EventID
+  tmpBuff[i++] = EID_LAS_CAM_OP_RESP;
+
+  //Operation ID
+  tmpBuff[i++] = OpCode;
+
+  //结果
+  tmpBuff[i++] = Result;
+  for (int j = 0; j < 6; j++) {
+    tmpBuff[i++] = Mac[j];
+  }
+
+  PackedProtocal(tmpBuff, i);
+}
 
 /***********************************************
 发送激光焦点
