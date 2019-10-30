@@ -1306,6 +1306,8 @@ void Stepper::isr() {
     // interval = 500 us
     HAL_timer_set_compare(STEP_TIMER_NUM,
         hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 2000)));
+
+    ENABLE_ISRS();
     return;
   }
 
