@@ -258,8 +258,6 @@ void inline StatusControl::RestoreXYZ(void) {
 void inline StatusControl::resume_3dp(void) {
   enable_all_steppers();
 
-  process_cmd_imd("M412 S1");
-
   process_cmd_imd("G92 E0");
 
   process_cmd_imd("G0 E15 F400");
@@ -270,9 +268,9 @@ void inline StatusControl::resume_3dp(void) {
   current_position[E_AXIS] = powerpanic.Data.PositionData[E_AXIS];
   sync_plan_position_e();
 
-  // retract filament to cut it out
+  // retract filament to try to cut it out
   relative_mode = true;
-  process_cmd_imd("G0 E-6.5 F3600");
+  process_cmd_imd("G0 E-3 F3600");
   relative_mode = false;
 
   planner.synchronize();
