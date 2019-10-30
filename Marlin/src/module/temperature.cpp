@@ -1655,9 +1655,9 @@ void Temperature::init() {
   #endif // HOTENDS > 1
 
   #if HAS_HEATED_BED
+    watch_bed_notheated.debounce_max = WATCH_BED_TEMP_NOTHEATED_DEBOUNCE;
     #if WATCH_BED
-      watch_bed_notheated.debounce_max = WATCH_BED_TEMP_NOTHEATED_DEBOUNCE;
-      watch_bed_tempdrop.debounce_max = WATCH_BED_TEMP__DROP_DEBOUNCE;
+      watch_bed_tempdrop.debounce_max = WATCH_BED_TEMP_DROP_DEBOUNCE;
     #endif
     #ifdef BED_MINTEMP
       while (analog_to_celsius_bed(mintemp_raw_BED) < BED_MINTEMP) mintemp_raw_BED += TEMPDIR(BED) * (OVERSAMPLENR);

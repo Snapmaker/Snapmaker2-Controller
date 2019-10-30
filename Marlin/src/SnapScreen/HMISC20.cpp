@@ -1339,8 +1339,8 @@ void HMI_SC20::PollingCommand(void)
             fY = int32Value / 1000.0f;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fZ = int32Value / 1000.0f;
-            do_blocking_move_to_logical_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
-            do_blocking_move_to_logical_z(current_position[Z_AXIS] +fZ, 40);
+            move_to_limited_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
+            move_to_limited_z(current_position[Z_AXIS] +fZ, 40);
 
             //应答
             MarkNeedReack(0);
