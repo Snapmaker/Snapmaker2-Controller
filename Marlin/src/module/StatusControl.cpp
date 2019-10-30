@@ -243,15 +243,19 @@ void inline StatusControl::RestoreXYZ(void) {
         powerpanic.Data.PositionData[E_AXIS]);
   char cmd[RESUME_PROCESS_CMD_SIZE] = {0};
 
+  // the positions we recorded are logical positions, so cannot use native movement API
   // restore X, Y
-  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 X%.2f Y%.2f F4000",
-      powerpanic.Data.PositionData[X_AXIS], powerpanic.Data.PositionData[Y_AXIS]);
-  process_cmd_imd(cmd);
+  do_blocking_move_to_logical_xy(powerpanic.Data.PositionData[X_AXIS], powerpanic.Data.PositionData[Y_AXIS], 60);
   planner.synchronize();
 
   // restore Z
-  snprintf(cmd, RESUME_PROCESS_CMD_SIZE, "G0 Z%.2f F2400", powerpanic.Data.PositionData[Z_AXIS]);
-  process_cmd_imd(cmd);
+  if (MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS] + 15, 30);
+    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS], 10);
+  }
+  else {
+    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS], 30);
+  }
   planner.synchronize();
 }
 
