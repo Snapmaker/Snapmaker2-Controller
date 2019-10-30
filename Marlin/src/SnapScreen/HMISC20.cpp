@@ -540,8 +540,8 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
   // Move to beginning
   move_to_limited_z(StartZ, 20.0f);
-  move_to_limited_xy(next_x, next_y, 20.0f);
-
+  move_to_limited_xy(StartX, StartY, 20.0f);
+  planner.synchronize();
   return true;
 }
 
@@ -553,10 +553,6 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
   X = X / 1000.0f;
   Y = Y / 1000.0f;
   Z = Z / 1000.0f;
-  SERIAL_ECHOLN("SC req relative movement:");
-  SERIAL_ECHOLNPAIR("X: ", X, ", Y: ", Y, ", Z: ", Z);
-  SERIAL_ECHOLN("current position:");
-  SERIAL_ECHOLNPAIR("X: ", LOGICAL_X_POSITION(current_position[X_AXIS]), ", Y: ", LOGICAL_Y_POSITION(current_position[Y_AXIS]), ", Z: ", LOGICAL_Z_POSITION(current_position[Z_AXIS]));
   switch(Option) {
     case 0:
       process_cmd_imd("G28 Z");
@@ -575,8 +571,8 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
       move_to_limited_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
       break;
   }
-  SERIAL_ECHOLN("new position:");
-  SERIAL_ECHOLNPAIR("X: ", LOGICAL_X_POSITION(current_position[X_AXIS]), ", Y: ", LOGICAL_Y_POSITION(current_position[Y_AXIS]), ", Z: ", LOGICAL_Z_POSITION(current_position[Z_AXIS]));
+
+  planner.synchronize();
 }
 
 /********************************************************
@@ -1059,7 +1055,6 @@ void HMI_SC20::PollingCommand(void)
       }
       // homing status
       else if (StatuID == 0x0e) {
-        LOG_I("SC req coordinate status!\n");
         CoordinateMgrReportStatus(eventId, OpCode);
       }
       // query coordinates data
