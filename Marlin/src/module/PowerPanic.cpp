@@ -552,7 +552,7 @@ ErrCode PowerPanic::ResumeWork() {
 	case MACHINE_TYPE_3DPRINT:
 		LOG_I("previous recorded target hotend temperature is %.2f\n", pre_data_.HeaterTamp[0]);
 
-		if (runout.sensor_state()) {
+		if (runout.is_filament_runout()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
 			return E_HARDWARE;

@@ -366,7 +366,7 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
   }
 
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
-        runout.sensor_state()) {
+        runout.is_filament_runout()) {
     LOG_E("No filemant! Please insert filemant!\n");
     fault_flag_ |= FAULT_FLAG_FILAMENT;
     HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
@@ -566,7 +566,7 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
   }
 
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
-        runout.sensor_state()) {
+        runout.is_filament_runout()) {
     LOG_E("No filemant! Please insert filemant!\n");
     fault_flag_ |= FAULT_FLAG_FILAMENT;
     HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);

@@ -63,7 +63,7 @@ static char SendBuff[1024];
 #endif
 
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  #define CHECK_RUNOUT_SENSOR     runout.sensor_state()
+  #define CHECK_RUNOUT_SENSOR     runout.is_filament_runout()
 #else
   #define CHECK_RUNOUT_SENSOR     (0)
 #endif
