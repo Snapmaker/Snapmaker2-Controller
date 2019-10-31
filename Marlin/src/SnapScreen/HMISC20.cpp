@@ -572,7 +572,9 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
       break;
   }
 
-  planner.synchronize();
+  while(planner.has_blocks_queued()) {
+    thermalManager.manage_heater();
+  }
 }
 
 /********************************************************
@@ -586,7 +588,14 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     // Turn off the heaters
     thermalManager.disable_all_heaters();
 
-    process_cmd_imd("G28");
+    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+      if (current_position[Z_AXIS] < z_limit_in_cali)
+        move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+      move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
+      while (planner.has_blocks_queued());
+    }
+    else
+      process_cmd_imd("G28");
     process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
 
     set_bed_leveling_enabled(false);
@@ -595,13 +604,14 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     // Set the current position of Z to Z_MAX_POS
-    current_position[Z_AXIS] = Z_MAX_POS;
-    sync_plan_position();
+    //current_position[Z_AXIS] = Z_MAX_POS;
+    //sync_plan_position();
 
     endstops.enable_z_probe(true);
 
     // move quicky firstly to decrease the time
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
+    while (planner.has_blocks_queued());
 
     auto_probing(true);
 
@@ -633,14 +643,21 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 
     // Disable all heaters
     thermalManager.disable_all_heaters();
-    process_cmd_imd("G28");
+    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+      if (current_position[Z_AXIS] < z_limit_in_cali)
+        move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+      move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
+      while (planner.has_blocks_queued());
+    }
+    else
+      process_cmd_imd("G28");
 
     // Z limit switch at the higtest position
-    if (Z_HOME_DIR > 0) current_position[Z_AXIS] = Z_MAX_POS;
+    //if (Z_HOME_DIR > 0) current_position[Z_AXIS] = Z_MAX_POS;
 
     // Z limit switch at the lowest position
-    else current_position[Z_AXIS] = 0;
-    sync_plan_position();
+    //else current_position[Z_AXIS] = 0;
+    //sync_plan_position();
 
     // Move Z to 20mm height
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
@@ -1114,6 +1131,7 @@ void HMI_SC20::PollingCommand(void)
         case 6:
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
+          LOG_I("SC req move z, offset: %.3f, cur z: %.3f\n", fZ, current_position[Z_AXIS] + fZ);
           move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
@@ -1124,7 +1142,11 @@ void HMI_SC20::PollingCommand(void)
           if (CMD_BUFF_EMPTY() == true) {
             process_cmd_imd("G1029 S0");
 
-            process_cmd_imd("G28");
+            move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+            move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
+            while(planner.has_blocks_queued());
+
+            set_bed_leveling_enabled(true);
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1147,8 +1169,11 @@ void HMI_SC20::PollingCommand(void)
             //Load
             settings.load();
 
-            // home all axis
-            process_cmd_imd("G28");
+            move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+            move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
+            while(planner.has_blocks_queued());
+
+            set_bed_leveling_enabled(true);
 
             HMICommandSave = 0;
 
@@ -1256,7 +1281,10 @@ void HMI_SC20::PollingCommand(void)
 
           process_cmd_imd("G1029 S1");
           // home all axis
-          process_cmd_imd("G28");
+          move_to_limited_z(50, 20);
+          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
+          while(planner.has_blocks_queued());
+          set_bed_leveling_enabled(true);
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);

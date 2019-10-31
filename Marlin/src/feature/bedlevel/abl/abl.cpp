@@ -486,7 +486,7 @@ void auto_probing(bool reply_screen) {
     cur_y = new_y;
   }
 
-  do_blocking_move_to_z(z_position_in_cali_offset, speed_in_calibration[Z_AXIS]);
+  //do_blocking_move_to_z(z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] + 3, speed_in_calibration[Z_AXIS]);
   do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
 }
 
@@ -501,6 +501,7 @@ void compensate_offset(float offset) {
 void compensate_offset() {
   float offset = z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] - current_position[Z_AXIS];
   nozzle_height_probed = offset;
+  SERIAL_ECHOLNPAIR("nozzle height when probed bed: ", nozzle_height_probed);
   compensate_offset(offset);
 }
 
