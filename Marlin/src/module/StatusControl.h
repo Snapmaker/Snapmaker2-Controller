@@ -20,10 +20,20 @@
 #define FAULT_FLAG_HOTEND_SENSOR_BAD  (1<<11) // temperature sensor of hotend is abnormal
 #define FAULT_FLAG_BED_SENSOR_BAD     (1<<12) // temperature sensor of bed is abnormal
 #define FAULT_FLAG_LOST_LINEAR        (1<<13)
-#define FAULT_FLAG_UNKNOW_MODEL       (1<<14)
+#define FAULT_FLAG_HOTEND_MAXTEMP     (1<<14)
+#define FAULT_FLAG_BED_MAXTEMP        (1<<15)
+#define FAULT_FLAG_HOTEND_SHORTCIRCUIT    (1<<16)
+#define FAULT_FLAG_BED_SHORTCIRCUIT       (1<<17)
+#define FAULT_FLAG_HOTEND_SENSOR_COMEOFF  (1<<18)
+#define FAULT_FLAG_BED_SENSOR_COMEOFF     (1<<19)
+#define FAULT_FLAG_UNKNOW_MODEL       (1<<20)
+#define FAULT_FLAG_UNKNOW             (1<<31)
 
 // this macro mask the bits which are allow to be cleared by screen
-#define FAULT_FLAG_SC_CLEAR_MASK      (FAULT_FLAG_POWER_LOSS | FAULT_FLAG_FILAMENT | FAULT_FLAG_LOST_SETTING)
+#define FAULT_FLAG_SC_CLEAR_MASK      (FAULT_FLAG_POWER_LOSS | FAULT_FLAG_FILAMENT | FAULT_FLAG_LOST_SETTING \
+                                      | FAULT_FLAG_HOTEND_HEATFAIL | FAULT_FLAG_BED_HEATFAIL | FAULT_FLAG_HOTEND_RUNWAWY \
+                                      | FAULT_FLAG_BED_RUNAWAY | FAULT_FLAG_HOTEND_MAXTEMP | FAULT_FLAG_BED_MAXTEMP \
+                                      | FAULT_FLAG_UNKNOW)
 
 // exception actions
 #define EACTION_NONE                0
@@ -50,6 +60,7 @@ enum ExceptionHost : int8_t {
 enum ExceptionType : uint8_t {
   ETYPE_NO_HOST = 0,
   ETYPE_LOST_HOST,
+  ETYPE_RUNOUT,
   ETYPE_LOST_CFG,
   ETYPE_PORT_BAD,
   ETYPE_POWER_LOSS,
@@ -58,9 +69,12 @@ enum ExceptionType : uint8_t {
   ETYPE_TEMP_REDUNDANCY,
   ETYPE_SENSOR_BAD,
   ETYPE_BELOW_MINTEMP,
-  ETYPE_ABOVE_MAXTEMP,
+  ETYPE_OVERRUN_MAXTEMP,
+  ETYPE_OVERRUN_MAXTEMP_AGAIN,
+  ETYPE_ABRUPT_TEMP_DROP,
+  ETYPE_SENSOR_COME_OFF,
 
-  ET_INVALID
+  ETYPE_INVALID
 };
 
 
@@ -133,6 +147,7 @@ public:
   ErrCode ThrowException(ExceptionHost h, ExceptionType t);
   ErrCode ThrowExceptionISR(ExceptionHost h, ExceptionType t);
   ErrCode ClearException(ExceptionHost h, ExceptionType t);
+  ErrCode ClearExceptionByFaultFlag(uint32_t flag);
 
   ErrCode PauseTrigger(TriggerSource type);
   ErrCode StopTrigger(TriggerSource type);
@@ -178,6 +193,7 @@ private:
   void StopProcess();
   void ResumeProcess();
   ErrCode PauseResume();
+  void MapFaultFlagToException(uint32_t flag, ExceptionHost &host, ExceptionType &type);
 
 public:
   uint32_t PeriphDeviceStatus;

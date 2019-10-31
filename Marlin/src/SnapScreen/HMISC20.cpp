@@ -63,7 +63,7 @@ static char SendBuff[1024];
 #endif
 
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
-  #define CHECK_RUNOUT_SENSOR     runout.sensor_state()
+  #define CHECK_RUNOUT_SENSOR     runout.is_filament_runout()
 #else
   #define CHECK_RUNOUT_SENSOR     (0)
 #endif
@@ -441,7 +441,7 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   SquareSideLength = 10;
 
   // Move down 5
-  do_blocking_move_to_logical_z(current_position[Z_AXIS] - 5, 20.0f);
+  move_to_limited_z(current_position[Z_AXIS] - 5, 20.0f);
 
   NextX = StartX;
   NextY = StartY;
@@ -453,22 +453,22 @@ void HMI_SC20::DrawLaserCalibrateShape() {
   // Draw 10 square
   do {
     // Move to the start point
-    do_blocking_move_to_logical_xy(NextX, NextY, 50.0f);
+    move_to_limited_xy(NextX, NextY, 50.0f);
 
     // Laser on
     ExecuterHead.Laser.SetLaserPower(100.0f);
 
     // Draw square
-    do_blocking_move_to_logical_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
-    do_blocking_move_to_logical_xy(current_position[X_AXIS], current_position[Y_AXIS] - SquareSideLength, 5.0f);
-    do_blocking_move_to_logical_xy(current_position[X_AXIS] - SquareSideLength, current_position[Y_AXIS], 5.0f);
-    do_blocking_move_to_logical_xy(current_position[X_AXIS], current_position[Y_AXIS] + SquareSideLength, 5.0f);
+    move_to_limited_xy(current_position[X_AXIS] + SquareSideLength, current_position[Y_AXIS], 5.0f);
+    move_to_limited_xy(current_position[X_AXIS], current_position[Y_AXIS] - SquareSideLength, 5.0f);
+    move_to_limited_xy(current_position[X_AXIS] - SquareSideLength, current_position[Y_AXIS], 5.0f);
+    move_to_limited_xy(current_position[X_AXIS], current_position[Y_AXIS] + SquareSideLength, 5.0f);
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
     // Move up 1mm
-    do_blocking_move_to_logical_z(current_position[Z_AXIS] + 1, 20.0f);
+    move_to_limited_z(current_position[Z_AXIS] + 1, 20.0f);
 
     // Caculate next x y
     if(i % 5 == 0) {
@@ -490,16 +490,15 @@ void HMI_SC20::DrawLaserCalibrateShape() {
  * DrawLaserCalibrateShape
  */
 bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count) {
-  int i;
+  int i = 0;
   float next_x, next_y, next_z;
   float line_space;
   float line_len_short, line_len_long;
-  float camera_x_offset = 0, camera_y_offset = 0;
 
   line_space = 2;
   line_len_short = 5;
   line_len_long = 10;
-  next_x = StartX;
+  next_x = StartX - (int)(Count / 2) * 2;
   next_y = StartY;
   next_z = StartZ - ((float)(Count - 1) / 2.0 * Z_Increase);
 
@@ -507,19 +506,12 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     return false;
 
   // Move to next Z
-  do_blocking_move_to_logical_z(next_z, 20.0f);
-
-  LOG_I("start ponit: X=%.2f, Y=%.2f, Z=%.2f\n", StartX, StartY, StartZ);
-
-  i = 0;
-
-  // Fan On
-  process_cmd_imd("M106 P0 S255");
+  move_to_limited_z(next_z, 20.0f);
 
   // Draw 10 Line
   do {
     // Move to the start point
-    do_blocking_move_to_logical_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
+    move_to_limited_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
     planner.synchronize();
 
     // Laser on
@@ -527,35 +519,29 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
     // Draw Line
     if((i % 5) == 0)
-      do_blocking_move_to_logical_xy(next_x, next_y + line_len_long, 3.0f);
+      move_to_limited_xy(next_x, next_y + line_len_long, 3.0f);
     else
-      do_blocking_move_to_logical_xy(next_x, next_y + line_len_short, 3.0f);
+      move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
 
     planner.synchronize();
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
 
-    LOG_I("current Z: %.2f\n", current_position[Z_AXIS]);
-
     // Move up Z increase
     if(i != (Count - 1))
-      do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
+      move_to_limited_z(current_position[Z_AXIS] + Z_Increase, 20.0f);
 
     next_x = next_x + line_space;
     i++;
-  }while(i < Count);
-
-  // Fan Off
-  process_cmd_imd("M107 P0");
+  } while(i < Count);
 
   planner.synchronize();
 
-  // Move to the center
-  next_x = (current_position[X_AXIS] + StartX) / 2.0f - camera_x_offset;
-  next_y = (current_position[Y_AXIS] + StartY) / 2.0f - camera_y_offset;
-  do_blocking_move_to_logical_xy(next_x, next_y, 20.0f);
-
+  // Move to beginning
+  move_to_limited_z(StartZ, 20.0f);
+  move_to_limited_xy(StartX, StartY, 20.0f);
+  planner.synchronize();
   return true;
 }
 
@@ -579,10 +565,14 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
       break;
 
     case 2:
-      do_blocking_move_to_logical_z(current_position[Z_AXIS] + Z, 10.0f);
-      do_blocking_move_to_logical_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
+      // current_position[] is native position, so cannot use API 'do_blocking_move_to_logical_<axis>'
+      // it only get logical position
+      move_to_limited_z(current_position[Z_AXIS] + Z, 10.0f);
+      move_to_limited_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
       break;
   }
+
+  planner.synchronize();
 }
 
 /********************************************************
@@ -1012,7 +1002,7 @@ void HMI_SC20::PollingCommand(void)
       else if (StatuID == 0x0a) {
         if (cmdLen < 6) {
           LOG_I("SC req clear power loss bits\n");
-          SystemStatus.ClearSystemFaultBit(FAULT_FLAG_POWER_LOSS);
+          SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_POWER_LOSS);
           if (powerpanic.pre_data_.Valid == 1) {
             // clear flash data
             LOG_I("clearing flash data ...");
@@ -1022,9 +1012,9 @@ void HMI_SC20::PollingCommand(void)
         }
         else {
           uint32_t fault_bit = BYTES_TO_32BITS(tmpBuff, 10);
-          LOG_I("SC req clear fault bits: 0x%08X\n", fault_bit);
+          LOG_I("SC req clear exception, fault bits: 0x%08X\n", fault_bit);
           fault_bit &= FAULT_FLAG_SC_CLEAR_MASK;
-          SystemStatus.ClearSystemFaultBit(fault_bit);
+          SystemStatus.ClearExceptionByFaultFlag(fault_bit);
         }
 
         // ack
@@ -1065,13 +1055,13 @@ void HMI_SC20::PollingCommand(void)
       }
       // homing status
       else if (StatuID == 0x0e) {
-        LOG_I("SC req coordinate status!\n");
+        LOG_I("SC req homing!\n");
         CoordinateMgrReportStatus(eventId, OpCode);
       }
       // query coordinates data
       else if (StatuID == 0xf) {
         LOG_I("SC req coordinates!\n");
-        if (CoordinateMgrReport(tmpBuff[IDX_DATA0], tmpBuff[IDX_DATA0 + 1]) != E_SUCCESS)
+        if (CoordinateMgrReportData(tmpBuff[IDX_DATA0], tmpBuff[IDX_DATA0 + 1]) != E_SUCCESS)
           MarkNeedReack(0);
       }
       // not supported command
@@ -1122,7 +1112,6 @@ void HMI_SC20::PollingCommand(void)
 
         // move z axis
         case 6:
-          LOG_I("SC req move Z in leveling\n");
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
           move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
@@ -1133,7 +1122,7 @@ void HMI_SC20::PollingCommand(void)
         case 7:
           LOG_I("SC req save data of leveling\n");
           if (CMD_BUFF_EMPTY() == true) {
-            process_cmd_imd("G1029 S");
+            process_cmd_imd("G1029 S0");
 
             process_cmd_imd("G28");
 
@@ -1234,7 +1223,7 @@ void HMI_SC20::PollingCommand(void)
           LOG_I("Laser: SC req draw ruler\n");
           if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
             if (cmdLen < 6) {
-              LOG_W("cmd length[%d] is less than 6, use default Z offset: 0.5 mm\n", cmdLen);
+              LOG_W("Laser: use default Z offset: 0.5 mm\n", cmdLen);
               DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5f, 21);
             }
             else {
@@ -1255,11 +1244,13 @@ void HMI_SC20::PollingCommand(void)
           // auto leveling, only offset between probe and extruder is known
           if (nozzle_height_probed == 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
             MarkNeedReack(2);
+            LOG_E("Invalid Z offset: %.3f, please adjust the Z offset first!\n", nozzle_height_probed);
             break;
           }
 
           if (HalfAutoCalibrate()) {
             MarkNeedReack(1);
+            LOG_E("Auto calibration failed!\n");
             break;
           }
 
@@ -1269,6 +1260,7 @@ void HMI_SC20::PollingCommand(void)
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
+          LOG_I("SC req auto probe: Done!\n");
           break;
 
         //读取尺寸参数
@@ -1304,7 +1296,7 @@ void HMI_SC20::PollingCommand(void)
       //应答
       MarkNeedReack(0);
     }
-    //WIFI
+    //WIFI & Bluetooth
     else if (eventId == EID_LAS_CAM_OP_REQ) {
       if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
         switch (OpCode)
@@ -1345,8 +1337,8 @@ void HMI_SC20::PollingCommand(void)
             fY = int32Value / 1000.0f;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fZ = int32Value / 1000.0f;
-            do_blocking_move_to_logical_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
-            do_blocking_move_to_logical_z(current_position[Z_AXIS] +fZ, 40);
+            move_to_limited_xy(current_position[X_AXIS] +fX, current_position[Y_AXIS] +fY, 40);
+            move_to_limited_z(current_position[Z_AXIS] +fZ, 40);
 
             //应答
             MarkNeedReack(0);
@@ -1365,6 +1357,37 @@ void HMI_SC20::PollingCommand(void)
 
             //应答
             MarkNeedReack(0);
+            break;
+
+          // Set bluetooth name
+          case 0x05:
+            j = 10;
+            for (i = 0; i < 31; i++) {
+              bluetooth_name[i] = tmpBuff[j++];
+              if (bluetooth_name[i] == 0) break;
+            }
+            bluetooth_name[31] = 0;
+            
+            SERIAL_ECHOLNPAIR("BlueTooth Name:", bluetooth_name);
+            if(ExecuterHead.Laser.SetBluetoothName(bluetooth_name) == 0) MarkNeedReack(0);
+            else MarkNeedReack(1);
+            break;
+
+          // Read Bluetooth name
+          case 0x06:
+            bluetooth_name[0] = 0;
+            result = ExecuterHead.Laser.ReadBluetoothName(bluetooth_name);
+            SERIAL_ECHOLNPAIR("Bluetooth Name:", bluetooth_name);
+            if (result == 0) SendBluetoothName(OpCode, 0, bluetooth_name);
+            else if(result == 1) SendBluetoothName(OpCode, 1, (char*)"");
+            else if(result == 2) SendBluetoothName(OpCode, 2, (char*)"");
+            break;
+
+          // Read Bluetooth MAC
+          case 0x07:
+            result = ExecuterHead.Laser.ReadBluetoothMac(bluetooth_mac);
+            if (result == 0) SendBluetoothMac(OpCode, 0, bluetooth_mac);
+            else if(result == 2) SendBluetoothMac(OpCode, 2, bluetooth_mac);
             break;
         }
       }
@@ -1601,6 +1624,57 @@ void HMI_SC20::SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PW
   PackedProtocal(tmpBuff, i);
 }
 
+/***********************************************
+发送蓝牙名字查询应答
+参数    OpCode:操作码
+      Result:结果，0表示成功，非0表示失败
+************************************************/
+void HMI_SC20::SendBluetoothName(uint8_t OpCode, uint8_t Result, char * Name)
+{
+  uint16_t i;
+  i = 0;
+
+  //EventID
+  tmpBuff[i++] = EID_LAS_CAM_OP_RESP;
+
+  //Operation ID
+  tmpBuff[i++] = OpCode;
+
+  //结果
+  tmpBuff[i++] = Result;
+  for (int j = 0; j < 31; j++) {
+    if (Name[j] == 0) break;
+    tmpBuff[i++] = Name[j];
+  }
+  tmpBuff[i++] = 0;
+
+  PackedProtocal(tmpBuff, i);
+}
+
+/***********************************************
+发送蓝牙名字查询应答
+参数    OpCode:操作码
+      Result:结果，0表示成功，非0表示失败
+************************************************/
+void HMI_SC20::SendBluetoothMac(uint8_t OpCode, uint8_t Result, uint8_t * Mac)
+{
+  uint16_t i;
+  i = 0;
+
+  //EventID
+  tmpBuff[i++] = EID_LAS_CAM_OP_RESP;
+
+  //Operation ID
+  tmpBuff[i++] = OpCode;
+
+  //结果
+  tmpBuff[i++] = Result;
+  for (int j = 0; j < 6; j++) {
+    tmpBuff[i++] = Mac[j];
+  }
+
+  PackedProtocal(tmpBuff, i);
+}
 
 /***********************************************
 发送激光焦点
@@ -1756,7 +1830,7 @@ void HMI_SC20::SendBreakPointData()
 /***********************************************
 发送报警
 ************************************************/
-void HMI_SC20::SendMachineFaultFlag()
+void HMI_SC20::SendMachineFaultFlag(uint32_t flag)
 {
   uint16_t i;
   i = 0;
@@ -1768,9 +1842,10 @@ void HMI_SC20::SendMachineFaultFlag()
   tmpBuff[i++] = 0x02;
 
   //异常标志
-  uint32_t SysFaultFlag;
-  SysFaultFlag = SystemStatus.GetSystemFault();
-  BITS32_TO_BYTES(SysFaultFlag, tmpBuff, i);
+  if (!flag) {
+    flag = SystemStatus.GetSystemFault();
+  }
+  BITS32_TO_BYTES(flag, tmpBuff, i);
 
   //打印文件源
   if (SystemStatus.GetCurrentStage() == SYSTAGE_IDLE) tmpBuff[i++] = 3;

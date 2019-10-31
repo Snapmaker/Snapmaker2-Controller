@@ -336,7 +336,7 @@ int PowerPanic::SaveEnv(void) {
 	switch (ExecuterHead.MachineType)
 	{
 	case MACHINE_TYPE_CNC:
-		Data.cnc_power = ExecuterHead.CNC.GetRPM();
+		Data.cnc_power = ExecuterHead.CNC.GetPower();
 		break;
 
 	case MACHINE_TYPE_LASER:
@@ -414,7 +414,7 @@ void PowerPanic::Resume3DP() {
 	planner.set_e_position_mm(current_position[E_AXIS]);
 
 	// try to cut out filament
-	process_cmd_imd("G0 E-6.5 F2400");
+	process_cmd_imd("G0 E-3 F3600");
 
 	// absolute mode
 	relative_mode = false;
@@ -428,9 +428,6 @@ void PowerPanic::Resume3DP() {
 	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
 	process_cmd_imd(tmpBuff);
 	planner.synchronize();
-
-	// enable runout
-	process_cmd_imd("M412 S1");
 }
 
 void PowerPanic::ResumeCNC() {
@@ -461,6 +458,7 @@ void PowerPanic::ResumeCNC() {
 
 	// enable CNC motor
 	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
+	LOG_I("Restore CNC power: %.2f\n", pre_data_.cnc_power);
 
 	// move to target Z
 	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
@@ -538,7 +536,7 @@ ErrCode PowerPanic::ResumeWork() {
 		LOG_E("previous Gcode-source is not screen: %d\n", pre_data_.GCodeSource);
 		return E_INVALID_STATE;
 	} else {
-	  powerpanic.Data.GCodeSource = GCODE_SOURCE_SCREEN;
+		powerpanic.Data.GCodeSource = GCODE_SOURCE_SCREEN;
 	}
 
 	if (Periph.IsDoorOpened()) {
@@ -554,7 +552,7 @@ ErrCode PowerPanic::ResumeWork() {
 	case MACHINE_TYPE_3DPRINT:
 		LOG_I("previous recorded target hotend temperature is %.2f\n", pre_data_.HeaterTamp[0]);
 
-		if (runout.sensor_state()) {
+		if (runout.is_filament_runout()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
 			return E_HARDWARE;

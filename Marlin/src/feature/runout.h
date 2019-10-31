@@ -113,8 +113,13 @@ class TFilamentMonitor : public FilamentMonitorBase {
     }
 
     // query current state of sensor
-    static uint8_t sensor_state() {
-      return sensor.poll_runout_states();
+    // return true -> no filament
+    // return false -> filament is exist
+    static bool is_filament_runout() {
+      if (enabled)
+        return sensor.poll_runout_states();
+      else
+        return enabled;
     }
 };
 

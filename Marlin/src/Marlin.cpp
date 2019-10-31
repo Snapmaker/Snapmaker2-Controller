@@ -776,6 +776,7 @@ void idle(
   #endif
 
   SystemStatus.CheckException();
+  ExecuterHead.CheckAlive();
 
   #if ENABLED(HOST_KEEPALIVE_FEATURE)
     gcode.host_keepalive();
@@ -1001,8 +1002,6 @@ void setup() {
   #if ENABLED(HMISUPPORT)
     HMI.Init();
   #endif
-
-  ExecuterHead.Print3D.HeatedBedSelfCheck();
 
   #if NUM_SERIAL > 0
     uint32_t serial_connect_timeout = millis() + 1000UL;
@@ -1339,8 +1338,10 @@ void loop() {
   }
 
   if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
-    ExecuterHead.StartCheckHeartbeat();
+    ExecuterHead.watch.Start();
   }
+
+  ExecuterHead.Print3D.HeatedBedSelfCheck();
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
   for (;;) {

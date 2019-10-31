@@ -195,6 +195,8 @@ hotend_info_t Temperature::temp_hotend[HOTENDS]; // = { 0 }
 
 #if WATCH_HOTENDS
   heater_watch_t Temperature::watch_hotend[HOTENDS]; // = { { 0 } }
+  heater_watch_t Temperature::watch_hotend_tempdrop[HOTENDS];
+  heater_watch_t Temperature::watch_hotend_notheated[HOTENDS];
 #endif
 #if HEATER_IDLE_HANDLER
   heater_idle_t Temperature::hotend_idle[HOTENDS]; // = { { 0 } }
@@ -211,7 +213,9 @@ hotend_info_t Temperature::temp_hotend[HOTENDS]; // = { 0 }
   #endif
   #if WATCH_BED
     heater_watch_t Temperature::watch_bed; // = { 0 }
+    heater_watch_t Temperature::watch_bed_tempdrop;
   #endif
+    heater_watch_t Temperature::watch_bed_notheated;
   #if DISABLED(PIDTEMPBED)
     millis_t Temperature::next_bed_check_ms;
   #endif
@@ -736,7 +740,7 @@ void Temperature::_temp_error(const int8_t heater, PGM_P const serial_msg, PGM_P
 
 void Temperature::max_temp_error(const int8_t heater) {
   _temp_error(heater, PSTR(MSG_T_MAXTEMP), TEMP_ERR_PSTR(MSG_ERR_MAXTEMP, heater));
-  SystemStatus.ThrowException((ExceptionHost)heater,ETYPE_ABOVE_MAXTEMP);
+  SystemStatus.ThrowException((ExceptionHost)heater,ETYPE_OVERRUN_MAXTEMP_AGAIN);
 }
 
 void Temperature::min_temp_error(const int8_t heater) {
@@ -912,6 +916,10 @@ float Temperature::get_pid_output(const int8_t e) {
  *  - Update the heated bed PID output value
  */
 void Temperature::manage_heater() {
+  static uint8_t bed_sensor_bad = 0;
+  static millis_t next_check_bed_sensor = millis() + 1000;
+  static uint8_t hotend_sensor_bad = 0;
+
   bool CheckTempError = false;
   #if EARLY_WATCHDOG
     // If thermal manager is still not running, make sure to at least reset the watchdog!
@@ -957,8 +965,36 @@ void Temperature::manage_heater() {
       #endif
 
       // check if thermistor is bad
-      if (temp_hotend[e].current < 0 || temp_hotend[e].current > temp_range[e].maxtemp)
-        SystemStatus.ThrowException((ExceptionHost)(EHOST_HOTEND0+e), ETYPE_SENSOR_BAD);
+      if (temp_hotend[e].current < 0 || temp_hotend[e].current > 500) {
+        if (++hotend_sensor_bad == 3)
+          SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_SENSOR_BAD);
+        else if (hotend_sensor_bad > 3) {
+          // arive here, hotend_sensor_bad should be 4, we make it become 3,
+          // if exception is still exist, hotend_sensor_bad become 4 again last loop.
+          // Otherwise goto 'else' branch
+          hotend_sensor_bad = 3;
+        }
+      }
+      else {
+        if (hotend_sensor_bad >= 3) {
+          // arive here, exception happened. try to clear execption:
+          // increase hotend_sensor_bad continuously until it is larger than 6,
+          // then clear exception and clear hotend_sensor_bad and
+          // CPU will not come in last loop
+          if (++hotend_sensor_bad > 6) {
+            SystemStatus.ClearException((ExceptionHost)(e), ETYPE_SENSOR_BAD);
+            hotend_sensor_bad = 0;
+          }
+        }
+        else {
+          hotend_sensor_bad = 0;
+        }
+      }
+
+      if (temp_hotend[e].current > (HEATER_0_MAXTEMP + 10))
+        SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP_AGAIN);
+      else if (temp_hotend[e].current > HEATER_0_MAXTEMP)
+        SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP);
 
       #if ENABLED(THERMAL_PROTECTION_HOTENDS)
         // Check for thermal runaway
@@ -969,15 +1005,39 @@ void Temperature::manage_heater() {
 
       #if WATCH_HOTENDS
         // Make sure temperature is increasing
-        if (watch_hotend[e].next_ms && ELAPSED(ms, watch_hotend[e].next_ms)) { // Time to check this extruder?
+        if (watch_hotend[e].elapsed(ms)) { // Time to check this extruder?
           if (degHotend(e) < watch_hotend[e].target) {                             // Failed to increase enough?
             _temp_error(e, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, e));
-            SystemStatus.ThrowException((ExceptionHost)e,ETYPE_HEAT_FAIL);
+            //SystemStatus.ThrowException((ExceptionHost)e, ETYPE_HEAT_FAIL);
           }
           else                                                                 // Start again if the target is still far off
             start_watching_heater(e);
         }
       #endif
+      if (watch_hotend_tempdrop[e].elapsed(ms)) {
+        // watch_hotend_tempdrop[e].target is temperature last second
+        if (degHotend(e) < (watch_hotend_tempdrop[e].target)) {
+          if (watch_hotend_tempdrop[e].debounce(true)) {
+            SystemStatus.ThrowException((ExceptionHost)e, ETYPE_ABRUPT_TEMP_DROP);
+          }
+        }
+        else
+          watch_hotend_tempdrop[e].debounce(false);
+
+        start_watching_heater_tempdrop(e);
+      }
+
+      // check if temperature doesn't increase when heating
+      if (watch_hotend_notheated[e].elapsed(ms)) {
+        if (degHotend(e) < watch_hotend_notheated[e].target) {
+          if (watch_hotend_notheated[e].debounce(true))
+            SystemStatus.ThrowException((ExceptionHost)e, ETYPE_SENSOR_COME_OFF);
+        }
+        else
+          watch_hotend_notheated[e].debounce(false);
+
+        start_watching_heater_notheated(false, e);
+      }
 
       #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
         // Make sure measured temperatures are close together
@@ -1018,16 +1078,68 @@ void Temperature::manage_heater() {
       if (watch_bed.elapsed(ms)) {        // Time to check the bed?
         if (degBed() < watch_bed.target) {                                // Failed to increase enough?
           _temp_error(-1, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, -1));
-          SystemStatus.ThrowException((ExceptionHost)-1,ETYPE_HEAT_FAIL);
+          SystemStatus.ThrowException(EHOST_BED, ETYPE_HEAT_FAIL);
         }
         else                                                            // Start again if the target is still far off
           start_watching_bed();
       }
+
+    // check if abrupt temperature drop happened
+    if (watch_bed_tempdrop.elapsed(ms)) {
+      if (degBed() < watch_bed_tempdrop.target) {
+        if (watch_bed_tempdrop.debounce(true))
+          SystemStatus.ThrowException(EHOST_BED, ETYPE_ABRUPT_TEMP_DROP);
+      }
+      else
+        watch_bed_tempdrop.debounce(false);
+
+      start_watching_bed_tempdrop();
+    }
     #endif // WATCH_BED
 
+    // check if temperature doesn't increase when heating
+    if (watch_bed_notheated.elapsed(ms)) {
+      if (degBed() < watch_bed_notheated.target) {
+        if (watch_bed_notheated.debounce(true))
+          SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_COME_OFF);
+      }
+      else
+        watch_bed_notheated.debounce(false);
+
+      start_watching_bed_notheated(false);
+    }
+
     // check if thermistor is bad
-    if (temp_bed.current < 0 || temp_bed.current > BED_MAXTEMP)
-      SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_BAD);
+    if (ELAPSED(ms, next_check_bed_sensor)) {
+      if (temp_bed.current < 0) {
+        if (++bed_sensor_bad == 3)
+          SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_BAD);
+        else if (bed_sensor_bad > 3)
+          bed_sensor_bad = 3;
+      }
+      else {
+        if (bed_sensor_bad >= 3) {
+          // arive here, exception happened. try to clear execption:
+          // increase hotend_sensor_bad continuously until it is larger than 6,
+          // then clear exception and clear hotend_sensor_bad and
+          // CPU will not come in last loop
+          if (++bed_sensor_bad > 6) {
+            SystemStatus.ClearException(EHOST_BED, ETYPE_SENSOR_BAD);
+            bed_sensor_bad = 0;
+          }
+        }
+        else {
+          bed_sensor_bad = 0;
+        }
+      }
+      next_check_bed_sensor = millis() + 1000;
+    }
+
+    // check if heating is out of control
+    if (temp_bed.current > (BED_MAXTEMP + 5))
+      SystemStatus.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP_AGAIN);
+    else if (temp_bed.current > BED_MAXTEMP)
+      SystemStatus.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP);
 
     #if DISABLED(PIDTEMPBED)
       if (PENDING(ms, next_bed_check_ms)
@@ -1484,6 +1596,10 @@ void Temperature::init() {
         temp_range[NR].raw_max -= TEMPDIR(NR) * (OVERSAMPLENR); \
     }while(0)
 
+    #if WATCH_HOTENDS
+      watch_hotend_notheated[0].debounce_max = WATCH_TEMP_NOTHEATED_DEBOUNCE;
+      watch_hotend_tempdrop[0].debounce_max = WATCH_TEMP_DROP_DEBOUNCE;
+    #endif
     #ifdef HEATER_0_MINTEMP
       _TEMP_MIN_E(0);
     #endif
@@ -1534,6 +1650,10 @@ void Temperature::init() {
   #endif // HOTENDS > 1
 
   #if HAS_HEATED_BED
+    watch_bed_notheated.debounce_max = WATCH_BED_TEMP_NOTHEATED_DEBOUNCE;
+    #if WATCH_BED
+      watch_bed_tempdrop.debounce_max = WATCH_BED_TEMP_DROP_DEBOUNCE;
+    #endif
     #ifdef BED_MINTEMP
       while (analog_to_celsius_bed(mintemp_raw_BED) < BED_MINTEMP) mintemp_raw_BED += TEMPDIR(BED) * (OVERSAMPLENR);
     #endif
@@ -1802,6 +1922,49 @@ void Temperature::init() {
     else
       watch_hotend[HOTEND_INDEX].next_ms = 0;
   }
+
+  void Temperature::start_watching_heater_tempdrop(const uint8_t e) {
+    E_UNUSED();
+    if (temp_hotend[e].target > WATCH_TEMP_TARGET_START) {
+      // now temp should be raising, hotend is being heated
+      if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_DROP_LIMIT) {
+        watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].current - WATCH_TEMP_DROP_DELTA;
+      }
+      else {
+        watch_hotend_tempdrop[HOTEND_INDEX].target = temp_hotend[e].target - WATCH_TEMP_DROP_LIMIT;
+      }
+
+      watch_hotend_tempdrop[HOTEND_INDEX].next_ms = millis() + (WATCH_TEMP_DROP_PERIOD) * 1000UL;
+    }
+    else {
+      watch_hotend_tempdrop[HOTEND_INDEX].debounce_cnt = 0;
+      watch_hotend_tempdrop[HOTEND_INDEX].next_ms = 0;
+    }
+  }
+
+  void Temperature::start_watching_heater_notheated(bool first_heating, const uint8_t e) {
+    E_UNUSED();
+    if (temp_hotend[e].target > WATCH_TEMP_TARGET_START) {
+      if (first_heating) {
+      // temperature should raise
+        if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_NOTHEATED_LIMIT) {
+          watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].current + WATCH_TEMP_NOTHEATED_DELTA;
+        }
+        else {
+          // temp_bed.current > temp_bed.target - WATCH_BED_TEMP_TARGET_START
+          watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].target - WATCH_TEMP_NOTHEATED_LIMIT;
+        }
+      }
+
+      // always check then target > WATCH_BED_TEMP_TARGET_START
+      watch_hotend_notheated[HOTEND_INDEX].next_ms = millis() + (WATCH_TEMP_NOTHEATED_PERIOD) * 1000UL;
+    }
+    else {
+      watch_hotend_notheated[HOTEND_INDEX].debounce_cnt = 0;
+      // cancel the checking
+      watch_hotend_notheated[HOTEND_INDEX].next_ms = 0;
+    }
+  }
 #endif
 
 #if WATCH_BED
@@ -1818,7 +1981,49 @@ void Temperature::init() {
     else
       watch_bed.next_ms = 0;
   }
+
+  void Temperature::start_watching_bed_tempdrop() {
+    if (temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
+      // now temp should be raising, hotend is being heated
+      if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_DROP_LIMIT) {
+        watch_bed_tempdrop.target = temp_bed.current - WATCH_BED_TEMP_DROP_DELTA;
+      }
+      else {
+        watch_bed_tempdrop.target = temp_bed.target - WATCH_BED_TEMP_DROP_LIMIT;
+      }
+
+      watch_bed_tempdrop.next_ms = millis() + (WATCH_BED_TEMP_DROP_PERIOD) * 1000UL;
+    }
+    else
+      watch_bed_tempdrop.next_ms = 0;
+  }
 #endif
+
+  /**
+   * if we get the current temperature is less or equal than 'last current'
+   * temperature when heating, it indicates the thermistor maybe come off.
+   * now we must turn off heating.
+   */
+  void Temperature::start_watching_bed_notheated(bool first_heating) {
+    if (temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
+      if (first_heating) {
+      // temperature should raise
+        if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_NOTHEATED_LIMIT) {
+          watch_bed_notheated.target = temp_bed.current + WATCH_BED_TEMP_NOTHEATED_DELTA;
+        }
+        else {
+          // temp_bed.current > temp_bed.target - WATCH_BED_TEMP_NOTHEATED_DELTA
+          watch_bed_notheated.target = temp_bed.target - WATCH_BED_TEMP_NOTHEATED_LIMIT;
+        }
+      }
+
+      // always check then target > WATCH_BED_TEMP_TARGET_START
+      watch_bed_notheated.next_ms = millis() + (WATCH_BED_TEMP_NOTHEATED_PERIOD) * 1000UL;
+    }
+    else
+      // cancel the checking
+      watch_bed_notheated.next_ms = 0;
+  }
 
 #if WATCH_CHAMBER
   /**
@@ -1851,9 +2056,6 @@ void Temperature::init() {
   void Temperature::thermal_runaway_protection(Temperature::tr_state_machine_t &sm, const float &current, const float &target, const int8_t heater_id, const uint16_t period_seconds, const uint16_t hysteresis_degc) {
 
     static float tr_target_temperature[HOTENDS + 1] = { 0.0 };
-    static float tr_last_temperature[HOTENDS + 1] = { 0.0 };
-
-    static uint8_t temp_drop[HOTENDS + 1] = { 0 };
     /**
         SERIAL_ECHO_START();
         SERIAL_ECHOPGM("Thermal Thermal Runaway Running. Heater ID: ");
@@ -1895,25 +2097,7 @@ void Temperature::init() {
 
       // When first heating, wait for the temperature to be reached then go to Stable state
       case TRFirstHeating:
-        if (current < tr_target_temperature[heater_index]) {
-          if (tr_last_temperature[heater_index] != 0) {
-            if (current < tr_last_temperature[heater_index]) {
-              if (temp_drop[heater_index] >= 4) {
-                // do nothing bacause we have throw exception
-              }
-              else if (++temp_drop[heater_index] > 3) {
-                SystemStatus.ThrowException((ExceptionHost)heater_id, ETYPE_TEMP_RUNAWAY);
-              }
-            }
-            else {
-              temp_drop[heater_index] = 0;
-            }
-          }
-          else {
-            temp_drop[heater_index] = 0;
-          }
-          break;
-        }
+        if (current < tr_target_temperature[heater_index]) break;
         sm.state = TRStable;
 
       // While the temperature is stable watch for a bad temperature
@@ -1947,8 +2131,6 @@ void Temperature::init() {
         SystemStatus.ThrowException((ExceptionHost)heater_id,ETYPE_TEMP_RUNAWAY);
         break;
     }
-
-    tr_last_temperature[heater_index] = current;
   }
 
 #endif // THERMAL_PROTECTION_HOTENDS || THERMAL_PROTECTION_BED || ENABLED(THERMAL_PROTECTION_CHAMBER)
@@ -3044,6 +3226,9 @@ void Temperature::isr() {
           if (no_wait_for_cooling && wants_to_cool) break;
         }
 
+        if (degTargetHotend(target_extruder) == 0)
+          break;
+
         now = millis();
         if (ELAPSED(now, next_temp_ms)) { // Print temp & remaining time every 1s while waiting
           next_temp_ms = now + 1000UL;
@@ -3171,6 +3356,9 @@ void Temperature::isr() {
           // Exit if S<lower>, continue if S<higher>, R<lower>, or R<higher>
           if (no_wait_for_cooling && wants_to_cool) break;
         }
+
+        if (degTargetBed() == 0)
+          break;
 
         now = millis();
         if (ELAPSED(now, next_temp_ms)) { //Print Temp Reading every 1 second while heating up.

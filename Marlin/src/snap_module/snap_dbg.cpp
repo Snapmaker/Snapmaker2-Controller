@@ -9,6 +9,41 @@
 
 SnapDebug debug;
 
+const static char *excoption_str[32] {
+  "Didn't detect Executor!",
+  "Didn't detect Linear Module!",
+  "Port of Heated Bed is bad!",
+  "Filemant has ran out!",
+  "Lost settings!",
+  "Lost Executor!",
+  "Power loss happened!",
+  "Hotend heating failed!",
+  "Bed heating failed!",
+  "Temperature runaway of Hotend!",
+  "Temperature runaway of Bed!",
+  "Thermistor of Hotend is Bad!",
+  "Thermistor of Bed is Bad!",
+  "Lost Linear Module!",
+  "Temperature of Hotend is over Max Limit!",
+  "Temperature of Bed is over Max Limit!",
+  "Short circuit maybe appear in Heating tube of Hotend!",
+  "Short circuit maybe appear in Heating tube of Bed!",
+  "Thermistor of Hotend maybe come off!",
+  "Thermistor of Bed maybe come off!",
+  "!",
+  "!",
+  "!",
+  "!",
+  "!",
+  "!",
+  "!",
+  "!",
+  "!",
+  "!",
+  "!",
+  "Unknown Excption!"
+};
+
 #if defined (__GNUC__)                /* GNU GCC Compiler */
   /* the version of GNU GCC must be greater than 4.x */
   typedef __builtin_va_list       __gnuc_va_list;
@@ -94,6 +129,23 @@ void SnapDebug::ShowInfo() {
   Log(SNAP_DEBUG_LEVEL_INFO, "active coordinate: %d\n", gcode.active_coordinate_system);
   Log(SNAP_DEBUG_LEVEL_INFO, "coordinate 1: X: %.3f, Y: %.3f, Z: %.3f\n",
       gcode.coordinate_system[0][X_AXIS], gcode.coordinate_system[0][Y_AXIS], gcode.coordinate_system[0][Z_AXIS]);
+}
+
+void SnapDebug::ShowException() {
+  uint8_t i;
+  uint32_t fault_flag = SystemStatus.GetFaultFlag();
+
+  if (!fault_flag) {
+    Log(SNAP_DEBUG_LEVEL_INFO, "No excption happened!\n");
+    return;
+  }
+  else
+    Log(SNAP_DEBUG_LEVEL_INFO, "Excption info:\n");
+
+  for (i=0; i<32; i++) {
+    if (fault_flag & (0x00000001<<i))
+      Log(SNAP_DEBUG_LEVEL_INFO, "%s\n", excoption_str[i]);
+  }
 }
 
 #endif // #if (SNAP_DEBUG == 1)

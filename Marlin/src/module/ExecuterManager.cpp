@@ -18,18 +18,8 @@ void ExecuterManager::Init()
   MachineType = MACHINE_TYPE_UNDEFINE;
   keep_alive_ = 0xff;
   dead_ = false;
-}
 
-void ExecuterManager::StartCheckHeartbeat() {
-  keep_alive_ = 0x3;
-}
-
-void ExecuterManager::KeepAlive() {
-  keep_alive_ = 0x3;
-}
-
-bool ExecuterManager::IsDead() {
-  return dead_;
+  watch.Init(4, 1000);
 }
 
 /**
@@ -45,16 +35,16 @@ bool ExecuterManager::Detecte()
 }
 
 void ExecuterManager::Process() {
-  static millis_t next_second = millis() + 1000;
 
   Laser.TryCloseFan();
 
-  if (next_second - millis() < 0) {
-    next_second = millis() + 1000;
-    if (keep_alive_ != 0xff && keep_alive_ != 0) {
-      keep_alive_--;
-    }
+}
 
+void ExecuterManager::CheckAlive() {
+  static millis_t next_second = millis() + 1000;
+  millis_t now = millis();
+
+  if (ELAPSED(now, next_second)) {
     // because laser deosn't have heartbeat packet, so need to read it manually
     // when it return focusheight, ISR will update the keep_alive_
     if (MACHINE_TYPE_LASER == MachineType) {
@@ -62,17 +52,14 @@ void ExecuterManager::Process() {
     }
   }
 
-  if ((keep_alive_ == 0) && !dead_) {
+  if (watch.CheckAlive() == HB_STA_JUST_DEAD) {
     SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
-    dead_ = true;
   }
 
-  if (keep_alive_ && dead_) {
+  if (watch.CheckAlive() == HB_STA_JUST_ALIVE) {
     SystemStatus.ClearException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
-    dead_ = false;
   }
 }
-
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
   /**

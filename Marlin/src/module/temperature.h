@@ -233,10 +233,24 @@ typedef struct {
 
 // Heater watch handling
 typedef struct {
-  uint16_t target;
+  float target;
   millis_t next_ms;
+  uint8_t debounce_cnt;
+  uint8_t debounce_max;
   inline bool elapsed(const millis_t &ms) { return next_ms && ELAPSED(ms, next_ms); }
   inline bool elapsed() { return elapsed(millis()); }
+  inline bool debounce(bool has_exception) {
+    if (has_exception) {
+      if (++debounce_cnt == debounce_max)
+        return true;
+      else if (debounce_cnt > debounce_max)
+        debounce_cnt = debounce_max;
+    }
+    else if (debounce_cnt < debounce_max)
+      debounce_cnt = 0;
+
+    return false;
+  }
 } heater_watch_t;
 
 // Temperature sensor read value ranges
@@ -323,6 +337,8 @@ class Temperature {
 
     #if WATCH_HOTENDS
       static heater_watch_t watch_hotend[HOTENDS];
+      static heater_watch_t watch_hotend_tempdrop[HOTENDS];
+      static heater_watch_t watch_hotend_notheated[HOTENDS];
     #endif
 
     #if ENABLED(TEMP_SENSOR_1_AS_REDUNDANT)
@@ -340,7 +356,10 @@ class Temperature {
     #if HAS_HEATED_BED
       #if WATCH_BED
         static heater_watch_t watch_bed;
+        static heater_watch_t watch_bed_tempdrop;
       #endif
+        static heater_watch_t watch_bed_notheated;
+
       #if DISABLED(PIDTEMPBED)
         static millis_t next_bed_check_ms;
       #endif
@@ -546,6 +565,8 @@ class Temperature {
 
     #if WATCH_HOTENDS
       static void start_watching_heater(const uint8_t e=0);
+      static void start_watching_heater_tempdrop(const uint8_t e=0);
+      static void start_watching_heater_notheated(bool first_heating, const uint8_t e=0);
     #else
       static inline void start_watching_heater(const uint8_t e=0) { UNUSED(e); }
     #endif
@@ -563,8 +584,10 @@ class Temperature {
       E_UNUSED();
 
       if (action_ban & ACTION_BAN_NO_HEATING_HOTEND) {
-        SERIAL_ECHOLN("ERROR: System Fault! NOW cannot heat hotend!");
-        return;
+        if (celsius > 0) {
+          SERIAL_ECHOLN("ERROR: System Fault! NOW cannot heat hotend!");
+          return;
+        }
       }
       #ifdef MILLISECONDS_PREHEAT_TIME
         if (celsius == 0)
@@ -577,6 +600,8 @@ class Temperature {
       #endif
       temp_hotend[HOTEND_INDEX].target = MIN(celsius, temp_range[HOTEND_INDEX].maxtemp - 15);
       start_watching_heater(HOTEND_INDEX);
+      start_watching_heater_tempdrop(HOTEND_INDEX);
+      start_watching_heater_notheated(true, HOTEND_INDEX);
       #if ENABLED(EXECUTER_CANBUS_SUPPORT)
         ExecuterHead.SetTemperature(HOTEND_INDEX, temp_hotend[HOTEND_INDEX].target);
       #endif
@@ -633,15 +658,20 @@ class Temperature {
 
       #if WATCH_BED
         static void start_watching_bed();
+        static void start_watching_bed_tempdrop();
       #else
         static inline void start_watching_bed() {}
+        static void start_watching_bed_tempdrop() {};
       #endif
+        static void start_watching_bed_notheated(bool first_heating);
 
       static void setTargetBed(const int16_t celsius) {
 
         if (action_ban & ACTION_BAN_NO_HEATING_BED) {
-          SERIAL_ECHOLN("ERROR: System Fault! now cannot heat Bed!");
-          return;
+          if (celsius > 0) {
+            SERIAL_ECHOLN("ERROR: System Fault! now cannot heat Bed!");
+            return;
+          }
         }
         #if ENABLED(AUTO_POWER_CONTROL)
           powerManager.power_on();
@@ -654,6 +684,7 @@ class Temperature {
           #endif
         ;
         start_watching_bed();
+        start_watching_bed_notheated(true);
       }
 
       static bool wait_for_bed(const bool no_wait_for_cooling=true

@@ -152,11 +152,8 @@ void QuickStop::CleanMoves() {
 
   // stepper will clean blocks safely, we had to wait buffer to be empty
   while (planner.movesplanned()) {
-    if ((int32_t)(timeout - millis()) < 0) {
-      timeout = millis() + 1000UL;
-      if (event_ != QS_EVENT_ISR_POWER_LOSS)
-        LOG_I("wait moves empty timeout\n");
-    }
+    planner.block_buffer_nonbusy = planner.block_buffer_tail = \
+      planner.block_buffer_planned = planner.block_buffer_head;
   }
 
   // make it false, will not abort block, then we can output moves

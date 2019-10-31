@@ -78,8 +78,8 @@ void HMIScreen::SendGcode(char *GCode, uint8_t EventID) {
   SC20HMI.SendGcode(GCode, EventID);
 }
 
-void HMIScreen::SendMachineFaultFlag() {
-  SC20HMI.SendMachineFaultFlag();
+void HMIScreen::SendMachineFaultFlag(uint32_t flag) {
+  SC20HMI.SendMachineFaultFlag(flag);
 }
 
 void HMIScreen::SendMachineStatusChange(uint8_t Status, uint8_t Result) {
