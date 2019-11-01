@@ -549,10 +549,14 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 /********************************************************
 激光画方框
 *********************************************************/
-void HMI_SC20::MovementProcess(float X, float Y, float Z, float speed, uint8_t Option) {
+void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Option) {
   X = X / 1000.0f;
   Y = Y / 1000.0f;
   Z = Z / 1000.0f;
+
+  if (F != 0)
+    F = F / 1000.0f;
+
   switch(Option) {
     case 0:
       process_cmd_imd("G28 Z");
@@ -560,15 +564,15 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, float speed, uint8_t O
       break;
 
     case 1:
-      do_blocking_move_to_logical_z(Z, speed? speed : 10.0f);
-      do_blocking_move_to_logical_xy(X, Y, speed? speed : 30.0f);
+      do_blocking_move_to_logical_z(Z, F? F : 10.0f);
+      do_blocking_move_to_logical_xy(X, Y, F? F : 30.0f);
       break;
 
     case 2:
       // current_position[] is native position, so cannot use API 'do_blocking_move_to_logical_<axis>'
       // it only get logical position
-      move_to_limited_z(current_position[Z_AXIS] + Z, speed? speed : 10.0f);
-      move_to_limited_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, speed? speed : 30.0f);
+      move_to_limited_z(current_position[Z_AXIS] + Z, F? F : 10.0f);
+      move_to_limited_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, F? F : 30.0f);
       break;
   }
 
@@ -1142,7 +1146,7 @@ void HMI_SC20::PollingCommand(void)
 
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
-            waiting_moving_no_idle();
+            planner.synchronize();
 
             set_bed_leveling_enabled(true);
 
@@ -1169,7 +1173,7 @@ void HMI_SC20::PollingCommand(void)
 
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
-            waiting_moving_no_idle();
+            planner.synchronize();
 
             set_bed_leveling_enabled(true);
 
@@ -1279,9 +1283,9 @@ void HMI_SC20::PollingCommand(void)
 
           process_cmd_imd("G1029 S1");
           // home all axis
-          move_to_limited_z(50, 20);
+          move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
           move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
-          waiting_moving_no_idle();
+          planner.synchronize();
 
           set_bed_leveling_enabled(true);
 
@@ -1299,14 +1303,14 @@ void HMI_SC20::PollingCommand(void)
     }
     //Movement Request
     else if (eventId == EID_MOVEMENT_REQ) {
-      float speed = 0;
+      float F = 0;
       j = 10;
       BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
       BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
       BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
 
       if (cmdLen >= 18) {
-        BYTES_TO_32BITS_WITH_INDEXMOVE(speed, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
       }
 
       switch (OpCode)
@@ -1319,12 +1323,12 @@ void HMI_SC20::PollingCommand(void)
 
         //绝对坐标移动轴
         case 0x02:
-          MovementProcess(fX, fY, fZ, speed, 1);
+          MovementProcess(fX, fY, fZ, F, 1);
           break;
 
         //相对坐标移动轴
         case 0x03:
-          MovementProcess(fX, fY, fZ, speed, 2);
+          MovementProcess(fX, fY, fZ, F, 2);
           break;
       }
       //应答

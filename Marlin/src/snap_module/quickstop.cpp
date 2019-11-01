@@ -197,13 +197,11 @@ void QuickStop::TowardStop() {
     }
 
     // move X to max position of home dir
-    if (X_HOME_DIR > 0)
-      move_to_limited_x(X_MAX_POS, 30);
-    else
-      move_to_limited_x(0, 35);
-
     // move Y to max position
-    move_to_limited_xy(current_position[X_AXIS], Y_MAX_POS, 30);
+    if (X_HOME_DIR > 0)
+      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 30);
+    else
+      move_to_limited_xy(0, Y_MAX_POS, 35);
     break;
 
   case MACHINE_TYPE_CNC:
@@ -216,8 +214,10 @@ void QuickStop::TowardStop() {
   }
 
   while (planner.has_blocks_queued()) {
-    if (event_ != QS_EVENT_ISR_POWER_LOSS)
+    if (event_ == QS_EVENT_ISR_POWER_LOSS)
       thermalManager.manage_heater();
+    else
+      idle();
   }
 
   if (leveling_active)
