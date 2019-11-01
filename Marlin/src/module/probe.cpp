@@ -627,7 +627,6 @@ static float run_z_probe() {
       // move down slowly to find bed
       if (p < MULTIPLE_PROBING) {
         probe_speed = 0.5;
-        clearance = 0.5;
       }
       if (do_probe_move(z_probe_low_point, probe_speed)) {
         if (DEBUGGING(LEVELING)) {
@@ -649,8 +648,7 @@ static float run_z_probe() {
 
       if (p > 1) do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_SLOW));
 
-      //probe_speed /= 3;
-      //clearance--;
+      clearance -= 0.5;
     }
   #endif
   SERIAL_EOL();
