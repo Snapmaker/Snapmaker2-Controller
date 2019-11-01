@@ -570,17 +570,6 @@ static bool do_probe_move(const float z, const float fr_mm_s) {
   return !probe_triggered;
 }
 
-static float total_except_min(const float (&probes)[MULTIPLE_PROBING]) {
-  float min = probes[0];
-  float total = probes[0];
-  for (int i=1; i < MULTIPLE_PROBING; i++) {
-    total += probes[i];
-    if (min > probes[i])
-      min = probes[i];
-  }
-
-  return (total - min);
-}
 
 /**
  * @details Used by probe_pt to do a single Z probe at the current position.
@@ -636,8 +625,10 @@ static float run_z_probe() {
   #endif
 
       // move down slowly to find bed
-      if (probe_speed < 0.5)
+      if (p < MULTIPLE_PROBING) {
         probe_speed = 0.5;
+        clearance = 0.5;
+      }
       if (do_probe_move(z_probe_low_point, probe_speed)) {
         if (DEBUGGING(LEVELING)) {
           DEBUG_ECHOLNPGM("SLOW Probe fail!");
@@ -652,25 +643,22 @@ static float run_z_probe() {
 
   #if MULTIPLE_PROBING > 2
       // won't use the first probed position
-      probes[p - 1] = current_position[Z_AXIS];
+      if (p < MULTIPLE_PROBING)
+        probes_total += current_position[Z_AXIS];
       SERIAL_ECHOLNPAIR("probed z: ", current_position[Z_AXIS]);
-      if (clearance < 1)
-        clearance = 1;
-      if (p > 1) do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_FAST));
 
-      probe_speed /= 3;
-      clearance--;
+      if (p > 1) do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_SLOW));
+
+      //probe_speed /= 3;
+      //clearance--;
     }
   #endif
   SERIAL_EOL();
 
   #if MULTIPLE_PROBING > 2
 
-  probes_total = total_except_min(probes);
-  SERIAL_ECHOLNPAIR("probes_total = ", probes_total);
-
     // Return the average value of all probes
-    const float measured_z = probes_total * (1.0f / (MULTIPLE_PROBING));
+    const float measured_z = probes_total * (1.0f / (MULTIPLE_PROBING - 1));
 
   #elif MULTIPLE_PROBING == 2
 
