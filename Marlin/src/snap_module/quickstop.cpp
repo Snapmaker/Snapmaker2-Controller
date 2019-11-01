@@ -151,7 +151,7 @@ void QuickStop::CleanMoves() {
   }
 
   // stepper will clean blocks safely, we had to wait buffer to be empty
-  while (planner.movesplanned()) {
+  while (planner.has_blocks_queued()) {
     planner.block_buffer_nonbusy = planner.block_buffer_tail = \
       planner.block_buffer_planned = planner.block_buffer_head;
   }
@@ -217,7 +217,7 @@ void QuickStop::TowardStop() {
 
   while (planner.has_blocks_queued()) {
     if (event_ != QS_EVENT_ISR_POWER_LOSS)
-      idle();
+      thermalManager.manage_heater();
   }
 
   if (leveling_active)
