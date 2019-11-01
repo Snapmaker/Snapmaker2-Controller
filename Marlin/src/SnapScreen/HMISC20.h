@@ -64,7 +64,7 @@ private:
   void LaserCoarseCalibrate(float X, float Y, float Z);
   void DrawLaserCalibrateShape();
   bool DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count);
-  void MovementProcess(float X, float Y, float Z, uint8_t Option);
+  void MovementProcess(float X, float Y, float Z, float speed, uint8_t Option);
 
 public:
   HMIReq RequestStatus;
