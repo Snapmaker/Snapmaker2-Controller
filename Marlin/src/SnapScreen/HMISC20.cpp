@@ -512,7 +512,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
   do {
     // Move to the start point
     move_to_limited_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
-    planner.synchronize();
+    waiting_moving_no_idle();
 
     // Laser on
     ExecuterHead.Laser.SetLaserPower(laser_pwr_in_cali);
@@ -523,7 +523,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     else
       move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
 
-    planner.synchronize();
+    waiting_moving_no_idle();
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
@@ -536,12 +536,12 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     i++;
   } while(i < Count);
 
-  planner.synchronize();
+  waiting_moving_no_idle();
 
   // Move to beginning
   move_to_limited_z(StartZ, 20.0f);
   move_to_limited_xy(StartX, StartY, 20.0f);
-  planner.synchronize();
+  waiting_moving_no_idle();
   return true;
 }
 
@@ -572,9 +572,7 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
       break;
   }
 
-  while(planner.has_blocks_queued()) {
-    thermalManager.manage_heater();
-  }
+  waiting_moving_no_idle();
 }
 
 /********************************************************
@@ -592,7 +590,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
-      while (planner.has_blocks_queued());
+      waiting_moving_no_idle();
     }
     else
       process_cmd_imd("G28");
@@ -611,7 +609,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
 
     // move quicky firstly to decrease the time
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
-    while (planner.has_blocks_queued());
+    waiting_moving_no_idle();
 
     auto_probing(true);
 
@@ -647,7 +645,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
-      while (planner.has_blocks_queued());
+      waiting_moving_no_idle();
     }
     else
       process_cmd_imd("G28");
@@ -1144,7 +1142,7 @@ void HMI_SC20::PollingCommand(void)
 
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
-            while(planner.has_blocks_queued());
+            waiting_moving_no_idle();
 
             set_bed_leveling_enabled(true);
 
@@ -1171,7 +1169,7 @@ void HMI_SC20::PollingCommand(void)
 
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
-            while(planner.has_blocks_queued());
+            waiting_moving_no_idle();
 
             set_bed_leveling_enabled(true);
 
@@ -1283,8 +1281,10 @@ void HMI_SC20::PollingCommand(void)
           // home all axis
           move_to_limited_z(50, 20);
           move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
-          while(planner.has_blocks_queued());
+          waiting_moving_no_idle();
+
           set_bed_leveling_enabled(true);
+
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
