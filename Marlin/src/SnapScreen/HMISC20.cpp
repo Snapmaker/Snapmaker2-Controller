@@ -512,7 +512,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
   do {
     // Move to the start point
     move_to_limited_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
-    planner.synchronize();
+    waiting_moving_no_idle();
 
     // Laser on
     ExecuterHead.Laser.SetLaserPower(laser_pwr_in_cali);
@@ -523,7 +523,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     else
       move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
 
-    planner.synchronize();
+    waiting_moving_no_idle();
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
@@ -536,12 +536,12 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     i++;
   } while(i < Count);
 
-  planner.synchronize();
+  waiting_moving_no_idle();
 
   // Move to beginning
   move_to_limited_z(StartZ, 20.0f);
   move_to_limited_xy(StartX, StartY, 20.0f);
-  planner.synchronize();
+  waiting_moving_no_idle();
   return true;
 }
 
@@ -549,10 +549,14 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 /********************************************************
 激光画方框
 *********************************************************/
-void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
+void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Option) {
   X = X / 1000.0f;
   Y = Y / 1000.0f;
   Z = Z / 1000.0f;
+
+  if (F != 0)
+    F = F / 1000.0f;
+
   switch(Option) {
     case 0:
       process_cmd_imd("G28 Z");
@@ -560,19 +564,19 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, uint8_t Option) {
       break;
 
     case 1:
-      do_blocking_move_to_logical_z(Z, 10.0f);
-      do_blocking_move_to_logical_xy(X, Y, 30.0f);
+      do_blocking_move_to_logical_z(Z, F? F : 10.0f);
+      do_blocking_move_to_logical_xy(X, Y, F? F : 30.0f);
       break;
 
     case 2:
       // current_position[] is native position, so cannot use API 'do_blocking_move_to_logical_<axis>'
       // it only get logical position
-      move_to_limited_z(current_position[Z_AXIS] + Z, 10.0f);
-      move_to_limited_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, 30.0f);
+      move_to_limited_z(current_position[Z_AXIS] + Z, F? F : 10.0f);
+      move_to_limited_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, F? F : 30.0f);
       break;
   }
 
-  planner.synchronize();
+  waiting_moving_no_idle();
 }
 
 /********************************************************
@@ -586,7 +590,14 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     // Turn off the heaters
     thermalManager.disable_all_heaters();
 
-    process_cmd_imd("G28");
+    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+      if (current_position[Z_AXIS] < z_limit_in_cali)
+        move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+      move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
+      waiting_moving_no_idle();
+    }
+    else
+      process_cmd_imd("G28");
     process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
 
     set_bed_leveling_enabled(false);
@@ -595,13 +606,14 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     // Set the current position of Z to Z_MAX_POS
-    current_position[Z_AXIS] = Z_MAX_POS;
-    sync_plan_position();
+    //current_position[Z_AXIS] = Z_MAX_POS;
+    //sync_plan_position();
 
     endstops.enable_z_probe(true);
 
     // move quicky firstly to decrease the time
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
+    waiting_moving_no_idle();
 
     auto_probing(true);
 
@@ -633,14 +645,21 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 
     // Disable all heaters
     thermalManager.disable_all_heaters();
-    process_cmd_imd("G28");
+    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+      if (current_position[Z_AXIS] < z_limit_in_cali)
+        move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+      move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
+      waiting_moving_no_idle();
+    }
+    else
+      process_cmd_imd("G28");
 
     // Z limit switch at the higtest position
-    if (Z_HOME_DIR > 0) current_position[Z_AXIS] = Z_MAX_POS;
+    //if (Z_HOME_DIR > 0) current_position[Z_AXIS] = Z_MAX_POS;
 
     // Z limit switch at the lowest position
-    else current_position[Z_AXIS] = 0;
-    sync_plan_position();
+    //else current_position[Z_AXIS] = 0;
+    //sync_plan_position();
 
     // Move Z to 20mm height
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
@@ -1114,6 +1133,7 @@ void HMI_SC20::PollingCommand(void)
         case 6:
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
+          LOG_I("SC req move z, offset: %.3f, cur z: %.3f\n", fZ, current_position[Z_AXIS] + fZ);
           move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
@@ -1124,7 +1144,11 @@ void HMI_SC20::PollingCommand(void)
           if (CMD_BUFF_EMPTY() == true) {
             process_cmd_imd("G1029 S0");
 
-            process_cmd_imd("G28");
+            move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+            move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
+            planner.synchronize();
+
+            set_bed_leveling_enabled(true);
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1147,8 +1171,11 @@ void HMI_SC20::PollingCommand(void)
             //Load
             settings.load();
 
-            // home all axis
-            process_cmd_imd("G28");
+            move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+            move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
+            planner.synchronize();
+
+            set_bed_leveling_enabled(true);
 
             HMICommandSave = 0;
 
@@ -1256,7 +1283,12 @@ void HMI_SC20::PollingCommand(void)
 
           process_cmd_imd("G1029 S1");
           // home all axis
-          process_cmd_imd("G28");
+          move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
+          planner.synchronize();
+
+          set_bed_leveling_enabled(true);
+
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
@@ -1271,26 +1303,32 @@ void HMI_SC20::PollingCommand(void)
     }
     //Movement Request
     else if (eventId == EID_MOVEMENT_REQ) {
+      float F = 0;
       j = 10;
       BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
       BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
       BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+
+      if (cmdLen >= 18) {
+        BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
+      }
+
       switch (OpCode)
       {
         //激光回原点应答
         case 0x01:
           //调平数据失效
-          MovementProcess(0, 0, 0, 0);
+          MovementProcess(0, 0, 0, 0, 0);
           break;
 
         //绝对坐标移动轴
         case 0x02:
-          MovementProcess(fX, fY, fZ, 1);
+          MovementProcess(fX, fY, fZ, F, 1);
           break;
 
         //相对坐标移动轴
         case 0x03:
-          MovementProcess(fX, fY, fZ, 2);
+          MovementProcess(fX, fY, fZ, F, 2);
           break;
       }
       //应答
@@ -1367,7 +1405,7 @@ void HMI_SC20::PollingCommand(void)
               if (bluetooth_name[i] == 0) break;
             }
             bluetooth_name[31] = 0;
-            
+
             SERIAL_ECHOLNPAIR("BlueTooth Name:", bluetooth_name);
             if(ExecuterHead.Laser.SetBluetoothName(bluetooth_name) == 0) MarkNeedReack(0);
             else MarkNeedReack(1);
