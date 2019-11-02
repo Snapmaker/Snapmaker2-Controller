@@ -345,6 +345,8 @@ void StatusControl::ResumeProcess() {
     HMI.ClearRequestStatus();
   }
 
+  // if exception happened duration resuming work
+  // give a opportunity to stop working
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
     StopTrigger(TRIGGER_SOURCE_EXCEPTION);
