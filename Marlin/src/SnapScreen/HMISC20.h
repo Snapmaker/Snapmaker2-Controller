@@ -45,6 +45,7 @@ public:
   void ReportLinearModuleMacID(void);
   void CheckFirmwareVersion(char *pNewVersion);
   void PackedProtocal(char *pData, uint16_t len);
+  void SetFeedrate(float f) { last_feedrate = f; }
 
   #if ENABLED(SDSUPPORT)
     void SendCurrentUDiskPath(uint8_t Result);
@@ -92,6 +93,7 @@ private:
   uint8_t bluetooth_mac[6];
   uint8_t next_cmd_idx;
   bool is_handling_cmd;
+  float last_feedrate;
 };
 
 

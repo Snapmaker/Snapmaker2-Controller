@@ -2004,10 +2004,9 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = (uint8_t) ((int) T0S);
 
   //FeedRate
-  //tmpBuff[i++] = (uint8_t)(HmiFeedRate >> 8);
-  //tmpBuff[i++] = (uint8_t)(HmiFeedRate);
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
+  fValue = (last_feedrate * 60);
+  tmpBuff[i++] = (uint8_t)(((uint16_t)fValue)>>8);
+  tmpBuff[i++] = (uint8_t)((uint16_t)fValue);
 
   //LaserPower
   uint32_t LaserPower = ExecuterHead.Laser.GetPower();
@@ -2028,9 +2027,6 @@ void HMI_SC20::SendMachineStatus()
   tmpBuff[i++] = (uint8_t) SystemStatus.MapCurrentStatusForSC();
 
   //外设状态
-  //tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 24);
-  //tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 16);
-  //tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 8);
   tmpBuff[i++] = (uint8_t) (SystemStatus.GetPeriphDeviceStatus());
 
   //执行头类型
