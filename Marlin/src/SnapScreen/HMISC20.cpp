@@ -31,8 +31,15 @@
 #include "../snap_module/M1028.h"
 #include "../snap_module/coordinate_mgr.h"
 
-extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
-char tmpBuff[1024];
+#define SEND_BUFF_SIZE    1024
+#define RECV_BUFF_SIZE    2048
+#define ONE_CMD_MAX_SIZE  1024
+
+static char *tmpBuff;
+static char checkout_cmd[2][ONE_CMD_MAX_SIZE];
+// buffer used to packed a command to be sent
+static char SendBuff[SEND_BUFF_SIZE];
+static uint8_t ReadBuff[RECV_BUFF_SIZE];
 
 #define BYTES_TO_32BITS(buff, index) (((uint8_t)buff[index] << 24) | ((uint8_t)buff[index + 1] << 16) | ((uint8_t)buff[index + 2] << 8) | ((uint8_t)buff[index + 3]))
 #define BYTES_TO_32BITS_WITH_INDEXMOVE(result, buff, N) do{result = BYTES_TO_32BITS(buff, N); N = N + 4; }while(0)
@@ -46,9 +53,6 @@ char tmpBuff[1024];
     buff[index++] = (uint8_t)(u32bit >> 8); \
     buff[index++] = (uint8_t)(u32bit); \
     }while(0)
-
-//指令暂存缓冲，正确解析之后，指令存放在这里
-static char SendBuff[1024];
 
 //检测指令缓冲是否为空
 #define CMD_BUFF_EMPTY() (commands_in_queue>0?false:true)
@@ -148,7 +152,7 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
   tmphead = ReadHead;
   tmptail = ReadTail;
   while (1) {
-    nexthead = (tmphead + 1) % sizeof(ReadBuff);
+    nexthead = (tmphead + 1) % RECV_BUFF_SIZE;
     if (nexthead == tmptail) break;
     c = HMISERIAL.read();
     if (c == -1) break;
@@ -163,20 +167,20 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
     return (short) - 1;
   }
   ReadHead = tmphead;
-  tmplen = (uint16_t) ((tmphead + sizeof(ReadBuff) -tmptail) % sizeof(ReadBuff));
+  tmplen = (uint16_t) ((tmphead + RECV_BUFF_SIZE -tmptail) % RECV_BUFF_SIZE);
 
   //数据长度足够
   while (tmplen > 9) {
     if (ReadBuff[tmptail] != 0xAA) {
-      tmptail = (tmptail + 1) % sizeof(ReadBuff);
+      tmptail = (tmptail + 1) % RECV_BUFF_SIZE;
       tmplen--;
 
       //更新读指针
       ReadTail = tmptail;
       continue;
     }
-    if (ReadBuff[(tmptail + 1) % sizeof(ReadBuff)] != 0x55) {
-      tmptail = (tmptail + 2) % sizeof(ReadBuff);
+    if (ReadBuff[(tmptail + 1) % RECV_BUFF_SIZE] != 0x55) {
+      tmptail = (tmptail + 2) % RECV_BUFF_SIZE;
       tmplen = tmplen - 2;
 
       //更新读指针
@@ -185,13 +189,13 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
     }
 
     //读取包长
-    uint8_t cmdLen0 = ReadBuff[(tmptail + 2) % sizeof(ReadBuff)];
-    uint8_t cmdLen1 = ReadBuff[(tmptail + 3) % sizeof(ReadBuff)];
+    uint8_t cmdLen0 = ReadBuff[(tmptail + 2) % RECV_BUFF_SIZE];
+    uint8_t cmdLen1 = ReadBuff[(tmptail + 3) % RECV_BUFF_SIZE];
     uint16_t commandLen = (uint16_t) ((cmdLen0 << 8) | cmdLen1);
 
     //包长效验错误
-    if ((((commandLen >> 8) & 0xff) ^ (commandLen & 0xff)) != ReadBuff[(tmptail + 5) % sizeof(ReadBuff)]) {
-      tmptail = (tmptail + 2) % sizeof(ReadBuff);
+    if ((((commandLen >> 8) & 0xff) ^ (commandLen & 0xff)) != ReadBuff[(tmptail + 5) % RECV_BUFF_SIZE]) {
+      tmptail = (tmptail + 2) % RECV_BUFF_SIZE;
       tmplen = tmplen - 2;
 
       //更新读指针
@@ -204,7 +208,7 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
       //复制数据
       for (i = 0; i < (commandLen + 8); i++) {
         pBuff[i] = ReadBuff[tmptail];
-        tmptail = (tmptail + 1) % sizeof(ReadBuff);
+        tmptail = (tmptail + 1) % RECV_BUFF_SIZE;
       }
 
       //更新读指针
@@ -512,7 +516,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
   do {
     // Move to the start point
     move_to_limited_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
-    waiting_moving_no_idle();
+    planner.synchronize();
 
     // Laser on
     ExecuterHead.Laser.SetLaserPower(laser_pwr_in_cali);
@@ -523,7 +527,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     else
       move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
 
-    waiting_moving_no_idle();
+    planner.synchronize();
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
@@ -536,12 +540,12 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     i++;
   } while(i < Count);
 
-  waiting_moving_no_idle();
+  planner.synchronize();
 
   // Move to beginning
   move_to_limited_z(StartZ, 20.0f);
   move_to_limited_xy(StartX, StartY, 20.0f);
-  waiting_moving_no_idle();
+  planner.synchronize();
   return true;
 }
 
@@ -576,7 +580,7 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Optio
       break;
   }
 
-  waiting_moving_no_idle();
+  planner.synchronize();
 }
 
 /********************************************************
@@ -594,7 +598,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
-      waiting_moving_no_idle();
+      planner.synchronize();
     }
     else
       process_cmd_imd("G28");
@@ -613,7 +617,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
 
     // move quicky firstly to decrease the time
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
-    waiting_moving_no_idle();
+    planner.synchronize();
 
     auto_probing(true);
 
@@ -649,7 +653,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
-      waiting_moving_no_idle();
+      planner.synchronize();
     }
     else
       process_cmd_imd("G28");
@@ -846,7 +850,45 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
   PackedProtocal(tmpBuff, i);
 }
 
-void HMI_SC20::PollingCommand(void)
+
+void HMI_SC20::PollingCommand() {
+  int len;
+
+  len = GetCommand((unsigned char *) checkout_cmd[next_cmd_idx]);
+  // invalid command whose PDU len is less than 8
+  if (len < 8)
+    return;
+
+  // if this command is heartbeat checking, ack it directly
+  if (checkout_cmd[next_cmd_idx][IDX_EVENT_ID] == EID_STATUS_REQ &&
+        checkout_cmd[next_cmd_idx][IDX_OP_CODE] == 1) {
+    SendMachineStatus();
+    return;
+  }
+
+  // if it's not heartbeat checking, but another command is being handled
+  // we drop this command
+  if (is_handling_cmd) {
+    return;
+  }
+
+  is_handling_cmd = true;
+
+  // need to change next_cmd_idx before calling HandleOneCommand()
+  // becase PollingCommand maybe call nested by HandleOneCommand()
+  tmpBuff = checkout_cmd[next_cmd_idx];
+  if (next_cmd_idx)
+    next_cmd_idx = 0;
+  else
+    next_cmd_idx = 1;
+
+  HandleOneCommand();
+
+  is_handling_cmd = false;
+}
+
+
+void HMI_SC20::HandleOneCommand()
 {
   float fX, fY, fZ;
   uint32_t ID;
@@ -862,12 +904,8 @@ void HMI_SC20::PollingCommand(void)
   bool GenReack = false;
   uint8_t eventId, OpCode, Result;
   #define MarkNeedReack(R) do{GenReack = true; Result = R;}while(0)
-  i = GetCommand((unsigned char *) tmpBuff);
-  if (i == (short) - 1) {
-  }
 
-  //屏幕协议
-  else {
+  {
     cmdLen = (tmpBuff[2] << 8) | tmpBuff[3];
     eventId = tmpBuff[8];
     OpCode = tmpBuff[9];
@@ -914,13 +952,8 @@ void HMI_SC20::PollingCommand(void)
       uint8_t StatuID;
       StatuID = tmpBuff[9];
 
-      // query status
-      if (StatuID == 0x01) {
-        SendMachineStatus();
-      }
-
       // query exception
-      else if (StatuID == 0x02) {
+      if (StatuID == 0x02) {
         SendMachineFaultFlag();
       }
 

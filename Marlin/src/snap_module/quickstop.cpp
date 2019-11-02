@@ -214,9 +214,7 @@ void QuickStop::TowardStop() {
   }
 
   while (planner.has_blocks_queued()) {
-    if (event_ == QS_EVENT_ISR_POWER_LOSS)
-      thermalManager.manage_heater();
-    else
+    if (event_ != QS_EVENT_ISR_POWER_LOSS)
       idle();
   }
 
