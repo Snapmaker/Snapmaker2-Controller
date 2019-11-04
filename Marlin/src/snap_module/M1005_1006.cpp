@@ -6,7 +6,7 @@ void GcodeSuite::M1005() {
   SERIAL_ECHOPGM(MSG_MARLIN);
   SERIAL_CHAR(' ');
   SERIAL_ECHOLNPGM(SHORT_BUILD_VERSION);
-  SERIAL_ECHO_MSG("Compiled: " __DATE__ " " __TIME__);
+  SERIAL_ECHO_MSG("Compiled: " __DATE__ ", " __TIME__);
   
   SERIAL_ECHO("Machine Size: ");
   switch (CanModules.GetMachineSizeType()) {

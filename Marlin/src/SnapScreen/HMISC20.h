@@ -13,6 +13,7 @@ class HMI_SC20
 public:
   HMI_SC20(){};
   void PollingCommand();
+  void HandleOneCommand();
   void SendGcode(char *GCode, uint8_t EventID);
   void SendChDirResult(uint8_t Result);
   void SendMachineStatusChange(uint8_t Status, uint8_t Result);
@@ -44,12 +45,13 @@ public:
   void ReportLinearModuleMacID(void);
   void CheckFirmwareVersion(char *pNewVersion);
   void PackedProtocal(char *pData, uint16_t len);
+  void SetFeedrate(float f) { last_feedrate = f; }
 
   #if ENABLED(SDSUPPORT)
-   void SendCurrentUDiskPath(uint8_t Result);
-   void SendInitUdisk(uint8_t Result);
-   uint8_t SendDirItems(uint16_t Offset);
-   void SendSpecialData();
+    void SendCurrentUDiskPath(uint8_t Result);
+    void SendInitUdisk(uint8_t Result);
+    uint8_t SendDirItems(uint16_t Offset);
+    void SendSpecialData();
   #endif
 private:
   void HmiWriteData(char *pData, uint16_t len);
@@ -73,7 +75,6 @@ private:
   uint8_t CalibrateMethod;
   uint8_t HalfAutoCalibrateState;
   uint8_t HMICommandSave;
-  uint8_t ReadBuff[1024];
   uint16_t ReadTail;
   uint16_t ReadHead;
   uint32_t UpdateDataSize;
@@ -90,6 +91,9 @@ private:
   char Password[32];
   char bluetooth_name[32];
   uint8_t bluetooth_mac[6];
+  uint8_t next_cmd_idx;
+  bool is_handling_cmd;
+  float last_feedrate;
 };
 
 

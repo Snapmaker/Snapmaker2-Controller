@@ -64,6 +64,7 @@ void GcodeSuite::G92() {
     constexpr bool didXYZ = false;
   #endif
 
+  bool onlyE = true;
   if (IS_G92_0) LOOP_XYZE(i) {
     if (parser.seenval(axis_codes[i])) {
       const float l = parser.value_axis_units((AxisEnum)i),
@@ -79,6 +80,7 @@ void GcodeSuite::G92() {
             current_position[E_AXIS] = v; // When using coordinate spaces, only E is set directly
           }
           else {
+            onlyE = false;
             position_shift[i] += d;       // Other axes simply offset the coordinate space
             update_workspace_offset((AxisEnum)i);
           }
@@ -88,10 +90,14 @@ void GcodeSuite::G92() {
   }
 
   #if ENABLED(CNC_COORDINATE_SYSTEMS)
-    // Apply workspace offset to the active coordinate system
-    if (WITHIN(active_coordinate_system, 0, MAX_COORDINATE_SYSTEMS - 1)) {
-      COPY(coordinate_system[active_coordinate_system], position_shift);
-      settings.save();
+    // will not save coordinate when set only E
+    // to reduce rw times to flash
+    if (!onlyE) {
+      // Apply workspace offset to the active coordinate system
+      if (WITHIN(active_coordinate_system, 0, MAX_COORDINATE_SYSTEMS - 1)) {
+        COPY(coordinate_system[active_coordinate_system], position_shift);
+        settings.save();
+      }
     }
   #endif
 

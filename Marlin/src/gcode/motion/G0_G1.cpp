@@ -35,6 +35,8 @@
   #include "../../module/stepper.h"
 #endif
 
+#include "../../SnapScreen/Screen.h"
+
 extern float destination[XYZE];
 
 #if ENABLED(VARIABLE_G0_FEEDRATE)
@@ -70,6 +72,8 @@ void GcodeSuite::G0_G1(
     #endif
 
     get_destination_from_command(); // For X Y Z E F
+
+    HMI.SetFeedrate(feedrate_mm_s);
 
     #ifdef G0_FEEDRATE
       if (fast_move) {

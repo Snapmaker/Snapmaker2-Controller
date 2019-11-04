@@ -30,9 +30,21 @@
 #include "../snap_module/quickstop.h"
 #include "../snap_module/M1028.h"
 #include "../snap_module/coordinate_mgr.h"
+#include "../libs/GenerialFunctions.h"
 
-extern long pCounter_X, pCounter_Y, pCounter_Z, pCounter_E;
-char tmpBuff[1024];
+
+#define SEND_BUFF_SIZE    1024
+#define RECV_BUFF_SIZE    2048
+#define ONE_CMD_MAX_SIZE  1024
+#define STATUS_BUFF_SIZE  128
+
+static char status_buff[STATUS_BUFF_SIZE];
+
+static char *tmpBuff;
+static char checkout_cmd[2][ONE_CMD_MAX_SIZE];
+// buffer used to packed a command to be sent
+static char SendBuff[SEND_BUFF_SIZE];
+static uint8_t ReadBuff[RECV_BUFF_SIZE];
 
 #define BYTES_TO_32BITS(buff, index) (((uint8_t)buff[index] << 24) | ((uint8_t)buff[index + 1] << 16) | ((uint8_t)buff[index + 2] << 8) | ((uint8_t)buff[index + 3]))
 #define BYTES_TO_32BITS_WITH_INDEXMOVE(result, buff, N) do{result = BYTES_TO_32BITS(buff, N); N = N + 4; }while(0)
@@ -46,9 +58,6 @@ char tmpBuff[1024];
     buff[index++] = (uint8_t)(u32bit >> 8); \
     buff[index++] = (uint8_t)(u32bit); \
     }while(0)
-
-//指令暂存缓冲，正确解析之后，指令存放在这里
-static char SendBuff[1024];
 
 //检测指令缓冲是否为空
 #define CMD_BUFF_EMPTY() (commands_in_queue>0?false:true)
@@ -148,7 +157,7 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
   tmphead = ReadHead;
   tmptail = ReadTail;
   while (1) {
-    nexthead = (tmphead + 1) % sizeof(ReadBuff);
+    nexthead = (tmphead + 1) % RECV_BUFF_SIZE;
     if (nexthead == tmptail) break;
     c = HMISERIAL.read();
     if (c == -1) break;
@@ -163,20 +172,20 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
     return (short) - 1;
   }
   ReadHead = tmphead;
-  tmplen = (uint16_t) ((tmphead + sizeof(ReadBuff) -tmptail) % sizeof(ReadBuff));
+  tmplen = (uint16_t) ((tmphead + RECV_BUFF_SIZE -tmptail) % RECV_BUFF_SIZE);
 
   //数据长度足够
   while (tmplen > 9) {
     if (ReadBuff[tmptail] != 0xAA) {
-      tmptail = (tmptail + 1) % sizeof(ReadBuff);
+      tmptail = (tmptail + 1) % RECV_BUFF_SIZE;
       tmplen--;
 
       //更新读指针
       ReadTail = tmptail;
       continue;
     }
-    if (ReadBuff[(tmptail + 1) % sizeof(ReadBuff)] != 0x55) {
-      tmptail = (tmptail + 2) % sizeof(ReadBuff);
+    if (ReadBuff[(tmptail + 1) % RECV_BUFF_SIZE] != 0x55) {
+      tmptail = (tmptail + 2) % RECV_BUFF_SIZE;
       tmplen = tmplen - 2;
 
       //更新读指针
@@ -185,13 +194,13 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
     }
 
     //读取包长
-    uint8_t cmdLen0 = ReadBuff[(tmptail + 2) % sizeof(ReadBuff)];
-    uint8_t cmdLen1 = ReadBuff[(tmptail + 3) % sizeof(ReadBuff)];
+    uint8_t cmdLen0 = ReadBuff[(tmptail + 2) % RECV_BUFF_SIZE];
+    uint8_t cmdLen1 = ReadBuff[(tmptail + 3) % RECV_BUFF_SIZE];
     uint16_t commandLen = (uint16_t) ((cmdLen0 << 8) | cmdLen1);
 
     //包长效验错误
-    if ((((commandLen >> 8) & 0xff) ^ (commandLen & 0xff)) != ReadBuff[(tmptail + 5) % sizeof(ReadBuff)]) {
-      tmptail = (tmptail + 2) % sizeof(ReadBuff);
+    if ((((commandLen >> 8) & 0xff) ^ (commandLen & 0xff)) != ReadBuff[(tmptail + 5) % RECV_BUFF_SIZE]) {
+      tmptail = (tmptail + 2) % RECV_BUFF_SIZE;
       tmplen = tmplen - 2;
 
       //更新读指针
@@ -204,7 +213,7 @@ short HMI_SC20::GetCommand(unsigned char * pBuff)
       //复制数据
       for (i = 0; i < (commandLen + 8); i++) {
         pBuff[i] = ReadBuff[tmptail];
-        tmptail = (tmptail + 1) % sizeof(ReadBuff);
+        tmptail = (tmptail + 1) % RECV_BUFF_SIZE;
       }
 
       //更新读指针
@@ -254,7 +263,8 @@ void HMI_SC20::RequestFirmwareVersion()
 
   tmpBuff[i++] = 0xAA;
   tmpBuff[i++] = 3;
-  for(int j=0;j<32;j++) {
+  // igore the front 10 characters 'Snapmaker_'
+  for(int j=10;j<32;j++) {
     tmpBuff[i++] = Version[j];
     if(Version[j] == 0) break;
   }
@@ -512,7 +522,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
   do {
     // Move to the start point
     move_to_limited_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
-    waiting_moving_no_idle();
+    planner.synchronize();
 
     // Laser on
     ExecuterHead.Laser.SetLaserPower(laser_pwr_in_cali);
@@ -523,7 +533,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     else
       move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
 
-    waiting_moving_no_idle();
+    planner.synchronize();
 
     // Laser off
     ExecuterHead.Laser.SetLaserPower(0.0f);
@@ -536,12 +546,12 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
     i++;
   } while(i < Count);
 
-  waiting_moving_no_idle();
+  planner.synchronize();
 
   // Move to beginning
   move_to_limited_z(StartZ, 20.0f);
   move_to_limited_xy(StartX, StartY, 20.0f);
-  waiting_moving_no_idle();
+  planner.synchronize();
   return true;
 }
 
@@ -576,7 +586,7 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Optio
       break;
   }
 
-  waiting_moving_no_idle();
+  planner.synchronize();
 }
 
 /********************************************************
@@ -594,7 +604,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
-      waiting_moving_no_idle();
+      planner.synchronize();
     }
     else
       process_cmd_imd("G28");
@@ -613,7 +623,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
 
     // move quicky firstly to decrease the time
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
-    waiting_moving_no_idle();
+    planner.synchronize();
 
     auto_probing(true);
 
@@ -649,7 +659,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
-      waiting_moving_no_idle();
+      planner.synchronize();
     }
     else
       process_cmd_imd("G28");
@@ -846,7 +856,45 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
   PackedProtocal(tmpBuff, i);
 }
 
-void HMI_SC20::PollingCommand(void)
+
+void HMI_SC20::PollingCommand() {
+  int len;
+
+  len = GetCommand((unsigned char *) checkout_cmd[next_cmd_idx]);
+  // invalid command whose PDU len is less than 8
+  if (len < 8)
+    return;
+
+  // if this command is heartbeat checking, ack it directly
+  if (checkout_cmd[next_cmd_idx][IDX_EVENT_ID] == EID_STATUS_REQ &&
+        checkout_cmd[next_cmd_idx][IDX_OP_CODE] == 1) {
+    SendMachineStatus();
+    return;
+  }
+
+  // if it's not heartbeat checking, but another command is being handled
+  // we drop this command
+  if (is_handling_cmd) {
+    return;
+  }
+
+  is_handling_cmd = true;
+
+  // need to change next_cmd_idx before calling HandleOneCommand()
+  // becase PollingCommand maybe call nested by HandleOneCommand()
+  tmpBuff = checkout_cmd[next_cmd_idx];
+  if (next_cmd_idx)
+    next_cmd_idx = 0;
+  else
+    next_cmd_idx = 1;
+
+  HandleOneCommand();
+
+  is_handling_cmd = false;
+}
+
+
+void HMI_SC20::HandleOneCommand()
 {
   float fX, fY, fZ;
   uint32_t ID;
@@ -862,12 +910,8 @@ void HMI_SC20::PollingCommand(void)
   bool GenReack = false;
   uint8_t eventId, OpCode, Result;
   #define MarkNeedReack(R) do{GenReack = true; Result = R;}while(0)
-  i = GetCommand((unsigned char *) tmpBuff);
-  if (i == (short) - 1) {
-  }
 
-  //屏幕协议
-  else {
+  {
     cmdLen = (tmpBuff[2] << 8) | tmpBuff[3];
     eventId = tmpBuff[8];
     OpCode = tmpBuff[9];
@@ -914,13 +958,8 @@ void HMI_SC20::PollingCommand(void)
       uint8_t StatuID;
       StatuID = tmpBuff[9];
 
-      // query status
-      if (StatuID == 0x01) {
-        SendMachineStatus();
-      }
-
       // query exception
-      else if (StatuID == 0x02) {
+      if (StatuID == 0x02) {
         SendMachineFaultFlag();
       }
 
@@ -1928,26 +1967,43 @@ void HMI_SC20::SendMachineStatus()
 {
   float fValue;
   int32_t tmp;
-  uint16_t i;
-  i = 0;
+  uint16_t i = 0;
 
-  //EventID
-  tmpBuff[i++] = EID_STATUS_RESP;
+  // SOF
+  status_buff[i++] = 0xAA;
+  status_buff[i++] = 0x55;
 
-  //同步状态
-  tmpBuff[i++] = 0x01;
+  // data length, 1B
+  i++;
+  i++;
 
-  //坐标
+  // protocol version
+  status_buff[i++] = 0x00;
+
+  // checksum of length, 1B
+  i++;
+
+  // checksum of packet, 2B
+  i++;
+  i++;
+
+  // EventID
+  status_buff[i++] = EID_STATUS_RESP;
+
+  // operation code
+  status_buff[i++] = 0x01;
+
+  // current logical position
   tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) * 1000);
-  BITS32_TO_BYTES(tmp, tmpBuff, i);
+  BITS32_TO_BYTES(tmp, status_buff, i);
   tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) * 1000);
-  BITS32_TO_BYTES(tmp, tmpBuff, i);
+  BITS32_TO_BYTES(tmp, status_buff, i);
   tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) * 1000);
-  BITS32_TO_BYTES(tmp, tmpBuff, i);
+  BITS32_TO_BYTES(tmp, status_buff, i);
   tmp = (int32_t) (current_position[E_AXIS] * 1000);
-  BITS32_TO_BYTES(tmp, tmpBuff, i);
+  BITS32_TO_BYTES(tmp, status_buff, i);
 
-  //温度
+  // temperature
   int16_t T0, TB, T0S, TBS;
 
   //if(current_temperature[0] >= 0)
@@ -1961,49 +2017,58 @@ void HMI_SC20::SendMachineStatus()
   thermalManager.temp_bed.current;
   TBS = (int16_t)
   thermalManager.temp_bed.target;
-  tmpBuff[i++] = (uint8_t) ((int) TB >> 8);
-  tmpBuff[i++] = (uint8_t) ((int) TB);
-  tmpBuff[i++] = (uint8_t) ((int) TBS >> 8);
-  tmpBuff[i++] = (uint8_t) ((int) TBS);
-  tmpBuff[i++] = (uint8_t) ((int) T0 >> 8);
-  tmpBuff[i++] = (uint8_t) ((int) T0);
-  tmpBuff[i++] = (uint8_t) ((int) T0S >> 8);
-  tmpBuff[i++] = (uint8_t) ((int) T0S);
+  status_buff[i++] = (uint8_t) ((int) TB >> 8);
+  status_buff[i++] = (uint8_t) ((int) TB);
+  status_buff[i++] = (uint8_t) ((int) TBS >> 8);
+  status_buff[i++] = (uint8_t) ((int) TBS);
+  status_buff[i++] = (uint8_t) ((int) T0 >> 8);
+  status_buff[i++] = (uint8_t) ((int) T0);
+  status_buff[i++] = (uint8_t) ((int) T0S >> 8);
+  status_buff[i++] = (uint8_t) ((int) T0S);
 
   //FeedRate
-  //tmpBuff[i++] = (uint8_t)(HmiFeedRate >> 8);
-  //tmpBuff[i++] = (uint8_t)(HmiFeedRate);
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
+  fValue = (last_feedrate * 60);
+  status_buff[i++] = (uint8_t)(((uint16_t)fValue)>>8);
+  status_buff[i++] = (uint8_t)((uint16_t)fValue);
 
-  //LaserPower
+  // LaserPower
   uint32_t LaserPower = ExecuterHead.Laser.GetPower();
-  tmpBuff[i++] = (uint8_t)(LaserPower >> 24);
-  tmpBuff[i++] = (uint8_t)(LaserPower >> 16);
-  tmpBuff[i++] = (uint8_t)(LaserPower >> 8);
-  tmpBuff[i++] = (uint8_t)(LaserPower);
+  status_buff[i++] = (uint8_t)(LaserPower >> 24);
+  status_buff[i++] = (uint8_t)(LaserPower >> 16);
+  status_buff[i++] = (uint8_t)(LaserPower >> 8);
+  status_buff[i++] = (uint8_t)(LaserPower);
 
-  //RPM
+  // RPM of CNC
   uint16_t RPM;
   RPM = ExecuterHead.CNC.GetRPM();
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = (uint8_t) (RPM >> 8);
-  tmpBuff[i++] = (uint8_t) (RPM);
+  status_buff[i++] = 0;
+  status_buff[i++] = 0;
+  status_buff[i++] = (uint8_t) (RPM >> 8);
+  status_buff[i++] = (uint8_t) (RPM);
 
-  //打印机状态
-  tmpBuff[i++] = (uint8_t) SystemStatus.MapCurrentStatusForSC();
+  // current status
+  status_buff[i++] = (uint8_t) SystemStatus.MapCurrentStatusForSC();
 
-  //外设状态
-  //tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 24);
-  //tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 16);
-  //tmpBuff[i++] = (uint8_t)(SysStatusFlag >> 8);
-  tmpBuff[i++] = (uint8_t) (SystemStatus.GetPeriphDeviceStatus());
+  // add-on status
+  status_buff[i++] = (uint8_t) (SystemStatus.GetPeriphDeviceStatus());
 
-  //执行头类型
-  tmpBuff[i++] = ExecuterHead.MachineType;
+  // executor type
+  status_buff[i++] = ExecuterHead.MachineType;
 
-  PackedProtocal(tmpBuff, i);
+  // corrent the length
+  status_buff[2] = (uint8_t) ((i - 8) >> 8);
+  status_buff[3] = (uint8_t) (i - 8);
+  status_buff[5] = status_buff[2] ^status_buff[3];
+
+  uint32_t checksum = 0;
+  for (int j = 8; j < (i - 1); j = j + 2) checksum += (uint32_t) (((uint8_t) status_buff[j] << 8) | (uint8_t) status_buff[j + 1]);
+  if ((i - 8) % 2) checksum += (uint8_t)status_buff[i - 1];
+  while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
+  checksum = ~checksum;
+  status_buff[6] = checksum >> 8;
+  status_buff[7] = checksum;
+
+  HmiWriteData(status_buff, i);
 }
 
 

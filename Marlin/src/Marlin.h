@@ -321,15 +321,6 @@ void disable_e_stepper(const uint8_t e);
 void disable_e_steppers();
 void disable_all_steppers();
 
-// planner.synchronize() will call idle(), and idle() will call
-// HMI.PollingCommand(), so we cannot call planner.synchronize()
-// in HMI.PollingCommand()
-#define waiting_moving_no_idle()  do {\
-                            while(planner.has_blocks_queued()) {\
-                              thermalManager.manage_heater(); \
-                            } \
-                          } while (0)
-
 #define ACTION_BAN_NONE               (0)
 #define ACTION_BAN_NO_WORKING         (0x1)
 #define ACTION_BAN_NO_MOVING          (0x1<<1)
