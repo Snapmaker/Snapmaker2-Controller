@@ -45,25 +45,29 @@ enum
 
 // FuncID defines
 typedef enum {
-  FUNC_REPORT_LIMIT          ,
-  FUNC_REPORT_PROBE          ,
-  FUNC_REPORT_CUT            ,
-  FUNC_SET_STEP_CTRL         ,
-  FUNC_SET_MOTOR_SPEED       ,
-  FUNC_REPORT_MOTOR_SPEED    ,
-  FUNC_REPORT_TEMPEARTURE    ,
-  FUNC_SET_TEMPEARTURE       ,
-  FUNC_SET_FAN               ,
-  FUNC_SET_FAN2              ,
-  FUNC_SET_PID               ,
-  FUNC_SET_CAMERA_POWER      ,
-  FUNC_SET_LASER_FOCUS       ,
-  FUNC_REPORT_LASER_FOCUS    ,    
-  FUNC_SET_LIGHT_COLOR       ,
-  FUNC_REPORT_ENCLOSUER      ,
+  FUNC_REPORT_LIMIT          ,  // 0
+  FUNC_REPORT_PROBE          ,  // 1
+  FUNC_REPORT_CUT            ,  // 2
+  FUNC_SET_STEP_CTRL         ,  // 3
+  FUNC_SET_MOTOR_SPEED       ,  // 4
+  FUNC_REPORT_MOTOR_SPEED    ,  // 5
+  FUNC_REPORT_TEMPEARTURE    ,  // 6
+  FUNC_SET_TEMPEARTURE       ,  // 7
+  FUNC_SET_FAN               ,  // 8
+  FUNC_SET_FAN2              ,  // 9
+  FUNC_SET_PID               ,  // 10
+  FUNC_SET_CAMERA_POWER      ,  // 11
+  FUNC_SET_LASER_FOCUS       ,  // 12
+  FUNC_REPORT_LASER_FOCUS    ,  // 13
+  FUNC_SET_ENCLOSURE_LIGHT   ,  // 14
+  FUNC_REPORT_ENCLOSURE      ,  // 15
+  FUNC_REPORT_TEMP_PID       ,  // 16
+  FUNC_PROOFREAD_KNIFE       ,  // 17
+  FUNC_SET_LIGHT_COLOR       ,  // 18
+  FUNC_SET_FAN_MODULE        ,  // 19
 }FUNC_ID_E;
 
-//Priority Table for attributing the priority of the FuncID
+
 const uint16_t PriorityTable[][2] = {
 // FUNCID                         Priority(0-15)
   {FUNC_REPORT_LIMIT,             0},
@@ -81,8 +85,11 @@ const uint16_t PriorityTable[][2] = {
   {FUNC_SET_LASER_FOCUS,          10},
   {FUNC_REPORT_LASER_FOCUS,       7},
   {FUNC_SET_LIGHT_COLOR,          15},
-  {FUNC_REPORT_ENCLOSUER,         15},
+  {FUNC_REPORT_ENCLOSURE,         15},
+  {FUNC_SET_FAN_MODULE,           15},
+  {FUNC_SET_ENCLOSURE_LIGHT,      15},
 };
+
 
 enum PeriphSwitchEnum : uint32_t {
   CAN_IO_ENCLOSURE,

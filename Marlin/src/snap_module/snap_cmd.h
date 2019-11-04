@@ -52,5 +52,7 @@
 #define CMD_LB_QUERY_STATE          1
 #define CMD_LB_SWITCH               2
 #define CMD_LB_SET_MODE_BRIGHTNESS  3
+// commands for enclosure fan
+#define CMD_ENCLOSURE_FAN_SWITCH    4
 
 #endif

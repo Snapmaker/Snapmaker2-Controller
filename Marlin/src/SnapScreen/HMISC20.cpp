@@ -1504,6 +1504,14 @@ void HMI_SC20::PollingCommand(void)
         MarkNeedReack(0);
         break;
 
+      case CMD_ENCLOSURE_FAN_SWITCH:
+        if(tmpBuff[IDX_DATA0] == 0) 
+          Periph.SetEnclosureFanSpeed(0);
+        else
+          Periph.SetEnclosureFanSpeed(255);
+          MarkNeedReack(0);
+        break;
+
       default:
         Result = 1;
         break;
