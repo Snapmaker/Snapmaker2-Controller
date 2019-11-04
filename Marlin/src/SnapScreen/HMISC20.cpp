@@ -30,10 +30,15 @@
 #include "../snap_module/quickstop.h"
 #include "../snap_module/M1028.h"
 #include "../snap_module/coordinate_mgr.h"
+#include "../libs/GenerialFunctions.h"
+
 
 #define SEND_BUFF_SIZE    1024
 #define RECV_BUFF_SIZE    2048
 #define ONE_CMD_MAX_SIZE  1024
+#define STATUS_BUFF_SIZE  128
+
+static char status_buff[STATUS_BUFF_SIZE];
 
 static char *tmpBuff;
 static char checkout_cmd[2][ONE_CMD_MAX_SIZE];
@@ -1961,26 +1966,43 @@ void HMI_SC20::SendMachineStatus()
 {
   float fValue;
   int32_t tmp;
-  uint16_t i;
-  i = 0;
+  uint16_t i = 0;
 
-  //EventID
-  tmpBuff[i++] = EID_STATUS_RESP;
+  // SOF
+  status_buff[i++] = 0xAA;
+  status_buff[i++] = 0x55;
 
-  //同步状态
-  tmpBuff[i++] = 0x01;
+  // data length, 1B
+  i++;
+  i++;
 
-  //坐标
+  // protocol version
+  status_buff[i++] = 0x00;
+
+  // checksum of length, 1B
+  i++;
+
+  // checksum of packet, 2B
+  i++;
+  i++;
+
+  // EventID
+  status_buff[i++] = EID_STATUS_RESP;
+
+  // operation code
+  status_buff[i++] = 0x01;
+
+  // current logical position
   tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) * 1000);
-  BITS32_TO_BYTES(tmp, tmpBuff, i);
+  BITS32_TO_BYTES(tmp, status_buff, i);
   tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) * 1000);
-  BITS32_TO_BYTES(tmp, tmpBuff, i);
+  BITS32_TO_BYTES(tmp, status_buff, i);
   tmp = (int32_t) (NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) * 1000);
-  BITS32_TO_BYTES(tmp, tmpBuff, i);
+  BITS32_TO_BYTES(tmp, status_buff, i);
   tmp = (int32_t) (current_position[E_AXIS] * 1000);
-  BITS32_TO_BYTES(tmp, tmpBuff, i);
+  BITS32_TO_BYTES(tmp, status_buff, i);
 
-  //温度
+  // temperature
   int16_t T0, TB, T0S, TBS;
 
   //if(current_temperature[0] >= 0)
@@ -1994,45 +2016,58 @@ void HMI_SC20::SendMachineStatus()
   thermalManager.temp_bed.current;
   TBS = (int16_t)
   thermalManager.temp_bed.target;
-  tmpBuff[i++] = (uint8_t) ((int) TB >> 8);
-  tmpBuff[i++] = (uint8_t) ((int) TB);
-  tmpBuff[i++] = (uint8_t) ((int) TBS >> 8);
-  tmpBuff[i++] = (uint8_t) ((int) TBS);
-  tmpBuff[i++] = (uint8_t) ((int) T0 >> 8);
-  tmpBuff[i++] = (uint8_t) ((int) T0);
-  tmpBuff[i++] = (uint8_t) ((int) T0S >> 8);
-  tmpBuff[i++] = (uint8_t) ((int) T0S);
+  status_buff[i++] = (uint8_t) ((int) TB >> 8);
+  status_buff[i++] = (uint8_t) ((int) TB);
+  status_buff[i++] = (uint8_t) ((int) TBS >> 8);
+  status_buff[i++] = (uint8_t) ((int) TBS);
+  status_buff[i++] = (uint8_t) ((int) T0 >> 8);
+  status_buff[i++] = (uint8_t) ((int) T0);
+  status_buff[i++] = (uint8_t) ((int) T0S >> 8);
+  status_buff[i++] = (uint8_t) ((int) T0S);
 
   //FeedRate
   fValue = (last_feedrate * 60);
-  tmpBuff[i++] = (uint8_t)(((uint16_t)fValue)>>8);
-  tmpBuff[i++] = (uint8_t)((uint16_t)fValue);
+  status_buff[i++] = (uint8_t)(((uint16_t)fValue)>>8);
+  status_buff[i++] = (uint8_t)((uint16_t)fValue);
 
-  //LaserPower
+  // LaserPower
   uint32_t LaserPower = ExecuterHead.Laser.GetPower();
-  tmpBuff[i++] = (uint8_t)(LaserPower >> 24);
-  tmpBuff[i++] = (uint8_t)(LaserPower >> 16);
-  tmpBuff[i++] = (uint8_t)(LaserPower >> 8);
-  tmpBuff[i++] = (uint8_t)(LaserPower);
+  status_buff[i++] = (uint8_t)(LaserPower >> 24);
+  status_buff[i++] = (uint8_t)(LaserPower >> 16);
+  status_buff[i++] = (uint8_t)(LaserPower >> 8);
+  status_buff[i++] = (uint8_t)(LaserPower);
 
-  //RPM
+  // RPM of CNC
   uint16_t RPM;
   RPM = ExecuterHead.CNC.GetRPM();
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = (uint8_t) (RPM >> 8);
-  tmpBuff[i++] = (uint8_t) (RPM);
+  status_buff[i++] = 0;
+  status_buff[i++] = 0;
+  status_buff[i++] = (uint8_t) (RPM >> 8);
+  status_buff[i++] = (uint8_t) (RPM);
 
-  //打印机状态
-  tmpBuff[i++] = (uint8_t) SystemStatus.MapCurrentStatusForSC();
+  // current status
+  status_buff[i++] = (uint8_t) SystemStatus.MapCurrentStatusForSC();
 
-  //外设状态
-  tmpBuff[i++] = (uint8_t) (SystemStatus.GetPeriphDeviceStatus());
+  // add-on status
+  status_buff[i++] = (uint8_t) (SystemStatus.GetPeriphDeviceStatus());
 
-  //执行头类型
-  tmpBuff[i++] = ExecuterHead.MachineType;
+  // executor type
+  status_buff[i++] = ExecuterHead.MachineType;
 
-  PackedProtocal(tmpBuff, i);
+  // corrent the length
+  status_buff[2] = (uint8_t) ((i - 8) >> 8);
+  status_buff[3] = (uint8_t) (i - 8);
+  status_buff[5] = status_buff[2] ^status_buff[3];
+
+  uint32_t checksum = 0;
+  for (int j = 8; j < (i - 1); j = j + 2) checksum += (uint32_t) (((uint8_t) status_buff[j] << 8) | (uint8_t) status_buff[j + 1]);
+  if ((i - 8) % 2) checksum += (uint8_t)status_buff[i - 1];
+  while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
+  checksum = ~checksum;
+  status_buff[6] = checksum >> 8;
+  status_buff[7] = checksum;
+
+  HmiWriteData(status_buff, i);
 }
 
 
