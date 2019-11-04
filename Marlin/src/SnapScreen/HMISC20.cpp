@@ -869,6 +869,13 @@ void HMI_SC20::PollingCommand() {
   if (checkout_cmd[next_cmd_idx][IDX_EVENT_ID] == EID_STATUS_REQ &&
         checkout_cmd[next_cmd_idx][IDX_OP_CODE] == 1) {
     SendMachineStatus();
+    if (debug.GetLevel() == SNAP_DEBUG_LEVEL_TRACE) {
+      LOG_T("Heartbeat: ");
+      for (int i=0; i<10; i++) {
+        LOG_T("%08X ", *((uint32_t *)status_buff + i));
+      }
+      LOG_T("\n\n");
+    }
     return;
   }
 
@@ -2017,14 +2024,14 @@ void HMI_SC20::SendMachineStatus()
   thermalManager.temp_bed.current;
   TBS = (int16_t)
   thermalManager.temp_bed.target;
-  status_buff[i++] = (uint8_t) ((int) TB >> 8);
-  status_buff[i++] = (uint8_t) ((int) TB);
-  status_buff[i++] = (uint8_t) ((int) TBS >> 8);
-  status_buff[i++] = (uint8_t) ((int) TBS);
-  status_buff[i++] = (uint8_t) ((int) T0 >> 8);
-  status_buff[i++] = (uint8_t) ((int) T0);
-  status_buff[i++] = (uint8_t) ((int) T0S >> 8);
-  status_buff[i++] = (uint8_t) ((int) T0S);
+  status_buff[i++] = (uint8_t) (TB >> 8);
+  status_buff[i++] = (uint8_t) (TB);
+  status_buff[i++] = (uint8_t) (TBS >> 8);
+  status_buff[i++] = (uint8_t) (TBS);
+  status_buff[i++] = (uint8_t) (T0 >> 8);
+  status_buff[i++] = (uint8_t) (T0);
+  status_buff[i++] = (uint8_t) (T0S >> 8);
+  status_buff[i++] = (uint8_t) (T0S);
 
   //FeedRate
   fValue = (last_feedrate * 60);
