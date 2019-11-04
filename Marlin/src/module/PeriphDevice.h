@@ -34,7 +34,7 @@ public:
     void SetDoorCheck(bool Enable) {}
     void StartDoorCheck() {}
     void StopDoorCheck() {}
-    FORCE_INLINE bool GetDoorCheckFlag() { return false; } 
+    FORCE_INLINE bool GetDoorCheckFlag() { return false; }
     FORCE_INLINE bool IsDoorOpened() { return true; }
   #endif
 
@@ -42,6 +42,7 @@ public:
 
   #if ENABLED(CAN_FAN)
     void SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value);
+    void SetEnclosureFanSpeed(uint8_t s_value);
   #endif
   
   void Process();

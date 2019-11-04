@@ -876,6 +876,9 @@ private:
     static void M1000();
   #endif
 
+  static void M1005();
+  static void M1006();
+
   static void M1028();
   static void M2000();
 

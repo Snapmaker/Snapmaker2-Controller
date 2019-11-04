@@ -151,7 +151,7 @@ void QuickStop::CleanMoves() {
   }
 
   // stepper will clean blocks safely, we had to wait buffer to be empty
-  while (planner.movesplanned()) {
+  while (planner.has_blocks_queued()) {
     planner.block_buffer_nonbusy = planner.block_buffer_tail = \
       planner.block_buffer_planned = planner.block_buffer_head;
   }
@@ -197,13 +197,11 @@ void QuickStop::TowardStop() {
     }
 
     // move X to max position of home dir
-    if (X_HOME_DIR > 0)
-      move_to_limited_x(X_MAX_POS, 30);
-    else
-      move_to_limited_x(0, 35);
-
     // move Y to max position
-    move_to_limited_xy(current_position[X_AXIS], Y_MAX_POS, 30);
+    if (X_HOME_DIR > 0)
+      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 30);
+    else
+      move_to_limited_xy(0, Y_MAX_POS, 35);
     break;
 
   case MACHINE_TYPE_CNC:

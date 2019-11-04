@@ -126,7 +126,6 @@ void GcodeSuite::G1029() {
         compensate_offset(nozzle_height_probed);
     }
 
-    do_blocking_move_to_z(15, 50);
     bed_level_virt_interpolate();
     settings.save();
     return;

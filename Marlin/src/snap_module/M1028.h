@@ -16,4 +16,6 @@ extern float z_position_after_calibration;
 
 extern float laser_pwr_in_cali;
 
+extern float z_limit_in_cali;
+
 #endif

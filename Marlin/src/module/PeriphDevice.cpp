@@ -36,6 +36,22 @@ void PeriphDevice::SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value
   Data[2] = s_value;
   FanSpeed[index] = s_value;
 }
+
+/**
+ * SetEnclosureFanSpeed:Set enclosure fan speed
+ * para DelayTime:
+ * para index:
+ * para percent:
+ */
+void PeriphDevice::SetEnclosureFanSpeed(uint8_t s_value)
+{
+  uint8_t Data[2];
+
+  Data[0] = 0;
+  Data[1] = s_value;
+  CanModules.SetFunctionValue(EXTEND_CAN_NUM, FUNC_SET_FAN_MODULE, Data, 2);
+}
+
 #endif
 
 #if ENABLED(DOOR_SWITCH)
