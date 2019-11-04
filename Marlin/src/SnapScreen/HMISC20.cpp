@@ -263,7 +263,8 @@ void HMI_SC20::RequestFirmwareVersion()
 
   tmpBuff[i++] = 0xAA;
   tmpBuff[i++] = 3;
-  for(int j=0;j<32;j++) {
+  // igore the front 10 characters 'Snapmaker_'
+  for(int j=10;j<32;j++) {
     tmpBuff[i++] = Version[j];
     if(Version[j] == 0) break;
   }
