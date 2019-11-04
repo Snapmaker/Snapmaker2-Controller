@@ -73,28 +73,20 @@ const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
 //    fmt - format of messages
 //    ... - args
 void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
+  static char log_buf[SNAP_LOG_BUFFER_SIZE];
   int len;
   va_list args;
-  char log_buf[SMAP_LOG_BUFFER_SIZE];
 
   if (level < msg_level)
     return;
 
-  if (level >= SNAP_DEBUG_LEVEL_MAX) {
-    level = (SnapDebugLevel)(SNAP_DEBUG_LEVEL_MAX - 1);
-  }
-
-  strcpy(log_buf, snap_debug_str[level]);
-
-  len = strlen(log_buf);
-
   va_start(args, fmt);
 
-  vsnprintf(log_buf + len, SMAP_LOG_BUFFER_SIZE - len - 1, fmt, args);
-
-  CONSOLE_OUTPUT(log_buf, strlen(log_buf) + 1);
+  vsnprintf(log_buf, SNAP_LOG_BUFFER_SIZE, fmt, args);
 
   va_end(args);
+
+  CONSOLE_OUTPUT(log_buf);
 }
 
 
@@ -104,6 +96,10 @@ void SnapDebug::SetLevel(SnapDebugLevel l) {
   Log(SNAP_DEBUG_LEVEL_INFO, "old debug level: %d\n", msg_level);
   if (l <= SNAP_DEBUG_LEVEL_MAX)
     msg_level = l;
+}
+
+SnapDebugLevel SnapDebug::GetLevel() {
+  return msg_level;
 }
 
 // record the line number of last Gcode from screen

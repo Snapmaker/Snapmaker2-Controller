@@ -30,10 +30,10 @@ enum GcodeState : uint8_t {
 #if (SNAP_DEBUG)
 
 // massage will output to this interface
-#define CONSOLE_OUTPUT(log, length) MYSERIAL0.print(log)
+#define CONSOLE_OUTPUT(log) MYSERIAL0.print(log)
 
 // log buffer size, max length for one debug massage
-#define SMAP_LOG_BUFFER_SIZE 128
+#define SNAP_LOG_BUFFER_SIZE 256
 
 #define SNAP_TRACE_STR    "SNAP_TRACE: "
 #define SNAP_INFO_STR     "SNAP_INFO: "
@@ -59,6 +59,7 @@ class SnapDebug {
 
     void ShowInfo();
     void SetLevel(SnapDebugLevel l);
+    SnapDebugLevel GetLevel();
     void CmdChecksumError(bool screen);
     void SetSCGcodeLine(uint32_t l);
 
