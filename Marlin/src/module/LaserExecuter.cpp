@@ -9,7 +9,7 @@
 #include "ExecuterManager.h"
 
 // time to delay close fan, 5s
-#define TIME_TO_CLOSE_FAN 5000
+#define TIME_TO_CLOSE_FAN (120 * 1000)
 
 static const uint16_t LaserPowerTable[]=
 {
