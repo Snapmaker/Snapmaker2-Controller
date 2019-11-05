@@ -61,6 +61,37 @@ void ExecuterManager::CheckAlive() {
   }
 }
 
+void ExecuterManager::CallbackOpenDoor() {
+  switch (MachineType) {
+  case MACHINE_TYPE_LASER:
+    Laser.ChangePowerLimit(LASER_POWER_SAFE_LIMIT);
+    break;
+
+  case MACHINE_TYPE_CNC:
+    /* code */
+    break;
+
+  default:
+    break;
+  }
+}
+
+void ExecuterManager::CallbackCloseDoor() {
+  switch (MachineType) {
+  case MACHINE_TYPE_LASER:
+    Laser.ChangePowerLimit(LASER_POWER_NORMAL_LIMIT);
+    break;
+
+  case MACHINE_TYPE_CNC:
+    /* code */
+    break;
+
+  default:
+    break;
+  }
+}
+
+
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
   /**
    * SetTemperature:Set temperature

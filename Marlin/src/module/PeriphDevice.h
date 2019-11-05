@@ -7,12 +7,12 @@
 
 #define PERIPH_FAN_COUNT 1
 
-enum EnclosureEvent : uint8_t {
-  ENCLOSURE_EVENT_NONE,
-  ENCLOSURE_EVENT_OPEN,
-  ENCLOSURE_EVENT_OPEN_FINISH,
-  ENCLOSURE_EVENT_CLOSE,
-  ENCLOSURE_EVENT_INVALID
+enum ChamberState : uint8_t {
+  CHAMBER_STA_NONE,
+  CHAMBER_STA_OPEN,
+  CHAMBER_STA_OPEN_HANDLED,
+  CHAMBER_STA_CLOSED,
+  CHAMBER_STA_INVALID
 };
 
 class PeriphDevice 
@@ -21,19 +21,13 @@ public:
   PeriphDevice(){};
   void Init();
   #if ENABLED(DOOR_SWITCH)
-    void DoorSwitchInit();
     void SetDoorCheck(bool Enable);
-    void StartDoorCheck();
-    void StopDoorCheck();
     FORCE_INLINE bool GetDoorCheckFlag() { return TEST(IOSwitch, PERIPH_IOSW_DOOR); } 
     bool IsDoorOpened();
-    EnclosureEvent LatestEnclosureEvent() { return latest_enclosure_event_; }
-    void LatestEnclosureEvent(EnclosureEvent);
+    ChamberState LatestEnclosureEvent() { return cb_state_; }
+    void LatestEnclosureEvent(ChamberState sta);
   #else
-    void DoorSwitchInit() {}
     void SetDoorCheck(bool Enable) {}
-    void StartDoorCheck() {}
-    void StopDoorCheck() {}
     FORCE_INLINE bool GetDoorCheckFlag() { return false; }
     FORCE_INLINE bool IsDoorOpened() { return true; }
   #endif
@@ -48,8 +42,11 @@ public:
   void Process();
 
 private:
+  void CheckChamberDoor();
+
+private:
   uint8_t FanSpeed[PERIPH_FAN_COUNT];
-  EnclosureEvent latest_enclosure_event_;
+  ChamberState cb_state_;
 
 public:
   uint8_t IOSwitch;

@@ -9,6 +9,7 @@
 #include "CanModule.h"
 #include "StatusControl.h"
 #include "../snap_module/error.h"
+#include "../snap_module/snap_dbg.h"
 
 PeriphDevice Periph;
 
@@ -17,7 +18,19 @@ PeriphDevice Periph;
  */
 void PeriphDevice::Init()
 {
-  latest_enclosure_event_ = ENCLOSURE_EVENT_NONE;
+  // enable door checking by defualt
+  SBI(IOSwitch, PERIPH_IOSW_DOOR);
+
+  // init chamber state per current state
+  if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
+    LOG_I("door is opened!\n");
+    ExecuterHead.CallbackOpenDoor();
+    SystemStatus.CallbackOpenDoor();
+    cb_state_ = CHAMBER_STA_OPEN;
+  }
+  else {
+    cb_state_ = CHAMBER_STA_NONE;
+  }
 }
 
 #if ENABLED(CAN_FAN)
@@ -64,81 +77,96 @@ bool PeriphDevice::IsDoorOpened() {
   #endif
 }
 
-
-/**
- * DoorSwitchInit:Initialze the door switch IO
- * para Enable:true enable ,false disable
- */
-void PeriphDevice::DoorSwitchInit() {
-  #if DISABLED(CAN_ENCLOSURE)
-    pinMode(DOOR_PIN, INPUT_PULLUP);
-  #endif
-}
-
 /**
  * SetDoorCheck:enable or disable Door Sensor
  * para Enable:true enable ,false disable
  */
 void PeriphDevice::SetDoorCheck(bool Enable) {
-  if(Enable) CBI(IOSwitch, PERIPH_IOSW_DOOR);
-  else SBI(IOSwitch, PERIPH_IOSW_DOOR);
-}
+  if (Enable && !TEST(IOSwitch, PERIPH_IOSW_DOOR)) {
+    LOG_I("enable door checking!\n");
 
-/**
- * StartDoorCheck:Start Door Sensor working
- * para percent:
- */
-void PeriphDevice::StartDoorCheck() {
+    SBI(IOSwitch, PERIPH_IOSW_DOOR);
 
-}
+    if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
+      LOG_I("door is opened!\n");
+      ExecuterHead.CallbackOpenDoor();
+      SystemStatus.CallbackOpenDoor();
+      cb_state_ = CHAMBER_STA_OPEN;
+    }
+  }
+  else if (!Enable && TEST(IOSwitch, PERIPH_IOSW_DOOR)) {
+    LOG_I("disable door checking!\n");
 
-/**
- * StopDoorCheck:Stop Door Sensor working
- * para percent:
- */
-void PeriphDevice::StopDoorCheck() {
+    CBI(IOSwitch, PERIPH_IOSW_DOOR);
+
+    if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
+      switch (cb_state_) {
+      case CHAMBER_STA_OPEN:
+        ExecuterHead.CallbackCloseDoor();
+        SystemStatus.CallbackCloseDoor();
+        break;
+
+      case CHAMBER_STA_OPEN_HANDLED:
+        ExecuterHead.CallbackCloseDoor();
+        SystemStatus.CallbackCloseDoor();
+        HMI.CallbackDoorClosed();
+        break;
+
+      default:
+        break;
+      }
+    }
+
+    cb_state_ = CHAMBER_STA_NONE;
+  }
 }
 
 /**
  * set new latest enclosure event
  * para percent:
  */
-void PeriphDevice::LatestEnclosureEvent(EnclosureEvent e) {
-  if (e < ENCLOSURE_EVENT_INVALID)
-    latest_enclosure_event_ = e;
-}
-
 #endif //ENABLED(DOOR_SWITCH)
 
-void PeriphDevice::Process() {
+void PeriphDevice::CheckChamberDoor() {
+  if (!(IOSwitch & PERIPH_IOSW_DOOR))
+    return;
 
-#if ENABLED(DOOR_SWITCH)
-  if (IOSwitch & PERIPH_IOSW_DOOR) {
-    if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ != ENCLOSURE_EVENT_OPEN)) {
-      SystemStatus.PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
-      latest_enclosure_event_ = ENCLOSURE_EVENT_OPEN;
+  switch (cb_state_) {
+  case CHAMBER_STA_NONE:
+    // door is just opened
+    if(TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
+      LOG_I("door opened!\n");
+      ExecuterHead.CallbackOpenDoor();
+      SystemStatus.CallbackOpenDoor();
+      cb_state_ = CHAMBER_STA_OPEN;
     }
+    break;
 
-    if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ == ENCLOSURE_EVENT_OPEN)
-        && (SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_FINISH)) {
-      // TODO: tell screen we have paused by door opened
+  case CHAMBER_STA_OPEN:
+    cb_state_ = CHAMBER_STA_OPEN_HANDLED;
+    break;
 
-      latest_enclosure_event_ = ENCLOSURE_EVENT_OPEN_FINISH;
+  case CHAMBER_STA_OPEN_HANDLED:
+    // query if door is closed
+    if (!TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
+      LOG_I("door closed!\n");
+      ExecuterHead.CallbackCloseDoor();
+      SystemStatus.CallbackCloseDoor();
+      cb_state_ = CHAMBER_STA_CLOSED;
     }
+    break;
 
-    if (!TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE) && (latest_enclosure_event_ == ENCLOSURE_EVENT_OPEN_FINISH)
-          && SystemStatus.GetCurrentStatus() == SYSTAT_PAUSE_FINISH) {
-      if (SystemStatus.ResumeTrigger(TRIGGER_SOURCE_DOOR_CLOSE) == E_SUCCESS)
-        latest_enclosure_event_ = ENCLOSURE_EVENT_CLOSE;
-    }
+  case CHAMBER_STA_CLOSED:
+    cb_state_ = CHAMBER_STA_NONE;
+    break;
 
-    if ((latest_enclosure_event_ = ENCLOSURE_EVENT_CLOSE) && (SystemStatus.GetCurrentStatus() == SYSTAT_RESUME_WAITING
-          || SystemStatus.GetCurrentStage() == SYSTAGE_WORK)) {
-      // TODO: tell screen we have finish reuming
-
-      latest_enclosure_event_ = ENCLOSURE_EVENT_NONE;
-    }
+  default:
+    LOG_E("invalid chamber door state!\n");
+    break;
   }
-#endif
+}
 
+
+void PeriphDevice::Process() {
+  CheckChamberDoor();
 }

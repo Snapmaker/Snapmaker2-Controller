@@ -33,6 +33,8 @@ void LaserExecuter::Init()
   LASERSerial.begin(115200);
   LoadFocusHeight();
 
+  power_limit_ = LASER_POWER_NORMAL_LIMIT;
+
   fan_state_ = LAESR_FAN_STA_CLOSED;
   fan_tick_ = 0;
 }
@@ -99,6 +101,10 @@ void LaserExecuter::SetLaserPower(float Percent)
   int integer;
   float decimal;
   uint16_t pwmvalue;
+
+  if (Percent > power_limit_)
+    Percent = power_limit_;
+
   last_percent = Percent;
   integer = Percent;
   decimal = Percent - integer;
@@ -409,7 +415,7 @@ char LaserExecuter::SetBluetoothName(char *Name)
   uint8_t i;
   uint8_t j;
   uint8_t Buff[90];
-  
+
   i = 0;
   Buff[i++] = 0x11;
   Buff[i++] = 0;
@@ -420,7 +426,7 @@ char LaserExecuter::SetBluetoothName(char *Name)
     Buff[i++] = Name[j];
   }
   Buff[i++] = 0;
-  
+
   PackedProtocal(Buff, i);
   if(GetReply(Buff, 500) == 0) {
     if((Buff[8] == 0x12) && (Buff[9] == 0)) return 0;
@@ -511,4 +517,32 @@ void LaserExecuter::RestorePower(float percent, uint16_t pwm) {
   last_percent = percent;
   last_pwm = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
   TimSetPwm(pwm);
+}
+
+
+void LaserExecuter::ChangePowerLimit(float limit) {
+  int      integer;
+  float    decimal;
+  uint16_t pwm_limit;
+
+  if (limit > LASER_POWER_NORMAL_LIMIT)
+    limit = LASER_POWER_NORMAL_LIMIT;
+
+  // if previous limit is larger than now, need to check need to lower current output
+  if (last_percent > limit) {
+    integer = (int)limit;
+    decimal = limit - integer;
+
+    pwm_limit = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
+
+    if (GetTimPwm() > pwm_limit) {
+      // lower current output
+      SetLaserPower(pwm_limit);
+    }
+
+    last_percent = limit;
+    last_pwm = pwm_limit;
+  }
+
+  power_limit_ = limit;
 }

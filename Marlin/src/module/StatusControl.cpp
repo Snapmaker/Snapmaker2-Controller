@@ -160,8 +160,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
 
   stop_source_ = type;
 
-  Periph.StopDoorCheck();
-
   if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
     ExecuterHead.Laser.SetLaserPower((uint16_t)0);
   }
@@ -178,9 +176,6 @@ void StatusControl::PauseProcess()
 {
   if (GetCurrentStatus() != SYSTAT_PAUSE_STOPPED)
     return;
-
-  Periph.StartDoorCheck();
-
 
   if (HMI.GetRequestStatus() == HMI_REQ_PAUSE) {
     HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
@@ -334,8 +329,6 @@ void StatusControl::ResumeProcess() {
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
 
-  Periph.StartDoorCheck();
-
   // reset the state of quick stop handler
   quickstop.Reset();
 
@@ -343,13 +336,6 @@ void StatusControl::ResumeProcess() {
   if (HMI.GetRequestStatus() == HMI_REQ_RESUME) {
     HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
     HMI.ClearRequestStatus();
-  }
-
-  // if exception happened duration resuming work
-  // give a opportunity to stop working
-  if (action_ban & ACTION_BAN_NO_WORKING) {
-    LOG_E("System Fault! Now cannot start working!\n");
-    StopTrigger(TRIGGER_SOURCE_EXCEPTION);
   }
 }
 
@@ -373,6 +359,29 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
     fault_flag_ |= FAULT_FLAG_FILAMENT;
     HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
     return E_NO_RESRC;
+  }
+
+  switch (ExecuterHead.MachineType) {
+  case MACHINE_TYPE_3DPRINT:
+    if (runout.is_filament_runout()) {
+      LOG_E("No filemant! Please insert filemant!\n");
+      fault_flag_ |= FAULT_FLAG_FILAMENT;
+      HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
+      return E_NO_RESRC;
+    }
+    break;
+
+  case MACHINE_TYPE_CNC:
+  case MACHINE_TYPE_LASER:
+    if (Periph.IsDoorOpened()) {
+      fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
+      HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
+      return E_HARDWARE;
+    }
+    break;
+
+  default:
+    break;
   }
 
   switch (s) {
@@ -411,16 +420,36 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
  * when receive gcode in resume_waiting, we need to change state to work
  * and make some env ready
  */
-void StatusControl::ResumeOver() {
+ErrCode StatusControl::ResumeOver() {
+  // if exception happened duration resuming work
+  // give a opportunity to stop working
+  if (action_ban & ACTION_BAN_NO_WORKING) {
+    LOG_E("System Fault! Now cannot start working!\n");
+    StopTrigger(TRIGGER_SOURCE_EXCEPTION);
+    return E_INVALID_STATE;
+  }
+
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
-    break;
-
-  case MACHINE_TYPE_LASER:
-    ExecuterHead.Laser.RestorePower(powerpanic.Data.laser_percent, powerpanic.Data.laser_pwm);
+    if (runout.is_filament_runout()) {
+      LOG_E("No filemant! Please insert filemant!\n");
+      fault_flag_ |= FAULT_FLAG_FILAMENT;
+      HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
+      return E_NO_RESRC;
+    }
     break;
 
   case MACHINE_TYPE_CNC:
+  case MACHINE_TYPE_LASER:
+    if (Periph.IsDoorOpened()) {
+      LOG_E("Door is opened, please close the door!\n");
+      fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
+      HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
+      return E_HARDWARE;
+    }
+
+    if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
+      ExecuterHead.Laser.RestorePower(powerpanic.Data.laser_percent, powerpanic.Data.laser_pwm);
     break;
 
   default:
@@ -431,6 +460,8 @@ void StatusControl::ResumeOver() {
   LOG_I("Receive first cmd after resume\n");
   cur_status_ = SYSTAT_WORK;
   lightbar.set_state(LB_STATE_WORKING);
+
+  return E_SUCCESS;
 }
 
 /**
@@ -574,8 +605,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
     HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
     return E_NO_RESRC;
   }
-
-  Periph.StartDoorCheck();
 
   print_job_timer.start();
 
@@ -1435,4 +1464,21 @@ ErrCode StatusControl::ClearExceptionByFaultFlag(uint32_t flag) {
       ClearException(host, type);
     }
   }
+}
+
+void StatusControl::CallbackOpenDoor() {
+  if (cur_status_ == SYSTAT_WORK) {
+    PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
+    HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
+  }
+
+  if (GetCurrentStage() == SYSTAGE_RESUMING) {
+
+  }
+
+  fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
+}
+
+void StatusControl::CallbackCloseDoor() {
+  fault_flag_ &= FAULT_FLAG_DOOR_OPENED;
 }

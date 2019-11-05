@@ -948,15 +948,14 @@ void HMI_SC20::HandleOneCommand()
         j = cmdLen + 8;
         tmpBuff[j] = 0;
 
-        // for comment, resturn ok immediately
-        if (tmpBuff[13] != ';') {
-          if (cur_status == SYSTAT_RESUME_WAITING) {
-            SystemStatus.ResumeOver();
+        if (cur_status == SYSTAT_RESUME_WAITING) {
+          if (SystemStatus.ResumeOver() != E_SUCCESS) {
+            SendGcode("ok\n", 0x4);
+            return;
           }
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
         }
-        else
-          SendGcode("ok\n", 0x4);
+
+        Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
       }
     }
 
@@ -1551,7 +1550,7 @@ void HMI_SC20::HandleOneCommand()
         break;
 
       case CMD_ENCLOSURE_FAN_SWITCH:
-        if(tmpBuff[IDX_DATA0] == 0) 
+        if(tmpBuff[IDX_DATA0] == 0)
           Periph.SetEnclosureFanSpeed(0);
         else
           Periph.SetEnclosureFanSpeed(255);

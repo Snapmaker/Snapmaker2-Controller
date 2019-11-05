@@ -574,8 +574,6 @@ ErrCode PowerPanic::ResumeWork() {
 		break;
 	}
 
-  Periph.StartDoorCheck();
-
 	// resume stopwatch
 	print_job_timer.start();
 	Stopwatch::resume(pre_data_.accumulator);

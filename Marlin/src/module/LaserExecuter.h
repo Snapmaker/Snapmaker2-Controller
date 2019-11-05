@@ -2,6 +2,9 @@
 
 #include "../inc/MarlinConfig.h"
 
+#define LASER_POWER_NORMAL_LIMIT   (100)
+#define LASER_POWER_SAFE_LIMIT      (1)
+
 void Tim1PwmInit();
 void Tim1SetCCR1(uint16_t Value);
 void Tim1SetCCR2(uint16_t Value);
@@ -18,7 +21,7 @@ enum LAESR_FAN_STATE : uint8_t {
 };
 
 
-class LaserExecuter 
+class LaserExecuter
 {
 public:
   LaserExecuter(){};
@@ -52,6 +55,8 @@ public:
 
   void TryCloseFan();
 
+  void ChangePowerLimit(float limit);
+
 private:
   void PackedProtocal(uint8_t *pData, uint16_t len);
   char GetReply(uint8_t *Buff, millis_t Timeout);
@@ -59,7 +64,7 @@ private:
 
 public:
   float FocusHeight;
-  
+
 private:
   float     last_percent;
   uint16_t  last_pwm;
@@ -67,5 +72,7 @@ private:
 
   uint8_t   fan_state_;
   millis_t  fan_tick_;
+
+  float     power_limit_;
 };
 
