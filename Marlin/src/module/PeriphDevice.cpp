@@ -31,6 +31,8 @@ void PeriphDevice::Init()
   else {
     cb_state_ = CHAMBER_STA_NONE;
   }
+
+  lock_uart_ = false;
 }
 
 #if ENABLED(CAN_FAN)
@@ -71,9 +73,9 @@ void PeriphDevice::SetEnclosureFanSpeed(uint8_t s_value)
 
 bool PeriphDevice::IsDoorOpened() {
   #if DISABLED(CAN_ENCLOSURE)
-    return (IOSwitch & PERIPH_IOSW_DOOR) && READ(DOOR_PIN));
+    return TEST(IOSwitch, PERIPH_IOSW_DOOR) && READ(DOOR_PIN));
   #else
-    return (IOSwitch & PERIPH_IOSW_DOOR) && TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE);
+    return TEST(IOSwitch, PERIPH_IOSW_DOOR) && TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE);
   #endif
 }
 
@@ -102,14 +104,9 @@ void PeriphDevice::SetDoorCheck(bool Enable) {
     if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
       switch (cb_state_) {
       case CHAMBER_STA_OPEN:
-        ExecuterHead.CallbackCloseDoor();
-        SystemStatus.CallbackCloseDoor();
-        break;
-
       case CHAMBER_STA_OPEN_HANDLED:
         ExecuterHead.CallbackCloseDoor();
         SystemStatus.CallbackCloseDoor();
-        HMI.CallbackDoorClosed();
         break;
 
       default:
@@ -128,7 +125,7 @@ void PeriphDevice::SetDoorCheck(bool Enable) {
 #endif //ENABLED(DOOR_SWITCH)
 
 void PeriphDevice::CheckChamberDoor() {
-  if (!(IOSwitch & PERIPH_IOSW_DOOR))
+  if (!TEST(IOSwitch, PERIPH_IOSW_DOOR))
     return;
 
   switch (cb_state_) {
@@ -166,7 +163,48 @@ void PeriphDevice::CheckChamberDoor() {
   }
 }
 
+void PeriphDevice::SetUartLock(bool f) {
+  lock_uart_ = f;
+  if (f) {
+    next_ms_ = millis() + 1000;
+    SERIAL_ECHOLN("Lock Uart");
+  }
+  else {
+    next_ms_ = 0;
+    SERIAL_ECHOLN("Unlock Uart");
+  }
+}
+
+void PeriphDevice::TellUartState() {
+  if (!GetHoldUart())
+    return;
+
+  millis_t  now = millis();
+
+  if (ELAPSED(now, next_ms_)) {
+    SERIAL_ECHOLN(";Locked UART");
+    next_ms_ = millis() + 1000;
+  }
+}
+
+void PeriphDevice::ReportStatus() {
+  if (TEST(IOSwitch, PERIPH_IOSW_DOOR)) {
+    SERIAL_ECHO("Chamber Door: ");
+    SERIAL_ECHOLN(TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)? "Open" : "Closed");
+
+    SERIAL_ECHOLNPAIR("Chamber Door state: ", cb_state_);
+  }
+}
+
+void PeriphDevice::TriggerDoorEvent(bool open) {
+  if (open)
+    SBI(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE);
+  else
+    CBI(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE);
+}
 
 void PeriphDevice::Process() {
   CheckChamberDoor();
+
+  TellUartState();
 }

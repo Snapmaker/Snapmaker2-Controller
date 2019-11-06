@@ -2,8 +2,8 @@
 
 #include "../inc/MarlinConfig.h"
 
-//IO Switch Bits
-#define PERIPH_IOSW_DOOR     1
+//IO Switch Bits position
+#define PERIPH_IOSW_DOOR     0  // bit[0]
 
 #define PERIPH_FAN_COUNT 1
 
@@ -15,17 +15,15 @@ enum ChamberState : uint8_t {
   CHAMBER_STA_INVALID
 };
 
-class PeriphDevice 
+class PeriphDevice
 {
 public:
   PeriphDevice(){};
   void Init();
   #if ENABLED(DOOR_SWITCH)
     void SetDoorCheck(bool Enable);
-    FORCE_INLINE bool GetDoorCheckFlag() { return TEST(IOSwitch, PERIPH_IOSW_DOOR); } 
+    FORCE_INLINE bool GetDoorCheckFlag() { return TEST(IOSwitch, PERIPH_IOSW_DOOR); }
     bool IsDoorOpened();
-    ChamberState LatestEnclosureEvent() { return cb_state_; }
-    void LatestEnclosureEvent(ChamberState sta);
   #else
     void SetDoorCheck(bool Enable) {}
     FORCE_INLINE bool GetDoorCheckFlag() { return false; }
@@ -38,15 +36,25 @@ public:
     void SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value);
     void SetEnclosureFanSpeed(uint8_t s_value);
   #endif
-  
+
+  void SetUartLock(bool f);
+  bool FORCE_INLINE GetHoldUart() { return TEST(IOSwitch, PERIPH_IOSW_DOOR) && lock_uart_; }
+
+  void ReportStatus();
+
   void Process();
+
+  void TriggerDoorEvent(bool open);
 
 private:
   void CheckChamberDoor();
+  void TellUartState();
 
 private:
   uint8_t FanSpeed[PERIPH_FAN_COUNT];
   ChamberState cb_state_;
+  bool      lock_uart_;
+  millis_t  next_ms_;
 
 public:
   uint8_t IOSwitch;

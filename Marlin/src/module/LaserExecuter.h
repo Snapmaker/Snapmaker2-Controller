@@ -3,7 +3,7 @@
 #include "../inc/MarlinConfig.h"
 
 #define LASER_POWER_NORMAL_LIMIT   (100)
-#define LASER_POWER_SAFE_LIMIT      (1)
+#define LASER_POWER_SAFE_LIMIT      (0.5)
 
 void Tim1PwmInit();
 void Tim1SetCCR1(uint16_t Value);

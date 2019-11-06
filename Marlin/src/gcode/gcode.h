@@ -880,6 +880,9 @@ private:
   static void M1006();
 
   static void M1028();
+
+  static void M1120();
+
   static void M2000();
 
   static void T(const uint8_t tool_index);

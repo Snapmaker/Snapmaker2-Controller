@@ -348,7 +348,7 @@ void HMI_SC20::UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen)
 
   Packindex = (uint16_t) ((pBuff[0] << 8) | pBuff[1]);
   maxpack = MARLIN_CODE_SIZE / 512;
-  //暂定500包，即250K
+
   if ((Packindex < maxpack) && (UpdateInProgress == 1) && (Packindex == UpdatePackRequest)) {
     //减去包序号2个字节
     DataLen = DataLen - 2;
@@ -949,13 +949,14 @@ void HMI_SC20::HandleOneCommand()
         tmpBuff[j] = 0;
 
         if (cur_status == SYSTAT_RESUME_WAITING) {
-          if (SystemStatus.ResumeOver() != E_SUCCESS) {
-            SendGcode("ok\n", 0x4);
-            return;
+          if (SystemStatus.ResumeOver() == E_SUCCESS) {
+            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
           }
+          else
+            SendGcode("ok\n", 0x4);
         }
-
-        Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
+        else
+          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
       }
     }
 

@@ -46,6 +46,7 @@ GcodeSuite gcode;
 #endif
 
 #include "../Marlin.h" // for idle() and suspend_auto_report
+#include "../module/PeriphDevice.h"
 
 millis_t GcodeSuite::previous_move_ms;
 
@@ -772,6 +773,8 @@ void GcodeSuite::execute_command(void) {
 
       case 1028: M1028(); break;
 
+      case 1120: M1120(); break;
+
       case 2000: M2000(); break;
 
       default: parser.unknown_command_error(); break;
@@ -795,12 +798,23 @@ void GcodeSuite::process_parsed_command(
   #endif
 ) {
 
+  if (Periph.GetHoldUart()) {
+    // only handle M1120
+    if (parser.command_letter == 'M' && parser.codenum == 1120) {
+      execute_command();
+      ok_to_send();
+    }
+
+    return;
+  }
+
   execute_command();
 
   #if USE_EXECUTE_COMMANDS_IMMEDIATE
     if (!no_ok)
   #endif
-      ok_to_send();
+      if (!Periph.GetHoldUart())
+        ok_to_send();
 }
 
 /**

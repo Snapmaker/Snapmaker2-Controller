@@ -7,6 +7,8 @@
 #include "CanBus.h"
 #include "CanDefines.h"
 #include "StatusControl.h"
+#include "PeriphDevice.h"
+#include "../snap_module/quickstop.h"
 
 ExecuterManager ExecuterHead;
 
@@ -50,6 +52,8 @@ void ExecuterManager::CheckAlive() {
     if (MACHINE_TYPE_LASER == MachineType) {
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LASER_FOCUS, NULL, 0);
     }
+
+    next_second = millis() + 1000;
   }
 
   if (watch.CheckAlive() == HB_STA_JUST_DEAD) {
@@ -68,7 +72,10 @@ void ExecuterManager::CallbackOpenDoor() {
     break;
 
   case MACHINE_TYPE_CNC:
-    /* code */
+    if (CNC.GetRPM() > 0 && SystemStatus.GetWorkingPort() != WORKING_PORT_SC) {
+      quickstop.Trigger(QS_EVENT_STOP);
+      Periph.SetUartLock(true);
+    }
     break;
 
   default:
@@ -83,7 +90,7 @@ void ExecuterManager::CallbackCloseDoor() {
     break;
 
   case MACHINE_TYPE_CNC:
-    /* code */
+    Periph.SetUartLock(false);
     break;
 
   default:
