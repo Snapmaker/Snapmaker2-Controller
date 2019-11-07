@@ -2,7 +2,8 @@
 #include "../gcode/queue.h"
 #include "../core/macros.h"
 #include "../module/PeriphDevice.h"
-
+#include "../module/CanModule.h"
+#include "../module/CanBus.h"
 
 /*
 * Disable /Enable chamber door event
@@ -22,7 +23,7 @@ void GcodeSuite::M1120() {
     return;
   }
 
-  s = parser.byteval('S', 2);
+  s = parser.byteval('S', 12);
 
   switch (s)
   {
@@ -46,6 +47,10 @@ void GcodeSuite::M1120() {
   case 11:
     Periph.TriggerDoorEvent(false);
     SERIAL_ECHOLN("triggered door close");
+    break;
+
+  case 12:
+    CanModules.SetFunctionValue(EXTEND_CAN_NUM, FUNC_REPORT_ENCLOSURE, NULL, 0);
     break;
 
   default:

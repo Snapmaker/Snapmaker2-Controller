@@ -97,11 +97,9 @@ int NoopFunc(uint8_t *pBuff) {
 int EnclosureDoorReport(uint8_t *pBuff) {
   if (pBuff[0] == 0) {
     CBI(CanModules.PeriphSwitch , CAN_IO_ENCLOSURE);
-    SERIAL_ECHOLN("cbo");
   }
   else {
     SBI(CanModules.PeriphSwitch , CAN_IO_ENCLOSURE);
-    SERIAL_ECHOLN("cbc");
   }
   return 0;
 }

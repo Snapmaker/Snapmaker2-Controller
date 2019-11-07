@@ -18,8 +18,11 @@ PeriphDevice Periph;
  */
 void PeriphDevice::Init()
 {
+  millis_t delay_100ms = millis() + 100;
   // enable door checking by defualt
   SBI(IOSwitch, PERIPH_IOSW_DOOR);
+
+  while (PENDING((millis()), delay_100ms));
 
   // init chamber state per current state
   if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
