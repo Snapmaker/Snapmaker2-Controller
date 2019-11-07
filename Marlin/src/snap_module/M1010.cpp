@@ -13,12 +13,10 @@
 */
 
 
-void GcodeSuite::M1120() {
+void GcodeSuite::M1010() {
   uint8_t s;
 
   if (!parser.seen('S')) {
-    SERIAL_ECHO("Chamber Door event is ");
-    SERIAL_ECHOLN(Periph.GetDoorCheckFlag()? "Enabled" : "Disabled");
     Periph.ReportStatus();
     return;
   }

@@ -18,24 +18,31 @@ PeriphDevice Periph;
  */
 void PeriphDevice::Init()
 {
+  uint8_t i;
   millis_t delay_100ms = millis() + 100;
-  // enable door checking by defualt
-  SBI(IOSwitch, PERIPH_IOSW_DOOR);
 
-  while (PENDING((millis()), delay_100ms));
-
-  // init chamber state per current state
-  if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
-    LOG_I("door is opened!\n");
-    ExecuterHead.CallbackOpenDoor();
-    SystemStatus.CallbackOpenDoor();
-    cb_state_ = CHAMBER_STA_OPEN;
-  }
-  else {
-    cb_state_ = CHAMBER_STA_NONE;
-  }
-
+  cb_state_ = CHAMBER_STA_NONE;
   lock_uart_ = false;
+
+  // check if chamber is exist and door
+  for (i = 0; i < CanBusControlor.ExtendModuleCount; i++) {
+    if (CanBusControlor.ExtendModuleMacList[i] & MAKE_ID(MODULE_ENCLOSER)) {
+      // enable door checking by defualt
+      SBI(IOSwitch, PERIPH_IOSW_DOOR);
+      // delay to get door state
+      while (PENDING((millis()), delay_100ms));
+
+      // init chamber state per current state
+      if (TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)) {
+        LOG_I("door is opened!\n");
+        ExecuterHead.CallbackOpenDoor();
+        SystemStatus.CallbackOpenDoor();
+        cb_state_ = CHAMBER_STA_OPEN;
+      }
+      break;
+    }
+  }
+
 }
 
 #if ENABLED(CAN_FAN)
@@ -192,10 +199,12 @@ void PeriphDevice::TellUartState() {
 
 void PeriphDevice::ReportStatus() {
   if (TEST(IOSwitch, PERIPH_IOSW_DOOR)) {
-    SERIAL_ECHO("Chamber Door: ");
+    SERIAL_ECHOLN("Enclosure: On");
+    SERIAL_ECHO("Door: ");
     SERIAL_ECHOLN(TEST(CanModules.PeriphSwitch, CAN_IO_ENCLOSURE)? "Open" : "Closed");
-
-    SERIAL_ECHOLNPAIR("Chamber Door state: ", cb_state_);
+  }
+  else {
+    SERIAL_ECHOLN("Enclosure: Off");
   }
 }
 

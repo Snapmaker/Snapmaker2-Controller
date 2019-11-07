@@ -835,8 +835,8 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       action_ban = ACTION_BAN_NO_HEATING_BED;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
+        LOG_E("Error happened in Thermistor of Heated Bed!\n");
       }
-      LOG_E("Error happened in Thermistor of Heated Bed!\n");
       break;
 
     default:

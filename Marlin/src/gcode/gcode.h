@@ -881,7 +881,7 @@ private:
 
   static void M1028();
 
-  static void M1120();
+  static void M1010();
 
   static void M2000();
 
