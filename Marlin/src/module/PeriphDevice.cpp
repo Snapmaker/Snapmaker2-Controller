@@ -26,7 +26,7 @@ void PeriphDevice::Init()
   IOSwitch = 0;
   online_ = 0;
 
-  // check if chamber is exist and door
+  // check if chamber is exist and if door is opened or not
   for (i = 0; i < CanBusControlor.ExtendModuleCount; i++) {
     if (CanBusControlor.ExtendModuleMacList[i] & MAKE_ID(MODULE_ENCLOSER)) {
       LOG_I("Chamber is connected\n");

@@ -460,7 +460,7 @@ void CanModule::PrepareRestModules(void) {
   }
 
   // Sort the function ID in FuncIDList[] per the priority in FuncIDPriority[]
-  // After sorting, FuncIDPriority[], FuncIDList[], MacIDofFuncID[] is
+  // After sorting, FuncIDPriority[], FuncIDList[], MacIDofFuncID[] are all sorted by priority
   uint32_t tmpswapvalue;
   if (FuncIDCount > 1)
   {
