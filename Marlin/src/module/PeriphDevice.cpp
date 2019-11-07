@@ -23,12 +23,20 @@ void PeriphDevice::Init()
 
   cb_state_ = CHAMBER_STA_NONE;
   lock_uart_ = false;
+  IOSwitch = 0;
+  online_ = 0;
 
   // check if chamber is exist and door
   for (i = 0; i < CanBusControlor.ExtendModuleCount; i++) {
     if (CanBusControlor.ExtendModuleMacList[i] & MAKE_ID(MODULE_ENCLOSER)) {
+      LOG_I("Chamber is connected\n");
+
+      // set online flag
+      SBI(online_, PERIPH_IOSW_DOOR);
+
       // enable door checking by defualt
       SBI(IOSwitch, PERIPH_IOSW_DOOR);
+
       // delay to get door state
       while (PENDING((millis()), delay_100ms));
 

@@ -21,6 +21,12 @@ void GcodeSuite::M1010() {
     return;
   }
 
+  // if chamber is not exist, not allow other operation
+  if (!Periph.IsOnline(PERIPH_IOSW_DOOR)) {
+    SERIAL_ECHOLN("Chamber is not exist.");
+    return;
+  }
+
   s = parser.byteval('S', 12);
 
   switch (s)

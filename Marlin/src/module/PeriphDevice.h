@@ -45,6 +45,7 @@ public:
   void Process();
 
   void TriggerDoorEvent(bool open);
+  bool IsOnline(uint8_t periph_mask) { return TEST(online_, periph_mask); }
 
 private:
   void CheckChamberDoor();
@@ -55,6 +56,7 @@ private:
   ChamberState cb_state_;
   bool      lock_uart_;
   millis_t  next_ms_;
+  uint8_t   online_;
 
 public:
   uint8_t IOSwitch;
