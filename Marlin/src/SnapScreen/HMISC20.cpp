@@ -1301,9 +1301,10 @@ void HMI_SC20::HandleOneCommand()
             }
             else {
               j = 10;
-              fX = BYTES_TO_32BITS(tmpBuff, j);
-              LOG_I("Laser: Z offset from SC is %.3f\n", fX);
-              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], fX, 21);
+              fZ = BYTES_TO_32BITS(tmpBuff, j);
+              fZ /= 1000;
+              LOG_I("Laser: Z offset from SC is %.3f\n", fZ);
+              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], fZ, 21);
             }
             MarkNeedReack(0);
           }
