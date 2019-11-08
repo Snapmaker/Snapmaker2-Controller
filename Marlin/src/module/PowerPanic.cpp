@@ -82,116 +82,118 @@ int PowerPanic::Load(void)
 	uint32_t Flag;
   int ret = 0;
 
-	//记录大小
+	// size of one record, prefix 8 bytes
 	RecordSize = (sizeof(strPowerPanicSave) + 8);
-	//记录总空间
+
+	// total records which can be saved
 	TotalCount = RECORD_COUNT_PER_PAGE * FLASH_RECORD_PAGES;
   tmpIndex = 0;
 
-	//查找空块
-	for(i=0;i<TotalCount;i++)
-	{
-		//计算地址
+	// find the first free block
+	for (i = 0; i < TotalCount; i++) {
+		// start addr for every record
 		addr = (i / RECORD_COUNT_PER_PAGE) * 2048 + (i % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
-		//读取标置
+
+		// read the start flag
 		Flag = *((uint32_t*)addr);
-		//空块
-		if(Flag == 0xffffffff)
-		{
-			//
+
+		if (Flag == 0xffffffff) {
+			// tmpIndex point to a possible Non-free block, if i==0, it will ponit to the last block
 			tmpIndex = (i + TotalCount - 1) % TotalCount;
 			break;
 		}
 	}
 
-	//查找最后一个非空块
-	for(i=0;i<TotalCount;i++)
+	// try to find a non-free block
+	for (i = 0; i < TotalCount; i++)
 	{
-		//计算地址
+		// start address of one block
 		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
 		Flag = *((uint32_t*)addr);
-		//非空块
-		if(Flag != 0xffffffff)
+
+		// if its start flag is not 0xffffffff, it is a non-free block
+		if (Flag != 0xffffffff)
 			break;
-		//
+
+		// index tmpIndex forward until finding a non-free block or i reach TotalCount
+		// if i reach TotalCount, it indicates all block is free
 		tmpIndex = (tmpIndex + TotalCount - 1) % TotalCount;
 	}
 
-	//读取标置位
-	Flag = *((uint32_t*)addr);
-	//Flash  是空的，表示没有记录
-	if(Flag == 0xffffffff)
-	{
-		//当前位置作为写入位置
+	// check the last value of flag
+	if(Flag == 0xffffffff) {
+		// arrive here we know the flash area is empty, never recording any power-loss data
+		// make index to be 0
 		WriteIndex = 0;
-		//标置无效
+		// make flag to be invalid
 		pre_data_.Valid = 0;
-		//标志断电错误标置
+		// return value
 		ret = 2;
 	}
-	else
-	{
-		//地址
-		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 8 + FLASH_MARLIN_POWERPANIC;
-		//读取数据
-		pSrcBuff = (uint8_t*)addr;
-		pDstBuff = (uint8_t*)&pre_data_;
-		for(uint32_t i=0;i<sizeof(strPowerPanicSave);i++)
-			*pDstBuff++ = *pSrcBuff++;
+	else {
+		// arrive here we may have avalible power-loss data
 
-		//校验
-		uint32_t Checksum;
-		uint32_t tmpChecksum;
-		tmpChecksum = pre_data_.CheckSum;
-		pre_data_.CheckSum = 0;
-		Checksum = 0;
-		pSrcBuff = (uint8_t*)&pre_data_;
-		for(uint32_t i=0;i<sizeof(strPowerPanicSave);i++)
-			Checksum += pSrcBuff[i];
-		//Checksum = Checksum - (uint8_t)(Data.CheckSum >> 24) - (uint8_t)(Data.CheckSum >> 16) - (uint8_t)(Data.CheckSum >> 8) -
-		// (uint8_t)(Data.CheckSum);
-
-		//校验失败
-		if(Checksum != tmpChecksum)
-		{
-			SERIAL_ECHOLNPAIR("checksum of power-loss data: ", tmpChecksum, " is error, calculated result is: ", Checksum);
-			//清除标志
-			FLASH_Unlock();
-			addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
-			FLASH_ProgramWord(addr, 0);
-			FLASH_Lock();
-			//标置无效
-			pre_data_.Valid = 0;
-			//标志断电错误标置
-			ret = 1;
-		}
-		//校验成功
-		else
-		{
-			//标置有效
-			pre_data_.Valid = 1;
-		}
-
-		//地址
+		// check firstly whether this block is masked
 		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 4 + FLASH_MARLIN_POWERPANIC;
-		//读取标置位
 		Flag = *((uint32_t*)addr);
-		//完整标置无效
-		if(Flag != 0x5555)
-		{
+		if(Flag != 0x5555) {
+			// alright, this block has been masked by Screen
+
+			// make data to be invalid
 			pre_data_.Valid = 0;
-			//标志断电错误标置
 			ret = 1;
 		}
+		else {
+			// Good, it seems we have new power-loss data, have a look at whether it is available
+			// read the data to buffer
+			addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 8 + FLASH_MARLIN_POWERPANIC;
+			pSrcBuff = (uint8_t*)addr;
+			pDstBuff = (uint8_t*)&pre_data_;
+			for (i = 0; i < sizeof(strPowerPanicSave); i++)
+				*pDstBuff++ = *pSrcBuff++;
 
-		//下一个位置作为写入位置
+			// calculate checksum
+			uint32_t Checksum;
+			uint32_t tmpChecksum;
+			tmpChecksum = pre_data_.CheckSum;
+			pre_data_.CheckSum = 0;
+			Checksum = 0;
+			pSrcBuff = (uint8_t*)&pre_data_;
+			for (i = 0; i < sizeof(strPowerPanicSave); i++)
+				Checksum += pSrcBuff[i];
+			//Checksum = Checksum - (uint8_t)(Data.CheckSum >> 24) - (uint8_t)(Data.CheckSum >> 16) - (uint8_t)(Data.CheckSum >> 8) -
+			// (uint8_t)(Data.CheckSum);
+
+			if (Checksum != tmpChecksum) {
+				// shit! uncorrent checksum, flash was damaged?
+				LOG_E("Error checksum[0x%08x] for power-loss data, should be [0x%08x]\n", tmpChecksum, Checksum);
+
+				// anyway, we mask this block
+				FLASH_Unlock();
+				addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 4 + FLASH_MARLIN_POWERPANIC;
+				FLASH_ProgramWord(addr, 0);
+				FLASH_Lock();
+				// make data to be invalid
+				pre_data_.Valid = 0;
+				ret = 1;
+			}
+			else {
+				// correct checksum
+				pre_data_.Valid = 1;
+			}
+		}
+
+		// make write index to point next block
 		WriteIndex = (tmpIndex + 1) % TotalCount;
-		//首地址
-		if((WriteIndex % RECORD_COUNT_PER_PAGE) == 0)
+		// check if need to erase flash page
+		if ((WriteIndex % RECORD_COUNT_PER_PAGE) == 0)
 		{
-			//控除FLASH
+			// NOTE that: when WriteIndex point to the 2nd or 3rd pages firstly, this will be executed at every power-on.
+			// Because its previous block is not free, that is to say, the start flag is not 0xffffffff
+			// Though this may be executed many times, the flash is only erased when it is not empty.
+			// So it's no need to check if we need to erase flash at every power-on. Just do it.
 			FLASH_Unlock();
-			addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+			addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
 			FLASH_ErasePage(addr);
 			FLASH_Lock();
 		}
