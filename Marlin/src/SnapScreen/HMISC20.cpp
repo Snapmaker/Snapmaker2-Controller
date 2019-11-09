@@ -557,7 +557,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
 
 /********************************************************
-激光画方框
+ * API for movement
 *********************************************************/
 void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Option) {
   X = X / 1000.0f;
@@ -584,6 +584,39 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Optio
       move_to_limited_z(current_position[Z_AXIS] + Z, F? F : 10.0f);
       move_to_limited_xy(current_position[X_AXIS] + X, current_position[Y_AXIS] + Y, F? F : 30.0f);
       break;
+  }
+
+  planner.synchronize();
+}
+
+
+void HMI_SC20::MoveE(float extrude_len, float extrude_speed, float retract_len, float retract_speed, uint8_t Option) {
+  extrude_len = extrude_len / 1000.0f;
+  extrude_speed = extrude_speed / 60000.0f;
+  retract_len = retract_len / 1000.0f;
+  retract_speed = retract_speed / 60000.0f;
+
+  switch (Option) {
+  // extrude firstly
+  case 0:
+    current_position[E_AXIS] += extrude_len;
+    line_to_current_position(extrude_speed);
+    planner.synchronize();
+    current_position[E_AXIS] -= retract_len;
+    line_to_current_position(retract_speed);
+    break;
+
+  // retract firstly
+  case 1:
+    current_position[E_AXIS] -= retract_len;
+    line_to_current_position(retract_speed);
+    planner.synchronize();
+    current_position[E_AXIS] += extrude_len;
+    line_to_current_position(extrude_speed);
+    break;
+
+  default:
+    break;
   }
 
   planner.synchronize();
@@ -1370,35 +1403,52 @@ void HMI_SC20::HandleOneCommand()
     //Movement Request
     else if (eventId == EID_MOVEMENT_REQ) {
       float F = 0;
-      j = 10;
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+      switch (OpCode) {
+      //激光回原点应答
+      case 0x01:
+        //调平数据失效
+        MovementProcess(0, 0, 0, 0, 0);
+        break;
 
-      if (cmdLen >= 18) {
+      //绝对坐标移动轴
+      case 0x02:
+      case 0x03:
+        j = IDX_DATA0;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+        if (cmdLen >= 18) {
+          BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
+        }
+        MovementProcess(fX, fY, fZ, F, OpCode - 1);
+        MarkNeedReack(0);
+        break;
+
+      case 0x04:
+        if (thermalManager.degHotend(0) < 180) {
+          LOG_E("temperature is cool, cannot move E!\n");
+          MarkNeedReack(1);
+          break;
+        }
+        j = IDX_DATA0 + 1;
+        // avoid to alloc new temp var, use the common var:
+        // extrude length
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
+        // extrude speed
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
+        // retract length
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+        // retract speed
         BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
+        MoveE(fX, fX, fZ, F, tmpBuff[IDX_DATA0]);
+        MarkNeedReack(0);
+        break;
+
+      default:
+        LOG_E("not supported command!\n");
+        MarkNeedReack(1);
+        break;
       }
-
-      switch (OpCode)
-      {
-        //激光回原点应答
-        case 0x01:
-          //调平数据失效
-          MovementProcess(0, 0, 0, 0, 0);
-          break;
-
-        //绝对坐标移动轴
-        case 0x02:
-          MovementProcess(fX, fY, fZ, F, 1);
-          break;
-
-        //相对坐标移动轴
-        case 0x03:
-          MovementProcess(fX, fY, fZ, F, 2);
-          break;
-      }
-      //应答
-      MarkNeedReack(0);
     }
     //WIFI & Bluetooth
     else if (eventId == EID_LAS_CAM_OP_REQ) {
