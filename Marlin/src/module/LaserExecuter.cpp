@@ -508,41 +508,50 @@ uint16_t LaserExecuter::GetTimPwm() {
  * API for power-loss, percent is the last settings from HOST, and pwm maybe 0
 */
 void LaserExecuter::RestorePower(float percent, uint16_t pwm) {
+  ChangePower(percent);
+
+  if (pwm > last_pwm)
+    pwm = last_pwm;
+
+  CheckFan(pwm);
+  TimSetPwm(pwm);
+}
+
+/**
+ * change power limit, will be call when open / close chamber door
+*/
+void LaserExecuter::ChangePowerLimit(float limit) {
+  if (limit > LASER_POWER_NORMAL_LIMIT)
+    limit = LASER_POWER_NORMAL_LIMIT;
+
+  // if previous limit is larger than now, need to check need to lower current output
+  if (last_percent > limit) {
+    ChangePower(limit);
+
+    if (GetTimPwm() > last_pwm) {
+      // lower current output
+      CheckFan(last_pwm);
+      TimSetPwm(last_pwm);
+    }
+  }
+
+  power_limit_ = limit;
+}
+
+/**
+ * change power value, but not change output power
+*/
+void LaserExecuter::ChangePower(float percent) {
   int integer;
   float decimal;
+
+  if (percent > power_limit_)
+    percent = power_limit_;
+
   last_percent = percent;
   integer = percent;
   decimal = percent - integer;
 
   last_percent = percent;
   last_pwm = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
-  TimSetPwm(pwm);
-}
-
-
-void LaserExecuter::ChangePowerLimit(float limit) {
-  int      integer;
-  float    decimal;
-  uint16_t pwm_limit;
-
-  if (limit > LASER_POWER_NORMAL_LIMIT)
-    limit = LASER_POWER_NORMAL_LIMIT;
-
-  // if previous limit is larger than now, need to check need to lower current output
-  if (last_percent > limit) {
-    integer = (int)limit;
-    decimal = limit - integer;
-
-    pwm_limit = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
-
-    if (GetTimPwm() > pwm_limit) {
-      // lower current output
-      SetLaserPower(pwm_limit);
-    }
-
-    last_percent = limit;
-    last_pwm = pwm_limit;
-  }
-
-  power_limit_ = limit;
 }

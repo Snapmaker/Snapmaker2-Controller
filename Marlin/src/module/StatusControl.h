@@ -133,6 +133,15 @@ enum WorkingPort : uint8_t {
   WORKING_PORT_INVALID
 };
 
+enum RuntimeEnvType : uint8_t {
+  RENV_TYPE_FEEDRATE,
+  RENV_TYPE_HOTEND_TEMP,
+  RENV_TYPE_BED_TEMP,
+  RENV_TYPE_LASER_POWER,
+
+  RENV_TYPE_INVALID
+};
+
 class StatusControl
 {
 public:
@@ -187,6 +196,8 @@ public:
 
   void CallbackOpenDoor();
   void CallbackCloseDoor();
+
+  ErrCode ChangeRuntimeEnv(uint8_t param_type, float param);
 
 private:
   void inline resume_3dp(void);

@@ -1342,6 +1342,25 @@ void HMI_SC20::HandleOneCommand()
           LOG_I("SC req auto probe: Done!\n");
           break;
 
+        case 0xF:
+            LOG_I("SC req change env\n");
+            j = IDX_DATA0 + 1;
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
+            fX = int32Value / 1000.0f;
+            err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
+            if (err == E_SUCCESS) {
+              MarkNeedReack(0);
+            }
+            else if (err == E_INVALID_STATE) {
+              MarkNeedReack(2);
+              LOG_E("not supported parameter by current Tool head\n");
+            }
+            else {
+              MarkNeedReack(1);
+              LOG_E("invalid parameter\n");
+            }
+          break;
+
         //读取尺寸参数
         case 20:
           SendMachineSize();

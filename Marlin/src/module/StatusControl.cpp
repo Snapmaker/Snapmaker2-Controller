@@ -1472,3 +1472,69 @@ void StatusControl::CallbackOpenDoor() {
 void StatusControl::CallbackCloseDoor() {
   fault_flag_ &= FAULT_FLAG_DOOR_OPENED;
 }
+
+ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
+  ErrCode ret = E_SUCCESS;
+
+  switch (param_type) {
+  case RENV_TYPE_FEEDRATE:
+    LOG_I("feedrate scaling: %.2f\n", param);
+    if (param_type > 5) {
+      ret = E_PARAM;
+      break;
+    }
+    saved_g0_feedrate_mm_s *= param;
+    saved_g1_feedrate_mm_s *= param;
+    break;
+
+  case RENV_TYPE_HOTEND_TEMP:
+    LOG_I("new hotend temp: %.2f\n", param);
+    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param < HEATER_0_MAXTEMP)
+      thermalManager.setTargetHotend(param, 0);
+    else
+      ret = E_PARAM;
+    break;
+
+  case RENV_TYPE_BED_TEMP:
+    LOG_I("new bed temp: %.2f\n", param);
+    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param < BED_MAXTEMP)
+      thermalManager.setTargetBed(param);
+    else
+      ret = E_PARAM;
+    break;
+
+  case RENV_TYPE_LASER_POWER:
+    LOG_I("new laser power: %.2f\n", param);
+    if (MACHINE_TYPE_LASER != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param_type > 100 || param_type < 0)
+      ret = E_PARAM;
+    else {
+      ExecuterHead.Laser.ChangePower(param_type);
+      // change current output when it was turned on
+      if (ExecuterHead.Laser.GetTimPwm() > 0)
+        ExecuterHead.Laser.On();
+    }
+    break;
+
+  default:
+    LOG_E("invalid parameter type\n", param_type);
+    ret = E_PARAM;
+    break;
+  }
+
+  return ret;
+}
