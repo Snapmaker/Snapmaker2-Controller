@@ -1342,9 +1342,12 @@ void loop() {
   }
 
   ExecuterHead.Print3D.HeatedBedSelfCheck();
-  SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
   Periph.Init();
+
+  SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
+
+  SERIAL_ECHOLN("Finish init");
 
   for (;;) {
 
