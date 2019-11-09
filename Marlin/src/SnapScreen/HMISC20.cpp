@@ -592,7 +592,7 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Optio
 /********************************************************
 平自动调平处理
 *********************************************************/
-uint8_t HMI_SC20::HalfAutoCalibrate()
+uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
 {
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
@@ -603,7 +603,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-      move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
+      move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
       planner.synchronize();
     }
     else
@@ -615,17 +615,13 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     // change the Z max feedrate
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
-    // Set the current position of Z to Z_MAX_POS
-    //current_position[Z_AXIS] = Z_MAX_POS;
-    //sync_plan_position();
-
     endstops.enable_z_probe(true);
 
     // move quicky firstly to decrease the time
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
     planner.synchronize();
 
-    auto_probing(true);
+    auto_probing(true, fast_leveling);
 
     endstops.enable_z_probe(false);
 
@@ -1148,7 +1144,7 @@ void HMI_SC20::HandleOneCommand()
 
         // enable auto level bed
         case 2:
-          MarkNeedReack(HalfAutoCalibrate());
+          MarkNeedReack(HalfAutoCalibrate(false));
           break;
 
         // enble manual level bed
@@ -1180,7 +1176,6 @@ void HMI_SC20::HandleOneCommand()
         case 6:
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          LOG_I("SC req move z, offset: %.3f, cur z: %.3f\n", fZ, current_position[Z_AXIS] + fZ);
           move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
@@ -1191,11 +1186,12 @@ void HMI_SC20::HandleOneCommand()
           if (CMD_BUFF_EMPTY() == true) {
             process_cmd_imd("G1029 S0");
 
+            set_bed_leveling_enabled(true);
+
+            // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
-
-            set_bed_leveling_enabled(true);
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1218,11 +1214,12 @@ void HMI_SC20::HandleOneCommand()
             //Load
             settings.load();
 
+            set_bed_leveling_enabled(true);
+
+            // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
-
-            set_bed_leveling_enabled(true);
 
             HMICommandSave = 0;
 
@@ -1323,19 +1320,21 @@ void HMI_SC20::HandleOneCommand()
             break;
           }
 
-          if (HalfAutoCalibrate()) {
+          if (HalfAutoCalibrate(true)) {
             MarkNeedReack(1);
             LOG_E("Auto calibration failed!\n");
             break;
           }
 
           process_cmd_imd("G1029 S1");
-          // home all axis
+
+          set_bed_leveling_enabled(true);
+
+          // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
           move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
-          set_bed_leveling_enabled(true);
 
           CalibrateMethod = 0;
           HMICommandSave = 0;

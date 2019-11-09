@@ -56,7 +56,7 @@ public:
 private:
   void HmiWriteData(char *pData, uint16_t len);
   short GetCommand(unsigned char *pBuff);
-  uint8_t HalfAutoCalibrate();
+  uint8_t HalfAutoCalibrate(bool fast_leveling);
   uint8_t ManualCalibrateStart();
   void ResizeMachine(char *pBuff);
   void SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PWD, char * IP);
