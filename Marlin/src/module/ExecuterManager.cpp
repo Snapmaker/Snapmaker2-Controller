@@ -68,10 +68,13 @@ void ExecuterManager::CheckAlive() {
 void ExecuterManager::CallbackOpenDoor() {
   switch (MachineType) {
   case MACHINE_TYPE_LASER:
-    Laser.ChangePowerLimit(LASER_POWER_SAFE_LIMIT);
+    // just handle working with PC
+    if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
+      Laser.ChangePowerLimit(LASER_POWER_SAFE_LIMIT);
     break;
 
   case MACHINE_TYPE_CNC:
+    // just handle working with PC
     if (CNC.GetRPM() > 0 && SystemStatus.GetWorkingPort() != WORKING_PORT_SC) {
       quickstop.Trigger(QS_EVENT_STOP);
       Periph.SetUartLock(true);

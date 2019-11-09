@@ -800,7 +800,7 @@ void GcodeSuite::process_parsed_command(
 
   if (Periph.GetHoldUart()) {
     // only handle M1120
-    if (parser.command_letter == 'M' && parser.codenum == 1120) {
+    if (parser.command_letter == 'M' && parser.codenum == 1010) {
       execute_command();
       ok_to_send();
     }

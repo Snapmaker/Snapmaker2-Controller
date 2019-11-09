@@ -44,9 +44,7 @@ void StatusControl::Init() {
  */
 ErrCode StatusControl::PauseTrigger(TriggerSource type)
 {
-  SysStage stage = GetCurrentStage();
-
-  if (stage != SYSTAGE_WORK) {
+  if (cur_status_ != SYSTAT_WORK && cur_status_!= SYSTAT_RESUME_WAITING) {
     LOG_W("cannot pause in current status: %d\n", cur_status_);
     return E_INVALID_STATE;
   }
@@ -99,9 +97,8 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
  * return: true if stop triggle success, or false
  */
 ErrCode StatusControl::StopTrigger(TriggerSource type) {
-  SysStage stage = GetCurrentStage();
 
-  if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
+  if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {
     LOG_W("cannot stop in current status[%d]\n", cur_status_);
     return E_INVALID_STATE;
@@ -353,14 +350,6 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
     return E_INVALID_STATE;
   }
 
-  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
-        runout.is_filament_runout()) {
-    LOG_E("No filemant! Please insert filemant!\n");
-    fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
-    return E_NO_RESRC;
-  }
-
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     if (runout.is_filament_runout()) {
@@ -429,12 +418,16 @@ ErrCode StatusControl::ResumeOver() {
     return E_INVALID_STATE;
   }
 
+  if (cur_status_ != SYSTAT_RESUME_WAITING)
+    return E_INVALID_STATE;
+
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
       fault_flag_ |= FAULT_FLAG_FILAMENT;
       HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
+      PauseTrigger(TRIGGER_SOURCE_RUNOUT);
       return E_NO_RESRC;
     }
     break;
@@ -445,6 +438,7 @@ ErrCode StatusControl::ResumeOver() {
       LOG_E("Door is opened, please close the door!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
+      PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
       return E_HARDWARE;
     }
 
@@ -1470,10 +1464,6 @@ void StatusControl::CallbackOpenDoor() {
   if (cur_status_ == SYSTAT_WORK) {
     PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
     HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
-  }
-
-  if (GetCurrentStage() == SYSTAGE_RESUMING) {
-
   }
 
   fault_flag_ |= FAULT_FLAG_DOOR_OPENED;

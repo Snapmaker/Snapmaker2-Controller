@@ -215,8 +215,6 @@ private:
 
   SysStatus cur_status_;
   WorkingPort work_port_;    // indicates we are handling Gcode from which UART
-
-  bool delay_pause_;
 };
 
 extern StatusControl SystemStatus;

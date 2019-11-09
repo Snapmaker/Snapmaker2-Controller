@@ -948,7 +948,8 @@ void HMI_SC20::HandleOneCommand()
         j = cmdLen + 8;
         tmpBuff[j] = 0;
 
-        if (cur_status == SYSTAT_RESUME_WAITING) {
+        // when we are resuming, won't handle any Gcode
+        if (cur_stage == SYSTAGE_RESUMING) {
           if (SystemStatus.ResumeOver() == E_SUCCESS) {
             Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
           }
