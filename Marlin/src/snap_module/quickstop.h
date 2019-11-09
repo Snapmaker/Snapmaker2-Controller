@@ -35,7 +35,6 @@ class QuickStop {
     ErrCode Trigger(QuickStopEvent e);
     void Process();
 
-    bool IsStopped() { return stopped_; };
     bool IsTriggered() { return !!event_; }
 
   private:
@@ -44,7 +43,6 @@ class QuickStop {
     volatile QuickStopSync sync_flag_ = QS_SYNC_NONE;
 
     bool disable_stepper_ = false;
-    bool stopped_ = false;
 
     void CleanMoves();
     void TowardStop();

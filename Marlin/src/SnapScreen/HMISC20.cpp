@@ -348,7 +348,7 @@ void HMI_SC20::UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen)
 
   Packindex = (uint16_t) ((pBuff[0] << 8) | pBuff[1]);
   maxpack = MARLIN_CODE_SIZE / 512;
-  //暂定500包，即250K
+
   if ((Packindex < maxpack) && (UpdateInProgress == 1) && (Packindex == UpdatePackRequest)) {
     //减去包序号2个字节
     DataLen = DataLen - 2;
@@ -869,6 +869,13 @@ void HMI_SC20::PollingCommand() {
   if (checkout_cmd[next_cmd_idx][IDX_EVENT_ID] == EID_STATUS_REQ &&
         checkout_cmd[next_cmd_idx][IDX_OP_CODE] == 1) {
     SendMachineStatus();
+    if (debug.GetLevel() == SNAP_DEBUG_LEVEL_TRACE) {
+      LOG_T("Heartbeat: ");
+      for (int i=0; i<10; i++) {
+        LOG_T("%08X ", *((uint32_t *)status_buff + i));
+      }
+      LOG_T("\n\n");
+    }
     return;
   }
 
@@ -941,15 +948,15 @@ void HMI_SC20::HandleOneCommand()
         j = cmdLen + 8;
         tmpBuff[j] = 0;
 
-        // for comment, resturn ok immediately
-        if (tmpBuff[13] != ';') {
-          if (cur_status == SYSTAT_RESUME_WAITING) {
-            SystemStatus.ResumeOver();
+        if (cur_status == SYSTAT_RESUME_WAITING) {
+          if (SystemStatus.ResumeOver() == E_SUCCESS) {
+            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
           }
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
+          else
+            SendGcode("ok\n", 0x4);
         }
         else
-          SendGcode("ok\n", 0x4);
+          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
       }
     }
 
@@ -1294,9 +1301,10 @@ void HMI_SC20::HandleOneCommand()
             }
             else {
               j = 10;
-              fX = BYTES_TO_32BITS(tmpBuff, j);
-              LOG_I("Laser: Z offset from SC is %.3f\n", fX);
-              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], fX, 21);
+              fZ = BYTES_TO_32BITS(tmpBuff, j);
+              fZ /= 1000;
+              LOG_I("Laser: Z offset from SC is %.3f\n", fZ);
+              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], fZ, 21);
             }
             MarkNeedReack(0);
           }
@@ -1544,7 +1552,7 @@ void HMI_SC20::HandleOneCommand()
         break;
 
       case CMD_ENCLOSURE_FAN_SWITCH:
-        if(tmpBuff[IDX_DATA0] == 0) 
+        if(tmpBuff[IDX_DATA0] == 0)
           Periph.SetEnclosureFanSpeed(0);
         else
           Periph.SetEnclosureFanSpeed(255);
@@ -2017,14 +2025,14 @@ void HMI_SC20::SendMachineStatus()
   thermalManager.temp_bed.current;
   TBS = (int16_t)
   thermalManager.temp_bed.target;
-  status_buff[i++] = (uint8_t) ((int) TB >> 8);
-  status_buff[i++] = (uint8_t) ((int) TB);
-  status_buff[i++] = (uint8_t) ((int) TBS >> 8);
-  status_buff[i++] = (uint8_t) ((int) TBS);
-  status_buff[i++] = (uint8_t) ((int) T0 >> 8);
-  status_buff[i++] = (uint8_t) ((int) T0);
-  status_buff[i++] = (uint8_t) ((int) T0S >> 8);
-  status_buff[i++] = (uint8_t) ((int) T0S);
+  status_buff[i++] = (uint8_t) (TB >> 8);
+  status_buff[i++] = (uint8_t) (TB);
+  status_buff[i++] = (uint8_t) (TBS >> 8);
+  status_buff[i++] = (uint8_t) (TBS);
+  status_buff[i++] = (uint8_t) (T0 >> 8);
+  status_buff[i++] = (uint8_t) (T0);
+  status_buff[i++] = (uint8_t) (T0S >> 8);
+  status_buff[i++] = (uint8_t) (T0S);
 
   //FeedRate
   fValue = (last_feedrate * 60);

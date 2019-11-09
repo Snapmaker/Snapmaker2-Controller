@@ -7,6 +7,8 @@
 #include "CanBus.h"
 #include "CanDefines.h"
 #include "StatusControl.h"
+#include "PeriphDevice.h"
+#include "../snap_module/quickstop.h"
 
 ExecuterManager ExecuterHead;
 
@@ -50,6 +52,8 @@ void ExecuterManager::CheckAlive() {
     if (MACHINE_TYPE_LASER == MachineType) {
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LASER_FOCUS, NULL, 0);
     }
+
+    next_second = millis() + 1000;
   }
 
   if (watch.CheckAlive() == HB_STA_JUST_DEAD) {
@@ -60,6 +64,40 @@ void ExecuterManager::CheckAlive() {
     SystemStatus.ClearException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
   }
 }
+
+void ExecuterManager::CallbackOpenDoor() {
+  switch (MachineType) {
+  case MACHINE_TYPE_LASER:
+    Laser.ChangePowerLimit(LASER_POWER_SAFE_LIMIT);
+    break;
+
+  case MACHINE_TYPE_CNC:
+    if (CNC.GetRPM() > 0 && SystemStatus.GetWorkingPort() != WORKING_PORT_SC) {
+      quickstop.Trigger(QS_EVENT_STOP);
+      Periph.SetUartLock(true);
+    }
+    break;
+
+  default:
+    break;
+  }
+}
+
+void ExecuterManager::CallbackCloseDoor() {
+  switch (MachineType) {
+  case MACHINE_TYPE_LASER:
+    Laser.ChangePowerLimit(LASER_POWER_NORMAL_LIMIT);
+    break;
+
+  case MACHINE_TYPE_CNC:
+    Periph.SetUartLock(false);
+    break;
+
+  default:
+    break;
+  }
+}
+
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
   /**

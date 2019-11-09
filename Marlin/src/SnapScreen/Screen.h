@@ -24,7 +24,7 @@ class HMIScreen
     uint8_t GetRequestStatus(void);
     void ClearRequestStatus();
     void SendModuleVersion(uint32_t MacID, char *pVersion);
-    #if ENABLED(HMI_SC20W)  
+    #if ENABLED(HMI_SC20W)
       void SendMachineStatusChange(uint8_t, uint8_t);
       void SendMachineFaultFlag(uint32_t flag = 0);
       void SendGcode(char *GCode, uint8_t EventID);
@@ -50,7 +50,7 @@ class HMIScreen
     uint32_t ScreenLockTick;
     bool ScreenLock;
     uint8_t CalibrateMethod;
-    
+
 };
 
 extern HMIScreen HMI;

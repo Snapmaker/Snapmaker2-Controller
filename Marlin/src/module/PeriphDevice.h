@@ -2,38 +2,30 @@
 
 #include "../inc/MarlinConfig.h"
 
-//IO Switch Bits
-#define PERIPH_IOSW_DOOR     1
+//IO Switch Bits position
+#define PERIPH_IOSW_DOOR     0  // bit[0]
 
 #define PERIPH_FAN_COUNT 1
 
-enum EnclosureEvent : uint8_t {
-  ENCLOSURE_EVENT_NONE,
-  ENCLOSURE_EVENT_OPEN,
-  ENCLOSURE_EVENT_OPEN_FINISH,
-  ENCLOSURE_EVENT_CLOSE,
-  ENCLOSURE_EVENT_INVALID
+enum ChamberState : uint8_t {
+  CHAMBER_STA_NONE,
+  CHAMBER_STA_OPEN,
+  CHAMBER_STA_OPEN_HANDLED,
+  CHAMBER_STA_CLOSED,
+  CHAMBER_STA_INVALID
 };
 
-class PeriphDevice 
+class PeriphDevice
 {
 public:
   PeriphDevice(){};
   void Init();
   #if ENABLED(DOOR_SWITCH)
-    void DoorSwitchInit();
     void SetDoorCheck(bool Enable);
-    void StartDoorCheck();
-    void StopDoorCheck();
-    FORCE_INLINE bool GetDoorCheckFlag() { return TEST(IOSwitch, PERIPH_IOSW_DOOR); } 
+    FORCE_INLINE bool GetDoorCheckFlag() { return TEST(IOSwitch, PERIPH_IOSW_DOOR); }
     bool IsDoorOpened();
-    EnclosureEvent LatestEnclosureEvent() { return latest_enclosure_event_; }
-    void LatestEnclosureEvent(EnclosureEvent);
   #else
-    void DoorSwitchInit() {}
     void SetDoorCheck(bool Enable) {}
-    void StartDoorCheck() {}
-    void StopDoorCheck() {}
     FORCE_INLINE bool GetDoorCheckFlag() { return false; }
     FORCE_INLINE bool IsDoorOpened() { return true; }
   #endif
@@ -44,12 +36,27 @@ public:
     void SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value);
     void SetEnclosureFanSpeed(uint8_t s_value);
   #endif
-  
+
+  void SetUartLock(bool f);
+  bool FORCE_INLINE GetHoldUart() { return TEST(IOSwitch, PERIPH_IOSW_DOOR) && lock_uart_; }
+
+  void ReportStatus();
+
   void Process();
+
+  void TriggerDoorEvent(bool open);
+  bool IsOnline(uint8_t periph_mask) { return TEST(online_, periph_mask); }
+
+private:
+  void CheckChamberDoor();
+  void TellUartState();
 
 private:
   uint8_t FanSpeed[PERIPH_FAN_COUNT];
-  EnclosureEvent latest_enclosure_event_;
+  ChamberState cb_state_;
+  bool      lock_uart_;
+  millis_t  next_ms_;
+  uint8_t   online_;
 
 public:
   uint8_t IOSwitch;
