@@ -127,7 +127,10 @@ void GcodeSuite::G1029() {
     }
 
     bed_level_virt_interpolate();
-    settings.save();
+
+    // only save data in flash after adjusting z offset
+    if (opt_s == 0)
+      settings.save();
     return;
   }
 
