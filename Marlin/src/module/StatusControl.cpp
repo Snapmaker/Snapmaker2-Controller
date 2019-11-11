@@ -243,12 +243,12 @@ void inline StatusControl::resume_3dp(void) {
   process_cmd_imd("G92 E0");
 
   relative_mode = true;
-  process_cmd_imd("G0 E20 F400");
+  process_cmd_imd("G0 E30 F400");
   // retract filament to try to cut it out
   process_cmd_imd("G0 E-6 F3600");
   planner.synchronize();
 
-  process_cmd_imd("G0 E8 F400");
+  process_cmd_imd("G0 E6 F400");
   planner.synchronize();
   relative_mode = false;
 

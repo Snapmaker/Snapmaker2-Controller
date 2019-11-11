@@ -21,6 +21,7 @@
 #include "../feature/runout.h"
 
 #include "PowerPanic.h"
+#include "ExecuterManager.h"
 
 #define FLASH_PAGE_SIZE	2048
 #define FLASH_RECORD_PAGES	(MARLIN_POWERPANIC_SIZE / 2048)
@@ -48,8 +49,13 @@ void PowerPanic::Init(void) {
   {
   case 0:
     // got power panic data
-    SystemStatus.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
-    SERIAL_ECHOLNPGM("Got power panic data!");
+		if (ExecuterHead.MachineType == pre_data_.MachineType) {
+			SystemStatus.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
+			SERIAL_ECHOLNPGM("Got power panic data!");
+		}
+		else {
+			MaskPowerPanicData();
+		}
     break;
   case 1:
     // data read from flash is invalid
@@ -371,10 +377,10 @@ void PowerPanic::Resume3DP() {
 	}
 
 	// enable hotend
-	if(pre_data_.BedTamp > 130) {
+	if(pre_data_.BedTamp > BED_MAXTEMP - 15) {
 		LOG_W("recorded bed temp [%f] is larger than 150, limited it.\n",
 						pre_data_.BedTamp);
-		pre_data_.BedTamp = 130;
+		pre_data_.BedTamp = BED_MAXTEMP - 15;
 	}
 
 	if (pre_data_.HeaterTamp[0] > HEATER_0_MAXTEMP - 15) {
@@ -395,14 +401,14 @@ void PowerPanic::Resume3DP() {
 	// pre-extrude
 	relative_mode = true;
 
-	process_cmd_imd("G0 E15 F100");
+	process_cmd_imd("G0 E30 F100");
 	planner.synchronize();
 
 	// try to cut out filament
 	process_cmd_imd("G0 E-6 F3600");
 
 	// try to cut out filament
-	process_cmd_imd("G0 E8 F400");
+	process_cmd_imd("G0 E6 F400");
 	planner.synchronize();
 
 	// absolute mode
@@ -521,17 +527,18 @@ ErrCode PowerPanic::ResumeWork() {
 
 	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
 			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
-	LOG_I("line number: %d\n", pre_data_.FilePosition);
 
 	switch (pre_data_.MachineType) {
 	case MACHINE_TYPE_3DPRINT:
-		LOG_I("previous recorded target hotend temperature is %.2f\n", pre_data_.HeaterTamp[0]);
-
 		if (runout.is_filament_runout()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
 			return E_HARDWARE;
 		}
+
+		LOG_I("previous recorded target hotend temperature is %.2f\n", pre_data_.HeaterTamp[0]);
+		LOG_I("previous recorded target bed temperature is %.2f\n", pre_data_.BedTamp);
+
 		Resume3DP();
 		break;
 
@@ -540,6 +547,9 @@ ErrCode PowerPanic::ResumeWork() {
 			LOG_E("trigger RESTORE: failed, door is open\n");
 			return E_INVALID_STATE;
 		}
+
+		LOG_I("previous recorded target CNC power is %.2f\n", pre_data_.cnc_power);
+
 		ResumeCNC();
 		break;
 
@@ -548,6 +558,10 @@ ErrCode PowerPanic::ResumeWork() {
 			LOG_E("trigger RESTORE: failed, door is open\n");
 			return E_INVALID_STATE;
 		}
+
+		LOG_I("previous recorded target Laser power is %.2f\n", pre_data_.laser_percent);
+		LOG_I("previous recorded target laser PWM is 0x%x\n", pre_data_.laser_pwm);
+
 		ResumeLaser();
 		break;
 

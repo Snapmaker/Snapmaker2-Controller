@@ -1062,9 +1062,6 @@ void setup() {
   // This also updates variables in the planner, elsewhere
   (void)settings.load();
 
-  // init power panic handler and load data from flash
-  powerpanic.Init();
-
   // reset the status of quickstop
   quickstop.Reset();
 
@@ -1319,6 +1316,8 @@ void loop() {
   #endif
 
   lightbar.init();
+  // init power panic handler and load data from flash
+  powerpanic.Init();
 
   if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
     SERIAL_ECHOLNPGM("Laser Module\r\n");
