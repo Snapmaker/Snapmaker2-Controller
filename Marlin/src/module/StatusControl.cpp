@@ -89,6 +89,9 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
   lightbar.set_state(LB_STATE_STANDBY);
 
+  // reset the status of filament monitor
+  runout.reset();
+
   return E_SUCCESS;
 }
 
