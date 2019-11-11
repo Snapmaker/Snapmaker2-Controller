@@ -107,16 +107,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
     return E_INVALID_STATE;
   }
 
-  if ((type == TRIGGER_SOURCE_SC) && (work_port_ != WORKING_PORT_SC)) {
-      LOG_W("current working port is not SC!");
-      return E_INVALID_STATE;
-  }
-
-  if ((type == TRIGGER_SOURCE_PC) && (work_port_ != WORKING_PORT_PC)) {
-    LOG_W("current working port is not PC!");
-    return E_INVALID_STATE;
-  }
-
   switch(type) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
@@ -161,7 +151,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
   stop_source_ = type;
 
   if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
-    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+    ExecuterHead.Laser.Off();
   }
 
   lightbar.set_state(LB_STATE_STANDBY);
@@ -182,13 +172,6 @@ void StatusControl::PauseProcess()
     // clear request flag of HMI
     HMI.ClearRequestStatus();
   }
-
-  LOG_I("\nstop point:\n");
-  LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", powerpanic.Data.PositionData[0],
-        powerpanic.Data.PositionData[1], powerpanic.Data.PositionData[2], powerpanic.Data.PositionData[3]);
-  LOG_I("position shift:\n");
-  LOG_I("X: %.2f, Y:%.2f, Z:%.2f\n", powerpanic.Data.position_shift[0],
-        powerpanic.Data.position_shift[1], powerpanic.Data.position_shift[2]);
 
   LOG_I("Finish pause\n");
   cur_status_ = SYSTAT_PAUSE_FINISH;
@@ -216,8 +199,8 @@ void StatusControl::StopProcess()
   cur_status_ = SYSTAT_IDLE;
   quickstop.Reset();
 
-  process_cmd_imd("M140 S0");
-  process_cmd_imd("M104 S0");
+  thermalManager.setTargetBed(0);
+  thermalManager.setTargetHotend(0, 0);
 
   LOG_I("Finish stop\n");
 }
@@ -444,8 +427,10 @@ ErrCode StatusControl::ResumeOver() {
       return E_HARDWARE;
     }
 
-    if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
-      ExecuterHead.Laser.RestorePower(powerpanic.Data.laser_percent, powerpanic.Data.laser_pwm);
+    if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+      if (powerpanic.Data.laser_pwm > 0)
+        ExecuterHead.Laser.On();
+    }
     break;
 
   default:

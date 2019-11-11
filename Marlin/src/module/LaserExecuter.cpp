@@ -7,6 +7,7 @@
 #include "CanBus.h"
 #include "CanDefines.h"
 #include "ExecuterManager.h"
+#include "StatusControl.h"
 
 // time to delay close fan, 5s
 #define TIME_TO_CLOSE_FAN (120 * 1000)
@@ -102,6 +103,11 @@ void LaserExecuter::SetLaserPower(float Percent)
   float decimal;
   uint16_t pwmvalue;
 
+  SysStatus cur_stat = SystemStatus.GetCurrentStatus();
+
+  if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG)
+    return;
+
   if (Percent > power_limit_)
     Percent = power_limit_;
 
@@ -118,17 +124,6 @@ void LaserExecuter::SetLaserPower(float Percent)
 }
 
 /**
- * SetLaserLowPower:Set laser power
- * para percent:
- */
-void LaserExecuter::SetLaserPower(uint16_t PwmValue)
-{
-  CheckFan(PwmValue);
-
-  TimSetPwm(PwmValue);
-}
-
-/**
  * Off:Laser off without changing the power
  */
 void LaserExecuter::Off()
@@ -142,6 +137,10 @@ void LaserExecuter::Off()
  */
 void LaserExecuter::On()
 {
+  SysStatus cur_stat = SystemStatus.GetCurrentStatus();
+
+  if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG)
+    return;
   CheckFan(last_pwm);
   TimSetPwm(last_pwm);
 }
@@ -501,20 +500,6 @@ char LaserExecuter::ReadBluetoothMac(uint8_t *Mac) {
 
 uint16_t LaserExecuter::GetTimPwm() {
   return Tim1GetCCR4();
-}
-
-
-/**
- * API for power-loss, percent is the last settings from HOST, and pwm maybe 0
-*/
-void LaserExecuter::RestorePower(float percent, uint16_t pwm) {
-  ChangePower(percent);
-
-  if (pwm > last_pwm)
-    pwm = last_pwm;
-
-  CheckFan(pwm);
-  TimSetPwm(pwm);
 }
 
 /**

@@ -343,9 +343,9 @@ int PowerPanic::SaveEnv(void) {
 		break;
 
 	case MACHINE_TYPE_LASER:
-		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
 		Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
-		ExecuterHead.Laser.RestorePower((float)0, 0);
+		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+		ExecuterHead.Laser.Off();
 	break;
 
 	default:
@@ -453,7 +453,7 @@ void PowerPanic::ResumeCNC() {
 
 void PowerPanic::ResumeLaser() {
 	// make sure laser is disable
-	ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+	ExecuterHead.Laser.Off();
 
 	// homing and restore workspace
 	RestoreWorkspace();
@@ -467,10 +467,12 @@ void PowerPanic::ResumeLaser() {
 	planner.synchronize();
 
 	// Because we open laser when receive first command after resuming,
-	// and there will set laser power with Data.laser_percent&Data.laser_pwm
+	// and there will check if Data.laser_pwm is larger than 0
 	// So we recover the value to them
-	Data.laser_percent = pre_data_.laser_percent;
 	Data.laser_pwm = pre_data_.laser_pwm;
+
+	// just change laser power but not enable output
+	ExecuterHead.Laser.ChangePower(pre_data_.laser_percent);
 }
 
 
