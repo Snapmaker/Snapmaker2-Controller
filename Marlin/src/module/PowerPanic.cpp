@@ -311,6 +311,7 @@ int PowerPanic::SaveEnv(void) {
     Data.FanSpeed[i] = Periph.GetFanSpeed(i);
 
   // if power loss, we have record the position to Data.PositionData[]
+	// NOTE that we save logical position for XYZ
 	for (i=0; i<NUM_AXIS; i++) {
 		Data.PositionData[i] = (i == E_AXIS) ?
 				current_position[i] : NATIVE_TO_LOGICAL(current_position[i], i);
@@ -376,65 +377,51 @@ void PowerPanic::Resume3DP() {
 		pre_data_.BedTamp = 130;
 	}
 
-	if (pre_data_.HeaterTamp[0] > 285) {
+	if (pre_data_.HeaterTamp[0] > HEATER_0_MAXTEMP - 15) {
 		LOG_W("recorded hotend temp [%f] is larger than 285, limited it.\n",
 						pre_data_.BedTamp);
-		pre_data_.HeaterTamp[0] = 285;
+		pre_data_.HeaterTamp[0] = HEATER_0_MAXTEMP - 15;
 	}
-
-	// for now, just care 1 hotend
-	sprintf(tmpBuff, "M104 S%0.2f\n", pre_data_.HeaterTamp[0]);
-	process_cmd_imd(tmpBuff);
-
-	// set heated bed temperature
-	sprintf(tmpBuff, "M140 S%d\n", (int)pre_data_.BedTamp);
-	process_cmd_imd(tmpBuff);
 
 	RestoreWorkspace();
 
-	// absolut mode
-	relative_mode = false;
-
-	// enable leveling
-	// because the recorded position is logical position
-	set_bed_leveling_enabled(true);
+	// for now, just care 1 hotend
+	thermalManager.setTargetHotend(0, pre_data_.HeaterTamp[0]);
 
 	// waiting temperature reach target
 	sprintf(tmpBuff, "M190 S%0.2f\n", pre_data_.BedTamp);
 	process_cmd_imd(tmpBuff);
 
-	sprintf(tmpBuff, "M109 S%0.2f\n", pre_data_.HeaterTamp[0]);
-	process_cmd_imd(tmpBuff);
-
 	// pre-extrude
 	relative_mode = true;
+
 	process_cmd_imd("G0 E15 F100");
 	planner.synchronize();
+
+	// try to cut out filament
+	process_cmd_imd("G0 E-6 F3600");
+
+	// try to cut out filament
+	process_cmd_imd("G0 E8 F400");
+	planner.synchronize();
+
+	// absolute mode
+	relative_mode = false;
 
 	// set E to previous position
 	current_position[E_AXIS] = pre_data_.PositionData[E_AXIS];
 	planner.set_e_position_mm(current_position[E_AXIS]);
 
-	// try to cut out filament
-	process_cmd_imd("G0 E-3 F3600");
-
-	// absolute mode
-	relative_mode = false;
-
 	// move to target X Y
-	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
-	process_cmd_imd(tmpBuff);
+	do_blocking_move_to_logical_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
 	planner.synchronize();
 
 	// move to target Z
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
-	process_cmd_imd(tmpBuff);
+	do_blocking_move_to_logical_z(pre_data_.PositionData[Z_AXIS], 30);
 	planner.synchronize();
 }
 
 void PowerPanic::ResumeCNC() {
-	char tmpBuff[32];
-
 	// for CNC recover form power-loss, we need to raise Z firstly.
 	// because the drill bit maybe is in the workpiece
 	// and we need to keep CNC motor running when raising Z
@@ -449,13 +436,8 @@ void PowerPanic::ResumeCNC() {
 	// homing and restore workspace
 	RestoreWorkspace();
 
-	LOG_I("position shift:\n");
-	LOG_I("X: %f, Y: %f, Z: %f\n", pre_data_.position_shift[0],
-				pre_data_.position_shift[1], pre_data_.position_shift[2]);
-
 	// move to target X Y
-	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
-	process_cmd_imd(tmpBuff);
+	do_blocking_move_to_logical_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
 	planner.synchronize();
 
 	// enable CNC motor
@@ -463,15 +445,13 @@ void PowerPanic::ResumeCNC() {
 	LOG_I("Restore CNC power: %.2f\n", pre_data_.cnc_power);
 
 	// move to target Z
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
-	process_cmd_imd(tmpBuff);
+	do_blocking_move_to_logical_z(pre_data_.PositionData[Z_AXIS] + 15, 30);
+	do_blocking_move_to_logical_z(pre_data_.PositionData[Z_AXIS], 10);
 	planner.synchronize();
 }
 
 
 void PowerPanic::ResumeLaser() {
-	char tmpBuff[32];
-
 	// make sure laser is disable
 	ExecuterHead.Laser.SetLaserPower((uint16_t)0);
 
@@ -479,13 +459,11 @@ void PowerPanic::ResumeLaser() {
 	RestoreWorkspace();
 
 	// move to target X Y
-	sprintf(tmpBuff, "G0 X%0.2f Y%0.2f F4000", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS]);
-	process_cmd_imd(tmpBuff);
+	do_blocking_move_to_logical_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
 	planner.synchronize();
 
 	// move to target Z
-	sprintf(tmpBuff, "G0 Z%0.2f F2000", pre_data_.PositionData[Z_AXIS]);
-	process_cmd_imd(tmpBuff);
+	do_blocking_move_to_logical_z(pre_data_.PositionData[Z_AXIS], 30);
 	planner.synchronize();
 
 	// Because we open laser when receive first command after resuming,
@@ -510,8 +488,6 @@ void PowerPanic::RestoreWorkspace() {
 		position_shift[i] = pre_data_.position_shift[i];
 		update_workspace_offset((AxisEnum)i);
 	}
-
-	// TODO: whether we need to sync plan position??
 }
 /**
  *Resume work after power panic if exist valid power panic data
@@ -541,11 +517,6 @@ ErrCode PowerPanic::ResumeWork() {
 		powerpanic.Data.GCodeSource = GCODE_SOURCE_SCREEN;
 	}
 
-	if (Periph.IsDoorOpened()) {
-		LOG_E("trigger RESTORE: failed, door is open\n");
-		return E_INVALID_STATE;
-	}
-
 	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
 			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
 	LOG_I("line number: %d\n", pre_data_.FilePosition);
@@ -563,10 +534,18 @@ ErrCode PowerPanic::ResumeWork() {
 		break;
 
 	case MACHINE_TYPE_CNC:
+		if (Periph.IsDoorOpened()) {
+			LOG_E("trigger RESTORE: failed, door is open\n");
+			return E_INVALID_STATE;
+		}
 		ResumeCNC();
 		break;
 
 	case MACHINE_TYPE_LASER:
+		if (Periph.IsDoorOpened()) {
+			LOG_E("trigger RESTORE: failed, door is open\n");
+			return E_INVALID_STATE;
+		}
 		ResumeLaser();
 		break;
 

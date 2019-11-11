@@ -34,6 +34,7 @@
 #include "../module/endstops.h"
 #include "../module/CanModule.h"
 #include "../inc/MarlinConfig.h"
+#include "../module/StatusControl.h"
 
 #if ENABLED(EXTENSIBLE_UI)
   #include "../lcd/extensible_ui/ui_api.h"

@@ -259,20 +259,19 @@ void inline StatusControl::resume_3dp(void) {
 
   process_cmd_imd("G92 E0");
 
-  process_cmd_imd("G0 E15 F400");
-
+  relative_mode = true;
+  process_cmd_imd("G0 E20 F400");
+  // retract filament to try to cut it out
+  process_cmd_imd("G0 E-6 F3600");
   planner.synchronize();
+
+  process_cmd_imd("G0 E8 F400");
+  planner.synchronize();
+  relative_mode = false;
 
   // restore E position
   current_position[E_AXIS] = powerpanic.Data.PositionData[E_AXIS];
   sync_plan_position_e();
-
-  // retract filament to try to cut it out
-  relative_mode = true;
-  process_cmd_imd("G0 E-3 F3600");
-  relative_mode = false;
-
-  planner.synchronize();
 }
 
 
