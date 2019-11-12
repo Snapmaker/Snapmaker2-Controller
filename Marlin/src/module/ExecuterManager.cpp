@@ -117,8 +117,6 @@ void ExecuterManager::CallbackCloseDoor() {
     CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_TEMPEARTURE, Data, 2);
     if(temperature > 60)
       SetFan(1, 255);
-    else
-      SetFan(1, 0);
   }
 
   /**

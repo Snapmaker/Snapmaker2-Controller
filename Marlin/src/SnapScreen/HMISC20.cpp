@@ -1013,7 +1013,7 @@ void HMI_SC20::HandleOneCommand()
         }
         else {
           LOG_W("failed to start work: err= %d\n", err);
-          MarkNeedReack(1);
+          MarkNeedReack(err);
         }
       }
 
@@ -1124,19 +1124,25 @@ void HMI_SC20::HandleOneCommand()
           MarkNeedReack(1);
         }
         else {
-          // bug: why will we receive two consecutive recovery command @TODO
-          SystemStatus.SetCurrentStatus(SYSTAT_RESUME_TRIG);
-          err = powerpanic.ResumeWork();
-          if (E_SUCCESS == err) {
-            SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
-            SystemStatus.SetWorkingPort(WORKING_PORT_SC);
-            MarkNeedReack(0);
-            LOG_I("trigger RESTORE: ok\n");
+          if (cur_status != SYSTAT_IDLE) {
+            MarkNeedReack(E_NO_SWITCHING_STA);
+            LOG_E("cannot trigger recovery at current status: %d\n", cur_status);
           }
           else {
-            LOG_I("trigger RESTORE: failed, err = %d\n", err);
-            MarkNeedReack(1);
-            SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
+            // bug: why will we receive two consecutive recovery command @TODO
+            SystemStatus.SetCurrentStatus(SYSTAT_RESUME_TRIG);
+            err = powerpanic.ResumeWork();
+            if (E_SUCCESS == err) {
+              SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
+              SystemStatus.SetWorkingPort(WORKING_PORT_SC);
+              MarkNeedReack(0);
+              LOG_I("trigger RESTORE: ok\n");
+            }
+            else {
+              LOG_I("trigger RESTORE: failed, err = %d\n", err);
+              MarkNeedReack(err);
+              SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
+            }
           }
         }
       }

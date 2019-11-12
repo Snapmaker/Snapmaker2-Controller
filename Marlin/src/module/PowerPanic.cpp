@@ -504,25 +504,12 @@ void PowerPanic::RestoreWorkspace() {
 ErrCode PowerPanic::ResumeWork() {
 	if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
-    return E_HARDWARE;
-	}
-
-	if (pre_data_.MachineType != ExecuterHead.MachineType) {
-		LOG_E("current[%d] machine is not same as previous[%d]\n",
-						ExecuterHead.MachineType, pre_data_.MachineType);
-		return E_HARDWARE;
+    return E_NO_WORKING;
 	}
 
 	if (pre_data_.Valid == 0) {
 		LOG_E("previous power-loss data is invalid!\n");
 		return E_NO_RESRC;
-	}
-
-	if (pre_data_.GCodeSource != GCODE_SOURCE_SCREEN) {
-		LOG_E("previous Gcode-source is not screen: %d\n", pre_data_.GCodeSource);
-		return E_INVALID_STATE;
-	} else {
-		powerpanic.Data.GCodeSource = GCODE_SOURCE_SCREEN;
 	}
 
 	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
@@ -533,7 +520,7 @@ ErrCode PowerPanic::ResumeWork() {
 		if (runout.is_filament_runout()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
-			return E_HARDWARE;
+			return E_NO_FILAMENT;
 		}
 
 		LOG_I("previous recorded target hotend temperature is %.2f\n", pre_data_.HeaterTamp[0]);
@@ -545,7 +532,7 @@ ErrCode PowerPanic::ResumeWork() {
 	case MACHINE_TYPE_CNC:
 		if (Periph.IsDoorOpened()) {
 			LOG_E("trigger RESTORE: failed, door is open\n");
-			return E_INVALID_STATE;
+			return E_DOOR_OPENED;
 		}
 
 		LOG_I("previous recorded target CNC power is %.2f\n", pre_data_.cnc_power);
@@ -556,7 +543,7 @@ ErrCode PowerPanic::ResumeWork() {
 	case MACHINE_TYPE_LASER:
 		if (Periph.IsDoorOpened()) {
 			LOG_E("trigger RESTORE: failed, door is open\n");
-			return E_INVALID_STATE;
+			return E_DOOR_OPENED;
 		}
 
 		LOG_I("previous recorded target Laser power is %.2f\n", pre_data_.laser_percent);
@@ -567,7 +554,7 @@ ErrCode PowerPanic::ResumeWork() {
 
 	default:
 		LOG_W("invalid machine type saved in power-loss: %d\n", pre_data_.MachineType);
-		return E_HARDWARE;
+		return E_FAILURE;
 		break;
 	}
 

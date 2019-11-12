@@ -46,14 +46,13 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 {
   if (cur_status_ != SYSTAT_WORK && cur_status_!= SYSTAT_RESUME_WAITING) {
     LOG_W("cannot pause in current status: %d\n", cur_status_);
-    return E_INVALID_STATE;
+    return E_NO_SWITCHING_STA;
   }
 
   // here the operations can be performed many times
   switch (type) {
   case TRIGGER_SOURCE_RUNOUT:
     fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
     break;
 
   case TRIGGER_SOURCE_DOOR_OPEN:
@@ -104,21 +103,21 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
   if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {
     LOG_W("cannot stop in current status[%d]\n", cur_status_);
-    return E_INVALID_STATE;
+    return E_NO_SWITCHING_STA;
   }
 
   switch(type) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
       LOG_W("current working port is not SC!");
-      return E_INVALID_STATE;
+      return E_FAILURE;
     }
     break;
 
   case TRIGGER_SOURCE_PC:
     if (work_port_ != WORKING_PORT_PC) {
       LOG_W("current working port is not PC!");
-      return E_INVALID_STATE;
+      return E_FAILURE;
     }
     break;
   }
@@ -327,30 +326,29 @@ void StatusControl::ResumeProcess() {
 ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
-    return E_HARDWARE;
+    return E_NO_WORKING;
   }
 
   if (cur_status_ != SYSTAT_PAUSE_FINISH) {
     LOG_W("cannot trigger in current status: %d\n", cur_status_);
-    return E_INVALID_STATE;
+    return E_NO_SWITCHING_STA;
   }
 
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     if (runout.is_filament_runout()) {
-      LOG_E("No filemant! Please insert filemant!\n");
+      LOG_E("No filemant!\n");
       fault_flag_ |= FAULT_FLAG_FILAMENT;
-      HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
-      return E_NO_RESRC;
+      return E_NO_FILAMENT;
     }
     break;
 
   case MACHINE_TYPE_CNC:
   case MACHINE_TYPE_LASER:
     if (Periph.IsDoorOpened()) {
+      LOG_E("Door is opened!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
-      HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
-      return E_HARDWARE;
+      return E_DOOR_OPENED;
     }
     break;
 
@@ -362,14 +360,14 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
       LOG_W("current working port is not SC!");
-      return E_INVALID_STATE;
+      return E_FAILURE;
     }
     break;
 
   case TRIGGER_SOURCE_PC:
     if (work_port_ != WORKING_PORT_PC) {
       LOG_W("current working port is not PC!");
-      return E_INVALID_STATE;
+      return E_FAILURE;
     }
     break;
 
@@ -378,12 +376,9 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
 
   default:
     LOG_W("invalid trigger source: %d\n", s);
-    return E_PARAM;
+    return E_FAILURE;
     break;
   }
-
-  if (Periph.IsDoorOpened())
-    return E_HARDWARE;
 
   cur_status_ = SYSTAT_RESUME_TRIG;
 
@@ -400,11 +395,11 @@ ErrCode StatusControl::ResumeOver() {
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
     StopTrigger(TRIGGER_SOURCE_EXCEPTION);
-    return E_INVALID_STATE;
+    return E_NO_WORKING;
   }
 
   if (cur_status_ != SYSTAT_RESUME_WAITING)
-    return E_INVALID_STATE;
+    return E_NO_SWITCHING_STA;
 
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
@@ -413,7 +408,7 @@ ErrCode StatusControl::ResumeOver() {
       fault_flag_ |= FAULT_FLAG_FILAMENT;
       HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
-      return E_NO_RESRC;
+      return E_NO_FILAMENT;
     }
     break;
 
@@ -424,7 +419,7 @@ ErrCode StatusControl::ResumeOver() {
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
       PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
-      return E_HARDWARE;
+      return E_DOOR_OPENED;
     }
 
     if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
@@ -552,20 +547,36 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
 
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
-    return E_HARDWARE;
+    return E_NO_WORKING;
   }
 
   if (cur_status_ != SYSTAT_IDLE) {
     LOG_W("cannot start work in current status: %d\n", cur_status_);
-    return E_INVALID_STATE;
+    return E_NO_SWITCHING_STA;
   }
 
-  if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    // z is un-homed
-    if (axes_homed(Z_AXIS) == false) {
-      // home
-      process_cmd_imd("G28");
+  switch (ExecuterHead.MachineType) {
+  case MACHINE_TYPE_3DPRINT:
+    if (runout.is_filament_runout()) {
+      fault_flag_ |= FAULT_FLAG_FILAMENT;
+      LOG_E("No filemant!\n");
+      return E_NO_FILAMENT;
     }
+    break;
+
+  case MACHINE_TYPE_LASER:
+  case MACHINE_TYPE_CNC:
+    if (Periph.IsDoorOpened()) {
+      fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
+      LOG_E("Door is opened!\n");
+      return E_DOOR_OPENED;
+    }
+    if (axes_homed(Z_AXIS) == false)
+      process_cmd_imd("G28 Z");
+    break;
+
+  default:
+    break;
   }
 
   powerpanic.Reset();
@@ -577,14 +588,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
   else if (s == TRIGGER_SOURCE_PC) {
     powerpanic.Data.GCodeSource = GCODE_SOURCE_PC;
     work_port_ = WORKING_PORT_PC;
-  }
-
-  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
-        runout.is_filament_runout()) {
-    LOG_E("No filemant! Please insert filemant!\n");
-    fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
-    return E_NO_RESRC;
   }
 
   print_job_timer.start();
