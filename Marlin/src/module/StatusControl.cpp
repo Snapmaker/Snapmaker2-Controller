@@ -1507,10 +1507,10 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
       break;
     }
 
-    if (param_type > 100 || param_type < 0)
+    if (param > 100 || param < 0)
       ret = E_PARAM;
     else {
-      ExecuterHead.Laser.ChangePower(param_type);
+      ExecuterHead.Laser.ChangePower(param);
       // change current output when it was turned on
       if (ExecuterHead.Laser.GetTimPwm() > 0)
         ExecuterHead.Laser.On();

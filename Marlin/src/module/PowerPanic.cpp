@@ -378,14 +378,14 @@ void PowerPanic::Resume3DP() {
 
 	// enable hotend
 	if(pre_data_.BedTamp > BED_MAXTEMP - 15) {
-		LOG_W("recorded bed temp [%f] is larger than 150, limited it.\n",
-						pre_data_.BedTamp);
+		LOG_W("recorded bed temp [%f] is larger than %f, limited it.\n",
+						pre_data_.BedTamp, BED_MAXTEMP - 15);
 		pre_data_.BedTamp = BED_MAXTEMP - 15;
 	}
 
 	if (pre_data_.HeaterTamp[0] > HEATER_0_MAXTEMP - 15) {
-		LOG_W("recorded hotend temp [%f] is larger than 285, limited it.\n",
-						pre_data_.BedTamp);
+		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
+						pre_data_.BedTamp, HEATER_0_MAXTEMP - 15);
 		pre_data_.HeaterTamp[0] = HEATER_0_MAXTEMP - 15;
 	}
 
