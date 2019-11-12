@@ -447,7 +447,7 @@ void bilinear_grid_manual(float startx, float starty, float endx, float endy)
 #include "../../../snap_module/M1028.h"
 
 bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
-void auto_probing(bool reply_screen) {
+void auto_probing(bool reply_screen, bool fast_leveling) {
   float margin = PROBE_MARGIN;
   bilinear_grid_manual(RAW_X_POSITION(margin), RAW_Y_POSITION(margin),
                          RAW_X_POSITION(X_MAX_POS - margin), RAW_Y_POSITION(Y_MAX_POS - margin));
@@ -486,8 +486,9 @@ void auto_probing(bool reply_screen) {
     cur_y = new_y;
   }
 
-  //do_blocking_move_to_z(z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] + 3, speed_in_calibration[Z_AXIS]);
-  do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
+  // if fast_leveling is true, over directly. Otherwise move nozzle to current position of probe
+  if (!fast_leveling)
+    do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
 }
 
 void compensate_offset(float offset) {

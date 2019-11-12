@@ -1062,9 +1062,6 @@ void setup() {
   // This also updates variables in the planner, elsewhere
   (void)settings.load();
 
-  // init power panic handler and load data from flash
-  powerpanic.Init();
-
   // reset the status of quickstop
   quickstop.Reset();
 
@@ -1319,6 +1316,8 @@ void loop() {
   #endif
 
   lightbar.init();
+  // init power panic handler and load data from flash
+  powerpanic.Init();
 
   if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
     SERIAL_ECHOLNPGM("Laser Module\r\n");
@@ -1331,6 +1330,7 @@ void loop() {
   else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
     SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
     ExecuterHead.Print3D.Init();
+    runout.enabled = true;
   }
   else {
     SERIAL_ECHOLNPGM("No Executor detected!");
@@ -1342,9 +1342,12 @@ void loop() {
   }
 
   ExecuterHead.Print3D.HeatedBedSelfCheck();
-  SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
   Periph.Init();
+
+  SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
+
+  SERIAL_ECHOLN("Finish init");
 
   for (;;) {
 

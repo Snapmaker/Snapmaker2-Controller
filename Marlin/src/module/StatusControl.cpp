@@ -44,9 +44,7 @@ void StatusControl::Init() {
  */
 ErrCode StatusControl::PauseTrigger(TriggerSource type)
 {
-  SysStage stage = GetCurrentStage();
-
-  if (stage != SYSTAGE_WORK) {
+  if (cur_status_ != SYSTAT_WORK && cur_status_!= SYSTAT_RESUME_WAITING) {
     LOG_W("cannot pause in current status: %d\n", cur_status_);
     return E_INVALID_STATE;
   }
@@ -91,6 +89,9 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
   lightbar.set_state(LB_STATE_STANDBY);
 
+  // reset the status of filament monitor
+  runout.reset();
+
   return E_SUCCESS;
 }
 
@@ -99,21 +100,10 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
  * return: true if stop triggle success, or false
  */
 ErrCode StatusControl::StopTrigger(TriggerSource type) {
-  SysStage stage = GetCurrentStage();
 
-  if (stage != SYSTAGE_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
+  if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {
     LOG_W("cannot stop in current status[%d]\n", cur_status_);
-    return E_INVALID_STATE;
-  }
-
-  if ((type == TRIGGER_SOURCE_SC) && (work_port_ != WORKING_PORT_SC)) {
-      LOG_W("current working port is not SC!");
-      return E_INVALID_STATE;
-  }
-
-  if ((type == TRIGGER_SOURCE_PC) && (work_port_ != WORKING_PORT_PC)) {
-    LOG_W("current working port is not PC!");
     return E_INVALID_STATE;
   }
 
@@ -161,7 +151,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
   stop_source_ = type;
 
   if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
-    ExecuterHead.Laser.SetLaserPower((uint16_t)0);
+    ExecuterHead.Laser.Off();
   }
 
   lightbar.set_state(LB_STATE_STANDBY);
@@ -182,13 +172,6 @@ void StatusControl::PauseProcess()
     // clear request flag of HMI
     HMI.ClearRequestStatus();
   }
-
-  LOG_I("\nstop point:\n");
-  LOG_I("X: %.2f, Y:%.2f, Z:%.2f, E: %.2f\n", powerpanic.Data.PositionData[0],
-        powerpanic.Data.PositionData[1], powerpanic.Data.PositionData[2], powerpanic.Data.PositionData[3]);
-  LOG_I("position shift:\n");
-  LOG_I("X: %.2f, Y:%.2f, Z:%.2f\n", powerpanic.Data.position_shift[0],
-        powerpanic.Data.position_shift[1], powerpanic.Data.position_shift[2]);
 
   LOG_I("Finish pause\n");
   cur_status_ = SYSTAT_PAUSE_FINISH;
@@ -216,8 +199,8 @@ void StatusControl::StopProcess()
   cur_status_ = SYSTAT_IDLE;
   quickstop.Reset();
 
-  process_cmd_imd("M140 S0");
-  process_cmd_imd("M104 S0");
+  thermalManager.setTargetBed(0);
+  thermalManager.setTargetHotend(0, 0);
 
   LOG_I("Finish stop\n");
 }
@@ -259,20 +242,19 @@ void inline StatusControl::resume_3dp(void) {
 
   process_cmd_imd("G92 E0");
 
-  process_cmd_imd("G0 E15 F400");
-
+  relative_mode = true;
+  process_cmd_imd("G0 E30 F400");
+  // retract filament to try to cut it out
+  process_cmd_imd("G0 E-6 F3600");
   planner.synchronize();
+
+  process_cmd_imd("G0 E6 F400");
+  planner.synchronize();
+  relative_mode = false;
 
   // restore E position
   current_position[E_AXIS] = powerpanic.Data.PositionData[E_AXIS];
   sync_plan_position_e();
-
-  // retract filament to try to cut it out
-  relative_mode = true;
-  process_cmd_imd("G0 E-3 F3600");
-  relative_mode = false;
-
-  planner.synchronize();
 }
 
 
@@ -353,14 +335,6 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
     return E_INVALID_STATE;
   }
 
-  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType &&
-        runout.is_filament_runout()) {
-    LOG_E("No filemant! Please insert filemant!\n");
-    fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
-    return E_NO_RESRC;
-  }
-
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     if (runout.is_filament_runout()) {
@@ -429,12 +403,16 @@ ErrCode StatusControl::ResumeOver() {
     return E_INVALID_STATE;
   }
 
+  if (cur_status_ != SYSTAT_RESUME_WAITING)
+    return E_INVALID_STATE;
+
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
       fault_flag_ |= FAULT_FLAG_FILAMENT;
       HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
+      PauseTrigger(TRIGGER_SOURCE_RUNOUT);
       return E_NO_RESRC;
     }
     break;
@@ -445,11 +423,14 @@ ErrCode StatusControl::ResumeOver() {
       LOG_E("Door is opened, please close the door!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
+      PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
       return E_HARDWARE;
     }
 
-    if (ExecuterHead.MachineType == MACHINE_TYPE_LASER)
-      ExecuterHead.Laser.RestorePower(powerpanic.Data.laser_percent, powerpanic.Data.laser_pwm);
+    if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+      if (powerpanic.Data.laser_pwm > 0)
+        ExecuterHead.Laser.On();
+    }
     break;
 
   default:
@@ -1472,13 +1453,75 @@ void StatusControl::CallbackOpenDoor() {
     HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
   }
 
-  if (GetCurrentStage() == SYSTAGE_RESUMING) {
-
-  }
-
   fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
 }
 
 void StatusControl::CallbackCloseDoor() {
   fault_flag_ &= FAULT_FLAG_DOOR_OPENED;
+}
+
+ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
+  ErrCode ret = E_SUCCESS;
+
+  switch (param_type) {
+  case RENV_TYPE_FEEDRATE:
+    LOG_I("feedrate scaling: %.2f\n", param);
+    if (param_type > 5) {
+      ret = E_PARAM;
+      break;
+    }
+    saved_g0_feedrate_mm_s *= param;
+    saved_g1_feedrate_mm_s *= param;
+    break;
+
+  case RENV_TYPE_HOTEND_TEMP:
+    LOG_I("new hotend temp: %.2f\n", param);
+    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param < HEATER_0_MAXTEMP)
+      thermalManager.setTargetHotend(param, 0);
+    else
+      ret = E_PARAM;
+    break;
+
+  case RENV_TYPE_BED_TEMP:
+    LOG_I("new bed temp: %.2f\n", param);
+    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param < BED_MAXTEMP)
+      thermalManager.setTargetBed(param);
+    else
+      ret = E_PARAM;
+    break;
+
+  case RENV_TYPE_LASER_POWER:
+    LOG_I("new laser power: %.2f\n", param);
+    if (MACHINE_TYPE_LASER != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param > 100 || param < 0)
+      ret = E_PARAM;
+    else {
+      ExecuterHead.Laser.ChangePower(param);
+      // change current output when it was turned on
+      if (ExecuterHead.Laser.GetTimPwm() > 0)
+        ExecuterHead.Laser.On();
+    }
+    break;
+
+  default:
+    LOG_E("invalid parameter type\n", param_type);
+    ret = E_PARAM;
+    break;
+  }
+
+  return ret;
 }

@@ -19,7 +19,7 @@ typedef enum
 
 // delay for debounce, uint: ms, for now we use 10ms
 #define POWERPANIC_DEBOUNCE	10
-typedef struct
+typedef struct __attribute__((aligned (4)))
 {
 	// checksum of this section
 	uint32_t CheckSum;
@@ -58,7 +58,7 @@ typedef struct
 	// file name
 	char FileName[PP_FILE_NAME_LEN];
 #endif
-}strPowerPanicSave;
+} strPowerPanicSave;
 
 
 class PowerPanic

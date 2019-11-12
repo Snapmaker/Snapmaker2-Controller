@@ -557,7 +557,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
 
 /********************************************************
-激光画方框
+ * API for movement
 *********************************************************/
 void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Option) {
   X = X / 1000.0f;
@@ -589,10 +589,43 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Optio
   planner.synchronize();
 }
 
+
+void HMI_SC20::MoveE(float extrude_len, float extrude_speed, float retract_len, float retract_speed, uint8_t Option) {
+  extrude_len = extrude_len / 1000.0f;
+  extrude_speed = extrude_speed / 60000.0f;
+  retract_len = retract_len / 1000.0f;
+  retract_speed = retract_speed / 60000.0f;
+
+  switch (Option) {
+  // extrude firstly
+  case 0:
+    current_position[E_AXIS] += extrude_len;
+    line_to_current_position(extrude_speed);
+    planner.synchronize();
+    current_position[E_AXIS] -= retract_len;
+    line_to_current_position(retract_speed);
+    break;
+
+  // retract firstly
+  case 1:
+    current_position[E_AXIS] -= retract_len;
+    line_to_current_position(retract_speed);
+    planner.synchronize();
+    current_position[E_AXIS] += extrude_len;
+    line_to_current_position(extrude_speed);
+    break;
+
+  default:
+    break;
+  }
+
+  planner.synchronize();
+}
+
 /********************************************************
 平自动调平处理
 *********************************************************/
-uint8_t HMI_SC20::HalfAutoCalibrate()
+uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
 {
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
@@ -603,7 +636,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-      move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
+      move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
       planner.synchronize();
     }
     else
@@ -615,17 +648,13 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     // change the Z max feedrate
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
-    // Set the current position of Z to Z_MAX_POS
-    //current_position[Z_AXIS] = Z_MAX_POS;
-    //sync_plan_position();
-
     endstops.enable_z_probe(true);
 
     // move quicky firstly to decrease the time
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
     planner.synchronize();
 
-    auto_probing(true);
+    auto_probing(true, fast_leveling);
 
     endstops.enable_z_probe(false);
 
@@ -948,7 +977,8 @@ void HMI_SC20::HandleOneCommand()
         j = cmdLen + 8;
         tmpBuff[j] = 0;
 
-        if (cur_status == SYSTAT_RESUME_WAITING) {
+        // when we are resuming, won't handle any Gcode
+        if (cur_stage == SYSTAGE_RESUMING) {
           if (SystemStatus.ResumeOver() == E_SUCCESS) {
             Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
           }
@@ -1147,7 +1177,7 @@ void HMI_SC20::HandleOneCommand()
 
         // enable auto level bed
         case 2:
-          MarkNeedReack(HalfAutoCalibrate());
+          MarkNeedReack(HalfAutoCalibrate(false));
           break;
 
         // enble manual level bed
@@ -1179,7 +1209,6 @@ void HMI_SC20::HandleOneCommand()
         case 6:
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          LOG_I("SC req move z, offset: %.3f, cur z: %.3f\n", fZ, current_position[Z_AXIS] + fZ);
           move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
@@ -1190,11 +1219,12 @@ void HMI_SC20::HandleOneCommand()
           if (CMD_BUFF_EMPTY() == true) {
             process_cmd_imd("G1029 S0");
 
+            set_bed_leveling_enabled(true);
+
+            // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
-
-            set_bed_leveling_enabled(true);
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1217,11 +1247,12 @@ void HMI_SC20::HandleOneCommand()
             //Load
             settings.load();
 
+            set_bed_leveling_enabled(true);
+
+            // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
-
-            set_bed_leveling_enabled(true);
 
             HMICommandSave = 0;
 
@@ -1322,24 +1353,45 @@ void HMI_SC20::HandleOneCommand()
             break;
           }
 
-          if (HalfAutoCalibrate()) {
+          if (HalfAutoCalibrate(true)) {
             MarkNeedReack(1);
             LOG_E("Auto calibration failed!\n");
             break;
           }
 
           process_cmd_imd("G1029 S1");
-          // home all axis
+
+          set_bed_leveling_enabled(true);
+
+          // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
           move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
-          set_bed_leveling_enabled(true);
 
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
           LOG_I("SC req auto probe: Done!\n");
+          break;
+
+        case 0xF:
+            LOG_I("SC req change env\n");
+            j = IDX_DATA0 + 1;
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
+            fX = int32Value / 1000.0f;
+            err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
+            if (err == E_SUCCESS) {
+              MarkNeedReack(0);
+            }
+            else if (err == E_INVALID_STATE) {
+              MarkNeedReack(2);
+              LOG_E("not supported parameter by current Tool head\n");
+            }
+            else {
+              MarkNeedReack(1);
+              LOG_E("invalid parameter\n");
+            }
           break;
 
         //读取尺寸参数
@@ -1351,35 +1403,52 @@ void HMI_SC20::HandleOneCommand()
     //Movement Request
     else if (eventId == EID_MOVEMENT_REQ) {
       float F = 0;
-      j = 10;
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+      switch (OpCode) {
+      //激光回原点应答
+      case 0x01:
+        //调平数据失效
+        MovementProcess(0, 0, 0, 0, 0);
+        break;
 
-      if (cmdLen >= 18) {
+      //绝对坐标移动轴
+      case 0x02:
+      case 0x03:
+        j = IDX_DATA0;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+        if (cmdLen >= 18) {
+          BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
+        }
+        MovementProcess(fX, fY, fZ, F, OpCode - 1);
+        MarkNeedReack(0);
+        break;
+
+      case 0x04:
+        if (thermalManager.tooColdToExtrude(0)) {
+          LOG_E("temperature is cool, cannot move E!\n");
+          MarkNeedReack(1);
+          break;
+        }
+        j = IDX_DATA0 + 1;
+        // avoid to alloc new temp var, use the common var:
+        // extrude length
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
+        // extrude speed
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
+        // retract length
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+        // retract speed
         BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
+        MoveE(fX, fX, fZ, F, tmpBuff[IDX_DATA0]);
+        MarkNeedReack(0);
+        break;
+
+      default:
+        LOG_E("not supported command!\n");
+        MarkNeedReack(1);
+        break;
       }
-
-      switch (OpCode)
-      {
-        //激光回原点应答
-        case 0x01:
-          //调平数据失效
-          MovementProcess(0, 0, 0, 0, 0);
-          break;
-
-        //绝对坐标移动轴
-        case 0x02:
-          MovementProcess(fX, fY, fZ, F, 1);
-          break;
-
-        //相对坐标移动轴
-        case 0x03:
-          MovementProcess(fX, fY, fZ, F, 2);
-          break;
-      }
-      //应答
-      MarkNeedReack(0);
     }
     //WIFI & Bluetooth
     else if (eventId == EID_LAS_CAM_OP_REQ) {

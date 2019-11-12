@@ -103,7 +103,7 @@ void GcodeSuite::G1029() {
     planner.settings.max_feedrate_mm_s[Z_AXIS] = 60;
 
     endstops.enable_z_probe(true);
-    auto_probing(false);
+    auto_probing(false, false);
     endstops.enable_z_probe(false);
 
     // Recover the Z max feedrate to 20mm/s
@@ -127,7 +127,10 @@ void GcodeSuite::G1029() {
     }
 
     bed_level_virt_interpolate();
-    settings.save();
+
+    // only save data in flash after adjusting z offset
+    if (opt_s == 0)
+      settings.save();
     return;
   }
 

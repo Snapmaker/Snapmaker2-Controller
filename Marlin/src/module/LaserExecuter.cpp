@@ -7,6 +7,7 @@
 #include "CanBus.h"
 #include "CanDefines.h"
 #include "ExecuterManager.h"
+#include "StatusControl.h"
 
 // time to delay close fan, 5s
 #define TIME_TO_CLOSE_FAN (120 * 1000)
@@ -102,6 +103,11 @@ void LaserExecuter::SetLaserPower(float Percent)
   float decimal;
   uint16_t pwmvalue;
 
+  SysStatus cur_stat = SystemStatus.GetCurrentStatus();
+
+  if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG)
+    return;
+
   if (Percent > power_limit_)
     Percent = power_limit_;
 
@@ -118,17 +124,6 @@ void LaserExecuter::SetLaserPower(float Percent)
 }
 
 /**
- * SetLaserLowPower:Set laser power
- * para percent:
- */
-void LaserExecuter::SetLaserPower(uint16_t PwmValue)
-{
-  CheckFan(PwmValue);
-
-  TimSetPwm(PwmValue);
-}
-
-/**
  * Off:Laser off without changing the power
  */
 void LaserExecuter::Off()
@@ -142,6 +137,10 @@ void LaserExecuter::Off()
  */
 void LaserExecuter::On()
 {
+  SysStatus cur_stat = SystemStatus.GetCurrentStatus();
+
+  if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG)
+    return;
   CheckFan(last_pwm);
   TimSetPwm(last_pwm);
 }
@@ -503,46 +502,41 @@ uint16_t LaserExecuter::GetTimPwm() {
   return Tim1GetCCR4();
 }
 
+/**
+ * change power limit, will be call when open / close chamber door
+*/
+void LaserExecuter::ChangePowerLimit(float limit) {
+  if (limit > LASER_POWER_NORMAL_LIMIT)
+    limit = LASER_POWER_NORMAL_LIMIT;
+
+  // if previous limit is larger than now, need to check need to lower current output
+  if (last_percent > limit) {
+    ChangePower(limit);
+
+    if (GetTimPwm() > last_pwm) {
+      // lower current output
+      CheckFan(last_pwm);
+      TimSetPwm(last_pwm);
+    }
+  }
+
+  power_limit_ = limit;
+}
 
 /**
- * API for power-loss, percent is the last settings from HOST, and pwm maybe 0
+ * change power value, but not change output power
 */
-void LaserExecuter::RestorePower(float percent, uint16_t pwm) {
+void LaserExecuter::ChangePower(float percent) {
   int integer;
   float decimal;
+
+  if (percent > power_limit_)
+    percent = power_limit_;
+
   last_percent = percent;
   integer = percent;
   decimal = percent - integer;
 
   last_percent = percent;
   last_pwm = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
-  TimSetPwm(pwm);
-}
-
-
-void LaserExecuter::ChangePowerLimit(float limit) {
-  int      integer;
-  float    decimal;
-  uint16_t pwm_limit;
-
-  if (limit > LASER_POWER_NORMAL_LIMIT)
-    limit = LASER_POWER_NORMAL_LIMIT;
-
-  // if previous limit is larger than now, need to check need to lower current output
-  if (last_percent > limit) {
-    integer = (int)limit;
-    decimal = limit - integer;
-
-    pwm_limit = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
-
-    if (GetTimPwm() > pwm_limit) {
-      // lower current output
-      SetLaserPower(pwm_limit);
-    }
-
-    last_percent = limit;
-    last_pwm = pwm_limit;
-  }
-
-  power_limit_ = limit;
 }

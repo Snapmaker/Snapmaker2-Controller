@@ -49,6 +49,6 @@ void refresh_bed_level();
 extern float nozzle_height_probed;
 
 
-void auto_probing(bool reply_screen);
+void auto_probing(bool reply_screen, bool fast_leveling);
 void compensate_offset();
 void compensate_offset(float offset);

@@ -56,7 +56,7 @@ public:
 private:
   void HmiWriteData(char *pData, uint16_t len);
   short GetCommand(unsigned char *pBuff);
-  uint8_t HalfAutoCalibrate();
+  uint8_t HalfAutoCalibrate(bool fast_leveling);
   uint8_t ManualCalibrateStart();
   void ResizeMachine(char *pBuff);
   void SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PWD, char * IP);
@@ -67,6 +67,7 @@ private:
   void DrawLaserCalibrateShape();
   bool DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_Increase, uint8_t Count);
   void MovementProcess(float X, float Y, float Z, float speed, uint8_t Option);
+  void MoveE(float extrude_len, float extrude_speed, float retract_len, float retract_speed, uint8_t Option);
 
 public:
   HMIReq RequestStatus;
