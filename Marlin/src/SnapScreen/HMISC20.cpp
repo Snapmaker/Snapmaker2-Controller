@@ -1425,7 +1425,7 @@ void HMI_SC20::HandleOneCommand()
         break;
 
       case 0x04:
-        if (thermalManager.degHotend(0) < 180) {
+        if (thermalManager.tooColdToExtrude(0)) {
           LOG_E("temperature is cool, cannot move E!\n");
           MarkNeedReack(1);
           break;
