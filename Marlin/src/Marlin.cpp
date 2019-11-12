@@ -1330,6 +1330,7 @@ void loop() {
   else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
     SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
     ExecuterHead.Print3D.Init();
+    runout.enabled = true;
   }
   else {
     SERIAL_ECHOLNPGM("No Executor detected!");
