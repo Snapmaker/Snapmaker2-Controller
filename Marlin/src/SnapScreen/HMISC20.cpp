@@ -898,8 +898,8 @@ void HMI_SC20::PollingCommand() {
   if (checkout_cmd[next_cmd_idx][IDX_EVENT_ID] == EID_STATUS_REQ &&
         checkout_cmd[next_cmd_idx][IDX_OP_CODE] == 1) {
     SendMachineStatus();
-    if (debug.GetLevel() == SNAP_DEBUG_LEVEL_TRACE) {
-      LOG_T("Heartbeat: ");
+    LOG_V("Heartbeat: ");
+    if (debug.GetLevel() <= SNAP_DEBUG_LEVEL_TRACE) {
       for (int i=0; i<10; i++) {
         LOG_T("%08X ", *((uint32_t *)status_buff + i));
       }

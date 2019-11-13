@@ -5,6 +5,8 @@
 #include "../Marlin.h"
 #include "../gcode/gcode.h"
 #include "../module/motion.h"
+#include "snap_cmd.h"
+#include "../core/minmax.h"
 
 #if (SNAP_DEBUG == 1)
 
@@ -56,7 +58,10 @@ const static char *excoption_str[32] {
   #error "Snap debug only support GNU compiler for now"
 #endif
 
-static SnapDebugLevel msg_level = SNAP_DEBUG_LEVEL_INFO;
+static SnapDebugLevel pc_msg_level = SNAP_DEBUG_LEVEL_INFO;
+static SnapDebugLevel sc_msg_level = SNAP_DEBUG_LEVEL_INFO;
+static char log_buf[SNAP_LOG_BUFFER_SIZE];
+static uint8_t log_head[12];
 
 const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
   SNAP_TRACE_STR,
@@ -66,6 +71,70 @@ const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
   SNAP_FATAL_STR
 };
 
+
+void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
+  int i = 0;
+  int j = 0;
+  int size = strlen(log_buf) + 1;
+
+  if (size == 0)
+    return;
+  else if (size >= 255) {
+    size = 255;
+  }
+
+  // to include the end '\0'
+  size++;
+
+// SOF
+  log_head[i++] = 0xAA;
+  log_head[i++] = 0x55;
+
+  // length
+  log_head[i++] = (uint8_t) ((size + 4) >> 8);
+  log_head[i++] = (uint8_t) (size + 4);
+
+  // protocol version
+  log_head[i++] = 0x00;
+
+  // length checksum
+  log_head[i++] = log_head[2] ^log_head[3];
+
+  // checksum for data
+  i++;
+  i++;
+
+  // EventID & operation code
+  log_head[i++] = EID_STATUS_RESP;
+  log_head[i++] = 0x10;
+
+  // log level and length
+  log_head[i++] = l;
+  log_head[i++] = (uint8_t)size;
+
+
+
+  uint32_t checksum = 0;
+  checksum += (uint32_t) (((uint8_t) log_head[8] << 8) | (uint8_t) log_head[9]);
+  checksum += (uint32_t) (((uint8_t) log_head[10] << 8) | (uint8_t) log_head[11]);
+
+  for (int j = 0; j < (size - 1); j = j + 2)
+    checksum += (uint32_t) (((uint8_t) log_buf[j] << 8) | (uint8_t) log_buf[j + 1]);
+
+  // if size is odd number
+  if ((size - 8) % 2) checksum += (uint8_t)log_buf[size - 1];
+
+  while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
+  checksum = ~checksum;
+  log_head[6] = checksum >> 8;
+  log_head[7] = checksum;
+
+  while (--i >= 0)
+    HMISERIAL.write(log_head[i]);
+  while (--size >= 0)
+    HMISERIAL.write(log_buf[size]);
+}
+
 // output debug message, will not output message whose level
 // is less than msg_level
 // param:
@@ -73,11 +142,10 @@ const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
 //    fmt - format of messages
 //    ... - args
 void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
-  static char log_buf[SNAP_LOG_BUFFER_SIZE];
   int len;
   va_list args;
 
-  if (level < msg_level)
+  if (level < pc_msg_level && level < sc_msg_level)
     return;
 
   va_start(args, fmt);
@@ -86,20 +154,33 @@ void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
 
   va_end(args);
 
-  CONSOLE_OUTPUT(log_buf);
+  if (level >= pc_msg_level)
+    CONSOLE_OUTPUT(log_buf);
+
+  if (level >= sc_msg_level)
+    SendLog2Screen(level);
 }
 
 
 // set current debug level message level less than this level
 // will not be outputed, set by M2000
-void SnapDebug::SetLevel(SnapDebugLevel l) {
-  Log(SNAP_DEBUG_LEVEL_INFO, "old debug level: %d\n", msg_level);
-  if (l <= SNAP_DEBUG_LEVEL_MAX)
-    msg_level = l;
+void SnapDebug::SetLevel(uint8_t port, SnapDebugLevel l) {
+  Log(SNAP_DEBUG_LEVEL_INFO, "old debug level: %d\n",
+                            port? sc_msg_level : pc_msg_level);
+
+  if (l > SNAP_DEBUG_LEVEL_MAX)
+    return;
+
+  if (port) {
+    sc_msg_level = l;
+  }
+  else {
+    pc_msg_level = l;
+  }
 }
 
 SnapDebugLevel SnapDebug::GetLevel() {
-  return msg_level;
+  return sc_msg_level < pc_msg_level? sc_msg_level : pc_msg_level;
 }
 
 // record the line number of last Gcode from screen
