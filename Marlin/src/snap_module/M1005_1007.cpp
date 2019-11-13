@@ -55,7 +55,38 @@ void GcodeSuite::M1006() {
     SERIAL_ECHOLN("UNKNOWN");
     break;
   }
+}
 
+
+void GcodeSuite::M1007() {
   SERIAL_ECHO("Homed: ");
   SERIAL_ECHOLN(all_axes_homed()? "YES" : "NO");
+
+  SERIAL_ECHOLNPAIR("Selected origin num: ", active_coordinate_system + 1);
+
+  SERIAL_ECHO("Selected == Current: ");
+
+  if (active_coordinate_system < 0) {
+    SERIAL_ECHOLN("YES");
+  }
+  else if ((position_shift[X_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS]) &&
+        (position_shift[Y_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS]) &&
+        (position_shift[Z_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS])) {
+    SERIAL_ECHOLN("YES");
+  }
+  else {
+    SERIAL_ECHOLN("NO");
+  }
+
+  SERIAL_ECHOLN("Selected origin offset:");
+  if (active_coordinate_system < 0) {
+    SERIAL_ECHOLNPAIR("X: ", position_shift[X_AXIS]);
+    SERIAL_ECHOLNPAIR("Y: ", position_shift[Y_AXIS]);
+    SERIAL_ECHOLNPAIR("Z: ", position_shift[Z_AXIS]);
+  }
+  else {
+    SERIAL_ECHOLNPAIR("X: ", gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS]);
+    SERIAL_ECHOLNPAIR("Y: ", gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS]);
+    SERIAL_ECHOLNPAIR("Z: ", gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS]);
+  }
 }
