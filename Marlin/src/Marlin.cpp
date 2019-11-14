@@ -239,6 +239,15 @@ millis_t max_inactive_time, // = 0
   float X_MIN_POS;
   float Y_MIN_POS;
   float Z_MIN_POS;
+
+  // Machine definition size
+  float X_DEF_SIZE;
+  float Y_DEF_SIZE;
+  float Z_DEF_SIZE;
+
+  // heated bed magnet location
+  float MAGNET_X_SPAN;
+  float MAGNET_Y_SPAN;
 #endif //ENABLED(SW_MACHINE_SIZE)
 
 uint32_t GRID_MAX_POINTS_X;

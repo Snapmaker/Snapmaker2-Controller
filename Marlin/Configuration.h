@@ -1026,6 +1026,15 @@
   extern float Y_MIN_POS;
   extern float Z_MIN_POS;
 
+
+  // Machine definition size
+  extern float X_DEF_SIZE;
+  extern float Y_DEF_SIZE;
+  extern float Z_DEF_SIZE; // unused currently.
+
+  // heated bed magnet location
+  extern float MAGNET_X_SPAN;
+  extern float MAGNET_Y_SPAN;
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed

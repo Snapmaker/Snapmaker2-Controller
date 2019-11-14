@@ -312,7 +312,6 @@ typedef struct SettingsDataStruct {
     float Z_MIN_POS;
   #endif
 
-  uint8_t PROBE_MARGIN;
 
   //
   // brightness for lightbar
@@ -619,10 +618,9 @@ void MarlinSettings::postprocess() {
           "Bilinear Z array is the wrong size."
         );
         const uint8_t grid_max_x = GRID_MAX_POINTS_X, grid_max_y = GRID_MAX_POINTS_Y;
-        const uint8_t probe_margin = PROBE_MARGIN;
+
         EEPROM_WRITE(grid_max_x);            // 1 byte
         EEPROM_WRITE(grid_max_y);            // 1 byte
-        EEPROM_WRITE(probe_margin);          // 1 byte
         EEPROM_WRITE(bilinear_grid_spacing); // 2 ints
         EEPROM_WRITE(bilinear_start);        // 2 ints
         EEPROM_WRITE(z_values);              // 9-256 floats
@@ -1387,8 +1385,6 @@ void MarlinSettings::postprocess() {
         #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
           GRID_MAX_POINTS_X = grid_max_x;
           GRID_MAX_POINTS_Y = grid_max_y;
-          PROBE_MARGIN = probe_margin;
-
 
           ABL_GRID_POINTS_VIRT_X = (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1;
           ABL_GRID_POINTS_VIRT_Y = (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1;
@@ -2496,7 +2492,6 @@ void MarlinSettings::reset() {
 
   GRID_MAX_POINTS_X = 3;
   GRID_MAX_POINTS_Y = 3;
-  PROBE_MARGIN = 30;
 
   ABL_GRID_POINTS_VIRT_X = (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1;
   ABL_GRID_POINTS_VIRT_Y = (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1;
@@ -2511,6 +2506,7 @@ void MarlinSettings::reset() {
   DEBUG_ECHOLNPGM("Hardcoded Default Settings Loaded");
 
   nozzle_height_probed = 0;
+
 }
 
 #if DISABLED(DISABLE_M503)

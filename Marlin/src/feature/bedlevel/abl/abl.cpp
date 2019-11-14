@@ -434,8 +434,14 @@ float bilinear_z_offset(const float raw[XYZ]) {
 /**
  * bilinear_grid_manual:Initialize bilinear parameters
  */
-void bilinear_grid_manual(float startx, float starty, float endx, float endy)
+void bilinear_grid_manual()
 {
+  float startx, starty, endx, endy;
+  startx = X_DEF_SIZE / 2.0 - MAGNET_X_SPAN / 2.0;
+  endx = X_DEF_SIZE / 2.0 + MAGNET_X_SPAN / 2.0;
+  starty = Y_DEF_SIZE / 2.0 - MAGNET_Y_SPAN / 2.0;
+  endy = Y_DEF_SIZE / 2.0 + MAGNET_Y_SPAN / 2.0;
+
   bilinear_grid_spacing[X_AXIS] = (endx - startx) / (GRID_MAX_POINTS_X - 1);
   bilinear_grid_spacing[Y_AXIS] = (endy - starty) / (GRID_MAX_POINTS_Y - 1);
   bilinear_start[X_AXIS] = startx;
@@ -448,9 +454,7 @@ void bilinear_grid_manual(float startx, float starty, float endx, float endy)
 
 bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
 void auto_probing(bool reply_screen, bool fast_leveling) {
-  float margin = PROBE_MARGIN;
-  bilinear_grid_manual(RAW_X_POSITION(margin), RAW_Y_POSITION(margin),
-                         RAW_X_POSITION(X_MAX_POS - margin), RAW_Y_POSITION(Y_MAX_POS - margin));
+  bilinear_grid_manual();
 
   static int direction [4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
   memset(visited, 0, sizeof(visited[0][0]) * GRID_MAX_NUM * GRID_MAX_NUM);
@@ -460,12 +464,12 @@ void auto_probing(bool reply_screen, bool fast_leveling) {
 
   int dir_idx = 0;
 
-  do_blocking_move_to_z(15, 10);
+  do_blocking_move_to_logical_z(15, 10);
 
   for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
     SERIAL_ECHOLNPAIR("Probing No. ", k);
 
-    float z = probe_pt(_GET_MESH_X(cur_x), _GET_MESH_Y(cur_y), PROBE_PT_RAISE); // raw position
+    float z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE); // raw position
     z_values[cur_x][cur_y] = z;
     visited[cur_x][cur_y] = true;
     if (reply_screen) {
@@ -488,7 +492,7 @@ void auto_probing(bool reply_screen, bool fast_leveling) {
 
   // if fast_leveling is true, over directly. Otherwise move nozzle to current position of probe
   if (!fast_leveling)
-    do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
+    do_blocking_move_to_logical_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
 }
 
 void compensate_offset(float offset) {

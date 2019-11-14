@@ -45,7 +45,7 @@ extern uint32_t ABL_GRID_POINTS_VIRT_X;
 extern uint32_t ABL_GRID_POINTS_VIRT_Y;
 extern uint32_t ABL_TEMP_POINTS_X;
 extern uint32_t ABL_TEMP_POINTS_Y;
-extern uint32_t PROBE_MARGIN;
+
 
 bool leveling_is_valid();
 void set_bed_leveling_enabled(const bool enable=true);
