@@ -1347,6 +1347,9 @@ void loop() {
 
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
+  // clear UART buffer
+  rb_reset(MYSERIAL0.c_dev()->rb);
+  rb_reset(HMISERIAL.c_dev()->rb);
   SERIAL_ECHOLN("Finish init");
 
   for (;;) {
