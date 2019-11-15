@@ -1161,9 +1161,8 @@ void HMI_SC20::HandleOneCommand()
       }
       // query coordinates data
       else if (StatuID == 0xf) {
-        LOG_I("SC req coordinates!\n");
-        if (CoordinateMgrReportData(tmpBuff[IDX_DATA0], tmpBuff[IDX_DATA0 + 1]) != E_SUCCESS)
-          MarkNeedReack(0);
+        LOG_V("SC req change log level");
+        SNAP_DEBUG_SET_LEVEL(1, (SnapDebugLevel)tmpBuff[IDX_DATA0]);
       }
       // not supported command
       else {
