@@ -78,15 +78,14 @@ void GcodeSuite::M1007() {
     SERIAL_ECHOLN("NO");
   }
 
-  SERIAL_ECHOLN("Selected origin offset:");
   if (active_coordinate_system < 0) {
-    SERIAL_ECHOLNPAIR("X: ", position_shift[X_AXIS]);
-    SERIAL_ECHOLNPAIR("Y: ", position_shift[Y_AXIS]);
-    SERIAL_ECHOLNPAIR("Z: ", position_shift[Z_AXIS]);
+    SERIAL_ECHOLNPAIR("Origin offset X: ", position_shift[X_AXIS]);
+    SERIAL_ECHOLNPAIR("Origin offset Y: ", position_shift[Y_AXIS]);
+    SERIAL_ECHOLNPAIR("Origin offset Z: ", position_shift[Z_AXIS]);
   }
   else {
-    SERIAL_ECHOLNPAIR("X: ", gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS]);
-    SERIAL_ECHOLNPAIR("Y: ", gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS]);
-    SERIAL_ECHOLNPAIR("Z: ", gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS]);
+    SERIAL_ECHOLNPAIR("Origin offset X: ", gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS]);
+    SERIAL_ECHOLNPAIR("Origin offset Y: ", gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS]);
+    SERIAL_ECHOLNPAIR("Origin offset Z: ", gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS]);
   }
 }
