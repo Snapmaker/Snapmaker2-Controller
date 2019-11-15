@@ -913,6 +913,8 @@ void HMI_SC20::PollingCommand() {
   // if it's not heartbeat checking, but another command is being handled
   // we drop this command
   if (is_handling_cmd) {
+    LOG_W("handling another cmd, reject cmd [%u:%u]\n", checkout_cmd[next_cmd_idx][IDX_EVENT_ID],
+            checkout_cmd[next_cmd_idx][IDX_OP_CODE]);
     return;
   }
 
