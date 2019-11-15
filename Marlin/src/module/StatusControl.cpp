@@ -126,9 +126,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
     thermalManager.setTargetBed(0);
     HOTEND_LOOP() { thermalManager.setTargetHotend(e, 0); }
-    // delay 120s to turn off FAN
-    ExecuterHead.SetFanDelayOff(0, 120, 0);
-    ExecuterHead.SetFanDelayOff(1, 120, 0);
   }
 
   print_job_timer.stop();
