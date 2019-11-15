@@ -75,7 +75,7 @@ const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
 void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
   int i = 0;
   int j = 0;
-  int size = strlen(log_buf) + 1;
+  int size = strlen(log_buf);
 
   if (size == 0)
     return;
@@ -112,27 +112,25 @@ void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
   log_head[i++] = l;
   log_head[i++] = (uint8_t)size;
 
-
-
   uint32_t checksum = 0;
   checksum += (uint32_t) (((uint8_t) log_head[8] << 8) | (uint8_t) log_head[9]);
   checksum += (uint32_t) (((uint8_t) log_head[10] << 8) | (uint8_t) log_head[11]);
 
-  for (int j = 0; j < (size - 1); j = j + 2)
+  for (j = 0; j < (size - 1); j = j + 2)
     checksum += (uint32_t) (((uint8_t) log_buf[j] << 8) | (uint8_t) log_buf[j + 1]);
 
   // if size is odd number
-  if ((size - 8) % 2) checksum += (uint8_t)log_buf[size - 1];
+  if (size % 2) checksum += (uint8_t)log_buf[size - 1];
 
   while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
   checksum = ~checksum;
   log_head[6] = checksum >> 8;
   log_head[7] = checksum;
 
-  while (--i >= 0)
-    HMISERIAL.write(log_head[i]);
-  while (--size >= 0)
-    HMISERIAL.write(log_buf[size]);
+  for (j = 0; j < i; j++)
+    HMISERIAL.write(log_head[j]);
+  for (j = 0; j < size; j++)
+    HMISERIAL.write(log_buf[j]);
 }
 
 // output debug message, will not output message whose level
