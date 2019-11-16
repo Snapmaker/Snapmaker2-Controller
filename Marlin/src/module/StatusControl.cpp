@@ -53,6 +53,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   switch (type) {
   case TRIGGER_SOURCE_RUNOUT:
     fault_flag_ |= FAULT_FLAG_FILAMENT;
+    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
     break;
 
   case TRIGGER_SOURCE_DOOR_OPEN:
@@ -406,7 +407,6 @@ ErrCode StatusControl::ResumeOver() {
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
       fault_flag_ |= FAULT_FLAG_FILAMENT;
-      HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
       return E_NO_FILAMENT;
     }
@@ -417,7 +417,6 @@ ErrCode StatusControl::ResumeOver() {
     if (Periph.IsDoorOpened()) {
       LOG_E("Door is opened, please close the door!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
-      HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
       PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
       return E_DOOR_OPENED;
     }
