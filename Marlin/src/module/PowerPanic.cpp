@@ -369,11 +369,9 @@ int PowerPanic::SaveEnv(void) {
 }
 
 void PowerPanic::Resume3DP() {
-	char tmpBuff[32];
 
 	for (int i = 0; i < PP_FAN_COUNT; i++) {
-		sprintf(tmpBuff, "M106 P%d S%d", i, pre_data_.FanSpeed[i]);
-		process_cmd_imd(tmpBuff);
+		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
 	}
 
 	// enable hotend
@@ -392,23 +390,27 @@ void PowerPanic::Resume3DP() {
 	RestoreWorkspace();
 
 	// for now, just care 1 hotend
-	thermalManager.setTargetHotend(0, pre_data_.HeaterTamp[0]);
+	thermalManager.setTargetHotend(pre_data_.HeaterTamp[0], 0);
+	thermalManager.setTargetBed(pre_data_.BedTamp);
 
 	// waiting temperature reach target
-	sprintf(tmpBuff, "M190 S%0.2f\n", pre_data_.BedTamp);
-	process_cmd_imd(tmpBuff);
+	thermalManager.wait_for_bed(true);
+	thermalManager.wait_for_hotend(true);
 
 	// pre-extrude
 	relative_mode = true;
 
-	process_cmd_imd("G0 E30 F100");
+	current_position[E_AXIS] += 30;
+	line_to_current_position(10);
 	planner.synchronize();
 
 	// try to cut out filament
-	process_cmd_imd("G0 E-6 F3600");
+	current_position[E_AXIS] -= 6;
+	line_to_current_position(30);
 
-	// try to cut out filament
-	process_cmd_imd("G0 E6 F400");
+	// pre-extrude
+	current_position[E_AXIS] += 6;
+	line_to_current_position(10);
 	planner.synchronize();
 
 	// absolute mode
@@ -523,8 +525,7 @@ ErrCode PowerPanic::ResumeWork() {
 			return E_NO_FILAMENT;
 		}
 
-		LOG_I("previous recorded target hotend temperature is %.2f\n", pre_data_.HeaterTamp[0]);
-		LOG_I("previous recorded target bed temperature is %.2f\n", pre_data_.BedTamp);
+		LOG_I("previous target temp: hotend: %d, bed: %d\n", pre_data_.HeaterTamp[0], pre_data_.BedTamp);
 
 		Resume3DP();
 		break;
