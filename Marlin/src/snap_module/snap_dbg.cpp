@@ -81,6 +81,7 @@ void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
     return;
   else if (size >= 255) {
     size = 255;
+    log_buf[255] = '\0';
   }
 
   // to include the end '\0'

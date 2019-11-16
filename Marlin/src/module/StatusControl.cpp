@@ -126,7 +126,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
   // disable filament checking
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
     thermalManager.setTargetBed(0);
-    HOTEND_LOOP() { thermalManager.setTargetHotend(e, 0); }
+    HOTEND_LOOP() { thermalManager.setTargetHotend(0, e); }
   }
 
   print_job_timer.stop();
@@ -989,7 +989,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     enable_action_ban(action_ban);
 
   if (action & EACTION_STOP_HEATING_HOTEND) {
-    HOTEND_LOOP() thermalManager.setTargetHotend(e, 0);
+    HOTEND_LOOP() thermalManager.setTargetHotend(0, e);
   }
 
   if (action & EACTION_STOP_HEATING_BED)
