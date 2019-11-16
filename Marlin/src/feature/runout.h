@@ -50,6 +50,7 @@
 class FilamentMonitorBase {
   public:
     static bool enabled, filament_ran_out;
+    static millis_t ranout_timer;
 
     #if ENABLED(HOST_ACTION_COMMANDS)
       static bool host_handling;
@@ -96,6 +97,7 @@ class TFilamentMonitor : public FilamentMonitorBase {
 
     // Give the response a chance to update its counter.
     static inline void run() {
+      uint32_t fault = SystemStatus.GetFaultFlag();
       if (enabled && !filament_ran_out && SystemStatus.GetCurrentStage() == SYSTAGE_WORK) {
         #if FILAMENT_RUNOUT_DISTANCE_MM > 0
           cli(); // Prevent RunoutResponseDelayed::block_completed from accumulating here
@@ -109,6 +111,17 @@ class TFilamentMonitor : public FilamentMonitorBase {
         if (ran_out) {
           filament_ran_out = true;
           event_filament_runout();
+        }
+      }
+      else if (enabled && (fault&FAULT_FLAG_FILAMENT)) {
+        if (is_filament_runout())
+          ranout_timer = millis() + 1000;
+        else {
+          // delay 1s to clear
+          if (millis() - ranout_timer > 0) {
+            filament_ran_out = false;
+            SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_FILAMENT);
+          }
         }
       }
     }
@@ -143,7 +156,7 @@ class FilamentSensorBase {
       #if DISABLED(CAN_FILAMENT1_RUNOUT)
         INIT_RUNOUT_PIN(FIL_RUNOUT_PIN);
       #endif
-      
+
       #if NUM_RUNOUT_SENSORS > 1
         #if DISABLED(CAN_FILAMENT2_RUNOUT)
           INIT_RUNOUT_PIN(FIL_RUNOUT2_PIN);
