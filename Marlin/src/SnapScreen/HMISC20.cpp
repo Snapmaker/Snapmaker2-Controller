@@ -1449,7 +1449,7 @@ void HMI_SC20::HandleOneCommand()
         BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
         // retract speed
         BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
-        MoveE(fX, fX, fZ, F, tmpBuff[IDX_DATA0]);
+        MoveE(fX, fY, fZ, F, tmpBuff[IDX_DATA0]);
         MarkNeedReack(0);
         break;
 
