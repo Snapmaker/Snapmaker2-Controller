@@ -296,7 +296,9 @@ typedef struct SettingsDataStruct {
   // Software machine resize
   //
   #if ENABLED(SW_MACHINE_SIZE)
-
+  float s_home_offset[XYZ];
+  float m_home_offset[XYZ];
+  float l_home_offset[XYZ];
   #endif
 
 
@@ -1126,7 +1128,17 @@ void MarlinSettings::postprocess() {
     // Software machine size
     //
     #if ENABLED(SW_MACHINE_SIZE)
-
+    {
+      int i;
+      LOOP_XYZ(i) {
+        _FIELD_TEST(s_home_offset[i]);
+        EEPROM_WRITE(s_home_offset[i]);
+        _FIELD_TEST(m_home_offset[i]);
+        EEPROM_WRITE(m_home_offset[i]);
+        _FIELD_TEST(l_home_offset[i]);
+        EEPROM_WRITE(l_home_offset[i]);
+      }
+    }
     #endif //ENABLED(SW_MACHINE_SIZE)
 
     // save brightness of light bar
@@ -1339,10 +1351,9 @@ void MarlinSettings::postprocess() {
       // Bilinear Auto Bed Leveling
       //
       {
-        uint8_t grid_max_x, grid_max_y, probe_margin;
+        uint8_t grid_max_x, grid_max_y;
         EEPROM_READ_ALWAYS(grid_max_x);                       // 1 byte
         EEPROM_READ_ALWAYS(grid_max_y);                       // 1 byte
-        EEPROM_READ_ALWAYS(probe_margin);
         #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
           GRID_MAX_POINTS_X = grid_max_x;
           GRID_MAX_POINTS_Y = grid_max_y;
@@ -1863,7 +1874,17 @@ void MarlinSettings::postprocess() {
       // Software machine size
       //
       #if ENABLED(SW_MACHINE_SIZE)
-
+      {
+        int i;
+        LOOP_XYZ(i) {
+          _FIELD_TEST(s_home_offset[i]);
+          EEPROM_READ(s_home_offset[i]);
+          _FIELD_TEST(m_home_offset[i]);
+          EEPROM_READ(m_home_offset[i]);
+          _FIELD_TEST(l_home_offset[i]);
+          EEPROM_READ(l_home_offset[i]);
+        }
+      }
       #endif //ENABLED(SW_MACHINE_SIZE)
 
       //
@@ -2370,7 +2391,7 @@ void MarlinSettings::reset() {
   // Software machine size
   //
   #if ENABLED(SW_MACHINE_SIZE)
-
+  reset_homeoffset();
   #endif //ENABLED(SW_MACHINE_SIZE)
 
   GRID_MAX_POINTS_X = 3;

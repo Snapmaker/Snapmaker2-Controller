@@ -36,6 +36,8 @@
   extern uint8_t axis_known_position;
 #endif
 
+void reset_homeoffset();
+
 void stop();
 
 void idle(

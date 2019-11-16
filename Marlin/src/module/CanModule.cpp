@@ -231,9 +231,8 @@ void CanModule::PrepareLinearModules(void) {
       Y_DIR = false;
       Z_HOME_DIR = 1;
       Z_DIR = false;
-      home_offset[X_AXIS] = 0;
-      home_offset[Y_AXIS] = 0;
-      home_offset[Z_AXIS] = 0;
+
+      LOOP_XYZ(i) home_offset[i] = s_home_offset[i];
 
       X_DEF_SIZE = 160;
       Y_DEF_SIZE = 160;
@@ -241,7 +240,6 @@ void CanModule::PrepareLinearModules(void) {
 
       MAGNET_X_SPAN = 114;
       MAGNET_Y_SPAN = 114;
-
 
       machine_size_type = MACHINE_SIZE_S;
       SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
@@ -256,9 +254,8 @@ void CanModule::PrepareLinearModules(void) {
       Y_DIR = false;
       Z_HOME_DIR = 1;
       Z_DIR = false;
-      home_offset[X_AXIS] = -7;
-      home_offset[Y_AXIS] = 0;
-      home_offset[Z_AXIS] = 0;
+
+      LOOP_XYZ(i) home_offset[i] = m_home_offset[i];
 
       X_DEF_SIZE = 230;
       Y_DEF_SIZE = 250;
@@ -266,7 +263,6 @@ void CanModule::PrepareLinearModules(void) {
 
       MAGNET_X_SPAN = 184;
       MAGNET_Y_SPAN = 204;
-
 
       machine_size_type = MACHINE_SIZE_M;
       SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
@@ -281,9 +277,8 @@ void CanModule::PrepareLinearModules(void) {
       Y_DIR = false;
       Z_HOME_DIR = 1;
       Z_DIR = false;
-      home_offset[X_AXIS] = -17;
-      home_offset[Y_AXIS] = -8;
-      home_offset[Z_AXIS] = 0;
+
+      LOOP_XYZ(i) home_offset[i] = l_home_offset[i];
 
       X_DEF_SIZE = 320;
       Y_DEF_SIZE = 350;

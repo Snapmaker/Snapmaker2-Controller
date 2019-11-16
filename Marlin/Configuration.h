@@ -1035,6 +1035,11 @@
   // heated bed magnet location
   extern float MAGNET_X_SPAN;
   extern float MAGNET_Y_SPAN;
+
+  // homeoffset for S/M/L
+  extern float s_home_offset[XYZ];
+  extern float m_home_offset[XYZ];
+  extern float l_home_offset[XYZ];
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed
