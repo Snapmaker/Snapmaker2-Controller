@@ -117,23 +117,19 @@ void ExecuterManager::CallbackCloseDoor() {
     CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_TEMPEARTURE, Data, 2);
     if(temperature > 60) {
       SetFan(1, 255);
-      SetFan(0, 255);
     }
 
     // because when leave control page of screen, it won't turn off FAN
     // So need to close FAN here
     if (temperature == 0) {
       if (thermalManager.degHotend(0) > 150) {
-        SetFanDelayOff(0, 120);
         SetFanDelayOff(1, 120);
       }
       else if (thermalManager.degHotend(0) > 60) {
         // delay 60s to turn off FAN
-        SetFanDelayOff(0, 60);
         SetFanDelayOff(1, 60);
       }
       else {
-        SetFan(0, 0);
         SetFan(1, 0);
       }
     }
