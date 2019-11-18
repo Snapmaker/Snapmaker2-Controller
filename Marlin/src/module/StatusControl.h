@@ -27,13 +27,14 @@
 #define FAULT_FLAG_HOTEND_SENSOR_COMEOFF  (1<<18)
 #define FAULT_FLAG_BED_SENSOR_COMEOFF     (1<<19)
 #define FAULT_FLAG_UNKNOW_MODEL       (1<<20)
+#define FAULT_FLAG_DOOR_OPENED        (1<<21)
 #define FAULT_FLAG_UNKNOW             (1<<31)
 
 // this macro mask the bits which are allow to be cleared by screen
 #define FAULT_FLAG_SC_CLEAR_MASK      (FAULT_FLAG_POWER_LOSS | FAULT_FLAG_FILAMENT | FAULT_FLAG_LOST_SETTING \
                                       | FAULT_FLAG_HOTEND_HEATFAIL | FAULT_FLAG_BED_HEATFAIL | FAULT_FLAG_HOTEND_RUNWAWY \
                                       | FAULT_FLAG_BED_RUNAWAY | FAULT_FLAG_HOTEND_MAXTEMP | FAULT_FLAG_BED_MAXTEMP \
-                                      | FAULT_FLAG_UNKNOW)
+                                      | FAULT_FLAG_UNKNOW | FAULT_FLAG_DOOR_OPENED)
 
 // exception actions
 #define EACTION_NONE                0
@@ -132,6 +133,15 @@ enum WorkingPort : uint8_t {
   WORKING_PORT_INVALID
 };
 
+enum RuntimeEnvType : uint8_t {
+  RENV_TYPE_FEEDRATE,
+  RENV_TYPE_HOTEND_TEMP,
+  RENV_TYPE_BED_TEMP,
+  RENV_TYPE_LASER_POWER,
+
+  RENV_TYPE_INVALID
+};
+
 class StatusControl
 {
 public:
@@ -152,7 +162,7 @@ public:
   ErrCode PauseTrigger(TriggerSource type);
   ErrCode StopTrigger(TriggerSource type);
   ErrCode ResumeTrigger(TriggerSource s);
-  void    ResumeOver();
+  ErrCode ResumeOver();
   ErrCode StartWork(TriggerSource s);
   void Process();
 
@@ -183,6 +193,11 @@ public:
 
   SysStage GetCurrentStage();
   uint32_t GetFaultFlag() { return fault_flag_; }
+
+  void CallbackOpenDoor();
+  void CallbackCloseDoor();
+
+  ErrCode ChangeRuntimeEnv(uint8_t param_type, float param);
 
 private:
   void inline resume_3dp(void);

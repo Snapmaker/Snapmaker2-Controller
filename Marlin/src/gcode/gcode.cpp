@@ -46,6 +46,7 @@ GcodeSuite gcode;
 #endif
 
 #include "../Marlin.h" // for idle() and suspend_auto_report
+#include "../module/PeriphDevice.h"
 
 millis_t GcodeSuite::previous_move_ms;
 
@@ -760,6 +761,9 @@ void GcodeSuite::execute_command(void) {
       #endif
       case 1005: M1005(); break;
       case 1006: M1006(); break;
+      case 1007: M1007(); break;
+
+      case 1010: M1010(); break;                                  // M1010 control/query chamber status, compatible with Snapmaker1
 
       case 1026:
         enable_wait = !enable_wait;
@@ -795,12 +799,23 @@ void GcodeSuite::process_parsed_command(
   #endif
 ) {
 
+  if (Periph.GetHoldUart()) {
+    // only handle M1120
+    if (parser.command_letter == 'M' && parser.codenum == 1010) {
+      execute_command();
+      ok_to_send();
+    }
+
+    return;
+  }
+
   execute_command();
 
   #if USE_EXECUTE_COMMANDS_IMMEDIATE
     if (!no_ok)
   #endif
-      ok_to_send();
+      if (!Periph.GetHoldUart())
+        ok_to_send();
 }
 
 /**

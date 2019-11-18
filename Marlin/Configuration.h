@@ -1026,6 +1026,20 @@
   extern float Y_MIN_POS;
   extern float Z_MIN_POS;
 
+
+  // Machine definition size
+  extern float X_DEF_SIZE;
+  extern float Y_DEF_SIZE;
+  extern float Z_DEF_SIZE; // unused currently.
+
+  // heated bed magnet location
+  extern float MAGNET_X_SPAN;
+  extern float MAGNET_Y_SPAN;
+
+  // homeoffset for S/M/L
+  extern float s_home_offset[XYZ];
+  extern float m_home_offset[XYZ];
+  extern float l_home_offset[XYZ];
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed
@@ -1073,7 +1087,7 @@
 #define FILAMENT_RUNOUT_SENSOR
 #if ENABLED(FILAMENT_RUNOUT_SENSOR)
   #define NUM_RUNOUT_SENSORS   1     // Number of sensors, up to one per extruder. Define a FIL_RUNOUT#_PIN for each.
-  #define FIL_RUNOUT_INVERTING true  // set to true to invert the logic of the sensor.
+  #define FIL_RUNOUT_INVERTING false  // set to true to invert the logic of the sensor.
   #define FIL_RUNOUT_PULLUP          // Use internal pullup for filament runout pins.
   //#define FIL_RUNOUT_PULLDOWN      // Use internal pulldown for filament runout pins.
 

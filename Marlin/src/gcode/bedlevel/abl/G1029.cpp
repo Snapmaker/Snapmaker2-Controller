@@ -55,9 +55,6 @@ extern float nozzle_height_probed;
  *              tuning and saving the offset
  *              Will move to center point first
  *
- *  M[margin]
- *              Set margin
- *
  *  W
  *      I[X_index]
  *      J[Y_index]
@@ -103,7 +100,7 @@ void GcodeSuite::G1029() {
     planner.settings.max_feedrate_mm_s[Z_AXIS] = 60;
 
     endstops.enable_z_probe(true);
-    auto_probing(false);
+    auto_probing(false, false);
     endstops.enable_z_probe(false);
 
     // Recover the Z max feedrate to 20mm/s
@@ -127,16 +124,11 @@ void GcodeSuite::G1029() {
     }
 
     bed_level_virt_interpolate();
-    settings.save();
-    return;
-  }
 
-  const bool seen_m = parser.seenval('M');
-  if (seen_m) {
-    // set probe margin
-    int margin = parser.value_int();
-    PROBE_MARGIN = margin;
-    SERIAL_ECHOLNPAIR("Set probe margin : ", margin);
+    // only save data in flash after adjusting z offset
+    if (opt_s == 0)
+      settings.save();
+    return;
   }
 
   const bool seen_w = parser.seen('W');
@@ -144,8 +136,8 @@ void GcodeSuite::G1029() {
     uint8_t  i = parser.byteval('I', GRID_MAX_POINTS_X / 2);
     uint8_t  j = parser.byteval('J', GRID_MAX_POINTS_Y / 2);
 
-    do_blocking_move_to_xy(_GET_MESH_X(i), _GET_MESH_Y(j), 50);
-    do_blocking_move_to_z(13, 50);
+    do_blocking_move_to_logical_xy(_GET_MESH_X(i), _GET_MESH_Y(j), 50);
+    do_blocking_move_to_logical_z(13, 50);
     return;
   }
 

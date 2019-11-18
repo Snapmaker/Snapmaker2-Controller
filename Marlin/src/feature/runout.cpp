@@ -32,7 +32,7 @@
 
 FilamentMonitor runout;
 
-bool FilamentMonitorBase::enabled = true,
+bool FilamentMonitorBase::enabled = false,
      FilamentMonitorBase::filament_ran_out;  // = false
 uint8_t FilamentMonitorBase::statefromcan = 0;
 

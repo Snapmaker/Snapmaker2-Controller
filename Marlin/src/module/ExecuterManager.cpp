@@ -7,6 +7,8 @@
 #include "CanBus.h"
 #include "CanDefines.h"
 #include "StatusControl.h"
+#include "PeriphDevice.h"
+#include "../snap_module/quickstop.h"
 
 ExecuterManager ExecuterHead;
 
@@ -50,6 +52,8 @@ void ExecuterManager::CheckAlive() {
     if (MACHINE_TYPE_LASER == MachineType) {
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LASER_FOCUS, NULL, 0);
     }
+
+    next_second = millis() + 1000;
   }
 
   if (watch.CheckAlive() == HB_STA_JUST_DEAD) {
@@ -60,6 +64,43 @@ void ExecuterManager::CheckAlive() {
     SystemStatus.ClearException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
   }
 }
+
+void ExecuterManager::CallbackOpenDoor() {
+  switch (MachineType) {
+  case MACHINE_TYPE_LASER:
+    // just handle working with PC
+    if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
+      Laser.ChangePowerLimit(LASER_POWER_SAFE_LIMIT);
+    break;
+
+  case MACHINE_TYPE_CNC:
+    // just handle working with PC
+    if (CNC.GetRPM() > 0 && SystemStatus.GetWorkingPort() != WORKING_PORT_SC) {
+      quickstop.Trigger(QS_EVENT_STOP);
+      Periph.SetUartLock(true);
+    }
+    break;
+
+  default:
+    break;
+  }
+}
+
+void ExecuterManager::CallbackCloseDoor() {
+  switch (MachineType) {
+  case MACHINE_TYPE_LASER:
+    Laser.ChangePowerLimit(LASER_POWER_NORMAL_LIMIT);
+    break;
+
+  case MACHINE_TYPE_CNC:
+    Periph.SetUartLock(false);
+    break;
+
+  default:
+    break;
+  }
+}
+
 
 #if ENABLED(EXECUTER_CANBUS_SUPPORT)
   /**
@@ -74,10 +115,24 @@ void ExecuterManager::CheckAlive() {
     Data[0] = (uint8_t)(temperature >> 8);
     Data[1] = (uint8_t)temperature;
     CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_TEMPEARTURE, Data, 2);
-    if(temperature > 60)
+    if(temperature > 60) {
       SetFan(1, 255);
-    else
-      SetFan(1, 0);
+    }
+
+    // because when leave control page of screen, it won't turn off FAN
+    // So need to close FAN here
+    if (temperature == 0) {
+      if (thermalManager.degHotend(0) > 150) {
+        SetFanDelayOff(1, 120);
+      }
+      else if (thermalManager.degHotend(0) > 60) {
+        // delay 60s to turn off FAN
+        SetFanDelayOff(1, 60);
+      }
+      else {
+        SetFan(1, 0);
+      }
+    }
   }
 
   /**
@@ -86,7 +141,7 @@ void ExecuterManager::CheckAlive() {
    * para time:time to delay in second
    * percent:fan speed in percent
    */
-  void ExecuterManager::SetFanDelayOff(uint8_t index, uint8_t time, uint8_t s_value)
+  void ExecuterManager::SetFanDelayOff(uint8_t index, uint8_t time)
   {
     uint8_t Data[8];
 
@@ -96,11 +151,10 @@ void ExecuterManager::CheckAlive() {
     if (MachineType != MACHINE_TYPE_3DPRINT)
       return;
 
-    Data[0] = 0;
-    Data[1] = time;
-    Data[2] = s_value;
+    Data[0] = time;
+    Data[1] = 0;
 
-    FanSpeed[index] = s_value;
+    FanSpeed[index] = 0;
 
     if(index == 0) {
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 3);

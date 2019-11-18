@@ -878,8 +878,12 @@ private:
 
   static void M1005();
   static void M1006();
+  static void M1007();
 
   static void M1028();
+
+  static void M1010();
+
   static void M2000();
 
   static void T(const uint8_t tool_index);

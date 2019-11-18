@@ -97,17 +97,17 @@
   #define WATCH_TEMP_PERIOD 20                // Seconds
   #define WATCH_TEMP_INCREASE 2               // Degrees Celsius
 
-  #define WATCH_TEMP_TARGET_START   50
+  #define WATCH_TEMP_TARGET_START   100
 
   #define WATCH_TEMP_DROP_DEBOUNCE  3
   #define WATCH_TEMP_DROP_PERIOD    2
   #define WATCH_TEMP_DROP_LIMIT     10
   #define WATCH_TEMP_DROP_DELTA     2
 
-  #define WATCH_TEMP_NOTHEATED_DEBOUNCE 5
-  #define WATCH_TEMP_NOTHEATED_PERIOD   2   // Seconds
-  #define WATCH_TEMP_NOTHEATED_LIMIT    10  // Degrees Celsius
-  #define WATCH_TEMP_NOTHEATED_DELTA    2   // Degrees Celsius
+  #define WATCH_TEMP_NOTHEATED_DEBOUNCE 4
+  #define WATCH_TEMP_NOTHEATED_PERIOD   5   // Seconds
+  #define WATCH_TEMP_NOTHEATED_LIMIT    15  // Degrees Celsius
+  #define WATCH_TEMP_NOTHEATED_DELTA    3   // Degrees Celsius
 #endif
 
 /**
@@ -132,7 +132,7 @@
   #define WATCH_BED_TEMP_NOTHEATED_DEBOUNCE   10
   #define WATCH_BED_TEMP_NOTHEATED_PERIOD     10   // Seconds
   #define WATCH_BED_TEMP_NOTHEATED_LIMIT      10 // Degrees Celsius
-  #define WATCH_BED_TEMP_NOTHEATED_DELTA      1 // Degrees Celsius
+  #define WATCH_BED_TEMP_NOTHEATED_DELTA      2 // Degrees Celsius
 
 /**
  * Thermal Protection parameters for the heated chamber.
@@ -523,10 +523,10 @@
 // Steppers will shut down DEFAULT_STEPPER_DEACTIVE_TIME seconds after the last move when DISABLE_INACTIVE_? is true.
 // Time can be set by M18 and M84.
 #define DEFAULT_STEPPER_DEACTIVE_TIME 120
-#define DISABLE_INACTIVE_X true
-#define DISABLE_INACTIVE_Y true
-#define DISABLE_INACTIVE_Z true  // set to false if the nozzle will fall down on your printed part when print has finished.
-#define DISABLE_INACTIVE_E true
+#define DISABLE_INACTIVE_X false
+#define DISABLE_INACTIVE_Y false
+#define DISABLE_INACTIVE_Z false  // set to false if the nozzle will fall down on your printed part when print has finished.
+#define DISABLE_INACTIVE_E false
 
 #define DEFAULT_MINIMUMFEEDRATE       0.0     // minimum feedrate
 #define DEFAULT_MINTRAVELFEEDRATE     0.0

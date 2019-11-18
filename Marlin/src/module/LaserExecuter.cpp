@@ -7,9 +7,12 @@
 #include "CanBus.h"
 #include "CanDefines.h"
 #include "ExecuterManager.h"
+#include "StatusControl.h"
+
+#include "../snap_module/snap_dbg.h"
 
 // time to delay close fan, 5s
-#define TIME_TO_CLOSE_FAN 5000
+#define TIME_TO_CLOSE_FAN (120 * 1000)
 
 static const uint16_t LaserPowerTable[]=
 {
@@ -32,6 +35,8 @@ void LaserExecuter::Init()
   Tim1PwmInit();
   LASERSerial.begin(115200);
   LoadFocusHeight();
+
+  power_limit_ = LASER_POWER_NORMAL_LIMIT;
 
   fan_state_ = LAESR_FAN_STA_CLOSED;
   fan_tick_ = 0;
@@ -99,6 +104,15 @@ void LaserExecuter::SetLaserPower(float Percent)
   int integer;
   float decimal;
   uint16_t pwmvalue;
+
+  SysStatus cur_stat = SystemStatus.GetCurrentStatus();
+
+  if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG)
+    return;
+
+  if (Percent > power_limit_)
+    Percent = power_limit_;
+
   last_percent = Percent;
   integer = Percent;
   decimal = Percent - integer;
@@ -109,17 +123,6 @@ void LaserExecuter::SetLaserPower(float Percent)
   CheckFan(pwmvalue);
 
   TimSetPwm(pwmvalue);
-}
-
-/**
- * SetLaserLowPower:Set laser power
- * para percent:
- */
-void LaserExecuter::SetLaserPower(uint16_t PwmValue)
-{
-  CheckFan(PwmValue);
-
-  TimSetPwm(PwmValue);
 }
 
 /**
@@ -136,6 +139,12 @@ void LaserExecuter::Off()
  */
 void LaserExecuter::On()
 {
+  SysStatus cur_stat = SystemStatus.GetCurrentStatus();
+
+  if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG) {
+    LOG_W("cannot open laser during pause/stop triggered!\n");
+    return;
+  }
   CheckFan(last_pwm);
   TimSetPwm(last_pwm);
 }
@@ -409,7 +418,7 @@ char LaserExecuter::SetBluetoothName(char *Name)
   uint8_t i;
   uint8_t j;
   uint8_t Buff[90];
-  
+
   i = 0;
   Buff[i++] = 0x11;
   Buff[i++] = 0;
@@ -420,7 +429,7 @@ char LaserExecuter::SetBluetoothName(char *Name)
     Buff[i++] = Name[j];
   }
   Buff[i++] = 0;
-  
+
   PackedProtocal(Buff, i);
   if(GetReply(Buff, 500) == 0) {
     if((Buff[8] == 0x12) && (Buff[9] == 0)) return 0;
@@ -497,18 +506,41 @@ uint16_t LaserExecuter::GetTimPwm() {
   return Tim1GetCCR4();
 }
 
+/**
+ * change power limit, will be call when open / close chamber door
+*/
+void LaserExecuter::ChangePowerLimit(float limit) {
+  if (limit > LASER_POWER_NORMAL_LIMIT)
+    limit = LASER_POWER_NORMAL_LIMIT;
+
+  // if previous limit is larger than now, need to check need to lower current output
+  if (last_percent > limit) {
+    ChangePower(limit);
+
+    if (GetTimPwm() > last_pwm) {
+      // lower current output
+      CheckFan(last_pwm);
+      TimSetPwm(last_pwm);
+    }
+  }
+
+  power_limit_ = limit;
+}
 
 /**
- * API for power-loss, percent is the last settings from HOST, and pwm maybe 0
+ * change power value, but not change output power
 */
-void LaserExecuter::RestorePower(float percent, uint16_t pwm) {
+void LaserExecuter::ChangePower(float percent) {
   int integer;
   float decimal;
+
+  if (percent > power_limit_)
+    percent = power_limit_;
+
   last_percent = percent;
   integer = percent;
   decimal = percent - integer;
 
   last_percent = percent;
   last_pwm = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
-  TimSetPwm(pwm);
 }

@@ -19,12 +19,12 @@ typedef enum
 
 // delay for debounce, uint: ms, for now we use 10ms
 #define POWERPANIC_DEBOUNCE	10
-typedef struct
+typedef struct __attribute__((aligned (4)))
 {
 	// checksum of this section
 	uint32_t CheckSum;
 	// temperature of extrucders
-	float HeaterTamp[PP_HEATER];
+	int16_t HeaterTamp[PP_HEATER];
 	// speed of work
 	float PrintFeedRate;
 	// speed of travel
@@ -35,7 +35,7 @@ typedef struct
 	float laser_percent;
 	uint16_t laser_pwm;
 	// target temperature of heat bed
-	float BedTamp;
+	int16_t BedTamp;
 	// position of stepper on last move
 	float PositionData[NUM_AXIS];
 	// position shift between home offset and workspace offset
@@ -58,7 +58,7 @@ typedef struct
 	// file name
 	char FileName[PP_FILE_NAME_LEN];
 #endif
-}strPowerPanicSave;
+} strPowerPanicSave;
 
 
 class PowerPanic

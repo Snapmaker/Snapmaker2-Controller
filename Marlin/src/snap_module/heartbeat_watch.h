@@ -24,7 +24,7 @@ class HeartbeatWatch {
   void Start() { next_ms_ = millis() + period_; }
   void Stop() { next_ms_ = 0; }
 
-  inline bool IamAlive() { alive_ = true; }
+  inline void IamAlive() { alive_ = true; }
 
   inline uint8_t CheckAlive() {
     uint8_t status = HB_STA_ALIVE;

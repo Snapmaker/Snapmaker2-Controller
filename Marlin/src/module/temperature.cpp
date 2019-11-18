@@ -1101,7 +1101,8 @@ void Temperature::manage_heater() {
     if (watch_bed_notheated.elapsed(ms)) {
       if (degBed() < watch_bed_notheated.target) {
         if (watch_bed_notheated.debounce(true))
-          SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_COME_OFF);
+          //SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_COME_OFF);
+          SERIAL_ECHOLN("Not heated BED!");
       }
       else
         watch_bed_notheated.debounce(false);
@@ -1947,7 +1948,7 @@ void Temperature::init() {
     if (temp_hotend[e].target > WATCH_TEMP_TARGET_START) {
       if (first_heating) {
       // temperature should raise
-        if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_NOTHEATED_LIMIT) {
+        if (temp_hotend[e].current < temp_hotend[e].target - WATCH_TEMP_NOTHEATED_LIMIT - WATCH_TEMP_NOTHEATED_DELTA) {
           watch_hotend_notheated[HOTEND_INDEX].target = temp_hotend[e].current + WATCH_TEMP_NOTHEATED_DELTA;
         }
         else {
@@ -2008,7 +2009,7 @@ void Temperature::init() {
     if (temp_bed.target > WATCH_BED_TEMP_TARGET_START) {
       if (first_heating) {
       // temperature should raise
-        if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_NOTHEATED_LIMIT) {
+        if (temp_bed.current < temp_bed.target - WATCH_BED_TEMP_NOTHEATED_LIMIT - WATCH_BED_TEMP_NOTHEATED_DELTA) {
           watch_bed_notheated.target = temp_bed.current + WATCH_BED_TEMP_NOTHEATED_DELTA;
         }
         else {

@@ -226,19 +226,33 @@ millis_t max_inactive_time, // = 0
 
 // Software machine size
 #if ENABLED(SW_MACHINE_SIZE)
-  bool X_DIR;
-  bool Y_DIR;
-  bool Z_DIR;
-  bool E_DIR;
-  signed char X_HOME_DIR;
-  signed char Y_HOME_DIR;
-  signed char Z_HOME_DIR;
-  float X_MAX_POS;
-  float Y_MAX_POS;
-  float Z_MAX_POS;
-  float X_MIN_POS;
-  float Y_MIN_POS;
-  float Z_MIN_POS;
+  // default will keep machine safe
+  bool X_DIR = false;
+  bool Y_DIR = false;
+  bool Z_DIR = false;
+  bool E_DIR = false;
+  signed char X_HOME_DIR = 1;
+  signed char Y_HOME_DIR = 1;
+  signed char Z_HOME_DIR = 1;
+  float X_MAX_POS = 150;
+  float Y_MAX_POS = 150;
+  float Z_MAX_POS = 150;
+  float X_MIN_POS = 0;
+  float Y_MIN_POS = 0;
+  float Z_MIN_POS = 0;
+
+  // Machine definition size
+  float X_DEF_SIZE = 145;
+  float Y_DEF_SIZE = 145;
+  float Z_DEF_SIZE = 145;
+
+  // heated bed magnet location
+  float MAGNET_X_SPAN = 114;
+  float MAGNET_Y_SPAN = 114;
+
+  float s_home_offset[XYZ] = {0};
+  float m_home_offset[XYZ] = {0};
+  float l_home_offset[XYZ] = {0};
 #endif //ENABLED(SW_MACHINE_SIZE)
 
 uint32_t GRID_MAX_POINTS_X;
@@ -256,6 +270,20 @@ uint32_t ABL_TEMP_POINTS_Y;
  * ******************************** FUNCTIONS ********************************
  * ***************************************************************************
  */
+
+void reset_homeoffset() {
+  int i;
+
+  LOOP_XYZ(i) s_home_offset[i] = 0;
+
+  m_home_offset[X_AXIS] = -7;
+  m_home_offset[Y_AXIS] = 0;
+  m_home_offset[Z_AXIS] = 0;
+
+  l_home_offset[X_AXIS] = -17;
+  l_home_offset[Y_AXIS] = -8;
+  l_home_offset[Z_AXIS] = 0;
+}
 
 void setup_killpin() {
   #if HAS_KILL
@@ -1062,9 +1090,6 @@ void setup() {
   // This also updates variables in the planner, elsewhere
   (void)settings.load();
 
-  // init power panic handler and load data from flash
-  powerpanic.Init();
-
   // reset the status of quickstop
   quickstop.Reset();
 
@@ -1319,6 +1344,8 @@ void loop() {
   #endif
 
   lightbar.init();
+  // init power panic handler and load data from flash
+  powerpanic.Init();
 
   if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
     SERIAL_ECHOLNPGM("Laser Module\r\n");
@@ -1331,6 +1358,7 @@ void loop() {
   else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
     SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
     ExecuterHead.Print3D.Init();
+    runout.enabled = true;
   }
   else {
     SERIAL_ECHOLNPGM("No Executor detected!");
@@ -1342,7 +1370,15 @@ void loop() {
   }
 
   ExecuterHead.Print3D.HeatedBedSelfCheck();
+
+  Periph.Init();
+
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
+
+  // clear UART buffer
+  rb_reset(MYSERIAL0.c_dev()->rb);
+  rb_reset(HMISERIAL.c_dev()->rb);
+  SERIAL_ECHOLN("Finish init");
 
   for (;;) {
 

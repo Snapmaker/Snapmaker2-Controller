@@ -224,7 +224,7 @@ void QuickStop::TowardStop() {
 
 
 void QuickStop::Process() {
-  if (event_ == QS_EVENT_NONE || stopped_)
+  if (event_ == QS_EVENT_NONE)
     return;
 
   if (event_ == QS_EVENT_ISR_POWER_LOSS) {
@@ -239,8 +239,9 @@ void QuickStop::Process() {
           current_position[1], current_position[2], current_position[3]);
   }
 
-  if (SystemStatus.GetCurrentStatus() != SYSTAT_IDLE &&
-      SystemStatus.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
+  // (power-loss && working) or (not power-loss)
+  if ((event_ != QS_EVENT_ISR_POWER_LOSS) ||
+      (SystemStatus.GetCurrentStatus() == SYSTAT_WORK))
     TowardStop();
 
   if (ExecuterHead.MachineType == MACHINE_TYPE_CNC)
@@ -255,12 +256,10 @@ void QuickStop::Process() {
   if (SystemStatus.GetCurrentStatus() == SYSTAT_END_TRIG)
     SystemStatus.SetCurrentStatus(SYSTAT_END_FINISH);
 
-  stopped_ = true;
   // we have stopped, so clear previous event
   event_ = QS_EVENT_NONE;
   sync_flag_ = QS_SYNC_NONE;
 }
 
 void QuickStop::Reset() {
-  stopped_ = false;
 }

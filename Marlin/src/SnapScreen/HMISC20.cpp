@@ -34,6 +34,7 @@
 
 
 #define SEND_BUFF_SIZE    1024
+#define PACK_BUFFER_SIZE  1024
 #define RECV_BUFF_SIZE    2048
 #define ONE_CMD_MAX_SIZE  1024
 #define STATUS_BUFF_SIZE  128
@@ -44,6 +45,7 @@ static char *tmpBuff;
 static char checkout_cmd[2][ONE_CMD_MAX_SIZE];
 // buffer used to packed a command to be sent
 static char SendBuff[SEND_BUFF_SIZE];
+static char packBuff[PACK_BUFFER_SIZE];
 static uint8_t ReadBuff[RECV_BUFF_SIZE];
 
 #define BYTES_TO_32BITS(buff, index) (((uint8_t)buff[index] << 24) | ((uint8_t)buff[index + 1] << 16) | ((uint8_t)buff[index + 2] << 8) | ((uint8_t)buff[index + 3]))
@@ -261,14 +263,14 @@ void HMI_SC20::RequestFirmwareVersion()
 
   i = 0;
 
-  tmpBuff[i++] = 0xAA;
-  tmpBuff[i++] = 3;
+  packBuff[i++] = 0xAA;
+  packBuff[i++] = 3;
   // igore the front 10 characters 'Snapmaker_'
   for(int j=10;j<32;j++) {
-    tmpBuff[i++] = Version[j];
+    packBuff[i++] = Version[j];
     if(Version[j] == 0) break;
   }
-  PackedProtocal(tmpBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 /********************************************************
@@ -295,10 +297,10 @@ void HMI_SC20::CheckFirmwareVersion(char *pNewVersion)
   }
 
   i = 0;
-  tmpBuff[i++] = 0xAA;
-  tmpBuff[i++] = 4;
-  tmpBuff[i++] = Result;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = 0xAA;
+  packBuff[i++] = 4;
+  packBuff[i++] = Result;
+  PackedProtocal(packBuff, i);
 }
 
 
@@ -348,7 +350,7 @@ void HMI_SC20::UpdatePackProcess(uint8_t * pBuff, uint16_t DataLen)
 
   Packindex = (uint16_t) ((pBuff[0] << 8) | pBuff[1]);
   maxpack = MARLIN_CODE_SIZE / 512;
-  //暂定500包，即250K
+
   if ((Packindex < maxpack) && (UpdateInProgress == 1) && (Packindex == UpdatePackRequest)) {
     //减去包序号2个字节
     DataLen = DataLen - 2;
@@ -394,10 +396,10 @@ void HMI_SC20::SendUpdateComplete(uint8_t Type)
   int i;
 
   i = 0;
-  tmpBuff[i++] = 0xAA;
-  tmpBuff[i++] = 6;
-  tmpBuff[i++] = Type;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = 0xAA;
+  packBuff[i++] = 6;
+  packBuff[i++] = Type;
+  PackedProtocal(packBuff, i);
 }
 
 /********************************************************
@@ -408,10 +410,10 @@ void HMI_SC20::SendUpdateStatus(uint8_t Status)
   int i;
 
   i = 0;
-  tmpBuff[i++] = EID_UPGRADE_RESP;
-  tmpBuff[i++] = 5;
-  tmpBuff[i++] = Status;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = EID_UPGRADE_RESP;
+  packBuff[i++] = 5;
+  packBuff[i++] = Status;
+  PackedProtocal(packBuff, i);
 }
 
 /********************************************************
@@ -557,7 +559,7 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
 
 /********************************************************
-激光画方框
+ * API for movement
 *********************************************************/
 void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Option) {
   X = X / 1000.0f;
@@ -589,10 +591,43 @@ void HMI_SC20::MovementProcess(float X, float Y, float Z, float F, uint8_t Optio
   planner.synchronize();
 }
 
+
+void HMI_SC20::MoveE(float extrude_len, float extrude_speed, float retract_len, float retract_speed, uint8_t Option) {
+  extrude_len = extrude_len / 1000.0f;
+  extrude_speed = extrude_speed / 60000.0f;
+  retract_len = retract_len / 1000.0f;
+  retract_speed = retract_speed / 60000.0f;
+
+  switch (Option) {
+  // extrude firstly
+  case 0:
+    current_position[E_AXIS] += extrude_len;
+    line_to_current_position(extrude_speed);
+    planner.synchronize();
+    current_position[E_AXIS] -= retract_len;
+    line_to_current_position(retract_speed);
+    break;
+
+  // retract firstly
+  case 1:
+    current_position[E_AXIS] -= retract_len;
+    line_to_current_position(retract_speed);
+    planner.synchronize();
+    current_position[E_AXIS] += extrude_len;
+    line_to_current_position(extrude_speed);
+    break;
+
+  default:
+    break;
+  }
+
+  planner.synchronize();
+}
+
 /********************************************************
 平自动调平处理
 *********************************************************/
-uint8_t HMI_SC20::HalfAutoCalibrate()
+uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
 {
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
@@ -603,7 +638,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-      move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
+      move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
       planner.synchronize();
     }
     else
@@ -615,17 +650,13 @@ uint8_t HMI_SC20::HalfAutoCalibrate()
     // change the Z max feedrate
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
-    // Set the current position of Z to Z_MAX_POS
-    //current_position[Z_AXIS] = Z_MAX_POS;
-    //sync_plan_position();
-
     endstops.enable_z_probe(true);
 
     // move quicky firstly to decrease the time
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
     planner.synchronize();
 
-    auto_probing(true);
+    auto_probing(true, fast_leveling);
 
     endstops.enable_z_probe(false);
 
@@ -760,18 +791,18 @@ void HMI_SC20::ReportModuleFirmwareVersion(uint32_t ID, char *pVersion) {
 
   i = 0;
 
-  tmpBuff[i++] = 0xAA;
-  tmpBuff[i++] = 7;
-  tmpBuff[i++] = (uint8_t)(ID >> 24);
-  tmpBuff[i++] = (uint8_t)(ID >> 16);
-  tmpBuff[i++] = (uint8_t)(ID >> 8);
-  tmpBuff[i++] = (uint8_t)(ID);
+  packBuff[i++] = 0xAA;
+  packBuff[i++] = 7;
+  packBuff[i++] = (uint8_t)(ID >> 24);
+  packBuff[i++] = (uint8_t)(ID >> 16);
+  packBuff[i++] = (uint8_t)(ID >> 8);
+  packBuff[i++] = (uint8_t)(ID);
 
   for(int j=0;j<32;j++) {
-    tmpBuff[i++] = pVersion[j];
+    packBuff[i++] = pVersion[j];
     if(pVersion[j] == 0) break;
   }
-  PackedProtocal(tmpBuff, i);
+  PackedProtocal(packBuff, i);
 
 }
 
@@ -786,22 +817,22 @@ void HMI_SC20::ReportLinearLength() {
 
   i = 0;
 
-  tmpBuff[i++] = 0x9A;
-  tmpBuff[i++] = 4;
+  packBuff[i++] = 0x9A;
+  packBuff[i++] = 4;
   for(j=0;j<CanModules.LinearModuleCount;j++) {
     ID = CanModules.LinearModuleID[j];
-    tmpBuff[i++] = (uint8_t)(ID >> 24);
-    tmpBuff[i++] = (uint8_t)(ID >> 16);
-    tmpBuff[i++] = (uint8_t)(ID >> 8);
-    tmpBuff[i++] = (uint8_t)(ID);
+    packBuff[i++] = (uint8_t)(ID >> 24);
+    packBuff[i++] = (uint8_t)(ID >> 16);
+    packBuff[i++] = (uint8_t)(ID >> 8);
+    packBuff[i++] = (uint8_t)(ID);
     Length = CanModules.GetLinearModuleLength(j) * 1000.0f;
-    tmpBuff[i++] = (uint8_t)(Length >> 24);
-    tmpBuff[i++] = (uint8_t)(Length >> 16);
-    tmpBuff[i++] = (uint8_t)(Length >> 8);
-    tmpBuff[i++] = (uint8_t)(Length);
+    packBuff[i++] = (uint8_t)(Length >> 24);
+    packBuff[i++] = (uint8_t)(Length >> 16);
+    packBuff[i++] = (uint8_t)(Length >> 8);
+    packBuff[i++] = (uint8_t)(Length);
   }
 
-  PackedProtocal(tmpBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 /**
@@ -815,22 +846,22 @@ void HMI_SC20::ReportLinearLead() {
 
   i = 0;
 
-  tmpBuff[i++] = 0x9A;
-  tmpBuff[i++] = 6;
+  packBuff[i++] = 0x9A;
+  packBuff[i++] = 6;
   for(j=0;j<CanModules.LinearModuleCount;j++) {
     ID = CanModules.LinearModuleID[j];
-    tmpBuff[i++] = (uint8_t)(ID >> 24);
-    tmpBuff[i++] = (uint8_t)(ID >> 16);
-    tmpBuff[i++] = (uint8_t)(ID >> 8);
-    tmpBuff[i++] = (uint8_t)(ID);
+    packBuff[i++] = (uint8_t)(ID >> 24);
+    packBuff[i++] = (uint8_t)(ID >> 16);
+    packBuff[i++] = (uint8_t)(ID >> 8);
+    packBuff[i++] = (uint8_t)(ID);
     Lead = CanModules.GetLinearModuleLead(j) * 1000.0f;
-    tmpBuff[i++] = (uint8_t)(Lead >> 24);
-    tmpBuff[i++] = (uint8_t)(Lead >> 16);
-    tmpBuff[i++] = (uint8_t)(Lead >> 8);
-    tmpBuff[i++] = (uint8_t)(Lead);
+    packBuff[i++] = (uint8_t)(Lead >> 24);
+    packBuff[i++] = (uint8_t)(Lead >> 16);
+    packBuff[i++] = (uint8_t)(Lead >> 8);
+    packBuff[i++] = (uint8_t)(Lead);
   }
 
-  PackedProtocal(tmpBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 /**
@@ -843,17 +874,17 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
 
   i = 0;
 
-  tmpBuff[i++] = 0x9A;
-  tmpBuff[i++] = 2;
+  packBuff[i++] = 0x9A;
+  packBuff[i++] = 2;
   for(j=0;j<CanModules.LinearModuleCount;j++) {
     ID = CanModules.LinearModuleID[j];
-    tmpBuff[i++] = (uint8_t)(ID >> 24);
-    tmpBuff[i++] = (uint8_t)(ID >> 16);
-    tmpBuff[i++] = (uint8_t)(ID >> 8);
-    tmpBuff[i++] = (uint8_t)(ID);
+    packBuff[i++] = (uint8_t)(ID >> 24);
+    packBuff[i++] = (uint8_t)(ID >> 16);
+    packBuff[i++] = (uint8_t)(ID >> 8);
+    packBuff[i++] = (uint8_t)(ID);
   }
 
-  PackedProtocal(tmpBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 
@@ -869,12 +900,21 @@ void HMI_SC20::PollingCommand() {
   if (checkout_cmd[next_cmd_idx][IDX_EVENT_ID] == EID_STATUS_REQ &&
         checkout_cmd[next_cmd_idx][IDX_OP_CODE] == 1) {
     SendMachineStatus();
+    LOG_V("Heartbeat: ");
+    if (debug.GetLevel() <= SNAP_DEBUG_LEVEL_TRACE) {
+      for (int i=0; i<10; i++) {
+        LOG_T("%08X ", *((uint32_t *)status_buff + i));
+      }
+      LOG_T("\n\n");
+    }
     return;
   }
 
   // if it's not heartbeat checking, but another command is being handled
   // we drop this command
   if (is_handling_cmd) {
+    LOG_W("handling another cmd, reject cmd [%u:%u]\n", checkout_cmd[next_cmd_idx][IDX_EVENT_ID],
+            checkout_cmd[next_cmd_idx][IDX_OP_CODE]);
     return;
   }
 
@@ -941,15 +981,16 @@ void HMI_SC20::HandleOneCommand()
         j = cmdLen + 8;
         tmpBuff[j] = 0;
 
-        // for comment, resturn ok immediately
-        if (tmpBuff[13] != ';') {
-          if (cur_status == SYSTAT_RESUME_WAITING) {
-            SystemStatus.ResumeOver();
+        // when we are resuming, won't handle any Gcode
+        if (cur_stage == SYSTAGE_RESUMING) {
+          if (SystemStatus.ResumeOver() == E_SUCCESS) {
+            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
           }
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
+          else
+            SendGcode("ok\n", 0x4);
         }
         else
-          SendGcode("ok\n", 0x4);
+          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
       }
     }
 
@@ -976,7 +1017,7 @@ void HMI_SC20::HandleOneCommand()
         }
         else {
           LOG_W("failed to start work: err= %d\n", err);
-          MarkNeedReack(1);
+          MarkNeedReack(err);
         }
       }
 
@@ -1087,19 +1128,25 @@ void HMI_SC20::HandleOneCommand()
           MarkNeedReack(1);
         }
         else {
-          // bug: why will we receive two consecutive recovery command @TODO
-          SystemStatus.SetCurrentStatus(SYSTAT_RESUME_TRIG);
-          err = powerpanic.ResumeWork();
-          if (E_SUCCESS == err) {
-            SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
-            SystemStatus.SetWorkingPort(WORKING_PORT_SC);
-            MarkNeedReack(0);
-            LOG_I("trigger RESTORE: ok\n");
+          if (cur_status != SYSTAT_IDLE) {
+            MarkNeedReack(E_NO_SWITCHING_STA);
+            LOG_E("cannot trigger recovery at current status: %d\n", cur_status);
           }
           else {
-            LOG_I("trigger RESTORE: failed, err = %d\n", err);
-            MarkNeedReack(1);
-            SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
+            // bug: why will we receive two consecutive recovery command @TODO
+            SystemStatus.SetCurrentStatus(SYSTAT_RESUME_TRIG);
+            err = powerpanic.ResumeWork();
+            if (E_SUCCESS == err) {
+              SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
+              SystemStatus.SetWorkingPort(WORKING_PORT_SC);
+              MarkNeedReack(0);
+              LOG_I("trigger RESTORE: ok\n");
+            }
+            else {
+              LOG_I("trigger RESTORE: failed, err = %d\n", err);
+              MarkNeedReack(err);
+              SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
+            }
           }
         }
       }
@@ -1118,9 +1165,8 @@ void HMI_SC20::HandleOneCommand()
       }
       // query coordinates data
       else if (StatuID == 0xf) {
-        LOG_I("SC req coordinates!\n");
-        if (CoordinateMgrReportData(tmpBuff[IDX_DATA0], tmpBuff[IDX_DATA0 + 1]) != E_SUCCESS)
-          MarkNeedReack(0);
+        LOG_V("SC req change log level");
+        SNAP_DEBUG_SET_LEVEL(1, (SnapDebugLevel)tmpBuff[IDX_DATA0]);
       }
       // not supported command
       else {
@@ -1140,7 +1186,7 @@ void HMI_SC20::HandleOneCommand()
 
         // enable auto level bed
         case 2:
-          MarkNeedReack(HalfAutoCalibrate());
+          MarkNeedReack(HalfAutoCalibrate(false));
           break;
 
         // enble manual level bed
@@ -1172,7 +1218,6 @@ void HMI_SC20::HandleOneCommand()
         case 6:
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          LOG_I("SC req move z, offset: %.3f, cur z: %.3f\n", fZ, current_position[Z_AXIS] + fZ);
           move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
@@ -1183,11 +1228,12 @@ void HMI_SC20::HandleOneCommand()
           if (CMD_BUFF_EMPTY() == true) {
             process_cmd_imd("G1029 S0");
 
+            set_bed_leveling_enabled(true);
+
+            // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
-
-            set_bed_leveling_enabled(true);
 
             // make sure we are in absolute mode
             relative_mode = false;
@@ -1210,11 +1256,12 @@ void HMI_SC20::HandleOneCommand()
             //Load
             settings.load();
 
+            set_bed_leveling_enabled(true);
+
+            // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
             move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
-
-            set_bed_leveling_enabled(true);
 
             HMICommandSave = 0;
 
@@ -1294,9 +1341,10 @@ void HMI_SC20::HandleOneCommand()
             }
             else {
               j = 10;
-              fX = BYTES_TO_32BITS(tmpBuff, j);
-              LOG_I("Laser: Z offset from SC is %.3f\n", fX);
-              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], fX, 21);
+              fZ = BYTES_TO_32BITS(tmpBuff, j);
+              fZ /= 1000;
+              LOG_I("Laser: Z offset from SC is %.3f\n", fZ);
+              DrawLaserRuler(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], fZ, 21);
             }
             MarkNeedReack(0);
           }
@@ -1314,24 +1362,45 @@ void HMI_SC20::HandleOneCommand()
             break;
           }
 
-          if (HalfAutoCalibrate()) {
+          if (HalfAutoCalibrate(true)) {
             MarkNeedReack(1);
             LOG_E("Auto calibration failed!\n");
             break;
           }
 
           process_cmd_imd("G1029 S1");
-          // home all axis
+
+          set_bed_leveling_enabled(true);
+
+          // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
           move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
-          set_bed_leveling_enabled(true);
 
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
           LOG_I("SC req auto probe: Done!\n");
+          break;
+
+        case 0xF:
+            LOG_I("SC req change env\n");
+            j = IDX_DATA0 + 1;
+            BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
+            fX = int32Value / 1000.0f;
+            err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
+            if (err == E_SUCCESS) {
+              MarkNeedReack(0);
+            }
+            else if (err == E_INVALID_STATE) {
+              MarkNeedReack(2);
+              LOG_E("not supported parameter by current Tool head\n");
+            }
+            else {
+              MarkNeedReack(1);
+              LOG_E("invalid parameter\n");
+            }
           break;
 
         //读取尺寸参数
@@ -1343,35 +1412,52 @@ void HMI_SC20::HandleOneCommand()
     //Movement Request
     else if (eventId == EID_MOVEMENT_REQ) {
       float F = 0;
-      j = 10;
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
-      BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+      switch (OpCode) {
+      //激光回原点应答
+      case 0x01:
+        //调平数据失效
+        MovementProcess(0, 0, 0, 0, 0);
+        break;
 
-      if (cmdLen >= 18) {
+      //绝对坐标移动轴
+      case 0x02:
+      case 0x03:
+        j = IDX_DATA0;
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+        if (cmdLen >= 18) {
+          BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
+        }
+        MovementProcess(fX, fY, fZ, F, OpCode - 1);
+        MarkNeedReack(0);
+        break;
+
+      case 0x04:
+        if (thermalManager.tooColdToExtrude(0)) {
+          LOG_E("temperature is cool, cannot move E!\n");
+          MarkNeedReack(1);
+          break;
+        }
+        j = IDX_DATA0 + 1;
+        // avoid to alloc new temp var, use the common var:
+        // extrude length
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fX, tmpBuff, j);
+        // extrude speed
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fY, tmpBuff, j);
+        // retract length
+        BYTES_TO_32BITS_WITH_INDEXMOVE(fZ, tmpBuff, j);
+        // retract speed
         BYTES_TO_32BITS_WITH_INDEXMOVE(F, tmpBuff, j);
+        MoveE(fX, fY, fZ, F, tmpBuff[IDX_DATA0]);
+        MarkNeedReack(0);
+        break;
+
+      default:
+        LOG_E("not supported command!\n");
+        MarkNeedReack(1);
+        break;
       }
-
-      switch (OpCode)
-      {
-        //激光回原点应答
-        case 0x01:
-          //调平数据失效
-          MovementProcess(0, 0, 0, 0, 0);
-          break;
-
-        //绝对坐标移动轴
-        case 0x02:
-          MovementProcess(fX, fY, fZ, F, 1);
-          break;
-
-        //相对坐标移动轴
-        case 0x03:
-          MovementProcess(fX, fY, fZ, F, 2);
-          break;
-      }
-      //应答
-      MarkNeedReack(0);
     }
     //WIFI & Bluetooth
     else if (eventId == EID_LAS_CAM_OP_REQ) {
@@ -1544,7 +1630,7 @@ void HMI_SC20::HandleOneCommand()
         break;
 
       case CMD_ENCLOSURE_FAN_SWITCH:
-        if(tmpBuff[IDX_DATA0] == 0) 
+        if(tmpBuff[IDX_DATA0] == 0)
           Periph.SetEnclosureFanSpeed(0);
         else
           Periph.SetEnclosureFanSpeed(255);
@@ -1637,17 +1723,17 @@ void HMI_SC20::SendProgressPercent(uint8_t Percent)
   i = 0;
 
   // EventID
-  tmpBuff[i++] = EID_STATUS_RESP;
+  packBuff[i++] = EID_STATUS_RESP;
 
   // Opcode
-  tmpBuff[i++] = 0x09;
+  packBuff[i++] = 0x09;
 
   // Percent
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = Percent;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = 0;
+  packBuff[i++] = 0;
+  packBuff[i++] = 0;
+  packBuff[i++] = Percent;
+  PackedProtocal(packBuff, i);
 }
 
 
@@ -1662,14 +1748,14 @@ void HMI_SC20::SendPowerPanicResume(uint8_t OpCode, uint8_t Result)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_STATUS_RESP;
+  packBuff[i++] = EID_STATUS_RESP;
 
   //Operation ID
-  tmpBuff[i++] = OpCode;
+  packBuff[i++] = OpCode;
 
   //结果
-  tmpBuff[i++] = Result;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = Result;
+  PackedProtocal(packBuff, i);
 }
 
 
@@ -1684,29 +1770,29 @@ void HMI_SC20::SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PW
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_LAS_CAM_OP_RESP;
+  packBuff[i++] = EID_LAS_CAM_OP_RESP;
 
   //Operation ID
-  tmpBuff[i++] = OpCode;
+  packBuff[i++] = OpCode;
 
   //结果
-  tmpBuff[i++] = Result;
+  packBuff[i++] = Result;
   for (int j = 0; j < 31; j++) {
     if (SSID[j] == 0) break;
-    tmpBuff[i++] = SSID[j];
+    packBuff[i++] = SSID[j];
   }
-  tmpBuff[i++] = 0;
+  packBuff[i++] = 0;
   for (int j = 0; j < 31; j++) {
     if (PWD[j] == 0) break;
-    tmpBuff[i++] = PWD[j];
+    packBuff[i++] = PWD[j];
   }
-  tmpBuff[i++] = 0;
+  packBuff[i++] = 0;
   for (int j = 0; j < 16; j++) {
-    tmpBuff[i++] = IP[j];
+    packBuff[i++] = IP[j];
     if (IP[j] == 0) break;
   }
-  tmpBuff[i++] = 0;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = 0;
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -1720,20 +1806,20 @@ void HMI_SC20::SendBluetoothName(uint8_t OpCode, uint8_t Result, char * Name)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_LAS_CAM_OP_RESP;
+  packBuff[i++] = EID_LAS_CAM_OP_RESP;
 
   //Operation ID
-  tmpBuff[i++] = OpCode;
+  packBuff[i++] = OpCode;
 
   //结果
-  tmpBuff[i++] = Result;
+  packBuff[i++] = Result;
   for (int j = 0; j < 31; j++) {
     if (Name[j] == 0) break;
-    tmpBuff[i++] = Name[j];
+    packBuff[i++] = Name[j];
   }
-  tmpBuff[i++] = 0;
+  packBuff[i++] = 0;
 
-  PackedProtocal(tmpBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -1747,18 +1833,18 @@ void HMI_SC20::SendBluetoothMac(uint8_t OpCode, uint8_t Result, uint8_t * Mac)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_LAS_CAM_OP_RESP;
+  packBuff[i++] = EID_LAS_CAM_OP_RESP;
 
   //Operation ID
-  tmpBuff[i++] = OpCode;
+  packBuff[i++] = OpCode;
 
   //结果
-  tmpBuff[i++] = Result;
+  packBuff[i++] = Result;
   for (int j = 0; j < 6; j++) {
-    tmpBuff[i++] = Mac[j];
+    packBuff[i++] = Mac[j];
   }
 
-  PackedProtocal(tmpBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -1771,16 +1857,16 @@ void HMI_SC20::SendLaserFocus(uint8_t OpCode, float Height)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_SETTING_RESP;
+  packBuff[i++] = EID_SETTING_RESP;
 
   //获取尺寸
-  tmpBuff[i++] = OpCode;
+  packBuff[i++] = OpCode;
 
   //结果
-  tmpBuff[i++] = 0;
+  packBuff[i++] = 0;
   u32Value = (uint32_t) (Height * 1000.0f);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
-  PackedProtocal(tmpBuff, i);
+  BITS32_TO_BYTES(u32Value, packBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 
@@ -1795,47 +1881,47 @@ void HMI_SC20::SendMachineSize()
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_SETTING_RESP;
+  packBuff[i++] = EID_SETTING_RESP;
 
   //获取尺寸
-  tmpBuff[i++] = 20;
-  tmpBuff[i++] = 0;
+  packBuff[i++] = 20;
+  packBuff[i++] = 0;
 
   //Machine size type
-  tmpBuff[i++] = CanModules.GetMachineSizeType();
+  packBuff[i++] = CanModules.GetMachineSizeType();
 
   //Size
   u32Value = (uint32_t) (X_MAX_POS * 1000);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
+  BITS32_TO_BYTES(u32Value, packBuff, i);
   u32Value = (uint32_t) (Y_MAX_POS * 1000);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
+  BITS32_TO_BYTES(u32Value, packBuff, i);
   u32Value = (uint32_t) (Z_MAX_POS * 1000);
-  BITS32_TO_BYTES(u32Value, tmpBuff, i);
+  BITS32_TO_BYTES(u32Value, packBuff, i);
 
   //Home Dir
   int32Value = (int32_t) (X_HOME_DIR);
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
   int32Value = (int32_t) (Y_HOME_DIR);
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
   int32Value = (int32_t) (Z_HOME_DIR);
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
 
   //Dir
   int32Value = X_DIR == true?(int32_t)1:(int32_t)-1;
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
   int32Value = Y_DIR == true?(int32_t)1:(int32_t)-1;
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
   int32Value = Z_DIR == true?(int32_t)1:(int32_t)-1;
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
 
   //Offset
   int32Value = (int32_t) (home_offset[X_AXIS] *1000.0f);
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
   int32Value = (int32_t) (home_offset[Y_AXIS] *1000.0f);
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
   int32Value = (int32_t) (home_offset[Z_AXIS] *1000.0f);
-  BITS32_TO_BYTES(int32Value, tmpBuff, i);
-  PackedProtocal(tmpBuff, i);
+  BITS32_TO_BYTES(int32Value, packBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 
@@ -1848,11 +1934,11 @@ void HMI_SC20::SendUpdatePackRequest(uint16_t PackRequested)
   uint16_t i;
   i = 0;
 
-  tmpBuff[i++] = 0xAA;
-  tmpBuff[i++] = 1;
-  tmpBuff[i++] = (PackRequested >> 8);
-  tmpBuff[i++] = (PackRequested);
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = 0xAA;
+  packBuff[i++] = 1;
+  packBuff[i++] = (PackRequested >> 8);
+  packBuff[i++] = (PackRequested);
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -1864,11 +1950,11 @@ void HMI_SC20::SendHalfCalibratePoint(uint8_t Opcode, uint8_t Index)
   uint16_t i;
   i = 0;
 
-  tmpBuff[i++] = 0x0a;
-  tmpBuff[i++] = Opcode;
-  tmpBuff[i++] = 0;
-  tmpBuff[i++] = Index;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = 0x0a;
+  packBuff[i++] = Opcode;
+  packBuff[i++] = 0;
+  packBuff[i++] = Index;
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -1880,10 +1966,10 @@ void HMI_SC20::SendGeneralReack(uint8_t EventID, uint8_t OpCode, uint8_t Result)
   uint16_t i;
   i = 0;
 
-  tmpBuff[i++] = EventID;
-  tmpBuff[i++] = OpCode;
-  tmpBuff[i++] = Result;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = EventID;
+  packBuff[i++] = OpCode;
+  packBuff[i++] = Result;
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -1895,21 +1981,21 @@ void HMI_SC20::SendBreakPointData()
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_STATUS_RESP;
-  tmpBuff[i++] = 0x08;
-  tmpBuff[i++] = powerpanic.pre_data_.Valid;
-  tmpBuff[i++] = powerpanic.pre_data_.GCodeSource;
+  packBuff[i++] = EID_STATUS_RESP;
+  packBuff[i++] = 0x08;
+  packBuff[i++] = powerpanic.pre_data_.Valid;
+  packBuff[i++] = powerpanic.pre_data_.GCodeSource;
 
   if (SystemStatus.GetCurrentStage() == SYSTAGE_PAUSE) {
     // resume from pause, use this line
-    BITS32_TO_BYTES(powerpanic.Data.FilePosition, tmpBuff, i);
+    BITS32_TO_BYTES(powerpanic.Data.FilePosition, packBuff, i);
   }
   else {
     // resume form power-loss, use this line
-    BITS32_TO_BYTES(powerpanic.pre_data_.FilePosition, tmpBuff, i);
+    BITS32_TO_BYTES(powerpanic.pre_data_.FilePosition, packBuff, i);
   }
 
-  PackedProtocal(tmpBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -1921,24 +2007,24 @@ void HMI_SC20::SendMachineFaultFlag(uint32_t flag)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_STATUS_RESP;
+  packBuff[i++] = EID_STATUS_RESP;
 
   //异常上报
-  tmpBuff[i++] = 0x02;
+  packBuff[i++] = 0x02;
 
   //异常标志
   if (!flag) {
     flag = SystemStatus.GetSystemFault();
   }
-  BITS32_TO_BYTES(flag, tmpBuff, i);
+  BITS32_TO_BYTES(flag, packBuff, i);
 
   //打印文件源
-  if (SystemStatus.GetCurrentStage() == SYSTAGE_IDLE) tmpBuff[i++] = 3;
-  else tmpBuff[i++] = powerpanic.Data.GCodeSource;
+  if (SystemStatus.GetCurrentStage() == SYSTAGE_IDLE) packBuff[i++] = 3;
+  else packBuff[i++] = powerpanic.Data.GCodeSource;
 
   //行号
-  BITS32_TO_BYTES(powerpanic.Data.FilePosition, tmpBuff, i);
-  PackedProtocal(tmpBuff, i);
+  BITS32_TO_BYTES(powerpanic.Data.FilePosition, packBuff, i);
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -1950,14 +2036,14 @@ void HMI_SC20::SendMachineStatusChange(uint8_t Status, uint8_t Result)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EID_STATUS_RESP;
+  packBuff[i++] = EID_STATUS_RESP;
 
   //目前状态
-  tmpBuff[i++] = Status;
+  packBuff[i++] = Status;
 
   //处理结果
-  tmpBuff[i++] = Result;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = Result;
+  PackedProtocal(packBuff, i);
 }
 
 /***********************************************
@@ -2017,14 +2103,14 @@ void HMI_SC20::SendMachineStatus()
   thermalManager.temp_bed.current;
   TBS = (int16_t)
   thermalManager.temp_bed.target;
-  status_buff[i++] = (uint8_t) ((int) TB >> 8);
-  status_buff[i++] = (uint8_t) ((int) TB);
-  status_buff[i++] = (uint8_t) ((int) TBS >> 8);
-  status_buff[i++] = (uint8_t) ((int) TBS);
-  status_buff[i++] = (uint8_t) ((int) T0 >> 8);
-  status_buff[i++] = (uint8_t) ((int) T0);
-  status_buff[i++] = (uint8_t) ((int) T0S >> 8);
-  status_buff[i++] = (uint8_t) ((int) T0S);
+  status_buff[i++] = (uint8_t) (TB >> 8);
+  status_buff[i++] = (uint8_t) (TB);
+  status_buff[i++] = (uint8_t) (TBS >> 8);
+  status_buff[i++] = (uint8_t) (TBS);
+  status_buff[i++] = (uint8_t) (T0 >> 8);
+  status_buff[i++] = (uint8_t) (T0);
+  status_buff[i++] = (uint8_t) (T0S >> 8);
+  status_buff[i++] = (uint8_t) (T0S);
 
   //FeedRate
   fValue = (last_feedrate * 60);
@@ -2079,9 +2165,9 @@ void HMI_SC20::SendGcode(char * GCode, uint8_t EventID)
   i = 0;
 
   //EventID
-  tmpBuff[i++] = EventID;
-  while (*GCode != 0) tmpBuff[i++] = *GCode++;
-  PackedProtocal(tmpBuff, i);
+  packBuff[i++] = EventID;
+  while (*GCode != 0) packBuff[i++] = *GCode++;
+  PackedProtocal(packBuff, i);
 }
 
 

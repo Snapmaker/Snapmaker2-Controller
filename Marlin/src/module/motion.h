@@ -328,8 +328,7 @@ void homeaxis(const AxisEnum axis);
           && WITHIN(rx, MIN_PROBE_X - slop, MAX_PROBE_X + slop)
           && WITHIN(ry, MIN_PROBE_Y - slop, MAX_PROBE_Y + slop);
       */
-      return position_is_reachable(rx - (X_PROBE_OFFSET_FROM_EXTRUDER), ry - (Y_PROBE_OFFSET_FROM_EXTRUDER))
-          && WITHIN(rx, X_MIN_POS + home_offset[X_AXIS], X_MAX_POS + home_offset[X_AXIS])
+      return  WITHIN(rx, X_MIN_POS + home_offset[X_AXIS], X_MAX_POS + home_offset[X_AXIS])
           && WITHIN(ry, Y_MIN_POS + home_offset[Y_AXIS], Y_MAX_POS + home_offset[Y_AXIS]);
     }
   #endif

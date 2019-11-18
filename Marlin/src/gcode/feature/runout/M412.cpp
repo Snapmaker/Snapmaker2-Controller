@@ -31,9 +31,9 @@
  * M412: Enable / Disable filament runout detection
  */
 void GcodeSuite::M412() {
-  if (parser.seen("HS"
+  if (parser.seen("RS"
     #if ENABLED(HOST_ACTION_COMMANDS)
-      "R"
+      "H"
     #endif
   )) {
     #if ENABLED(HOST_ACTION_COMMANDS)
@@ -41,7 +41,17 @@ void GcodeSuite::M412() {
     #endif
     const bool seenR = parser.seen('R'), seenS = parser.seen('S');
     if (seenR || seenS) runout.reset();
-    if (seenS) runout.enabled = parser.value_bool();
+    // if user disable runout checking, clear execption
+    if (seenS) {
+      if (!parser.value_bool()) {
+        if (runout.enabled) {
+          SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_FILAMENT);
+          runout.enabled = false;
+        }
+      }
+      else
+        runout.enabled = true;
+    }
   }
   else {
     SERIAL_ECHO_START();
