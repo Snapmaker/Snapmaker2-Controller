@@ -522,6 +522,7 @@ ErrCode PowerPanic::ResumeWork() {
 		if (runout.is_filament_runout()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			SystemStatus.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+			process_cmd_imd("G28 Z");
 			return E_NO_FILAMENT;
 		}
 
