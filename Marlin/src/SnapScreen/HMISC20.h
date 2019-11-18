@@ -85,7 +85,7 @@ private:
   uint8_t CalibrateIndeY[9]={0, 0, 0, 1, 2, 2, 2, 1, 1};
   //调平点索引
   uint8_t PointIndex;
-  float MeshPointZ[9];
+  float MeshPointZ[25];
   uint16_t ZHomeOffsetIndex;
   char BuildinWifiIP[16];
   char SSID[32];
