@@ -9,6 +9,7 @@
 
 enum SnapDebugLevel : uint8_t {
   SNAP_DEBUG_LEVEL_TRACE = 0,
+  SNAP_DEBUG_LEVEL_VERBOSE,
   SNAP_DEBUG_LEVEL_INFO,
   SNAP_DEBUG_LEVEL_WARNING,
   SNAP_DEBUG_LEVEL_ERROR,
@@ -58,7 +59,7 @@ class SnapDebug {
     void Log(SnapDebugLevel level, const char *fmt, ...);
 
     void ShowInfo();
-    void SetLevel(SnapDebugLevel l);
+    void SetLevel(uint8_t port, SnapDebugLevel l);
     SnapDebugLevel GetLevel();
     void CmdChecksumError(bool screen);
     void SetSCGcodeLine(uint32_t l);
@@ -66,6 +67,7 @@ class SnapDebug {
     void ShowException();
 
   private:
+    void SendLog2Screen(SnapDebugLevel l);
 
     struct SnapDebugInfo info;
 };
@@ -79,12 +81,13 @@ extern SnapDebug debug;
 #define LOG_E(...) debug.Log(SNAP_DEBUG_LEVEL_ERROR, __VA_ARGS__)
 #define LOG_W(...) debug.Log(SNAP_DEBUG_LEVEL_WARNING, __VA_ARGS__)
 #define LOG_I(...) debug.Log(SNAP_DEBUG_LEVEL_INFO, __VA_ARGS__)
+#define LOG_V(...) debug.Log(SNAP_DEBUG_LEVEL_VERBOSE, __VA_ARGS__)
 #define LOG_T(...) debug.Log(SNAP_DEBUG_LEVEL_TRACE, __VA_ARGS__)
 
 
 #define SNAP_DEBUG_SHOW_INFO()            debug.ShowInfo();
 #define SNAP_DEBUG_SHOW_EXCEPTION()       debug.ShowException();
-#define SNAP_DEBUG_SET_LEVEL(l)           debug.SetLevel(l);
+#define SNAP_DEBUG_SET_LEVEL(p, l)        debug.SetLevel(p, l);
 #define SNAP_DEBUG_CMD_CHECKSUM_ERROR(s)  debug.CmdChecksumError(s);
 #define SNAP_DEBUG_SET_GCODE_LINE(l)      debug.SetSCGcodeLine(l);
 
@@ -94,6 +97,7 @@ extern SnapDebug debug;
 #define LOG_E(...)
 #define LOG_W(...)
 #define LOG_I(...)
+#define LOG_V(...)
 #define LOG_T(...)
 
 #define SNAP_DEBUG_SHOW_INFO()

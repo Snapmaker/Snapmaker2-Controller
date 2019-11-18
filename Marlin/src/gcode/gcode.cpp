@@ -761,6 +761,7 @@ void GcodeSuite::execute_command(void) {
       #endif
       case 1005: M1005(); break;
       case 1006: M1006(); break;
+      case 1007: M1007(); break;
 
       case 1010: M1010(); break;                                  // M1010 control/query chamber status, compatible with Snapmaker1
 

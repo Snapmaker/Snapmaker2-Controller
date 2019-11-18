@@ -28,4 +28,9 @@ typedef uint8_t ErrCode;
 
 #define E_SAME_STATE      (COMMON_ERR_BASE + 8)     /* current state is same with new state */
 
+#define PRIVATE_ERROR_BASE  200
+#define E_NO_SWITCHING_STA  (PRIVATE_ERROR_BASE + 0)
+#define E_NO_WORKING        (PRIVATE_ERROR_BASE + 1)
+#define E_NO_FILAMENT       (PRIVATE_ERROR_BASE + 2)
+#define E_DOOR_OPENED       (PRIVATE_ERROR_BASE + 3)
 #endif // #ifndef ERROR_H_

@@ -296,23 +296,11 @@ typedef struct SettingsDataStruct {
   // Software machine resize
   //
   #if ENABLED(SW_MACHINE_SIZE)
-    uint32_t X_DIR;
-    uint32_t Y_DIR;
-    uint32_t Z_DIR;
-    uint32_t E_DIR;
-    uint32_t X_HOME_DIR;
-    uint32_t Y_HOME_DIR;
-    uint32_t Z_HOME_DIR;
-    uint32_t DUMMY_HOME_DIR;
-    float X_MAX_POS;
-    float Y_MAX_POS;
-    float Z_MAX_POS;
-    float X_MIN_POS;
-    float Y_MIN_POS;
-    float Z_MIN_POS;
+  float s_home_offset[XYZ];
+  float m_home_offset[XYZ];
+  float l_home_offset[XYZ];
   #endif
 
-  uint8_t PROBE_MARGIN;
 
   //
   // brightness for lightbar
@@ -619,10 +607,9 @@ void MarlinSettings::postprocess() {
           "Bilinear Z array is the wrong size."
         );
         const uint8_t grid_max_x = GRID_MAX_POINTS_X, grid_max_y = GRID_MAX_POINTS_Y;
-        const uint8_t probe_margin = PROBE_MARGIN;
+
         EEPROM_WRITE(grid_max_x);            // 1 byte
         EEPROM_WRITE(grid_max_y);            // 1 byte
-        EEPROM_WRITE(probe_margin);          // 1 byte
         EEPROM_WRITE(bilinear_grid_spacing); // 2 ints
         EEPROM_WRITE(bilinear_start);        // 2 ints
         EEPROM_WRITE(z_values);              // 9-256 floats
@@ -1141,33 +1128,17 @@ void MarlinSettings::postprocess() {
     // Software machine size
     //
     #if ENABLED(SW_MACHINE_SIZE)
-      int32_t DIR[XYZE];
-      DIR[X_AXIS] = X_DIR==true?1:-1;
-      DIR[Y_AXIS] = Y_DIR==true?1:-1;
-      DIR[Z_AXIS] = Z_DIR==true?1:-1;
-      DIR[E_AXIS] = E_DIR==true?1:-1;
-      _FIELD_TEST(DIR);
-      EEPROM_WRITE(DIR);
-
-      DIR[X_AXIS] = X_HOME_DIR>0?1:-1;
-      DIR[Y_AXIS] = Y_HOME_DIR>0?1:-1;
-      DIR[Z_AXIS] = Z_HOME_DIR>0?1:-1;
-      _FIELD_TEST(DIR);
-      EEPROM_WRITE(DIR);
-
-      _FIELD_TEST(X_MAX_POS);
-      EEPROM_WRITE(X_MAX_POS);
-      _FIELD_TEST(X_MAX_POS);
-      EEPROM_WRITE(Y_MAX_POS);
-      _FIELD_TEST(Z_MAX_POS);
-      EEPROM_WRITE(Z_MAX_POS);
-
-      _FIELD_TEST(X_MIN_POS);
-      EEPROM_WRITE(X_MIN_POS);
-      _FIELD_TEST(Y_MIN_POS);
-      EEPROM_WRITE(Y_MIN_POS);
-      _FIELD_TEST(Z_MIN_POS);
-      EEPROM_WRITE(Z_MIN_POS);
+    {
+      int i;
+      LOOP_XYZ(i) {
+        _FIELD_TEST(s_home_offset[i]);
+        EEPROM_WRITE(s_home_offset[i]);
+        _FIELD_TEST(m_home_offset[i]);
+        EEPROM_WRITE(m_home_offset[i]);
+        _FIELD_TEST(l_home_offset[i]);
+        EEPROM_WRITE(l_home_offset[i]);
+      }
+    }
     #endif //ENABLED(SW_MACHINE_SIZE)
 
     // save brightness of light bar
@@ -1380,15 +1351,12 @@ void MarlinSettings::postprocess() {
       // Bilinear Auto Bed Leveling
       //
       {
-        uint8_t grid_max_x, grid_max_y, probe_margin;
+        uint8_t grid_max_x, grid_max_y;
         EEPROM_READ_ALWAYS(grid_max_x);                       // 1 byte
         EEPROM_READ_ALWAYS(grid_max_y);                       // 1 byte
-        EEPROM_READ_ALWAYS(probe_margin);
         #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
           GRID_MAX_POINTS_X = grid_max_x;
           GRID_MAX_POINTS_Y = grid_max_y;
-          PROBE_MARGIN = probe_margin;
-
 
           ABL_GRID_POINTS_VIRT_X = (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1;
           ABL_GRID_POINTS_VIRT_Y = (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1;
@@ -1906,33 +1874,17 @@ void MarlinSettings::postprocess() {
       // Software machine size
       //
       #if ENABLED(SW_MACHINE_SIZE)
-        int32_t DIR[4];
-        _FIELD_TEST(DIR);
-        EEPROM_READ(DIR);
-        X_DIR = DIR[X_AXIS] > 0;
-        Y_DIR = DIR[Y_AXIS] > 0;
-        Z_DIR = DIR[Z_AXIS] > 0;
-        E_DIR = DIR[E_AXIS] > 0;
-
-        _FIELD_TEST(DIR);
-        EEPROM_READ(DIR);
-        X_HOME_DIR = (DIR[X_AXIS] >0)?1:-1;
-        Y_HOME_DIR = (DIR[Y_AXIS] >0)?1:-1;
-        Z_HOME_DIR = (DIR[Z_AXIS] >0)?1:-1;
-
-        _FIELD_TEST(X_MAX_POS);
-        EEPROM_READ(X_MAX_POS);
-        _FIELD_TEST(Y_MAX_POS);
-        EEPROM_READ(Y_MAX_POS);
-        _FIELD_TEST(Z_MAX_POS);
-        EEPROM_READ(Z_MAX_POS);
-
-        _FIELD_TEST(X_MIN_POS);
-        EEPROM_READ(X_MIN_POS);
-        _FIELD_TEST(Y_MIN_POS);
-        EEPROM_READ(Y_MIN_POS);
-        _FIELD_TEST(Z_MIN_POS);
-        EEPROM_READ(Z_MIN_POS);
+      {
+        int i;
+        LOOP_XYZ(i) {
+          _FIELD_TEST(s_home_offset[i]);
+          EEPROM_READ(s_home_offset[i]);
+          _FIELD_TEST(m_home_offset[i]);
+          EEPROM_READ(m_home_offset[i]);
+          _FIELD_TEST(l_home_offset[i]);
+          EEPROM_READ(l_home_offset[i]);
+        }
+      }
       #endif //ENABLED(SW_MACHINE_SIZE)
 
       //
@@ -2004,34 +1956,7 @@ void MarlinSettings::postprocess() {
     EEPROM_FINISH();
 
     #if ENABLED(SW_MACHINE_SIZE)
-      base_min_pos_P[X_AXIS] = X_MIN_POS;
-      base_min_pos_P[Y_AXIS] = Y_MIN_POS;
-      base_min_pos_P[Z_AXIS] = Z_MIN_POS;
-      base_max_pos_P[X_AXIS] = X_MAX_POS;
-      base_max_pos_P[Y_AXIS] = Y_MAX_POS;
-      base_max_pos_P[Z_AXIS] = Z_MAX_POS;
-      home_dir_P[X_AXIS] = X_HOME_DIR;
-      home_dir_P[Y_AXIS] = Y_HOME_DIR;
-      home_dir_P[Z_AXIS] = Z_HOME_DIR;
-      home_bump_mm_P[X_AXIS] = X_HOME_BUMP_MM;
-      home_bump_mm_P[Y_AXIS] = Y_HOME_BUMP_MM;
-      home_bump_mm_P[Z_AXIS] = Z_HOME_BUMP_MM;
-      base_home_pos_P[X_AXIS] = (home_dir_P[X_AXIS] < 0)?X_MIN_POS:X_MAX_POS;
-      base_home_pos_P[Y_AXIS] = (home_dir_P[Y_AXIS] < 0)?Y_MIN_POS:Y_MAX_POS;
-      base_home_pos_P[Z_AXIS] = (home_dir_P[Z_AXIS] < 0)?Z_MIN_POS:Z_MAX_POS;
-      #if ENABLED(MIN_SOFTWARE_ENDSTOPS)
-      soft_endstop[X_AXIS].min = X_MIN_POS;
-      soft_endstop[Y_AXIS].min = Y_MIN_POS;
-      soft_endstop[Z_AXIS].min = Z_MIN_POS;
-      #endif
-      #if ENABLED(MAX_SOFTWARE_ENDSTOPS)
-      soft_endstop[X_AXIS].max = X_MAX_POS;
-      soft_endstop[Y_AXIS].max = Y_MAX_POS;
-      soft_endstop[Z_AXIS].max = Z_MAX_POS;
-      #endif
-      max_length_P[X_AXIS] = X_MAX_POS - X_MIN_POS;
-      max_length_P[Y_AXIS] = Y_MAX_POS - Y_MIN_POS;
-      max_length_P[Z_AXIS] = Z_MAX_POS - Z_MIN_POS;
+
     #endif
 
     return !eeprom_error;
@@ -2466,37 +2391,11 @@ void MarlinSettings::reset() {
   // Software machine size
   //
   #if ENABLED(SW_MACHINE_SIZE)
-    X_DIR = true;
-    Y_DIR = false;
-    Z_DIR = false;
-    E_DIR = true;
-    X_HOME_DIR = -1;
-    Y_HOME_DIR = 1;
-    Z_HOME_DIR = 1;
-    X_MAX_POS = 255;
-    Y_MAX_POS = 275;
-    Z_MAX_POS = 250;
-    X_MIN_POS = 0;
-    Y_MIN_POS = 0;
-    Z_MIN_POS = 0;
-    base_home_pos_P[X_AXIS] = (home_dir_P[X_AXIS] < 0)?X_MIN_POS:X_MAX_POS;
-    base_home_pos_P[Y_AXIS] = (home_dir_P[Y_AXIS] < 0)?Y_MIN_POS:Y_MAX_POS;
-    base_home_pos_P[Z_AXIS] = (home_dir_P[Z_AXIS] < 0)?Z_MIN_POS:Z_MAX_POS;
-    #if ENABLED(MIN_SOFTWARE_ENDSTOPS)
-    soft_endstop[X_AXIS].min = X_MIN_POS;
-    soft_endstop[Y_AXIS].min = Y_MIN_POS;
-    soft_endstop[Z_AXIS].min = Z_MIN_POS;
-    #endif
-    #if ENABLED(MAX_SOFTWARE_ENDSTOPS)
-    soft_endstop[X_AXIS].max = X_MAX_POS;
-    soft_endstop[Y_AXIS].max = Y_MAX_POS;
-    soft_endstop[Z_AXIS].max = Z_MAX_POS;
-    #endif
+  reset_homeoffset();
   #endif //ENABLED(SW_MACHINE_SIZE)
 
   GRID_MAX_POINTS_X = 3;
   GRID_MAX_POINTS_Y = 3;
-  PROBE_MARGIN = 30;
 
   ABL_GRID_POINTS_VIRT_X = (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1;
   ABL_GRID_POINTS_VIRT_Y = (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1;
@@ -2511,6 +2410,7 @@ void MarlinSettings::reset() {
   DEBUG_ECHOLNPGM("Hardcoded Default Settings Loaded");
 
   nozzle_height_probed = 0;
+
 }
 
 #if DISABLED(DISABLE_M503)

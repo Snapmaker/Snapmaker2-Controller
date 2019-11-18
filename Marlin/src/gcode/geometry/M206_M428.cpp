@@ -28,7 +28,7 @@
 #include "../../module/motion.h"
 #include "../../lcd/ultralcd.h"
 #include "../../libs/buzzer.h"
-
+#include "../../module/CanModule.h"
 /**
  * M206: Set Additional Homing Offset (X Y Z). SCARA aliases T=X, P=Y
  *
@@ -38,8 +38,25 @@
  */
 void GcodeSuite::M206() {
   LOOP_XYZ(i)
-    if (parser.seen(axis_codes[i]))
+    if (parser.seen(axis_codes[i])) {
       set_home_offset((AxisEnum)i, parser.value_linear_units());
+      switch (CanModules.GetMachineSizeType()) {
+        case MACHINE_SIZE_S:
+          s_home_offset[i] = home_offset[i];
+          break;
+
+        case MACHINE_SIZE_M:
+          m_home_offset[i] = home_offset[i];
+          break;
+
+        case MACHINE_SIZE_L:
+          l_home_offset[i] = home_offset[i];
+          break;
+
+        default:
+          break;
+      }
+    }
 
   #if ENABLED(MORGAN_SCARA)
     if (parser.seen('T')) set_home_offset(A_AXIS, parser.value_float()); // Theta

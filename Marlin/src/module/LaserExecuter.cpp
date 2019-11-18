@@ -9,6 +9,8 @@
 #include "ExecuterManager.h"
 #include "StatusControl.h"
 
+#include "../snap_module/snap_dbg.h"
+
 // time to delay close fan, 5s
 #define TIME_TO_CLOSE_FAN (120 * 1000)
 
@@ -139,8 +141,10 @@ void LaserExecuter::On()
 {
   SysStatus cur_stat = SystemStatus.GetCurrentStatus();
 
-  if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG)
+  if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG) {
+    LOG_W("cannot open laser during pause/stop triggered!\n");
     return;
+  }
   CheckFan(last_pwm);
   TimSetPwm(last_pwm);
 }

@@ -115,10 +115,24 @@ void ExecuterManager::CallbackCloseDoor() {
     Data[0] = (uint8_t)(temperature >> 8);
     Data[1] = (uint8_t)temperature;
     CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_TEMPEARTURE, Data, 2);
-    if(temperature > 60)
+    if(temperature > 60) {
       SetFan(1, 255);
-    else
-      SetFan(1, 0);
+    }
+
+    // because when leave control page of screen, it won't turn off FAN
+    // So need to close FAN here
+    if (temperature == 0) {
+      if (thermalManager.degHotend(0) > 150) {
+        SetFanDelayOff(1, 120);
+      }
+      else if (thermalManager.degHotend(0) > 60) {
+        // delay 60s to turn off FAN
+        SetFanDelayOff(1, 60);
+      }
+      else {
+        SetFan(1, 0);
+      }
+    }
   }
 
   /**
@@ -127,7 +141,7 @@ void ExecuterManager::CallbackCloseDoor() {
    * para time:time to delay in second
    * percent:fan speed in percent
    */
-  void ExecuterManager::SetFanDelayOff(uint8_t index, uint8_t time, uint8_t s_value)
+  void ExecuterManager::SetFanDelayOff(uint8_t index, uint8_t time)
   {
     uint8_t Data[8];
 
@@ -137,11 +151,10 @@ void ExecuterManager::CallbackCloseDoor() {
     if (MachineType != MACHINE_TYPE_3DPRINT)
       return;
 
-    Data[0] = 0;
-    Data[1] = time;
-    Data[2] = s_value;
+    Data[0] = time;
+    Data[1] = 0;
 
-    FanSpeed[index] = s_value;
+    FanSpeed[index] = 0;
 
     if(index == 0) {
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, Data, 3);

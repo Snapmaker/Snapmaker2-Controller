@@ -40,20 +40,30 @@ void GcodeSuite::M2000() {
     break;
 
   case 1:
-    // set debug level
+    // set PC log level
     l = (uint8_t)parser.byteval('L', (uint8_t)10);
     if (!WITHIN(l, 0, (int)SNAP_DEBUG_LEVEL_MAX)) {
       LOG_E("L out of range (0-%d)\n", (int)SNAP_DEBUG_LEVEL_MAX);
       return;
     }
-    SNAP_DEBUG_SET_LEVEL((SnapDebugLevel)l);
+    SNAP_DEBUG_SET_LEVEL(0, (SnapDebugLevel)l);
     break;
 
   case 2:
-    SNAP_DEBUG_SHOW_EXCEPTION();
+    // set SC log level
+    l = (uint8_t)parser.byteval('L', (uint8_t)10);
+    if (!WITHIN(l, 0, (int)SNAP_DEBUG_LEVEL_MAX)) {
+      LOG_E("L out of range (0-%d)\n", (int)SNAP_DEBUG_LEVEL_MAX);
+      return;
+    }
+    SNAP_DEBUG_SET_LEVEL(1, (SnapDebugLevel)l);
     break;
 
   case 3:
+    SNAP_DEBUG_SHOW_EXCEPTION();
+    break;
+
+  case 4:
     l = (uint8_t)parser.byteval('L', (uint8_t)0);
     if (!WITHIN(l, 1, 32)) {
       LOG_E("L is out of range (1-32)\n");

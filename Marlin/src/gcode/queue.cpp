@@ -224,6 +224,7 @@ void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_
 {
   if (force_sync) {
     while ((cmd_queue_index_w + 1) % BUFSIZE == cmd_queue_index_r) {
+      LOG_I("cmd q full\n");
       advance_command_queue();
       idle();
     }

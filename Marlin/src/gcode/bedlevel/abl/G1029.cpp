@@ -55,9 +55,6 @@ extern float nozzle_height_probed;
  *              tuning and saving the offset
  *              Will move to center point first
  *
- *  M[margin]
- *              Set margin
- *
  *  W
  *      I[X_index]
  *      J[Y_index]
@@ -134,21 +131,13 @@ void GcodeSuite::G1029() {
     return;
   }
 
-  const bool seen_m = parser.seenval('M');
-  if (seen_m) {
-    // set probe margin
-    int margin = parser.value_int();
-    PROBE_MARGIN = margin;
-    SERIAL_ECHOLNPAIR("Set probe margin : ", margin);
-  }
-
   const bool seen_w = parser.seen('W');
   if (seen_w) {
     uint8_t  i = parser.byteval('I', GRID_MAX_POINTS_X / 2);
     uint8_t  j = parser.byteval('J', GRID_MAX_POINTS_Y / 2);
 
-    do_blocking_move_to_xy(_GET_MESH_X(i), _GET_MESH_Y(j), 50);
-    do_blocking_move_to_z(13, 50);
+    do_blocking_move_to_logical_xy(_GET_MESH_X(i), _GET_MESH_Y(j), 50);
+    do_blocking_move_to_logical_z(13, 50);
     return;
   }
 
