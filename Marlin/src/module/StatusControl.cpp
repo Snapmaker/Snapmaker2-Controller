@@ -24,7 +24,6 @@
 
 StatusControl SystemStatus;
 
-
 /**
  * Init
  */
@@ -123,6 +122,9 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
     break;
   }
 
+  // recover scaling
+  feedrate_scaling = 100;
+
   // disable filament checking
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
     thermalManager.setTargetBed(0);
@@ -201,6 +203,7 @@ void StatusControl::StopProcess()
 
   thermalManager.setTargetBed(0);
   thermalManager.setTargetHotend(0, 0);
+
 
   LOG_I("Finish stop\n");
 }
@@ -1468,12 +1471,11 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
   switch (param_type) {
   case RENV_TYPE_FEEDRATE:
     LOG_I("feedrate scaling: %.2f\n", param);
-    if (param_type > 5) {
+    if (param > 500 || param < 0) {
       ret = E_PARAM;
       break;
     }
-    saved_g0_feedrate_mm_s *= param;
-    saved_g1_feedrate_mm_s *= param;
+    feedrate_scaling = param;
     break;
 
   case RENV_TYPE_HOTEND_TEMP:
