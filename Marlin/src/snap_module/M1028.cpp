@@ -15,9 +15,9 @@
 
 #define Z_LIMIT_CALI      140
 
-#define LASER_POWER_CALI  15
+#define LASER_POWER_CALI  70
 
-#define SPEED_IN_DRAWING_RULLER 3
+#define SPEED_IN_DRAWING_RULLER 5
 
 enum SettingOpt : uint8_t {
   OPT_SHOW_PARAM = 0,
