@@ -1104,8 +1104,9 @@ void HMI_SC20::HandleOneCommand()
           SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_POWER_LOSS);
           if (powerpanic.pre_data_.Valid == 1) {
             // clear flash data
-            LOG_I("clearing flash data ...");
+            LOG_I("mask flash data ...");
             powerpanic.MaskPowerPanicData();
+            powerpanic.pre_data_.Valid = 0;
             LOG_I("Done!\n");
           }
         }
@@ -1125,7 +1126,7 @@ void HMI_SC20::HandleOneCommand()
         LOG_I("SC trigger restore from power-loss\n");
         // recovery work and ack to screen
         if (cur_status != SYSTAT_IDLE) {
-          MarkNeedReack(1);
+          MarkNeedReack(E_NO_SWITCHING_STA);
         }
         else {
           if (cur_status != SYSTAT_IDLE) {
@@ -1139,6 +1140,7 @@ void HMI_SC20::HandleOneCommand()
             if (E_SUCCESS == err) {
               SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
               SystemStatus.SetWorkingPort(WORKING_PORT_SC);
+              powerpanic.Data.FilePosition = powerpanic.pre_data_.Valid;
               MarkNeedReack(0);
               LOG_I("trigger RESTORE: ok\n");
             }
