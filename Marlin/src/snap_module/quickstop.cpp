@@ -204,8 +204,10 @@ void QuickStop::TowardStop() {
       move_to_limited_xy(0, Y_MAX_POS, 35);
     break;
 
-  case MACHINE_TYPE_CNC:
   case MACHINE_TYPE_LASER:
+    // In the case of laser, we don't raise Z.
+    break;
+  case MACHINE_TYPE_CNC:
     move_to_limited_z(Z_MAX_POS, 20);
     break;
 
