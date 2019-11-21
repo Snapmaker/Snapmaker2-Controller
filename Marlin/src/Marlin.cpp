@@ -274,15 +274,15 @@ uint32_t ABL_TEMP_POINTS_Y;
 void reset_homeoffset() {
   int i;
 
-  LOOP_XYZ(i) s_home_offset[i] = 0;
+  float s_home_offset_def[XYZ] = S_HOME_OFFSET_DEFAULT;
+  float m_home_offset_def[XYZ] = M_HOME_OFFSET_DEFAULT;
+  float l_home_offset_def[XYZ] = L_HOME_OFFSET_DEFAULT;
 
-  m_home_offset[X_AXIS] = -7;
-  m_home_offset[Y_AXIS] = 0;
-  m_home_offset[Z_AXIS] = 0;
-
-  l_home_offset[X_AXIS] = -17;
-  l_home_offset[Y_AXIS] = -8;
-  l_home_offset[Z_AXIS] = 0;
+  LOOP_XYZ(i) {
+    s_home_offset[i] = s_home_offset_def[i];
+    m_home_offset[i] = m_home_offset_def[i];
+    l_home_offset[i] = l_home_offset_def[i];
+  }
 }
 
 void setup_killpin() {

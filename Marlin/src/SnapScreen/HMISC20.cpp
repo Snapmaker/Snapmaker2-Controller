@@ -689,21 +689,21 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-      move_to_limited_xy(0, 0, XY_PROBE_FEEDRATE_MM_S);
+      move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
       planner.synchronize();
     }
     else
       process_cmd_imd("G28");
+    process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
 
-    // Z limit switch at the higtest position
-    //if (Z_HOME_DIR > 0) current_position[Z_AXIS] = Z_MAX_POS;
+    set_bed_leveling_enabled(false);
 
-    // Z limit switch at the lowest position
-    //else current_position[Z_AXIS] = 0;
-    //sync_plan_position();
+    bilinear_grid_manual();
 
     // Move Z to 20mm height
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
+
+    do_blocking_move_to_z(15, 10);
 
     // Preset the index to 99 for initial status
     PointIndex = 99;
@@ -1104,8 +1104,9 @@ void HMI_SC20::HandleOneCommand()
           SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_POWER_LOSS);
           if (powerpanic.pre_data_.Valid == 1) {
             // clear flash data
-            LOG_I("clearing flash data ...");
+            LOG_I("mask flash data ...");
             powerpanic.MaskPowerPanicData();
+            powerpanic.pre_data_.Valid = 0;
             LOG_I("Done!\n");
           }
         }
@@ -1125,7 +1126,7 @@ void HMI_SC20::HandleOneCommand()
         LOG_I("SC trigger restore from power-loss\n");
         // recovery work and ack to screen
         if (cur_status != SYSTAT_IDLE) {
-          MarkNeedReack(1);
+          MarkNeedReack(E_NO_SWITCHING_STA);
         }
         else {
           if (cur_status != SYSTAT_IDLE) {
@@ -1139,6 +1140,7 @@ void HMI_SC20::HandleOneCommand()
             if (E_SUCCESS == err) {
               SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
               SystemStatus.SetWorkingPort(WORKING_PORT_SC);
+              powerpanic.Data.FilePosition = powerpanic.pre_data_.Valid;
               MarkNeedReack(0);
               LOG_I("trigger RESTORE: ok\n");
             }
@@ -1203,13 +1205,16 @@ void HMI_SC20::HandleOneCommand()
             if (PointIndex < 10) {
               // save point index
               MeshPointZ[PointIndex] = current_position[Z_AXIS];
+
+              // if got new point, raise Z firstly
+              if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < 10)
+                do_blocking_move_to_z(current_position[Z_AXIS] + 3, speed_in_calibration[Z_AXIS]);
             }
 
             // move to new point
             PointIndex = tmpBuff[10] -1;
-            do_blocking_move_to_logical_z(current_position[Z_AXIS] + 5, speed_in_calibration[Z_AXIS]);
-            do_blocking_move_to_logical_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X), _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), speed_in_calibration[X_AXIS]);
-            do_blocking_move_to_logical_z(current_position[Z_AXIS] - 5, 0.2);
+            do_blocking_move_to_logical_xy(_GET_MESH_X(PointIndex % GRID_MAX_POINTS_X),
+                            _GET_MESH_Y(PointIndex / GRID_MAX_POINTS_Y), speed_in_calibration[X_AXIS]);
             MarkNeedReack(0);
           }
           break;
@@ -1225,34 +1230,52 @@ void HMI_SC20::HandleOneCommand()
         // save the cordinate of leveling points
         case 7:
           LOG_I("SC req save data of leveling\n");
-          if (CMD_BUFF_EMPTY() == true) {
-            process_cmd_imd("G1029 S0");
+          planner.synchronize();
+          if (CalibrateMethod == 2 && PointIndex < 10) {
+            // save the last point
+            MeshPointZ[PointIndex] = current_position[Z_AXIS];
+            for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
+              for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+                z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_X + j];
+              }
+            }
 
-            set_bed_leveling_enabled(true);
-
-            // move to stop
-            move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-            move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
-            planner.synchronize();
-
-            // make sure we are in absolute mode
-            relative_mode = false;
-
-            // clear flag
-            CalibrateMethod = 0;
-
-            // ack to screen
-            MarkNeedReack(0);
-
-            // unlock PC port
-            HMICommandSave = 0;
+            bed_level_virt_interpolate();
+            settings.save();
           }
+          else if (CalibrateMethod == 1) {
+            process_cmd_imd("G1029 S0");
+          }
+          else {
+            MarkNeedReack(1);
+            break;
+          }
+
+          set_bed_leveling_enabled(true);
+
+          // move to stop
+          move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
+          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
+          planner.synchronize();
+
+          // make sure we are in absolute mode
+          relative_mode = false;
+
+          // clear flag
+          CalibrateMethod = 0;
+
+          // ack to screen
+          MarkNeedReack(0);
+
+          // unlock PC port
+          HMICommandSave = 0;
           break;
 
         // exit leveling
         case 8:
           LOG_I("SC req exit level\n");
           if (CMD_BUFF_EMPTY() == true) {
+
             //Load
             settings.load();
 
@@ -1401,6 +1424,20 @@ void HMI_SC20::HandleOneCommand()
               MarkNeedReack(1);
               LOG_E("invalid parameter\n");
             }
+          break;
+
+        // clear auto-leveling data
+        case 0x10:
+          LOG_I("SC req clear leveling data\n");
+          for (i = 0; i < GRID_MAX_POINTS_Y; i++)
+            for (j = 0; j < GRID_MAX_POINTS_X; j++)
+              z_values[i][j] = 6;
+
+          bed_level_virt_interpolate();
+
+          nozzle_height_probed = 0;
+
+          MarkNeedReack(0);
           break;
 
         //读取尺寸参数
