@@ -280,10 +280,10 @@ void StatusControl::ResumeProcess() {
 
   cur_status_ = SYSTAT_RESUME_MOVING;
 
-  set_bed_leveling_enabled(true);
 
   switch(ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
+    set_bed_leveling_enabled(true);
     resume_3dp();
     break;
 

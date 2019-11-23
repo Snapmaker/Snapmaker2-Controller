@@ -531,9 +531,9 @@ bool HMI_SC20::DrawLaserRuler(float StartX, float StartY, float StartZ, float Z_
 
     // Draw Line
     if((i % 5) == 0)
-      move_to_limited_xy(next_x, next_y + line_len_long, 3.0f);
+      move_to_limited_xy(next_x, next_y + line_len_long, speed_in_draw_ruler);
     else
-      move_to_limited_xy(next_x, next_y + line_len_short, 3.0f);
+      move_to_limited_xy(next_x, next_y + line_len_short, speed_in_draw_ruler);
 
     planner.synchronize();
 

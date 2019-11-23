@@ -15,7 +15,9 @@
 
 #define Z_LIMIT_CALI      140
 
-#define LASER_POWER_CALI  15
+#define LASER_POWER_CALI  70
+
+#define SPEED_IN_DRAWING_RULLER 5
 
 enum SettingOpt : uint8_t {
   OPT_SHOW_PARAM = 0,
@@ -26,6 +28,7 @@ enum SettingOpt : uint8_t {
   OPT_SET_Z_POS,
   OPT_SET_LASER_PWR_CALI,
   OPT_SET_Z_LIMIT_CALI,
+  OPT_SET_SPEED_IN_DRAWING_RULER,
 
   OPT_INVALID
 };
@@ -51,6 +54,7 @@ float z_limit_in_cali = Z_LIMIT_CALI;
 
 // laser power when calibrating laser
 float laser_pwr_in_cali = LASER_POWER_CALI;
+float speed_in_draw_ruler = SPEED_IN_DRAWING_RULLER;
 
 /**
  * configure the customize parameters of snapmaker
@@ -61,6 +65,9 @@ float laser_pwr_in_cali = LASER_POWER_CALI;
  *    3: max feedrate in calibration, X<X speed> Y<Y speed> Z<Z speed>
  *    4: feedrate in calibration, X<X speed> Y<Y speed> Z<Z speed>
  *    5: Z postions in calibration, details please see comments above
+ *    6: laser power in calibration
+ *    7: z limit in calibration
+ *    8: speed in drawing ruler
  */
 
 void GcodeSuite::M1028() {
@@ -70,12 +77,14 @@ void GcodeSuite::M1028() {
 
   switch (s) {
   case OPT_SHOW_PARAM:
-    SERIAL_ECHOLNPAIR("\nhoming speed: X:", sm_homing_feedrate[X_AXIS], ", Y:", sm_homing_feedrate[Y_AXIS], ", Z:", sm_homing_feedrate[Z_AXIS]);
-    SERIAL_ECHOLNPAIR("\nhoming bump speed divisor: X:", sm_homing_bump_divisor[X_AXIS], ", Y:", sm_homing_bump_divisor[Y_AXIS], ", Z:", sm_homing_bump_divisor[Z_AXIS]);
-    SERIAL_ECHOLNPAIR("\nmax caliration speed: X:", max_speed_in_calibration[X_AXIS], ", Y:", max_speed_in_calibration[Y_AXIS], ", Z:", max_speed_in_calibration[Z_AXIS]);
-    SERIAL_ECHOLNPAIR("\ncalibration speed: X:", speed_in_calibration[X_AXIS], ", Y:", speed_in_calibration[Y_AXIS], ", Z:", speed_in_calibration[Z_AXIS]);
-    SERIAL_ECHOLNPAIR("\nz pos: before cali: ", z_position_before_calibration, ", cali offset: ", z_position_in_cali_offset, ", after cali: ", z_position_after_calibration);
-    SERIAL_ECHOLNPAIR("\nlaser power in calibration: ", laser_pwr_in_cali);
+    SERIAL_ECHOLNPAIR("\nS1: homing speed: X:", sm_homing_feedrate[X_AXIS], ", Y:", sm_homing_feedrate[Y_AXIS], ", Z:", sm_homing_feedrate[Z_AXIS]);
+    SERIAL_ECHOLNPAIR("\nS2: homing bump speed divisor: X:", sm_homing_bump_divisor[X_AXIS], ", Y:", sm_homing_bump_divisor[Y_AXIS], ", Z:", sm_homing_bump_divisor[Z_AXIS]);
+    SERIAL_ECHOLNPAIR("\nS3: max caliration speed: X:", max_speed_in_calibration[X_AXIS], ", Y:", max_speed_in_calibration[Y_AXIS], ", Z:", max_speed_in_calibration[Z_AXIS]);
+    SERIAL_ECHOLNPAIR("\nS4: calibration speed: X:", speed_in_calibration[X_AXIS], ", Y:", speed_in_calibration[Y_AXIS], ", Z:", speed_in_calibration[Z_AXIS]);
+    SERIAL_ECHOLNPAIR("\nS5: z pos: before cali: ", z_position_before_calibration, ", cali offset: ", z_position_in_cali_offset, ", after cali: ", z_position_after_calibration);
+    SERIAL_ECHOLNPAIR("\nS6: laser power in calibration: ", laser_pwr_in_cali);
+    SERIAL_ECHOLNPAIR("\nS7: Z limit in calibration: ", z_limit_in_cali);
+    SERIAL_ECHOLNPAIR("\nS8: speed in drawing ruler: ", speed_in_draw_ruler);
     break;
 
   case OPT_SET_HOME_SPEED:
@@ -114,6 +123,10 @@ void GcodeSuite::M1028() {
 
   case OPT_SET_Z_LIMIT_CALI:
     z_limit_in_cali = (float)parser.floatval('I', (float)z_limit_in_cali);
+    break;
+
+  case OPT_SET_SPEED_IN_DRAWING_RULER:
+    speed_in_draw_ruler = (float) parser.floatval('D', (float) speed_in_draw_ruler);
     break;
 
   default:
