@@ -15,6 +15,8 @@ public:
   void Off();
   uint16_t GetRPM() { return RPM; }
 
+  void ChangePower(float Percent);
+
 private:
   float percent;
   uint16_t RPM;

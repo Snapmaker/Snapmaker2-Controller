@@ -575,6 +575,11 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
     }
     if (axes_homed(Z_AXIS) == false)
       process_cmd_imd("G28 Z");
+
+    // set to defualt power, but not turn on Motor
+    if (MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+      ExecuterHead.CNC.ChangePower(100);
+    }
     break;
 
   default:
