@@ -139,7 +139,7 @@ void HAL_timer_start(const uint8_t timer_num, const uint32_t frequency) {
       timer_set_reload(TEMP_TIMER_DEV, 0xFFFF);
       timer_set_compare(TEMP_TIMER_DEV, TEMP_TIMER_CHAN, MIN(HAL_TIMER_TYPE_MAX, ((F_CPU / TEMP_TIMER_PRESCALE) / frequency)));
       timer_attach_interrupt(TEMP_TIMER_DEV, TEMP_TIMER_CHAN, tempTC_Handler);
-      nvic_irq_set_priority(irq_num, 2);
+      nvic_irq_set_priority(irq_num, 4);
       timer_generate_update(TEMP_TIMER_DEV);
       timer_resume(TEMP_TIMER_DEV);
       break;
