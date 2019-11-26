@@ -245,7 +245,7 @@ void CanModule::PrepareLinearModules(void) {
       SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
     }
     else if(Y_MAX_POS < 300) {
-      X_MAX_POS = 244;
+      X_MAX_POS = 252;
       Y_MAX_POS = 260;
       Z_MAX_POS = 235;
       X_HOME_DIR = -1;
@@ -268,7 +268,7 @@ void CanModule::PrepareLinearModules(void) {
       SystemStatus.ClearException(EHOST_MC, ETYPE_NO_HOST);
     }
     else if(Z_MAX_POS < 400) {
-      X_MAX_POS = 336;
+      X_MAX_POS = 345;
       Y_MAX_POS = 360;
       Z_MAX_POS = 334;
       X_HOME_DIR = -1;

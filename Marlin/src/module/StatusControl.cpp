@@ -24,7 +24,6 @@
 
 StatusControl SystemStatus;
 
-
 /**
  * Init
  */
@@ -123,6 +122,9 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
     break;
   }
 
+  // recover scaling
+  feedrate_scaling = 100;
+
   // disable filament checking
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
     thermalManager.setTargetBed(0);
@@ -202,6 +204,7 @@ void StatusControl::StopProcess()
   thermalManager.setTargetBed(0);
   thermalManager.setTargetHotend(0, 0);
 
+
   LOG_I("Finish stop\n");
 }
 
@@ -277,10 +280,10 @@ void StatusControl::ResumeProcess() {
 
   cur_status_ = SYSTAT_RESUME_MOVING;
 
-  set_bed_leveling_enabled(true);
 
   switch(ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
+    set_bed_leveling_enabled(true);
     resume_3dp();
     break;
 
@@ -572,6 +575,11 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
     }
     if (axes_homed(Z_AXIS) == false)
       process_cmd_imd("G28 Z");
+
+    // set to defualt power, but not turn on Motor
+    if (MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+      ExecuterHead.CNC.ChangePower(100);
+    }
     break;
 
   default:
@@ -1468,12 +1476,11 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
   switch (param_type) {
   case RENV_TYPE_FEEDRATE:
     LOG_I("feedrate scaling: %.2f\n", param);
-    if (param_type > 5) {
+    if (param > 500 || param < 0) {
       ret = E_PARAM;
       break;
     }
-    saved_g0_feedrate_mm_s *= param;
-    saved_g1_feedrate_mm_s *= param;
+    feedrate_scaling = param;
     break;
 
   case RENV_TYPE_HOTEND_TEMP:
@@ -1484,7 +1491,7 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
     }
 
     if (param < HEATER_0_MAXTEMP)
-      thermalManager.setTargetHotend(param, 0);
+      thermalManager.setTargetHotend((int16_t)param, 0);
     else
       ret = E_PARAM;
     break;
@@ -1517,6 +1524,25 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
       if (ExecuterHead.Laser.GetTimPwm() > 0)
         ExecuterHead.Laser.On();
     }
+    break;
+
+  case RENV_TYPE_ZOFFSET:
+    LOG_I("adjust Z offset: %.2f\n", param);
+    if (param < -0.5) {
+      ret = E_PARAM;
+      break;
+    }
+    // waiting all block buffer are outputed by stepper
+    planner.synchronize();
+    set_bed_leveling_enabled(false);
+    // Subtract the mean from all values
+    for (uint8_t x = GRID_MAX_POINTS_X; x--;)
+      for (uint8_t y = GRID_MAX_POINTS_Y; y--;)
+        Z_VALUES(x, y) += param;
+    #if ENABLED(ABL_BILINEAR_SUBDIVISION)
+      bed_level_virt_interpolate();
+    #endif
+    set_bed_leveling_enabled(true);
     break;
 
   default:

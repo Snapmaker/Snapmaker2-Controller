@@ -181,13 +181,13 @@ void QuickStop::TowardStop() {
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     if(thermalManager.temp_hotend[0].current > 180)
-      retract = 6.5;
+      retract = 3;
 
     // for power loss, we don't have enough time
     if (event_ == QS_EVENT_ISR_POWER_LOSS) {
       current_position[E_AXIS] -= 2;
       line_to_current_position(60);
-      move_to_limited_ze(current_position[Z_AXIS] + 5, current_position[E_AXIS] - retract - 10, 20);
+      move_to_limited_ze(current_position[Z_AXIS] + 5, current_position[E_AXIS] - retract + 1, 20);
     }
     else {
       current_position[E_AXIS] -= retract;
@@ -204,8 +204,14 @@ void QuickStop::TowardStop() {
       move_to_limited_xy(0, Y_MAX_POS, 35);
     break;
 
-  case MACHINE_TYPE_CNC:
   case MACHINE_TYPE_LASER:
+    // In the case of laser, we don't raise Z.
+    if (event_ == QS_EVENT_STOP) {
+      move_to_limited_z(Z_MAX_POS, 20);
+    }
+    break;
+
+  case MACHINE_TYPE_CNC:
     move_to_limited_z(Z_MAX_POS, 20);
     break;
 

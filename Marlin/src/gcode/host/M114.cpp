@@ -180,6 +180,8 @@
 
 /**
  * M114: Report current position to host
+ *
+ * S: With S flag, this command will wait planner to synchronize.
  */
 void GcodeSuite::M114() {
 
@@ -190,6 +192,10 @@ void GcodeSuite::M114() {
     }
   #endif
 
-  planner.synchronize();
+  const bool seenS = parser.seen('S');
+  if (seenS) {
+    planner.synchronize();
+  }
+
   report_current_position();
 }
