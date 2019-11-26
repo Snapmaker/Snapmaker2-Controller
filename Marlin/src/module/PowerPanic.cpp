@@ -537,7 +537,11 @@ ErrCode PowerPanic::ResumeWork() {
 			return E_DOOR_OPENED;
 		}
 
-		LOG_I("previous recorded target CNC power is %.2f\n", pre_data_.cnc_power);
+		LOG_I("previous CNC power is %.2f\n", pre_data_.cnc_power);
+		if (pre_data_.cnc_power < 50) {
+			LOG_I("previous power is less than 50%, set to 50%");
+			pre_data_.cnc_power = 50;
+		}
 
 		ResumeCNC();
 		break;

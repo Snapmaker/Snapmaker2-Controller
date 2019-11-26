@@ -56,6 +56,15 @@ void CNCExecuter::Off() {
   CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_MOTOR_SPEED, Data, 1);
 } 
 
+/**
+ * change power but not set to module
+ */
+void CNCExecuter::ChangePower(float Percent) {
+  if(Percent < 50)
+    Percent = 0;
+  percent = Percent;
+}
+
 #else
 
 /**
