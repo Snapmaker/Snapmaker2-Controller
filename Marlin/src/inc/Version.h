@@ -38,7 +38,7 @@
   /**
    * Marlin release version identifier
    */
-  #define SHORT_BUILD_VERSION "SM2-1.4.0.0"
+  #define SHORT_BUILD_VERSION "SM2-1.4.0.1-whimsycwd"
 
   /**
    * Verbose version identifier which should contain a reference to the location
