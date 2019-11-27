@@ -28,7 +28,6 @@
 #include "stepper.h"
 
 #include "../Marlin.h"
-#include "../sd/cardreader.h"
 #include "temperature.h"
 #include "periphdevice.h"
 

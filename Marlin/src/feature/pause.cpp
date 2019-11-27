@@ -63,9 +63,6 @@ PauseMenuResponse pause_menu_response;
 
 fil_change_settings_t fc_settings[EXTRUDERS];
 
-#if ENABLED(SDSUPPORT)
-  #include "../sd/cardreader.h"
-#endif
 
 #if HAS_BUZZER
   static void filament_change_beep(const int8_t max_beep_count, const bool init=false) {
@@ -400,13 +397,6 @@ bool pause_print(const float &retract, const point_t &park_point, const float &u
   // Indicate that the printer is paused
   ++did_pause_print;
 
-  // Pause the print job and timer
-  #if ENABLED(SDSUPPORT)
-    if (IS_SD_PRINTING()) {
-      card.pauseSDPrint();
-      ++did_pause_print; // Indicate SD pause also
-    }
-  #endif
 
   print_job_timer.pause();
 
@@ -645,12 +635,6 @@ void resume_print(const float &slow_load_length/*=0*/, const float &fast_load_le
     host_prompt_open(PROMPT_INFO, PSTR("Resume"));
   #endif
 
-  #if ENABLED(SDSUPPORT)
-    if (did_pause_print) {
-      card.startFileprint();
-      --did_pause_print;
-    }
-  #endif
 
   // Resume the print job timer if it was running
   if (print_job_timer.isPaused()) print_job_timer.start();

@@ -12,7 +12,6 @@
 #include "../gcode/parser.h"
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/configuration_store.h"
-#include "../sd/cardreader.h"
 #include "../module/ExecuterManager.h"
 #include "../module/PowerPanic.h"
 #include "../module/StatusControl.h"

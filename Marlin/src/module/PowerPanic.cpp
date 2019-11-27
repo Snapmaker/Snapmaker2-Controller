@@ -13,7 +13,6 @@
 #include "../SnapScreen/Screen.h"
 #include "periphdevice.h"
 #include <EEPROM.h>
-#include "../sd/cardreader.h"
 #include "printcounter.h"
 #include "StatusControl.h"
 #include "stepper.h"
@@ -324,8 +323,8 @@ int PowerPanic::SaveEnv(void) {
 	}
 
 #if (BOARD_VER == BOARD_SNAPMAKER1)
-  if (Data.GCodeSource == GCODE_SOURCE_UDISK)
-    strcpy(Data.FileName, card.filename);
+  if (Data.GCodeSource == GCODE_SOURCE_UDISK) {
+  }
   else {
     // 0xff will reduce the write times for the flash
     memset((void *)Data.FileName, 0xFF, PP_FILE_NAME_LEN);

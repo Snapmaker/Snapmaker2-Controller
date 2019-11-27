@@ -36,7 +36,6 @@
 #include "module/endstops.h"
 #include "module/probe.h"
 #include "module/temperature.h"
-#include "sd/cardreader.h"
 #include "module/configuration_store.h"
 #include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "feature/closedloop.h"
@@ -127,7 +126,6 @@
 #endif
 
 #if ENABLED(SDSUPPORT)
-  CardReader card;
 #endif
 
 #if ENABLED(HMISUPPORT)
@@ -850,7 +848,6 @@ void idle(
   #if ENABLED(USB_FLASH_DRIVE_SUPPORT)
     Sd2Card::idle();
   #elif ENABLED(USB_HOST_UDISK_SUPPORT)
-    card.LoopProcess();
   #endif
 
   #if ENABLED(PRUSA_MMU2)
@@ -1246,7 +1243,6 @@ void setup() {
   #endif
 
   #if ENABLED(SDSUPPORT) && DISABLED(ULTRA_LCD)
-    card.beginautostart();
   #endif
 
   #if HAS_TRINAMIC && DISABLED(PS_DEFAULT_OFF)
@@ -1429,12 +1425,3 @@ void loop() {
   }
 }
 
-#if ENABLED(SDSUPPORT)
-extern "C"
-{
-void __irq_otg_fs(void)
-{
-    card.IrqProcess();
-}
-}
-#endif

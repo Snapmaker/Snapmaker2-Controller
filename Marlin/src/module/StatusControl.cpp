@@ -12,7 +12,6 @@
 #include "../gcode/parser.h"
 #include "../SnapScreen/Screen.h"
 #include "periphdevice.h"
-#include "../sd/cardreader.h"
 #include "StatusControl.h"
 #include "PowerPanic.h"
 #include "printcounter.h"

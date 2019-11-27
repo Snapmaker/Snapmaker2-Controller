@@ -26,7 +26,6 @@
  * feature/runout.h - Runout sensor support
  */
 
-#include "../sd/cardreader.h"
 #include "../module/printcounter.h"
 #include "../module/stepper.h"
 #include "../gcode/queue.h"
