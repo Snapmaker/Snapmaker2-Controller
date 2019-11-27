@@ -24,7 +24,6 @@
 #include "../../module/temperature.h"
 #include "../../module/motion.h"
 #include "../../module/planner.h"
-#include "../../lcd/ultralcd.h"
 #include "../../Marlin.h"
 
 #if ENABLED(PRINTJOB_TIMER_AUTOSTART)
@@ -71,7 +70,6 @@ void GcodeSuite::M104() {
        */
       if (temp <= (EXTRUDE_MINTEMP) / 2) {
         print_job_timer.stop();
-        ui.reset_status();
       }
     #endif
   }
@@ -119,7 +117,6 @@ void GcodeSuite::M109() {
        */
       if (parser.value_celsius() <= (EXTRUDE_MINTEMP) / 2) {
         print_job_timer.stop();
-        ui.reset_status();
       }
       else
         print_job_timer.start();

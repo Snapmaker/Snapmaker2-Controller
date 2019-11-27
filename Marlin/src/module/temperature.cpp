@@ -28,7 +28,6 @@
 #include "endstops.h"
 
 #include "../Marlin.h"
-#include "../lcd/ultralcd.h"
 #include "planner.h"
 #include "../core/language.h"
 #include "../HAL/shared/Delay.h"
@@ -585,7 +584,6 @@ temp_range_t Temperature::temp_range[HOTENDS] = ARRAY_BY_HOTENDS(sensor_heater_0
 
         goto EXIT_M303;
       }
-      ui.update();
     }
 
     disable_all_heaters();
@@ -2806,7 +2804,6 @@ void Temperature::isr() {
   // Update lcd buttons 488 times per second
   //
   static bool do_buttons;
-  if ((do_buttons ^= true)) ui.update_buttons();
 
   /**
    * One sensor is sampled on every other call of the ISR.
@@ -3295,7 +3292,6 @@ void Temperature::isr() {
       } while (wait_for_heatup && TEMP_CONDITIONS);
 
       if (wait_for_heatup) {
-        ui.reset_status();
         #if ENABLED(PRINTER_EVENT_LEDS)
           printerEventLEDs.onHeatingDone();
         #endif
@@ -3425,7 +3421,6 @@ void Temperature::isr() {
 
       } while (wait_for_heatup && TEMP_BED_CONDITIONS);
 
-      if (wait_for_heatup) ui.reset_status();
 
       #if DISABLED(BUSY_WHILE_HEATING) && ENABLED(HOST_KEEPALIVE_FEATURE)
         gcode.busy_state = old_busy_state;

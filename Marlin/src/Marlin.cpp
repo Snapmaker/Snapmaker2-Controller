@@ -30,7 +30,6 @@
 
 #include "Marlin.h"
 
-#include "lcd/ultralcd.h"
 #include "module/motion.h"
 #include "module/planner.h"
 #include "module/stepper.h"
@@ -798,7 +797,6 @@ void idle(
     max7219.idle_tasks();
   #endif
 
-  ui.update();
   #if ENABLED(HMISUPPORT)
     HMI.CommandProcess();
   #endif
@@ -948,7 +946,6 @@ void stop() {
   if (IsRunning()) {
     Stopped_gcode_LastN = gcode_LastN; // Save last g_code for restart
     SERIAL_ERROR_MSG(MSG_ERR_STOPPED);
-    LCD_MESSAGEPGM(MSG_STOPPED);
     safe_delay(350);       // allow enough time for messages to get out before stopping
     Running = false;
   }
@@ -1192,8 +1189,6 @@ void setup() {
     fanmux_init();
   #endif
 
-  ui.init();
-  ui.reset_status();
 
   #if ENABLED(SHOW_BOOTSCREEN)
     ui.show_bootscreen();

@@ -47,7 +47,6 @@
   #include "../../feature/bltouch.h"
 #endif
 
-#include "../../lcd/ultralcd.h"
 
 #if HAS_DRIVER(L6470)                         // set L6470 absolute position registers to counts
   #include "../../libs/L6470/L6470_Marlin.h"
@@ -451,7 +450,6 @@ void GcodeSuite::G28(const bool always_home_all) {
     tool_change(old_tool_index, 0, NO_FETCH);
   #endif
 
-  ui.refresh();
 
   report_current_position();
   #if ENABLED(NANODLP_Z_SYNC)

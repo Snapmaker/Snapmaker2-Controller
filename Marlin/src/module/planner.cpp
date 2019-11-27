@@ -66,7 +66,6 @@
 #include "stepper.h"
 #include "motion.h"
 #include "temperature.h"
-#include "../lcd/ultralcd.h"
 #include "../core/language.h"
 #include "../gcode/parser.h"
 

@@ -27,7 +27,6 @@
 #include "queue.h"
 #include "gcode.h"
 
-#include "../lcd/ultralcd.h"
 #include "../sd/cardreader.h"
 #include "../module/planner.h"
 #include "../module/temperature.h"
@@ -721,7 +720,6 @@ inline void get_serial_commands() {
                 case 5:
               #endif
                 SERIAL_ECHOLNPGM(MSG_ERR_STOPPED);
-                LCD_MESSAGEPGM(MSG_STOPPED);
                 break;
             }
           }

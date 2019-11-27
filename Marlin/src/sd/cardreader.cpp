@@ -27,7 +27,6 @@
 #include "cardreader.h"
 
 #include "../Marlin.h"
-#include "../lcd/ultralcd.h"
 #include "../module/planner.h"
 #include "../module/printcounter.h"
 #include "../core/language.h"
@@ -381,7 +380,6 @@ void CardReader::initsd() {
   }
   setroot();
 
-  ui.refresh();
 }
 
 void CardReader::release() {
@@ -499,7 +497,6 @@ void CardReader::openFile(char * const path, const bool read, const bool subcall
       SERIAL_ECHOLNPGM(MSG_SD_FILE_SELECTED);
 
       getfilename(0, fname);
-      ui.set_status(longFilename[0] ? longFilename : fname);
       //if (longFilename[0]) {
       //  SERIAL_ECHOPAIR(MSG_SD_FILE_LONG_NAME, longFilename);
       //}
@@ -517,7 +514,6 @@ void CardReader::openFile(char * const path, const bool read, const bool subcall
         emergency_parser.disable();
       #endif
       SERIAL_ECHOLNPAIR(MSG_SD_WRITE_TO_FILE, fname);
-      ui.set_status(fname);
     }
   }
 }
@@ -1003,8 +999,6 @@ void CardReader::printingHasFinished() {
     #if EITHER(ULTRA_LCD, EXTENSIBLE_UI) && ENABLED(LCD_SET_PROGRESS_MANUALLY)
       ui.progress_bar_percent = 0;
     #endif
-
-    ui.reset_status();
 
     #if ENABLED(SD_REPRINT_LAST_SELECTED_FILE)
       ui.reselect_last_file();

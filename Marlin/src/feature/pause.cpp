@@ -49,7 +49,6 @@
   #include "host_actions.h"
 #endif
 
-#include "../lcd/ultralcd.h"
 #include "../libs/buzzer.h"
 #include "../libs/nozzle.h"
 #include "pause.h"
@@ -655,8 +654,6 @@ void resume_print(const float &slow_load_length/*=0*/, const float &fast_load_le
 
   // Resume the print job timer if it was running
   if (print_job_timer.isPaused()) print_job_timer.start();
-
-  ui.reset_status();
 }
 
 #endif // ADVANCED_PAUSE_FEATURE

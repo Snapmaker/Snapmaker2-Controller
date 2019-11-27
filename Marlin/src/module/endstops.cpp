@@ -30,7 +30,6 @@
 #include "../Marlin.h"
 #include "../sd/cardreader.h"
 #include "temperature.h"
-#include "../lcd/ultralcd.h"
 #include "periphdevice.h"
 
 #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)

@@ -22,7 +22,6 @@
 
 #include "../gcode.h"
 #include "../../module/printcounter.h"
-#include "../../lcd/ultralcd.h"
 
 #if ENABLED(EXTENSIBLE_UI)
   #include "../../lcd/extensible_ui/ui_api.h"

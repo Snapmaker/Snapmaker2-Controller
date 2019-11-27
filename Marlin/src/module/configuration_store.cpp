@@ -50,7 +50,6 @@
 #include "planner.h"
 #include "stepper.h"
 #include "temperature.h"
-#include "../lcd/ultralcd.h"
 #include "../core/language.h"
 #include "../libs/vector_3.h"
 #include "../gcode/gcode.h"

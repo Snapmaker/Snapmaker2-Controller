@@ -22,7 +22,6 @@
 
 #include "../gcode.h"
 
-#include "../../lcd/ultralcd.h" // for lcd_reset_alert_level
 #include "../../Marlin.h"       // for Running
 #include "../queue.h"           // for flush_and_request_resend
 
@@ -38,7 +37,6 @@
  */
 void GcodeSuite::M999() {
   Running = true;
-  ui.reset_alert_level();
 
   if (parser.boolval('S')) return;
 
