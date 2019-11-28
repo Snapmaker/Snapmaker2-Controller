@@ -1314,7 +1314,6 @@ void CheckAppValidFlag(void)
  *  - Call inactivity manager
  */
 void loop() {
-  CheckUpdateFlag();
   CheckAppValidFlag();
 
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
@@ -1327,6 +1326,7 @@ void loop() {
   while(tmptick > millis());
   ExecuterHead.Init();
   CanModules.Init();
+  CheckUpdateFlag();
   if (CanModules.LinearModuleCount == 0) {
     SystemStatus.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
   }

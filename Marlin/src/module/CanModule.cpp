@@ -1159,6 +1159,12 @@ bool CanModule::LoadUpdateInfo(char *Version, uint16_t *StartID, uint16_t *EndID
   uint32_t Address;
   uint32_t Size;
   uint8_t Buff[33];
+  uint32_t * UpdateFlagAddr = (uint32_t *)FLASH_UPDATE_CONTENT_INFO;
+ 
+  if (*UpdateFlagAddr != 0xaa55ee11) {
+    return false;
+  }
+  
   Address = FLASH_UPDATE_CONTENT;
   for(int i=0;i<5;i++)
     Buff[i] = *((uint8_t*)Address++);
