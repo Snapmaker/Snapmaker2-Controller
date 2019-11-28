@@ -887,7 +887,7 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
 }
 
 
-void HMI_SC20::PollingCommand() {
+void HMI_SC20::PollingCommand(bool nested) {
   int len;
 
   len = GetCommand((unsigned char *) checkout_cmd[next_cmd_idx]);
@@ -927,13 +927,13 @@ void HMI_SC20::PollingCommand() {
   else
     next_cmd_idx = 1;
 
-  HandleOneCommand();
+  HandleOneCommand(nested);
 
   is_handling_cmd = false;
 }
 
 
-void HMI_SC20::HandleOneCommand()
+void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 {
   float fX, fY, fZ;
   uint32_t ID;
@@ -1411,17 +1411,21 @@ void HMI_SC20::HandleOneCommand()
             j = IDX_DATA0 + 1;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fX = int32Value / 1000.0f;
-            err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
-            if (err == E_SUCCESS) {
-              MarkNeedReack(0);
-            }
-            else if (err == E_INVALID_STATE) {
-              MarkNeedReack(2);
-              LOG_E("not supported parameter by current Tool head\n");
-            }
-            else {
-              MarkNeedReack(1);
-              LOG_E("invalid parameter\n");
+            if (reject_sync_write && tmpBuff[IDX_DATA0] == RENV_TYPE_ZOFFSET) {
+              MarkNeedReack(E_REJECT_SYNC_WRITE);
+            } else {
+              err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
+              if (err == E_SUCCESS) {
+                MarkNeedReack(0);
+              }
+              else if (err == E_INVALID_STATE) {
+                MarkNeedReack(2);
+                LOG_E("not supported parameter by current Tool head\n");
+              }
+              else {
+                MarkNeedReack(1);
+                LOG_E("invalid parameter\n");
+              }
             }
           break;
 

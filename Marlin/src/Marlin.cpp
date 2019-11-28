@@ -788,15 +788,16 @@ void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
  */
 void idle(
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
-    bool no_stepper_sleep/*=false*/
+    bool no_stepper_sleep/*=false*/,
   #endif
+      bool nested/*=true*/
 ) {
   #if ENABLED(MAX7219_DEBUG)
     max7219.idle_tasks();
   #endif
 
   #if ENABLED(HMISUPPORT)
-    HMI.CommandProcess();
+    HMI.CommandProcess(nested);
   #endif
 
   SystemStatus.CheckException();
@@ -1410,7 +1411,7 @@ void loop() {
     SystemStatus.Process();
     Periph.Process();
     ExecuterHead.Process();
-    idle();
+    idle(false);
 
     // avoid module proactive reply failure, loop query
     // case 1: unexpected faliment runout trigger if we startup withou toolhead loaded.

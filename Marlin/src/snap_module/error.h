@@ -33,4 +33,6 @@ typedef uint8_t ErrCode;
 #define E_NO_WORKING        (PRIVATE_ERROR_BASE + 1)
 #define E_NO_FILAMENT       (PRIVATE_ERROR_BASE + 2)
 #define E_DOOR_OPENED       (PRIVATE_ERROR_BASE + 3)
+#define E_REJECT_SYNC_WRITE (PRIVATE_ERROR_BASE + 4)
+
 #endif // #ifndef ERROR_H_
