@@ -1411,7 +1411,9 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             j = IDX_DATA0 + 1;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fX = int32Value / 1000.0f;
-            if (reject_sync_write && tmpBuff[IDX_DATA0] == RENV_TYPE_ZOFFSET) {
+            if (planner.sync_cnt > 0 && tmpBuff[IDX_DATA0] == RENV_TYPE_ZOFFSET) {
+//            if (false && reject_sync_write && tmpBuff[IDX_DATA0] == RENV_TYPE_ZOFFSET) {
+              LOG_I("REJECT_SYNC_WRITE, RENV_TYPE_ZOFFSET %d\n", planner.sync_cnt);
               MarkNeedReack(E_REJECT_SYNC_WRITE);
             } else {
               err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);

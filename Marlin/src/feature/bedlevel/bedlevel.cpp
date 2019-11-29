@@ -138,7 +138,7 @@ void reset_bed_level() {
     bilinear_grid_spacing[Y_AXIS] = (Y_MAX_POS - BACK_PROBE_BED_POSITION) / GRID_MAX_POINTS_Y;
     for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
       for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
-        z_values[x][y] = 6;
+        z_values[x][y] = 9;
         #if ENABLED(EXTENSIBLE_UI)
           ExtUI::onMeshUpdate(x, y, 0);
         #endif

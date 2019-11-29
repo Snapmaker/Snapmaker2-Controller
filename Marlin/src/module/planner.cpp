@@ -62,6 +62,7 @@
  * was designed, written and tested by Eduardo José Tagle on April/2018
  */
 
+#include <src/snap_module/snap_dbg.h>
 #include "planner.h"
 #include "stepper.h"
 #include "motion.h"
@@ -115,6 +116,8 @@ planner_settings_t Planner::settings;           // Initialized by settings.load(
 uint32_t Planner::max_acceleration_steps_per_s2[XYZE_N]; // (steps/s^2) Derived from mm_per_s2
 
 float Planner::steps_to_mm[XYZE_N];           // (mm) Millimeters per step
+
+uint32_t Planner::sync_cnt = 0;
 
 #if ENABLED(JUNCTION_DEVIATION)
   float Planner::junction_deviation_mm;       // (mm) M205 J
@@ -1551,12 +1554,17 @@ float Planner::get_axis_position_mm(const AxisEnum axis) {
  * Block until all buffered steps are executed / cleaned
  */
 void Planner::synchronize() {
+  ++sync_cnt;
+  if (sync_cnt > 1) {
+    LOG_W("SYNC CNT  %d\n", sync_cnt);
+  }
   while (
     has_blocks_queued() || cleaning_buffer_counter
     #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
       || (READ(CLOSED_LOOP_ENABLE_PIN) && !READ(CLOSED_LOOP_MOVE_COMPLETE_PIN))
     #endif
   ) idle();
+  --sync_cnt;
 }
 
 /**

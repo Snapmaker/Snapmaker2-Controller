@@ -65,7 +65,8 @@ uint8_t commands_in_queue = 0, // Count of commands in the queue
 
 char command_queue[BUFSIZE][MAX_CMD_SIZE];
 
-uint8_t hmi_cmd_queue_inder_r = 0,
+uint8_t hmi_commands_in_queue = 0,
+        hmi_cmd_queue_index_r = 0,
         hmi_cmd_queue_index_w = 0;
 char hmi_command_queue[HMI_BUFSIZE][MAX_CMD_SIZE];
 uint8_t hmi_send_opcode_queue[HMI_BUFSIZE];
@@ -226,7 +227,7 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
 #if ENABLED(HMI_SC20W)
 void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opcode)
 {
-  if ((hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE == cmd_queue_index_w) {
+  if (hmi_commands_in_queue == HMI_BUFSIZE) {
     LOG_E("Fatal Error, The HMI command queue supposed never overflow! Rejected.. Losing Gcode");
     return;
   }
@@ -236,22 +237,24 @@ void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opco
   hmi_commandline_queue[hmi_cmd_queue_index_w] = Lines;
   hmi_send_opcode_queue[hmi_cmd_queue_index_w] = Opcode;
   hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
+  hmi_commands_in_queue++;
 
 
   // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
   // fetch as much command as possible
-  while ((cmd_queue_index_w + 1) % BUFSIZE != cmd_queue_index_r)
+  while (commands_in_queue < BUFSIZE)
   {
-    if (hmi_cmd_queue_inder_r == hmi_cmd_queue_index_w) {
+    if (hmi_commands_in_queue == 0) {
       // buffer queue is emtpy.
       break;
     }
 
     // fetch from buffer queue
-    strcpy(pgcode, hmi_command_queue[hmi_cmd_queue_inder_r]);
-    Lines = hmi_commandline_queue[hmi_cmd_queue_inder_r];
-    Opcode = hmi_send_opcode_queue[hmi_cmd_queue_inder_r];
-    hmi_cmd_queue_inder_r = (hmi_cmd_queue_inder_r + 1) % HMI_BUFSIZE;
+    strcpy(pgcode, hmi_command_queue[hmi_cmd_queue_index_r]);
+    Lines = hmi_commandline_queue[hmi_cmd_queue_index_r];
+    Opcode = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
+    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
+    hmi_commands_in_queue--;
 
 
     strcpy(command_queue[cmd_queue_index_w], pgcode);
