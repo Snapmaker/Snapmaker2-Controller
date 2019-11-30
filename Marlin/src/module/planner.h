@@ -293,6 +293,8 @@ class Planner {
       static bool abort_on_endstop_hit;
     #endif
 
+    static uint32_t sync_cnt;
+
   private:
 
     /**

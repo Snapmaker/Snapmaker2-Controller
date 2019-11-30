@@ -20,7 +20,7 @@ class HMIScreen
     public:
     HMIScreen(){}
     void Init(void);
-    void CommandProcess(void);
+    void CommandProcess(bool nested);
     uint8_t GetRequestStatus(void);
     void ClearRequestStatus();
     void SendModuleVersion(uint32_t MacID, char *pVersion);

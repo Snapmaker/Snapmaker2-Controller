@@ -65,6 +65,13 @@ uint8_t commands_in_queue = 0, // Count of commands in the queue
 
 char command_queue[BUFSIZE][MAX_CMD_SIZE];
 
+uint8_t hmi_commands_in_queue = 0,
+        hmi_cmd_queue_index_r = 0,
+        hmi_cmd_queue_index_w = 0;
+char hmi_command_queue[HMI_BUFSIZE][MAX_CMD_SIZE];
+uint8_t hmi_send_opcode_queue[HMI_BUFSIZE];
+uint32_t hmi_commandline_queue[HMI_BUFSIZE];
+
 /*
  * The port that the command was received on
  */
@@ -218,38 +225,50 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
  * execution guaranteed
  */
 #if ENABLED(HMI_SC20W)
-void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_t Opcode, bool force_sync)
+void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opcode)
 {
-  if (force_sync) {
-    while ((cmd_queue_index_w + 1) % BUFSIZE == cmd_queue_index_r) {
-      LOG_I("cmd q full\n");
-      advance_command_queue();
-      idle();
-    }
+  if (hmi_commands_in_queue == HMI_BUFSIZE) {
+    LOG_E("Fatal Error, The HMI command queue supposed never overflow! Rejected.. Losing Gcode");
+    return;
   }
 
-	// guaranteed buffer available, shouldn't be missed, or screen status won't sync.
-	if ((cmd_queue_index_w + 1) % BUFSIZE != cmd_queue_index_r)
-	{
-		//指令入队
-		strcpy(command_queue[cmd_queue_index_w], pgcode);
-		//应答ok
-		Screen_send_ok[cmd_queue_index_w] = true;
-		//应答控制字
-		Screen_send_ok_opcode[cmd_queue_index_w] = Opcode;
-		//代码行号
-		//非打印状态
-		if(Opcode == 0x02)
-			CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
-		//打印状态
-		else
-			CommandLine[cmd_queue_index_w] = Lines;
-		//主串口取消应答ok
-		send_ok[cmd_queue_index_w] = false;
-		//写入索引下移
-		cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
-		commands_in_queue++;
-	}
+  // enter buffer queue
+  strcpy(hmi_command_queue[hmi_cmd_queue_index_w], pgcode);
+  hmi_commandline_queue[hmi_cmd_queue_index_w] = Lines;
+  hmi_send_opcode_queue[hmi_cmd_queue_index_w] = Opcode;
+  hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
+  hmi_commands_in_queue++;
+
+
+  // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
+  // fetch as much command as possible
+  while (commands_in_queue < BUFSIZE)
+  {
+    if (hmi_commands_in_queue == 0) {
+      // buffer queue is emtpy.
+      break;
+    }
+
+    // fetch from buffer queue
+    strcpy(pgcode, hmi_command_queue[hmi_cmd_queue_index_r]);
+    Lines = hmi_commandline_queue[hmi_cmd_queue_index_r];
+    Opcode = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
+    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
+    hmi_commands_in_queue--;
+
+
+    strcpy(command_queue[cmd_queue_index_w], pgcode);
+    Screen_send_ok[cmd_queue_index_w] = true;
+    Screen_send_ok_opcode[cmd_queue_index_w] = Opcode;
+    // if is not file printing, then use previous line number.
+    if(Opcode == 0x02)
+        CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
+    else
+        CommandLine[cmd_queue_index_w] = Lines;
+    send_ok[cmd_queue_index_w] = false;
+    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
+    commands_in_queue++;
+  }
 }
 #endif
 
