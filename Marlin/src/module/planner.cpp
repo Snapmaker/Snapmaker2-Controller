@@ -1556,7 +1556,7 @@ float Planner::get_axis_position_mm(const AxisEnum axis) {
 void Planner::synchronize() {
   ++sync_cnt;
   if (sync_cnt > 1) {
-    LOG_W("SYNC CNT  %d\n", sync_cnt);
+    LOG_V("SYNC CNT  %d\n", sync_cnt);
   }
   while (
     has_blocks_queued() || cleaning_buffer_counter
