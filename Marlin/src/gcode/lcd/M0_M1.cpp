@@ -35,7 +35,6 @@
   #include "../../lcd/extensible_ui/ui_api.h"
 #endif
 
-#include "../../sd/cardreader.h"
 
 #if HAS_LEDS_OFF_FLAG
   #include "../../feature/leds/printer_event_leds.h"

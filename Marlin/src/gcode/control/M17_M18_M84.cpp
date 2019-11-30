@@ -22,7 +22,6 @@
 
 #include "../gcode.h"
 #include "../../Marlin.h" // for stepper_inactive_time, disable_e_steppers
-#include "../../lcd/ultralcd.h"
 #include "../../module/stepper.h"
 
 #if BOTH(AUTO_BED_LEVELING_UBL, ULTRA_LCD)
@@ -33,7 +32,6 @@
  * M17: Enable power on all stepper motors
  */
 void GcodeSuite::M17() {
-  LCD_MESSAGEPGM(MSG_NO_MOVE);
   enable_all_steppers();
 }
 

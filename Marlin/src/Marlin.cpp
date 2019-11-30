@@ -30,14 +30,12 @@
 
 #include "Marlin.h"
 
-#include "lcd/ultralcd.h"
 #include "module/motion.h"
 #include "module/planner.h"
 #include "module/stepper.h"
 #include "module/endstops.h"
 #include "module/probe.h"
 #include "module/temperature.h"
-#include "sd/cardreader.h"
 #include "module/configuration_store.h"
 #include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "feature/closedloop.h"
@@ -128,7 +126,6 @@
 #endif
 
 #if ENABLED(SDSUPPORT)
-  CardReader card;
 #endif
 
 #if ENABLED(HMISUPPORT)
@@ -791,16 +788,16 @@ void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
  */
 void idle(
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
-    bool no_stepper_sleep/*=false*/
+    bool no_stepper_sleep/*=false*/,
   #endif
+      bool nested/*=true*/
 ) {
   #if ENABLED(MAX7219_DEBUG)
     max7219.idle_tasks();
   #endif
 
-  ui.update();
   #if ENABLED(HMISUPPORT)
-    HMI.CommandProcess();
+    HMI.CommandProcess(nested);
   #endif
 
   SystemStatus.CheckException();
@@ -852,7 +849,6 @@ void idle(
   #if ENABLED(USB_FLASH_DRIVE_SUPPORT)
     Sd2Card::idle();
   #elif ENABLED(USB_HOST_UDISK_SUPPORT)
-    card.LoopProcess();
   #endif
 
   #if ENABLED(PRUSA_MMU2)
@@ -948,7 +944,6 @@ void stop() {
   if (IsRunning()) {
     Stopped_gcode_LastN = gcode_LastN; // Save last g_code for restart
     SERIAL_ERROR_MSG(MSG_ERR_STOPPED);
-    LCD_MESSAGEPGM(MSG_STOPPED);
     safe_delay(350);       // allow enough time for messages to get out before stopping
     Running = false;
   }
@@ -1192,8 +1187,6 @@ void setup() {
     fanmux_init();
   #endif
 
-  ui.init();
-  ui.reset_status();
 
   #if ENABLED(SHOW_BOOTSCREEN)
     ui.show_bootscreen();
@@ -1251,7 +1244,6 @@ void setup() {
   #endif
 
   #if ENABLED(SDSUPPORT) && DISABLED(ULTRA_LCD)
-    card.beginautostart();
   #endif
 
   #if HAS_TRINAMIC && DISABLED(PS_DEFAULT_OFF)
@@ -1419,7 +1411,7 @@ void loop() {
     SystemStatus.Process();
     Periph.Process();
     ExecuterHead.Process();
-    idle();
+    idle(false);
 
     // avoid module proactive reply failure, loop query
     // case 1: unexpected faliment runout trigger if we startup withou toolhead loaded.
@@ -1434,12 +1426,3 @@ void loop() {
   }
 }
 
-#if ENABLED(SDSUPPORT)
-extern "C"
-{
-void __irq_otg_fs(void)
-{
-    card.IrqProcess();
-}
-}
-#endif

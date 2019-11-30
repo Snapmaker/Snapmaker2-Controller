@@ -27,8 +27,6 @@
 #include "queue.h"
 #include "gcode.h"
 
-#include "../lcd/ultralcd.h"
-#include "../sd/cardreader.h"
 #include "../module/planner.h"
 #include "../module/temperature.h"
 #include "../SnapScreen/Screen.h"
@@ -66,6 +64,13 @@ uint8_t commands_in_queue = 0, // Count of commands in the queue
         cmd_queue_index_w = 0; // Ring buffer write position
 
 char command_queue[BUFSIZE][MAX_CMD_SIZE];
+
+uint8_t hmi_commands_in_queue = 0,
+        hmi_cmd_queue_index_r = 0,
+        hmi_cmd_queue_index_w = 0;
+char hmi_command_queue[HMI_BUFSIZE][MAX_CMD_SIZE];
+uint8_t hmi_send_opcode_queue[HMI_BUFSIZE];
+uint32_t hmi_commandline_queue[HMI_BUFSIZE];
 
 /*
  * The port that the command was received on
@@ -220,38 +225,50 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
  * execution guaranteed
  */
 #if ENABLED(HMI_SC20W)
-void Screen_enqueue_and_echo_commands(const char* pgcode, uint32_t Lines, uint8_t Opcode, bool force_sync)
+void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opcode)
 {
-  if (force_sync) {
-    while ((cmd_queue_index_w + 1) % BUFSIZE == cmd_queue_index_r) {
-      LOG_I("cmd q full\n");
-      advance_command_queue();
-      idle();
-    }
+  if (hmi_commands_in_queue == HMI_BUFSIZE) {
+    LOG_E("Fatal Error, The HMI command queue supposed never overflow! Rejected.. Losing Gcode");
+    return;
   }
 
-	// guaranteed buffer available, shouldn't be missed, or screen status won't sync.
-	if ((cmd_queue_index_w + 1) % BUFSIZE != cmd_queue_index_r)
-	{
-		//指令入队
-		strcpy(command_queue[cmd_queue_index_w], pgcode);
-		//应答ok
-		Screen_send_ok[cmd_queue_index_w] = true;
-		//应答控制字
-		Screen_send_ok_opcode[cmd_queue_index_w] = Opcode;
-		//代码行号
-		//非打印状态
-		if(Opcode == 0x02)
-			CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
-		//打印状态
-		else
-			CommandLine[cmd_queue_index_w] = Lines;
-		//主串口取消应答ok
-		send_ok[cmd_queue_index_w] = false;
-		//写入索引下移
-		cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
-		commands_in_queue++;
-	}
+  // enter buffer queue
+  strcpy(hmi_command_queue[hmi_cmd_queue_index_w], pgcode);
+  hmi_commandline_queue[hmi_cmd_queue_index_w] = Lines;
+  hmi_send_opcode_queue[hmi_cmd_queue_index_w] = Opcode;
+  hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
+  hmi_commands_in_queue++;
+
+
+  // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
+  // fetch as much command as possible
+  while (commands_in_queue < BUFSIZE)
+  {
+    if (hmi_commands_in_queue == 0) {
+      // buffer queue is emtpy.
+      break;
+    }
+
+    // fetch from buffer queue
+    strcpy(pgcode, hmi_command_queue[hmi_cmd_queue_index_r]);
+    Lines = hmi_commandline_queue[hmi_cmd_queue_index_r];
+    Opcode = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
+    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
+    hmi_commands_in_queue--;
+
+
+    strcpy(command_queue[cmd_queue_index_w], pgcode);
+    Screen_send_ok[cmd_queue_index_w] = true;
+    Screen_send_ok_opcode[cmd_queue_index_w] = Opcode;
+    // if is not file printing, then use previous line number.
+    if(Opcode == 0x02)
+        CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
+    else
+        CommandLine[cmd_queue_index_w] = Lines;
+    send_ok[cmd_queue_index_w] = false;
+    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
+    commands_in_queue++;
+  }
 }
 #endif
 
@@ -700,11 +717,6 @@ inline void get_serial_commands() {
 
           gcode_LastN = gcode_N;
         }
-        #if ENABLED(SDSUPPORT)
-          // Pronterface "M29" and "M29 " has no line number
-          else if (card.flag.saving && !is_M29(command))
-            return gcode_line_error(PSTR(MSG_ERR_NO_CHECKSUM), i);
-        #endif
 
         // Movement commands alert when stopped
         if (IsStopped()) {
@@ -721,7 +733,6 @@ inline void get_serial_commands() {
                 case 5:
               #endif
                 SERIAL_ECHOLNPGM(MSG_ERR_STOPPED);
-                LCD_MESSAGEPGM(MSG_STOPPED);
                 break;
             }
           }
@@ -779,108 +790,6 @@ inline void get_serial_commands() {
   } // queue has space, serial has data
 }
 
-#if ENABLED(SDSUPPORT)
-
-  /**
-   * Get commands from the SD Card until the command buffer is full
-   * or until the end of the file is reached. The special character '#'
-   * can also interrupt buffering.
-   */
-  inline void get_sdcard_commands() {
-    static bool stop_buffering = false,
-                sd_comment_mode = false
-                #if ENABLED(PAREN_COMMENTS)
-                  , sd_comment_paren_mode = false
-                #endif
-              ;
-
-    if (!IS_SD_PRINTING()) return;
-
-    /**
-     * '#' stops reading from SD to the buffer prematurely, so procedural
-     * macro calls are possible. If it occurs, stop_buffering is triggered
-     * and the buffer is run dry; this character _can_ occur in serial com
-     * due to checksums, however, no checksums are used in SD printing.
-     */
-
-    if (commands_in_queue == 0) stop_buffering = false;
-
-    uint16_t sd_count = 0;
-    bool card_eof = card.eof();
-    while (commands_in_queue < BUFSIZE && !card_eof && !stop_buffering) {
-      const int16_t n = card.get();
-      char sd_char = (char)n;
-      card_eof = card.eof();
-      if (card_eof || n == -1
-          || sd_char == '\n' || sd_char == '\r'
-          || ((sd_char == '#' || sd_char == ':') && !sd_comment_mode
-            #if ENABLED(PAREN_COMMENTS)
-              && !sd_comment_paren_mode
-            #endif
-          )
-      ) {
-        if (card_eof) {
-
-          card.printingHasFinished();
-
-          if (IS_SD_PRINTING())
-            sd_count = 0; // If a sub-file was printing, continue from call point
-          else {
-            SERIAL_ECHOLNPGM(MSG_FILE_PRINTED);
-            #if ENABLED(PRINTER_EVENT_LEDS)
-              printerEventLEDs.onPrintCompleted();
-              #if HAS_RESUME_CONTINUE
-                enqueue_and_echo_commands_P(PSTR("M0 S"
-                  #if HAS_LCD_MENU
-                    "1800"
-                  #else
-                    "60"
-                  #endif
-                ));
-              #endif
-            #endif // PRINTER_EVENT_LEDS
-          }
-        }
-        else if (n == -1)
-          SERIAL_ERROR_MSG(MSG_SD_ERR_READ);
-
-        if (sd_char == '#') stop_buffering = true;
-
-        sd_comment_mode = false; // for new command
-        #if ENABLED(PAREN_COMMENTS)
-          sd_comment_paren_mode = false;
-        #endif
-
-        // Skip empty lines and comments
-        if (!sd_count) { thermalManager.manage_heater(); continue; }
-
-        command_queue[cmd_queue_index_w][sd_count] = '\0'; // terminate string
-        sd_count = 0; // clear sd line buffer
-
-        _commit_command(false);
-      }
-      else if (sd_count >= MAX_CMD_SIZE - 1) {
-        /**
-         * Keep fetching, but ignore normal characters beyond the max length
-         * The command will be injected when EOL is reached
-         */
-      }
-      else {
-        if (sd_char == ';') sd_comment_mode = true;
-        #if ENABLED(PAREN_COMMENTS)
-          else if (sd_char == '(') sd_comment_paren_mode = true;
-          else if (sd_char == ')') sd_comment_paren_mode = false;
-        #endif
-        else if (!sd_comment_mode
-          #if ENABLED(PAREN_COMMENTS)
-            && ! sd_comment_paren_mode
-          #endif
-        ) command_queue[cmd_queue_index_w][sd_count++] = sd_char;
-      }
-    }
-  }
-
-#endif // SDSUPPORT
 
 /**
  * Add to the circular command queue the next command from:
@@ -894,16 +803,12 @@ void get_available_commands() {
   if (drain_injected_commands_P()) return;
 
   //if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
-    get_serial_commands();
+  get_serial_commands();
   //else {
-    // clear buffer of UART to PC
+  // clear buffer of UART to PC
   //  HAL_uart_reset_rx(MYSERIAL0);
   //}
 
-
-  #if ENABLED(SDSUPPORT)
-    get_sdcard_commands();
-  #endif
 }
 
 /**
@@ -913,44 +818,11 @@ void advance_command_queue() {
 
   if (!commands_in_queue) return;
 
-  #if ENABLED(SDSUPPORT)
 
-    if (card.flag.saving) {
-      char* command = command_queue[cmd_queue_index_r];
-      if (is_M29(command)) {
-        // M29 closes the file
-        card.closefile();
-        SERIAL_ECHOLNPGM(MSG_FILE_SAVED);
 
-        #if !defined(__AVR__) || !defined(USBCON)
-          #if ENABLED(SERIAL_STATS_DROPPED_RX)
-            SERIAL_ECHOLNPAIR("Dropped bytes: ", MYSERIAL0.dropped());
-          #endif
+  gcode.process_next_command();
 
-          #if ENABLED(SERIAL_STATS_MAX_RX_QUEUED)
-            SERIAL_ECHOLNPAIR("Max RX Queue Size: ", MYSERIAL0.rxMaxEnqueued());
-          #endif
-        #endif //  !defined(__AVR__) || !defined(USBCON)
 
-        ok_to_send();
-      }
-      else {
-        // Write the string from the read buffer to SD
-        card.write_command(command);
-        if (card.flag.logging)
-          gcode.process_next_command(); // The card is saving because it's logging
-        else
-          ok_to_send();
-      }
-    }
-    else
-      gcode.process_next_command();
-
-  #else
-
-    gcode.process_next_command();
-
-  #endif // SDSUPPORT
 
   // The queue may be reset by a command handler or by code invoked by idle() within a handler
   if (commands_in_queue) {

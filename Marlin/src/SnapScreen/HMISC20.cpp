@@ -12,7 +12,6 @@
 #include "../gcode/parser.h"
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/configuration_store.h"
-#include "../sd/cardreader.h"
 #include "../module/ExecuterManager.h"
 #include "../module/PowerPanic.h"
 #include "../module/StatusControl.h"
@@ -888,7 +887,7 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
 }
 
 
-void HMI_SC20::PollingCommand() {
+void HMI_SC20::PollingCommand(bool nested) {
   int len;
 
   len = GetCommand((unsigned char *) checkout_cmd[next_cmd_idx]);
@@ -928,13 +927,13 @@ void HMI_SC20::PollingCommand() {
   else
     next_cmd_idx = 1;
 
-  HandleOneCommand();
+  HandleOneCommand(nested);
 
   is_handling_cmd = false;
 }
 
 
-void HMI_SC20::HandleOneCommand()
+void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 {
   float fX, fY, fZ;
   uint32_t ID;
@@ -966,7 +965,7 @@ void HMI_SC20::HandleOneCommand()
       // pad '0' in the end of command
       j = cmdLen + 8;
       tmpBuff[j] = 0;
-      Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02, false);
+      Screen_enqueue_and_echo_commands(&tmpBuff[13], 0xffffffff, 0x02);
     }
 
     //gcode from screen
@@ -984,13 +983,13 @@ void HMI_SC20::HandleOneCommand()
         // when we are resuming, won't handle any Gcode
         if (cur_stage == SYSTAGE_RESUMING) {
           if (SystemStatus.ResumeOver() == E_SUCCESS) {
-            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
+            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
           }
           else
             SendGcode("ok\n", 0x4);
         }
         else
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04, true);
+          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
       }
     }
 
@@ -1412,17 +1411,23 @@ void HMI_SC20::HandleOneCommand()
             j = IDX_DATA0 + 1;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fX = int32Value / 1000.0f;
-            err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
-            if (err == E_SUCCESS) {
-              MarkNeedReack(0);
-            }
-            else if (err == E_INVALID_STATE) {
-              MarkNeedReack(2);
-              LOG_E("not supported parameter by current Tool head\n");
-            }
-            else {
-              MarkNeedReack(1);
-              LOG_E("invalid parameter\n");
+            if (planner.sync_cnt > 0 && tmpBuff[IDX_DATA0] == RENV_TYPE_ZOFFSET) {
+//            if (false && reject_sync_write && tmpBuff[IDX_DATA0] == RENV_TYPE_ZOFFSET) {
+              LOG_I("REJECT_SYNC_WRITE, RENV_TYPE_ZOFFSET %d\n", planner.sync_cnt);
+              MarkNeedReack(E_REJECT_SYNC_WRITE);
+            } else {
+              err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
+              if (err == E_SUCCESS) {
+                MarkNeedReack(0);
+              }
+              else if (err == E_INVALID_STATE) {
+                MarkNeedReack(2);
+                LOG_E("not supported parameter by current Tool head\n");
+              }
+              else {
+                MarkNeedReack(1);
+                LOG_E("invalid parameter\n");
+              }
             }
           break;
 
