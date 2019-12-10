@@ -1317,7 +1317,7 @@ void loop() {
   // clear UART buffer
   rb_reset(MYSERIAL0.c_dev()->rb);
   rb_reset(HMISERIAL.c_dev()->rb);
-  
+
   CheckAppValidFlag();
 
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
