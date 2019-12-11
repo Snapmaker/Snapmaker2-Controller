@@ -223,6 +223,10 @@ void GcodeSuite::G28(const bool always_home_all) {
   // Wait for planner moves to finish!
   planner.synchronize();
 
+  // External Module only reply when switch status changed.
+  // Force sync status here to avoid hitting boundary because of the limit switch out of sync. 
+  CanModules.UpdateEndstops();
+
   // Disable the leveling matrix before homing
   #if HAS_LEVELING
 
