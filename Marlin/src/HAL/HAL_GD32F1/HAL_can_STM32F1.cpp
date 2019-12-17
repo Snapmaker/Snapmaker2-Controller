@@ -71,7 +71,7 @@ void CanInitFilter() {
   //Stander and data frame for fix id, 0-31
   FilterID = 0x600;
   FilterValue = CAN_ID_STD | CAN_RTR_DATA | (FilterID << 21);
-  FilterMask = (1<<1) | (1<<2) | (0x7E0 << 21);
+  FilterMask = (1<<1) | (1<<2) | (0x600 << 21);
   CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
   CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
   CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
@@ -85,25 +85,6 @@ void CanInitFilter() {
   CAN_FilterInit(&CAN_FilterInitStruct);
   //Can1
   CAN_FilterInitStruct.CAN_FilterNumber = 2;
-  CAN_FilterInit(&CAN_FilterInitStruct);
-
-  //Stander and data frame for dynamic id
-  FilterID = 0x600;
-  FilterValue = CAN_ID_STD | CAN_RTR_DATA | (FilterID << 21);
-  FilterMask = (1<<1) | (1<<2) | (0x600 << 21);
-  CAN_FilterInitStruct.CAN_FilterMode = CAN_FilterMode_IdMask;
-  CAN_FilterInitStruct.CAN_FilterScale = CAN_FilterScale_32bit;
-  CAN_FilterInitStruct.CAN_FilterActivation = ENABLE;
-  CAN_FilterInitStruct.CAN_FilterFIFOAssignment = CAN_FIFO1;
-  CAN_FilterInitStruct.CAN_FilterIdHigh = (uint16_t)(FilterValue >> 16);
-  CAN_FilterInitStruct.CAN_FilterIdLow = (uint16_t)FilterValue;
-  CAN_FilterInitStruct.CAN_FilterMaskIdHigh = (uint16_t)(FilterMask >> 16);
-  CAN_FilterInitStruct.CAN_FilterMaskIdLow = (uint16_t)FilterMask;
-  //Can2
-  CAN_FilterInitStruct.CAN_FilterNumber = 27;
-  CAN_FilterInit(&CAN_FilterInitStruct);
-  //Can1
-  CAN_FilterInitStruct.CAN_FilterNumber = 3;
   CAN_FilterInit(&CAN_FilterInitStruct);
 }
 

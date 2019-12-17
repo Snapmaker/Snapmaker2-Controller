@@ -1314,7 +1314,10 @@ void CheckAppValidFlag(void)
  *  - Call inactivity manager
  */
 void loop() {
-  CheckUpdateFlag();
+  // clear UART buffer
+  rb_reset(MYSERIAL0.c_dev()->rb);
+  rb_reset(HMISERIAL.c_dev()->rb);
+
   CheckAppValidFlag();
 
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
@@ -1327,6 +1330,7 @@ void loop() {
   while(tmptick > millis());
   ExecuterHead.Init();
   CanModules.Init();
+  CheckUpdateFlag();
   if (CanModules.LinearModuleCount == 0) {
     SystemStatus.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
   }
@@ -1367,9 +1371,6 @@ void loop() {
 
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
-  // clear UART buffer
-  rb_reset(MYSERIAL0.c_dev()->rb);
-  rb_reset(HMISERIAL.c_dev()->rb);
   SERIAL_ECHOLN("Finish init");
 
   for (;;) {
