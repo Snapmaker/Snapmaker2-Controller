@@ -58,10 +58,13 @@ void ExecuterManager::CheckAlive() {
 
   if (watch.CheckAlive() == HB_STA_JUST_DEAD) {
     SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
+    // shutdown the power, to avoid heater keep heating up while toolhead malfunction.
+    disable_power_domain(POWER_DOMAIN_1 | POWER_DOMAIN_2);
   }
 
   if (watch.CheckAlive() == HB_STA_JUST_ALIVE) {
     SystemStatus.ClearException(EHOST_EXECUTOR, ETYPE_LOST_HOST);
+    enable_power_domain(POWER_DOMAIN_1 | POWER_DOMAIN_2);
   }
 }
 
