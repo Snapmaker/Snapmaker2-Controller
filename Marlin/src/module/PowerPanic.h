@@ -58,6 +58,7 @@ typedef struct __attribute__((aligned (4)))
 	// file name
 	char FileName[PP_FILE_NAME_LEN];
 #endif
+  int8_t active_coordinate_system;
 } strPowerPanicSave;
 
 
