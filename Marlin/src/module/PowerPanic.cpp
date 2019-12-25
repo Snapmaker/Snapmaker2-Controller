@@ -356,7 +356,7 @@ int PowerPanic::SaveEnv(void) {
 	default:
 		break;
 	}
-
+  Data.active_coordinate_system = gcode.active_coordinate_system;
 	// checksum need to be calculate at the end,
 	// when all data will not be changed again
 	pBuff = (uint8_t*)&Data;
@@ -497,6 +497,7 @@ void PowerPanic::RestoreWorkspace() {
 		position_shift[i] = pre_data_.position_shift[i];
 		update_workspace_offset((AxisEnum)i);
 	}
+  gcode.active_coordinate_system = pre_data_.active_coordinate_system;
 }
 /**
  *Resume work after power panic if exist valid power panic data
