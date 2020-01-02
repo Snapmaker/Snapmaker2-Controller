@@ -454,6 +454,7 @@ void bilinear_grid_manual()
 #include "../../../snap_module/error.h"
 bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
 uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
+  uint8_t ret = E_SUCCESS;
   bilinear_grid_manual();
 
   static int direction [4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
@@ -463,7 +464,6 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   int cur_y = 0;
 
   int dir_idx = 0;
-  bool is_z_nan = false;
   do_blocking_move_to_logical_z(15, 10);
 
   for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
@@ -473,7 +473,10 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
     z_values[cur_x][cur_y] = z;
     visited[cur_x][cur_y] = true;
     if (isnan(z)) {
-      is_z_nan = true;
+      SERIAL_ECHOLNPGM("auto probing fail !");
+      reset_bed_level();
+      ret = E_AUTO_PROBING;
+      break;
     }
 
     if (reply_screen) {
@@ -499,12 +502,7 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   if (!fast_leveling)
     do_blocking_move_to_logical_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
 
-  if (is_z_nan) {
-    SERIAL_ECHOLNPGM("auto probing fail !");
-    reset_bed_level();
-    return E_AUTO_PROBING;
-  }
-  return E_SUCCESS;
+  return ret;
 }
 
 void compensate_offset(float offset) {
