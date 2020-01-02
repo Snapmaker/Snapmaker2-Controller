@@ -655,7 +655,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
     planner.synchronize();
 
-    auto_probing(true, fast_leveling);
+    uint8_t ret = auto_probing(true, fast_leveling);
 
     endstops.enable_z_probe(false);
 
@@ -665,7 +665,7 @@ uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
     HMICommandSave = 1;
 
     CalibrateMethod = 1;
-    return 0;
+    return ret;
   }
   return 1;
 }
