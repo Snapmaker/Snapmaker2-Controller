@@ -451,9 +451,10 @@ void bilinear_grid_manual()
 }
 
 #include "../../../snap_module/M1028.h"
-
+#include "../../../snap_module/error.h"
 bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
-void auto_probing(bool reply_screen, bool fast_leveling) {
+uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
+  uint8_t ret = E_SUCCESS;
   bilinear_grid_manual();
 
   static int direction [4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
@@ -463,7 +464,6 @@ void auto_probing(bool reply_screen, bool fast_leveling) {
   int cur_y = 0;
 
   int dir_idx = 0;
-
   do_blocking_move_to_logical_z(15, 10);
 
   for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
@@ -472,6 +472,13 @@ void auto_probing(bool reply_screen, bool fast_leveling) {
     float z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE); // raw position
     z_values[cur_x][cur_y] = z;
     visited[cur_x][cur_y] = true;
+    if (isnan(z)) {
+      SERIAL_ECHOLNPGM("auto probing fail !");
+      reset_bed_level();
+      ret = E_AUTO_PROBING;
+      break;
+    }
+
     if (reply_screen) {
         HMI.SendHalfCalibratePoint(0x03, cur_y * GRID_MAX_POINTS_X + cur_x + 1);
     }
@@ -490,9 +497,12 @@ void auto_probing(bool reply_screen, bool fast_leveling) {
     cur_y = new_y;
   }
 
+  
   // if fast_leveling is true, over directly. Otherwise move nozzle to current position of probe
   if (!fast_leveling)
     do_blocking_move_to_logical_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
+
+  return ret;
 }
 
 void compensate_offset(float offset) {
