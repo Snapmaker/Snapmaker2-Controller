@@ -19,6 +19,8 @@
 
 #define SPEED_IN_DRAWING_RULLER 5
 
+#define GO_HOME_BEFORE_CALIBRATION  1
+
 enum SettingOpt : uint8_t {
   OPT_SHOW_PARAM = 0,
   OPT_SET_HOME_SPEED,
@@ -29,6 +31,8 @@ enum SettingOpt : uint8_t {
   OPT_SET_LASER_PWR_CALI,
   OPT_SET_Z_LIMIT_CALI,
   OPT_SET_SPEED_IN_DRAWING_RULER,
+
+  OPT_GO_HOME_BEFORE_CALI,
 
   OPT_INVALID
 };
@@ -55,6 +59,8 @@ float z_limit_in_cali = Z_LIMIT_CALI;
 // laser power when calibrating laser
 float laser_pwr_in_cali = LASER_POWER_CALI;
 float speed_in_draw_ruler = SPEED_IN_DRAWING_RULLER;
+
+bool go_home_before_cali = true;
 
 /**
  * configure the customize parameters of snapmaker
@@ -128,6 +134,9 @@ void GcodeSuite::M1028() {
   case OPT_SET_SPEED_IN_DRAWING_RULER:
     speed_in_draw_ruler = (float) parser.floatval('D', (float) speed_in_draw_ruler);
     break;
+
+  case OPT_GO_HOME_BEFORE_CALI:
+    go_home_before_cali = (uint8_t)parser.byteval('I', (uint8_t)GO_HOME_BEFORE_CALIBRATION);
 
   default:
     SERIAL_ECHOLNPAIR("Error: invalid option: ", s);

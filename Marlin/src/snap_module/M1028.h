@@ -19,4 +19,6 @@ extern float laser_pwr_in_cali;
 
 extern float z_limit_in_cali;
 
+extern bool go_home_before_cali;
+
 #endif

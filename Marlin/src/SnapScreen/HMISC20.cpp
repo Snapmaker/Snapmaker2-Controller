@@ -630,11 +630,15 @@ uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
 {
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
+  LOG_I("e temp: %.2f / %.2f\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+  LOG_I("b temp: %.2f / %.2f\n", thermalManager.degBed(), thermalManager.degTargetBed());
+
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
     // Turn off the heaters
     thermalManager.disable_all_heaters();
 
-    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+    if (!go_home_before_cali && all_axes_homed() &&
+      (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
@@ -679,13 +683,17 @@ uint8_t HMI_SC20::ManualCalibrateStart()
   int i, j;
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
+  // when user do manual leveling, clear this var to disable fast-calibration
+  nozzle_height_probed = 0;
+
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     // Disable all heaters
     thermalManager.disable_all_heaters();
-    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+    if (!go_home_before_cali && all_axes_homed() &&
+      (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
@@ -1254,7 +1262,6 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
           // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
           // make sure we are in absolute mode
@@ -1282,7 +1289,6 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
             // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-            move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
 
             HMICommandSave = 0;
@@ -1378,7 +1384,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         case 14:
           LOG_I("SC req auto probe\n");
           // auto leveling, only offset between probe and extruder is known
-          if (nozzle_height_probed == 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
+          if (nozzle_height_probed <= 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
             MarkNeedReack(2);
             LOG_E("Invalid Z offset: %.3f, please adjust the Z offset first!\n", nozzle_height_probed);
             break;
@@ -1396,7 +1402,6 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
           // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
 
@@ -1436,7 +1441,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           LOG_I("SC req clear leveling data\n");
           for (i = 0; i < GRID_MAX_POINTS_Y; i++)
             for (j = 0; j < GRID_MAX_POINTS_X; j++)
-              z_values[i][j] = 6;
+              z_values[i][j] = DEFAUT_LEVELING_HEIGHT;
 
           bed_level_virt_interpolate();
 

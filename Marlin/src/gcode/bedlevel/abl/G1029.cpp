@@ -27,6 +27,9 @@
 #include <src/feature/bedlevel/bedlevel.h>
 #include <src/module/endstops.h>
 #include <src/module/configuration_store.h>
+
+#include "../../snap_module/snap_dbg.h"
+
 /**
  * G29.cpp - Auto Bed Leveling
  */
@@ -115,8 +118,8 @@ void GcodeSuite::G1029() {
       compensate_offset();
     }
     else {
-      if (nozzle_height_probed == 0) {
-        SERIAL_ECHOLNPAIR("Error: nozzle height from probe is ", nozzle_height_probed);
+      if (nozzle_height_probed <= 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
+        LOG_E("invalid nozzle height after level: %.2f", nozzle_height_probed);
         return;
       }
       else

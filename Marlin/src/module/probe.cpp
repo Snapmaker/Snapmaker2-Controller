@@ -37,6 +37,8 @@
 
 #include "../gcode/gcode.h"
 
+#include "../snap_module/snap_dbg.h"
+
 #if ANY(Z_PROBE_SLED, Z_PROBE_ALLEN_KEY, PROBE_TRIGGERED_WHEN_STOWED_TEST) || (QUIET_PROBING && ENABLED(PROBING_STEPPERS_OFF))
   #include "../Marlin.h" // for stop(), disable_e_steppers
 #endif
@@ -628,11 +630,13 @@ static float run_z_probe() {
         probe_speed = 0.5;
       }
       if (do_probe_move(z_probe_low_point, probe_speed)) {
-        if (DEBUGGING(LEVELING)) {
-          DEBUG_ECHOLNPGM("SLOW Probe fail!");
-          DEBUG_POS("<<< run_z_probe", current_position);
-        }
-        return NAN;
+        LOG_E("probe didn't triggered\n");
+        // if probe didn't triggered, maybe the nozzle go into the bed, need to raise firstly
+        do_blocking_move_to_z(DEFAUT_LEVELING_HEIGHT, MMM_TO_MMS(Z_PROBE_SPEED_FAST));
+
+        // we return default level height when probe didn't get the bed on this point
+        // to avoid user didn't be aware of failed auto-level and then start print
+        return DEFAUT_LEVELING_HEIGHT;
       }
 
       #if ENABLED(MEASURE_BACKLASH_WHEN_PROBING)
@@ -643,10 +647,20 @@ static float run_z_probe() {
       // won't use the first probed position
       if (p < MULTIPLE_PROBING)
         probes_total += current_position[Z_AXIS];
-      SERIAL_ECHOLNPAIR("probed z: ", current_position[Z_AXIS]);
+      LOG_I("probed z: %.2f\n ", current_position[Z_AXIS]);
 
       if (p > 1) do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_SLOW));
 
+      if (TEST(endstops.trigger_state(),
+        #if ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
+          Z_MIN
+        #else
+          Z_MIN_PROBE
+        #endif
+      )) {
+        LOG_E("probe is triggered before probed! raise again!\n");
+        do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_SLOW));
+      }
       clearance -= 0.5;
     }
   #endif
@@ -721,7 +735,7 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
   feedrate_mm_s = XY_PROBE_FEEDRATE_MM_S;
 
   // Move the probe to the starting XYZ
-  SERIAL_ECHOLNPAIR("Move to X:", nx, " Y:", ny);
+  LOG_I("Move to X: %.2f, Y: %.2f, Z: %.2f\n", nx, ny, nz);
   do_blocking_move_to(nx, ny, nz);
 
   float measured_z = NAN;
