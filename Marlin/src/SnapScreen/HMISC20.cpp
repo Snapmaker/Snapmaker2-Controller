@@ -1258,6 +1258,14 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             break;
           }
 
+          LOG_I("new leveling data:\n");
+          for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
+            for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+              LOG_I("%.2f ", z_values[i][j]);
+            }
+            LOG_I("\n");
+          }
+
           set_bed_leveling_enabled(true);
 
           // move to stop
@@ -1382,7 +1390,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           break;
 
         case 14:
-          LOG_I("SC req auto probe\n");
+          LOG_I("SC req fast calibration\n");
           // auto leveling, only offset between probe and extruder is known
           if (nozzle_height_probed <= 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
             MarkNeedReack(2);
@@ -1398,6 +1406,14 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
           process_cmd_imd("G1029 S1");
 
+          LOG_I("new leveling data:\n");
+          for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
+            for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+              LOG_I("%.2f ", z_values[i][j]);
+            }
+            LOG_I("\n");
+          }
+
           set_bed_leveling_enabled(true);
 
           // move to stop
@@ -1408,7 +1424,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
-          LOG_I("SC req auto probe: Done!\n");
+          LOG_I("SC req fast calibration: Done!\n");
           break;
 
         case 0xF:
