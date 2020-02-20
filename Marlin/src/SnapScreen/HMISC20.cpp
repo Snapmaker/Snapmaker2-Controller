@@ -1169,7 +1169,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
       }
       // homing status
       else if (StatuID == 0x0e) {
-        LOG_I("SC req homing!\n");
+        LOG_V("SC req homing!\n");
         CoordinateMgrReportStatus(eventId, OpCode);
       }
       // query coordinates data
