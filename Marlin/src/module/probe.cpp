@@ -630,13 +630,12 @@ static float run_z_probe() {
         probe_speed = 0.5;
       }
       if (do_probe_move(z_probe_low_point, probe_speed)) {
+        if (DEBUGGING(LEVELING)) {
+          DEBUG_ECHOLNPGM("SLOW Probe fail!");
+          DEBUG_POS("<<< run_z_probe", current_position);
+        }
         LOG_E("probe didn't triggered\n");
-        // if probe didn't triggered, maybe the nozzle go into the bed, need to raise firstly
-        do_blocking_move_to_z(DEFAUT_LEVELING_HEIGHT, MMM_TO_MMS(Z_PROBE_SPEED_FAST));
-
-        // we return default level height when probe didn't get the bed on this point
-        // to avoid user didn't be aware of failed auto-level and then start print
-        return DEFAUT_LEVELING_HEIGHT;
+        return NAN;
       }
 
       #if ENABLED(MEASURE_BACKLASH_WHEN_PROBING)
