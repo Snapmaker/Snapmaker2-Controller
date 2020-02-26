@@ -1230,7 +1230,11 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         case 6:
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
+
+          // sometimes the bed plane will be under the low limit point
+          // to make z can move down always by user, we don't use limited API
+          LOG_I("cur z: %.2f, offset: %.2f\n", current_position[Z_AXIS], fZ);
+          do_blocking_move_to_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
 
@@ -1455,6 +1459,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         // clear auto-leveling data
         case 0x10:
           LOG_I("SC req clear leveling data\n");
+          set_bed_leveling_enabled(false);
           for (i = 0; i < GRID_MAX_POINTS_Y; i++)
             for (j = 0; j < GRID_MAX_POINTS_X; j++)
               z_values[i][j] = DEFAUT_LEVELING_HEIGHT;
@@ -1462,6 +1467,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           bed_level_virt_interpolate();
 
           nozzle_height_probed = 0;
+
+          set_bed_leveling_enabled(true);
 
           MarkNeedReack(0);
           break;
