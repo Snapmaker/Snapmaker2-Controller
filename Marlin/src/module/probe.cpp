@@ -647,7 +647,7 @@ static float run_z_probe() {
       // won't use the first probed position
       if (p < MULTIPLE_PROBING)
         probes_total += current_position[Z_AXIS];
-      LOG_I("probed z: %.2f\n ", current_position[Z_AXIS]);
+      LOG_I("probed z: %.2f\n", current_position[Z_AXIS]);
 
       if (last_probed_z != -10) {
         if (ABS(current_position[Z_AXIS] - last_probed_z) > 0.2)
