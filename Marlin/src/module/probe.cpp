@@ -622,6 +622,7 @@ static float run_z_probe() {
   float clearance = Z_CLEARANCE_MULTI_PROBE;
   float probes[MULTIPLE_PROBING];
   float probes_total = 0;
+  float last_probed_z = -10;
     for (uint8_t p = MULTIPLE_PROBING + 1; --p;) {
   #endif
 
@@ -647,6 +648,12 @@ static float run_z_probe() {
       if (p < MULTIPLE_PROBING)
         probes_total += current_position[Z_AXIS];
       LOG_I("probed z: %.2f\n ", current_position[Z_AXIS]);
+
+      if (last_probed_z != -10) {
+        if (ABS(current_position[Z_AXIS] - last_probed_z) > 0.2)
+          LOG_W("larger clearance between 2 probe!\n");
+      }
+      last_probed_z = current_position[Z_AXIS];
 
       if (p > 1) do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_SLOW));
 
