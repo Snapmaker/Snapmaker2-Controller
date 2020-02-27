@@ -1394,11 +1394,11 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           break;
 
         case 14:
-          LOG_I("SC req fast calibration\n");
+          LOG_I("SC req fast calibration, nozzle height: %.2f\n", nozzle_height_probed);
           // auto leveling, only offset between probe and extruder is known
           if (nozzle_height_probed <= 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
             MarkNeedReack(2);
-            LOG_E("Invalid Z offset: %.3f, please adjust the Z offset first!\n", nozzle_height_probed);
+            LOG_E("Invalid Z offset: %.3f!\n", nozzle_height_probed);
             break;
           }
 
