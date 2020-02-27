@@ -517,7 +517,7 @@ void compensate_offset(float offset) {
 void compensate_offset() {
   float offset = z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] - current_position[Z_AXIS];
   nozzle_height_probed = offset;
-  LOG_I("nozzle height when probed bed: ", nozzle_height_probed);
+  LOG_I("nozzle height: %.3f\n", nozzle_height_probed);
   compensate_offset(offset);
 }
 

@@ -1212,6 +1212,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             if (PointIndex < 10) {
               // save point index
               MeshPointZ[PointIndex] = current_position[Z_AXIS];
+              LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", PointIndex, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
               // if got new point, raise Z firstly
               if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < 10)
@@ -1263,8 +1264,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           }
 
           LOG_I("new leveling data:\n");
-          for (i = 0; i < GRID_MAX_POINTS_X; i++) {
-            for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+          for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
               LOG_I("%.2f ", z_values[i][j]);
             }
             LOG_I("\n");
@@ -1411,8 +1412,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           process_cmd_imd("G1029 S1");
 
           LOG_I("new leveling data:\n");
-          for (i = 0; i < GRID_MAX_POINTS_X; i++) {
-            for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+          for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
               LOG_I("%.2f ", z_values[i][j]);
             }
             LOG_I("\n");
