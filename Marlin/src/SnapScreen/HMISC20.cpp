@@ -715,8 +715,8 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     // Preset the index to 99 for initial status
     PointIndex = 99;
 
-    for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-      for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+    for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+      for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
         MeshPointZ[i * GRID_MAX_POINTS_X + j] = z_values[i][j];
       }
     }
@@ -1245,8 +1245,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           if (CalibrateMethod == 2 && PointIndex < 10) {
             // save the last point
             MeshPointZ[PointIndex] = current_position[Z_AXIS];
-            for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-              for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+              for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
                 z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_X + j];
               }
             }
@@ -1263,8 +1263,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           }
 
           LOG_I("new leveling data:\n");
-          for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-            for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+          for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+            for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
               LOG_I("%.2f ", z_values[i][j]);
             }
             LOG_I("\n");
@@ -1411,8 +1411,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           process_cmd_imd("G1029 S1");
 
           LOG_I("new leveling data:\n");
-          for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-            for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+          for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+            for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
               LOG_I("%.2f ", z_values[i][j]);
             }
             LOG_I("\n");
