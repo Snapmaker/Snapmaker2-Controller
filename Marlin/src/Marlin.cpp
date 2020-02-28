@@ -247,9 +247,9 @@ millis_t max_inactive_time, // = 0
   float MAGNET_X_SPAN = 114;
   float MAGNET_Y_SPAN = 114;
 
-  float s_home_offset[XYZ] = {0};
-  float m_home_offset[XYZ] = {0};
-  float l_home_offset[XYZ] = {0};
+  float s_home_offset[XYZ] = S_HOME_OFFSET_DEFAULT;
+  float m_home_offset[XYZ] = M_HOME_OFFSET_DEFAULT;
+  float l_home_offset[XYZ] = L_HOME_OFFSET_DEFAULT;
 #endif //ENABLED(SW_MACHINE_SIZE)
 
 uint32_t GRID_MAX_POINTS_X;
