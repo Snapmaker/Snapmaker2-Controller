@@ -298,6 +298,17 @@ void CanModule::PrepareLinearModules(void) {
     SystemStatus.ThrowException(EHOST_MC, ETYPE_NO_HOST);
   }
 
+  SERIAL_ECHO("Machine Size:\r\n");
+  SERIAL_ECHOLNPAIR("   X:", X_MIN_POS, " - ", X_MAX_POS);
+  SERIAL_ECHOLNPAIR("   Y:", Y_MIN_POS, " - ", Y_MAX_POS);
+  SERIAL_ECHOLNPAIR("   Z:", Z_MIN_POS, " - ", Z_MAX_POS);
+  SERIAL_ECHOPAIR("Directions:\r\n");
+  SERIAL_ECHOLNPAIR("   X:", X_DIR, " Y:", Y_DIR, " Z:", Z_DIR, " E:", E_DIR);
+  SERIAL_ECHOPAIR("Home Directions:\r\n");
+  SERIAL_ECHOLNPAIR("   X:", X_HOME_DIR, " Y:", Y_HOME_DIR, " Z:", Z_HOME_DIR);
+  SERIAL_ECHOPAIR("Home offset:\r\n");
+  SERIAL_ECHOLNPAIR("   X:", home_offset[X_AXIS], " Y:", home_offset[Y_AXIS], " Z:", home_offset[Z_AXIS]);
+
   //Get Linear module function ID
   for(i=0;i<LinearModuleCount;i++) {
     SendBuff[0] = CMD_M_REQUEST_FUNCID;
