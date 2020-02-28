@@ -137,6 +137,7 @@ void GcodeSuite::M1028() {
 
   case OPT_GO_HOME_BEFORE_CALI:
     go_home_before_cali = (uint8_t)parser.byteval('I', (uint8_t)GO_HOME_BEFORE_CALIBRATION);
+    break;
 
   default:
     SERIAL_ECHOLNPAIR("Error: invalid option: ", s);
