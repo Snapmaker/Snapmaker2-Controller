@@ -33,6 +33,7 @@
 
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../../core/debug_out.h"
+#include "../../../snap_module/snap_dbg.h"
 
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
@@ -467,7 +468,7 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   do_blocking_move_to_logical_z(15, 10);
 
   for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
-    SERIAL_ECHOLNPAIR("Probing No. ", k);
+    LOG_I("Probing No. %d\n", k);
 
     float z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE); // raw position
     z_values[cur_x][cur_y] = z;
@@ -516,7 +517,7 @@ void compensate_offset(float offset) {
 void compensate_offset() {
   float offset = z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] - current_position[Z_AXIS];
   nozzle_height_probed = offset;
-  SERIAL_ECHOLNPAIR("nozzle height when probed bed: ", nozzle_height_probed);
+  LOG_I("nozzle height: %.3f\n", nozzle_height_probed);
   compensate_offset(offset);
 }
 

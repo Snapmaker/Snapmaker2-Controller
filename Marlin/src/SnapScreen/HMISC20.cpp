@@ -630,11 +630,15 @@ uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
 {
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
+  LOG_I("e temp: %.2f / %.2f\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+  LOG_I("b temp: %.2f / %.2f\n", thermalManager.degBed(), thermalManager.degTargetBed());
+
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
     // Turn off the heaters
     thermalManager.disable_all_heaters();
 
-    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+    if (!go_home_before_cali && all_axes_homed() &&
+      (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
@@ -679,13 +683,17 @@ uint8_t HMI_SC20::ManualCalibrateStart()
   int i, j;
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
+  // when user do manual leveling, clear this var to disable fast-calibration
+  nozzle_height_probed = 0;
+
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     // Disable all heaters
     thermalManager.disable_all_heaters();
-    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+    if (!go_home_before_cali && all_axes_homed() &&
+      (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
@@ -707,8 +715,8 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     // Preset the index to 99 for initial status
     PointIndex = 99;
 
-    for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-      for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+    for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+      for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
         MeshPointZ[i * GRID_MAX_POINTS_X + j] = z_values[i][j];
       }
     }
@@ -1161,7 +1169,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
       }
       // homing status
       else if (StatuID == 0x0e) {
-        LOG_I("SC req homing!\n");
+        LOG_V("SC req homing!\n");
         CoordinateMgrReportStatus(eventId, OpCode);
       }
       // query coordinates data
@@ -1204,6 +1212,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             if (PointIndex < 10) {
               // save point index
               MeshPointZ[PointIndex] = current_position[Z_AXIS];
+              LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", PointIndex, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
               // if got new point, raise Z firstly
               if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < 10)
@@ -1222,7 +1231,11 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         case 6:
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
+
+          // sometimes the bed plane will be under the low limit point
+          // to make z can move down always by user, we don't use limited API
+          LOG_I("cur z: %.2f, offset: %.2f\n", current_position[Z_AXIS], fZ);
+          do_blocking_move_to_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
 
@@ -1233,8 +1246,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           if (CalibrateMethod == 2 && PointIndex < 10) {
             // save the last point
             MeshPointZ[PointIndex] = current_position[Z_AXIS];
-            for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-              for (j = 0; j < GRID_MAX_POINTS_X; j++) {
+            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+              for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
                 z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_X + j];
               }
             }
@@ -1250,11 +1263,18 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             break;
           }
 
+          LOG_I("new leveling data:\n");
+          for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+              LOG_I("%.2f ", z_values[i][j]);
+            }
+            LOG_I("\n");
+          }
+
           set_bed_leveling_enabled(true);
 
           // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
           // make sure we are in absolute mode
@@ -1282,7 +1302,6 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
             // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-            move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
 
             HMICommandSave = 0;
@@ -1376,11 +1395,11 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           break;
 
         case 14:
-          LOG_I("SC req auto probe\n");
+          LOG_I("SC req fast calibration, nozzle height: %.2f\n", nozzle_height_probed);
           // auto leveling, only offset between probe and extruder is known
-          if (nozzle_height_probed == 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
+          if (nozzle_height_probed <= 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
             MarkNeedReack(2);
-            LOG_E("Invalid Z offset: %.3f, please adjust the Z offset first!\n", nozzle_height_probed);
+            LOG_E("Invalid Z offset: %.3f!\n", nozzle_height_probed);
             break;
           }
 
@@ -1392,18 +1411,25 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
           process_cmd_imd("G1029 S1");
 
+          LOG_I("new leveling data:\n");
+          for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+              LOG_I("%.2f ", z_values[i][j]);
+            }
+            LOG_I("\n");
+          }
+
           set_bed_leveling_enabled(true);
 
           // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
 
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
-          LOG_I("SC req auto probe: Done!\n");
+          LOG_I("SC req fast calibration: Done!\n");
           break;
 
         case 0xF:
@@ -1434,13 +1460,16 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         // clear auto-leveling data
         case 0x10:
           LOG_I("SC req clear leveling data\n");
+          set_bed_leveling_enabled(false);
           for (i = 0; i < GRID_MAX_POINTS_Y; i++)
             for (j = 0; j < GRID_MAX_POINTS_X; j++)
-              z_values[i][j] = 6;
+              z_values[i][j] = DEFAUT_LEVELING_HEIGHT;
 
           bed_level_virt_interpolate();
 
           nozzle_height_probed = 0;
+
+          set_bed_leveling_enabled(true);
 
           MarkNeedReack(0);
           break;

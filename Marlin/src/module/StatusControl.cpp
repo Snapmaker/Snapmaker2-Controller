@@ -145,6 +145,10 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
     return E_SUCCESS;
   }
 
+  // to workaround issue QS bug maybe make bed heating always
+  // enable power after finish QS
+  disable_power_domain(POWER_DOMAIN_BED);
+
   cur_status_ = SYSTAT_END_TRIG;
 
   quickstop.Trigger(QS_EVENT_STOP);
@@ -203,6 +207,7 @@ void StatusControl::StopProcess()
   thermalManager.setTargetBed(0);
   thermalManager.setTargetHotend(0, 0);
 
+  enable_power_domain(POWER_DOMAIN_BED);
 
   LOG_I("Finish stop\n");
 }
