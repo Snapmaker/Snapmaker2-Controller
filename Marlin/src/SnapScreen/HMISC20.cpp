@@ -715,8 +715,8 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     // Preset the index to 99 for initial status
     PointIndex = 99;
 
-    for (i = 0; i < GRID_MAX_POINTS_X; i++) {
-      for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+    for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+      for (i = 0; i < GRID_MAX_POINTS_X; i++) {
         MeshPointZ[i * GRID_MAX_POINTS_Y + j] = z_values[i][j];
       }
     }
@@ -1246,8 +1246,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           if (CalibrateMethod == 2 && PointIndex < 10) {
             // save the last point
             MeshPointZ[PointIndex] = current_position[Z_AXIS];
-            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
-              for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+            for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+              for (i = 0; i < GRID_MAX_POINTS_X; i++) {
                 z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_Y + j];
               }
             }
