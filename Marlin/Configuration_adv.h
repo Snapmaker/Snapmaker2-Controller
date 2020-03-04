@@ -123,7 +123,7 @@
   #define WATCH_BED_TEMP_PERIOD 120                // Seconds
   #define WATCH_BED_TEMP_INCREASE 2               // Degrees Celsius
 
-  #define WATCH_BED_TEMP__DROP_DEBOUNCE 3
+  #define WATCH_BED_TEMP_DROP_DEBOUNCE 3
   #define WATCH_BED_TEMP_DROP_PERIOD    2   // Seconds
   #define WATCH_BED_TEMP_DROP_LIMIT     6
   #define WATCH_BED_TEMP_DROP_DELTA     1   // Degrees Celsius

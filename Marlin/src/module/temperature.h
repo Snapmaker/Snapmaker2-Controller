@@ -683,7 +683,8 @@ class Temperature {
             celsius
           #endif
         ;
-        start_watching_bed();
+        // start_watching_bed();
+        // for now we check if bed start heating and if bed temp over upper limit
         start_watching_bed_notheated(true);
       }
 
