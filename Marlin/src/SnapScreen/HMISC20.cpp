@@ -717,7 +717,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 
     for (i = 0; i < GRID_MAX_POINTS_X; i++) {
       for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
-        MeshPointZ[i * GRID_MAX_POINTS_X + j] = z_values[i][j];
+        MeshPointZ[i * GRID_MAX_POINTS_Y + j] = z_values[i][j];
       }
     }
 
@@ -1248,7 +1248,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             MeshPointZ[PointIndex] = current_position[Z_AXIS];
             for (i = 0; i < GRID_MAX_POINTS_X; i++) {
               for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
-                z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_X + j];
+                z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_Y + j];
               }
             }
 
@@ -1461,8 +1461,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         case 0x10:
           LOG_I("SC req clear leveling data\n");
           set_bed_leveling_enabled(false);
-          for (i = 0; i < GRID_MAX_POINTS_Y; i++)
-            for (j = 0; j < GRID_MAX_POINTS_X; j++)
+          for (i = 0; i < GRID_MAX_POINTS_X; i++)
+            for (j = 0; j < GRID_MAX_POINTS_Y; j++)
               z_values[i][j] = DEFAUT_LEVELING_HEIGHT;
 
           bed_level_virt_interpolate();
