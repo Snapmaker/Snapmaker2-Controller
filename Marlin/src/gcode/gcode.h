@@ -884,6 +884,8 @@ private:
 
   static void M1010();
 
+  static void M1999();
+
   static void M2000();
 
   static void T(const uint8_t tool_index);
