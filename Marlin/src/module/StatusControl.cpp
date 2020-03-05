@@ -119,6 +119,9 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
       return E_FAILURE;
     }
     break;
+
+  default:
+    break;
   }
 
   // recover scaling

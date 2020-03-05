@@ -611,6 +611,7 @@ void CanModule::PrepareRestModules(void) {
 }
 
 
+#if 0
 /**
  *PrepareExecuterModules:Prepare for Executer module
  */
@@ -750,6 +751,7 @@ void CanModule::PrepareExecuterModules(void) {
   else if(((ExecuterID[0] & MODULE_MASK_BITS) == MAKE_ID(MODULE_EXECUTER_LASER)) && (ExecuterMark[0] != 0xff)) ExecuterHead.MachineType = MACHINE_TYPE_LASER;
 }
 
+
 /**
  *PrepareExtendModules:Prepare for extend module
  */
@@ -859,6 +861,7 @@ void CanModule::PrepareExtendModules(void) {
     CanBusControlor.SendLongData(EXTEND_CAN_NUM, MacIDofFuncID_CAN1[i], SendBuff, k);
   }
 }
+#endif
 
 /**
  * GetFirmwareVersion:Get the firmware version of the specific module

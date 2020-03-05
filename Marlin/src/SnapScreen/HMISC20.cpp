@@ -730,6 +730,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 }
 
 
+#if 0
 /****************************************************
 机器尺寸重定义
 ***************************************************/
@@ -789,6 +790,7 @@ void HMI_SC20::ResizeMachine(char * pBuff)
   //保存数据
   settings.save();
 }
+#endif
 
  /**
  * ReportModuleFirmwareVersion:Send module firmware version to SC20
@@ -1784,6 +1786,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 }
 
 
+#if 0
 /***********************************************
 发送进度
 参数    Percent:进度值，取值范围0-100
@@ -1828,7 +1831,7 @@ void HMI_SC20::SendPowerPanicResume(uint8_t OpCode, uint8_t Result)
   packBuff[i++] = Result;
   PackedProtocal(packBuff, i);
 }
-
+#endif
 
 /***********************************************
 发送Wifi应答
