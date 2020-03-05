@@ -77,6 +77,8 @@ public:
 	void TurnOffPowerISR(void);
 	void Reset();
 
+	uint32_t LastLine() { return last_line; }
+
 public:
   strPowerPanicSave Data;
   strPowerPanicSave pre_data_;
