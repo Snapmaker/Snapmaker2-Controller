@@ -717,7 +717,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 
     for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
       for (i = 0; i < GRID_MAX_POINTS_X; i++) {
-        MeshPointZ[i * GRID_MAX_POINTS_Y + j] = z_values[i][j];
+        MeshPointZ[j * GRID_MAX_POINTS_X + i] = z_values[i][j];
       }
     }
 
@@ -1215,7 +1215,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
               LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", PointIndex, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
               // if got new point, raise Z firstly
-              if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < 10)
+              if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < z_position_before_calibration)
                 do_blocking_move_to_z(current_position[Z_AXIS] + 3, speed_in_calibration[Z_AXIS]);
             }
 
@@ -1234,7 +1234,6 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
           // sometimes the bed plane will be under the low limit point
           // to make z can move down always by user, we don't use limited API
-          LOG_I("cur z: %.2f, offset: %.2f\n", current_position[Z_AXIS], fZ);
           do_blocking_move_to_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
@@ -1246,9 +1245,10 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           if (CalibrateMethod == 2 && PointIndex < 10) {
             // save the last point
             MeshPointZ[PointIndex] = current_position[Z_AXIS];
+            LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", PointIndex, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
             for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
               for (i = 0; i < GRID_MAX_POINTS_X; i++) {
-                z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_Y + j];
+                z_values[i][j] = MeshPointZ[j * GRID_MAX_POINTS_X + i];
               }
             }
 
