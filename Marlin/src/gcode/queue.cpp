@@ -225,10 +225,40 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
  * execution guaranteed
  */
 #if ENABLED(HMI_SC20W)
+void enqueue_hmi_to_marlin() {
+  // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
+  // fetch as much command as possible
+  while (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
+  {
+    // fetch from buffer queue
+    strcpy(command_queue[cmd_queue_index_w], hmi_command_queue[hmi_cmd_queue_index_r]);
+    Screen_send_ok[cmd_queue_index_w] = true;
+    Screen_send_ok_opcode[cmd_queue_index_w] = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
+    // if is not file printing, then use previous line number.
+    if(Screen_send_ok_opcode[cmd_queue_index_w] == 0x02)
+        CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
+    else
+        CommandLine[cmd_queue_index_w] = hmi_commandline_queue[hmi_cmd_queue_index_r];
+    send_ok[cmd_queue_index_w] = false;
+    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
+
+    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
+    hmi_commands_in_queue--;
+
+    commands_in_queue++;
+  }
+}
+
+
 void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opcode)
 {
+  // we put HMI command to Marlin queue firstly
+  // to avoid jumping directly, we check the condition before call it
+  if (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
+    enqueue_hmi_to_marlin();
+
   if (hmi_commands_in_queue == HMI_BUFSIZE) {
-    LOG_E("Fatal Error, The HMI command queue supposed never overflow! Rejected.. Losing Gcode");
+    LOG_E("HMI gcode buffer is full, losing line: %u\n", Lines);
     return;
   }
 
@@ -239,36 +269,9 @@ void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opco
   hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
   hmi_commands_in_queue++;
 
-
-  // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
-  // fetch as much command as possible
-  while (commands_in_queue < BUFSIZE)
-  {
-    if (hmi_commands_in_queue == 0) {
-      // buffer queue is emtpy.
-      break;
-    }
-
-    // fetch from buffer queue
-    strcpy(pgcode, hmi_command_queue[hmi_cmd_queue_index_r]);
-    Lines = hmi_commandline_queue[hmi_cmd_queue_index_r];
-    Opcode = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
-    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
-    hmi_commands_in_queue--;
-
-
-    strcpy(command_queue[cmd_queue_index_w], pgcode);
-    Screen_send_ok[cmd_queue_index_w] = true;
-    Screen_send_ok_opcode[cmd_queue_index_w] = Opcode;
-    // if is not file printing, then use previous line number.
-    if(Opcode == 0x02)
-        CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
-    else
-        CommandLine[cmd_queue_index_w] = Lines;
-    send_ok[cmd_queue_index_w] = false;
-    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
-    commands_in_queue++;
-  }
+  // to avoid jumping directly, we check the condition before call it
+  if (commands_in_queue < BUFSIZE)
+    enqueue_hmi_to_marlin();
 }
 #endif
 

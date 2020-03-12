@@ -897,6 +897,7 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
 }
 
 
+extern uint8_t hmi_commands_in_queue;
 void HMI_SC20::PollingCommand(bool nested) {
   int len;
 
@@ -915,6 +916,11 @@ void HMI_SC20::PollingCommand(bool nested) {
         LOG_T("%08X ", *((uint32_t *)status_buff + i));
       }
       LOG_T("\n\n");
+    }
+
+    if (hmi_commands_in_queue == 0 && SystemStatus.GetCurrentStatus() == SYSTAT_WORK) {
+      SendGeneralReack(EID_STATUS_RESP, 0xC, 1);
+      LOG_I("waiting HMI command\n");
     }
     return;
   }
