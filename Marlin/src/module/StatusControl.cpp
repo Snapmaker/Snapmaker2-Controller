@@ -127,7 +127,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
   // recover scaling
   feedrate_scaling = 100;
 
-  // disable filament checking
+  // set temp to 0
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
     thermalManager.setTargetBed(0);
     HOTEND_LOOP() { thermalManager.setTargetHotend(0, e); }
@@ -206,9 +206,6 @@ void StatusControl::StopProcess()
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_IDLE;
   quickstop.Reset();
-
-  thermalManager.setTargetBed(0);
-  thermalManager.setTargetHotend(0, 0);
 
   enable_power_domain(POWER_DOMAIN_BED);
 
