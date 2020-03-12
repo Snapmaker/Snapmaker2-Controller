@@ -715,9 +715,9 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     // Preset the index to 99 for initial status
     PointIndex = 99;
 
-    for (i = 0; i < GRID_MAX_POINTS_X; i++) {
-      for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
-        MeshPointZ[i * GRID_MAX_POINTS_X + j] = z_values[i][j];
+    for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+      for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+        MeshPointZ[j * GRID_MAX_POINTS_X + i] = z_values[i][j];
       }
     }
 
@@ -730,6 +730,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 }
 
 
+#if 0
 /****************************************************
 机器尺寸重定义
 ***************************************************/
@@ -789,6 +790,7 @@ void HMI_SC20::ResizeMachine(char * pBuff)
   //保存数据
   settings.save();
 }
+#endif
 
  /**
  * ReportModuleFirmwareVersion:Send module firmware version to SC20
@@ -1215,7 +1217,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
               LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", PointIndex, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
               // if got new point, raise Z firstly
-              if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < 10)
+              if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < z_position_before_calibration)
                 do_blocking_move_to_z(current_position[Z_AXIS] + 3, speed_in_calibration[Z_AXIS]);
             }
 
@@ -1234,7 +1236,6 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
           // sometimes the bed plane will be under the low limit point
           // to make z can move down always by user, we don't use limited API
-          LOG_I("cur z: %.2f, offset: %.2f\n", current_position[Z_AXIS], fZ);
           do_blocking_move_to_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
@@ -1246,9 +1247,10 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           if (CalibrateMethod == 2 && PointIndex < 10) {
             // save the last point
             MeshPointZ[PointIndex] = current_position[Z_AXIS];
-            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
-              for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
-                z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_X + j];
+            LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", PointIndex, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
+            for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+              for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+                z_values[i][j] = MeshPointZ[j * GRID_MAX_POINTS_X + i];
               }
             }
 
@@ -1461,8 +1463,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         case 0x10:
           LOG_I("SC req clear leveling data\n");
           set_bed_leveling_enabled(false);
-          for (i = 0; i < GRID_MAX_POINTS_Y; i++)
-            for (j = 0; j < GRID_MAX_POINTS_X; j++)
+          for (i = 0; i < GRID_MAX_POINTS_X; i++)
+            for (j = 0; j < GRID_MAX_POINTS_Y; j++)
               z_values[i][j] = DEFAUT_LEVELING_HEIGHT;
 
           bed_level_virt_interpolate();
@@ -1784,6 +1786,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 }
 
 
+#if 0
 /***********************************************
 发送进度
 参数    Percent:进度值，取值范围0-100
@@ -1828,7 +1831,7 @@ void HMI_SC20::SendPowerPanicResume(uint8_t OpCode, uint8_t Result)
   packBuff[i++] = Result;
   PackedProtocal(packBuff, i);
 }
-
+#endif
 
 /***********************************************
 发送Wifi应答

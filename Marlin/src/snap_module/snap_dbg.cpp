@@ -199,9 +199,9 @@ void SnapDebug::CmdChecksumError(bool screen) {
 void SnapDebug::ShowInfo() {
   Log(SNAP_DEBUG_LEVEL_INFO, "current status: %d\n", SystemStatus.GetCurrentStatus());
   Log(SNAP_DEBUG_LEVEL_INFO, "SC cmd chksum error count: %u\n", info.screen_cmd_checksum_err);
-  Log(SNAP_DEBUG_LEVEL_INFO, "PC cmd chksum error count: %u\n", info.pc_cmd_checksum_err);
+  // Log(SNAP_DEBUG_LEVEL_INFO, "PC cmd chksum error count: %u\n", info.pc_cmd_checksum_err);
   Log(SNAP_DEBUG_LEVEL_INFO, "Last SC Gcode line: %d\n", info.last_line_num_of_sc_gcode);
-  Log(SNAP_DEBUG_LEVEL_INFO, "Last save Gcode line: %d\n", powerpanic.Data.FilePosition);
+  Log(SNAP_DEBUG_LEVEL_INFO, "Last save Gcode line: %d\n", powerpanic.LastLine());
   Log(SNAP_DEBUG_LEVEL_INFO, "Fault flag: 0x%08X, action ban: 0x%X, power ban: 0x%X\n",
         SystemStatus.GetFaultFlag(), action_ban, power_ban);
   Log(SNAP_DEBUG_LEVEL_INFO, "Homing: 0x%X, axes_known: 0x%X\n", axis_homed, axis_known_position);
