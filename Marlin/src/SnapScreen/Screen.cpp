@@ -74,8 +74,8 @@ void HMIScreen::ClearRequestStatus() {
  * para Gcode:the Gcode STRINGIFY
  * para EventID:the Gcode Eventid
  */
-void HMIScreen::SendGcode(char *GCode, uint8_t EventID) {
-  SC20HMI.SendGcode(GCode, EventID);
+void HMIScreen::SendEvent(uint8_t EventID, char *buffer, uint16_t len) {
+  SC20HMI.SendEvent(EventID, buffer, len);
 }
 
 void HMIScreen::SendMachineFaultFlag(uint32_t flag) {

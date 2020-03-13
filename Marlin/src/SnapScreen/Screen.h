@@ -27,7 +27,7 @@ class HMIScreen
     #if ENABLED(HMI_SC20W)
       void SendMachineStatusChange(uint8_t, uint8_t);
       void SendMachineFaultFlag(uint32_t flag = 0);
-      void SendGcode(char *GCode, uint8_t EventID);
+      void SendEvent(uint8_t EventID, char *buffer, uint16_t len);
       void SendUpdateComplete(uint8_t Type);
       void SendHalfCalibratePoint(uint8_t Opcode, uint8_t Index);
       void SetFeedrate(float f);
