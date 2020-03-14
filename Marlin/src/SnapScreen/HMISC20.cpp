@@ -1001,26 +1001,28 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         ID = BYTES_TO_32BITS(tmpBuff, 9);
 
         if (ID > current_line || current_line == 0) {
-        // pad '0' to the end of string command
-        j = cmdLen + 8;
-        tmpBuff[j] = 0;
+          // pad '0' to the end of string command
+          j = cmdLen + 8;
+          tmpBuff[j] = 0;
 
-        current_line = ID;
+          current_line = ID;
 
-        // when we are resuming, won't handle any Gcode
-        if (cur_stage == SYSTAGE_RESUMING) {
-          if (SystemStatus.ResumeOver() == E_SUCCESS) {
-            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+          // when we are resuming, won't handle any Gcode
+          if (cur_stage == SYSTAGE_RESUMING) {
+            if (SystemStatus.ResumeOver() == E_SUCCESS) {
+              Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+            }
+            else {
+              SendEvent(EID_FILE_GCODE_RESP, &tmpBuff[9], 4);
+            }
           }
           else
-            SendEvent(EID_FILE_GCODE_RESP, (char *)&ID, 4);
-        }
-        else
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
         }
         else if (ID == current_line) {
+          // if we have replied this line, just sent ok
           if (ID == debug.GetSCGcodeLine()) {
-            SendEvent(EID_FILE_GCODE_RESP, (char *)&ID, 4);
+            SendEvent(EID_FILE_GCODE_RESP, &tmpBuff[9], 4);
             return;
           }
           else
