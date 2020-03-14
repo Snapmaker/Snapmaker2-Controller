@@ -61,22 +61,6 @@ void PeriphDevice::Init()
 
 #if ENABLED(CAN_FAN)
 /**
- * SetFanSpeed:Set Fan Speed
- * para DelayTime:
- * para index:
- * para percent:
- */
-void PeriphDevice::SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value)
-{
-  uint8_t Data[3];
-
-  Data[0] = index;
-  Data[1] = DelayTime;
-  Data[2] = s_value;
-  FanSpeed[index] = s_value;
-}
-
-/**
  * SetEnclosureFanSpeed:Set enclosure fan speed
  * para DelayTime:
  * para index:

@@ -34,6 +34,7 @@ public:
     void SetTemperature(uint8_t index, uint16_t temperature);
     void SetFanDelayOff(uint8_t index, uint8_t time);
     void SetFan(uint8_t index, uint8_t s_value);
+    uint8_t GetFanSpeed(uint8_t i) { if (i < EXECUTER_FAN_COUNT) return FanSpeed[i]; else return 0; }
     float GetTemp(uint8_t hotendindex) { return temp_hotend[hotendindex]; }
   #endif
 

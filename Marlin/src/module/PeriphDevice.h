@@ -30,10 +30,7 @@ public:
     FORCE_INLINE bool IsDoorOpened() { return true; }
   #endif
 
-  uint8_t GetFanSpeed(uint8_t index) { return FanSpeed[index]; }
-
   #if ENABLED(CAN_FAN)
-    void SetFanSpeed(uint8_t index, uint8_t DelayTime, uint8_t s_value);
     void SetEnclosureFanSpeed(uint8_t s_value);
   #endif
 
@@ -52,7 +49,6 @@ private:
   void TellUartState();
 
 private:
-  uint8_t FanSpeed[PERIPH_FAN_COUNT];
   ChamberState cb_state_;
   bool      lock_uart_;
   millis_t  next_ms_;
