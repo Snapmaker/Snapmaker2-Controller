@@ -1091,6 +1091,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           else
             current_line = 0;
           SNAP_DEBUG_SET_GCODE_LINE(0);
+          powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
           LOG_I("trigger RESUME: ok\n");
         }
         else {
@@ -1188,12 +1189,13 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             if (E_SUCCESS == err) {
               SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
               SystemStatus.SetWorkingPort(WORKING_PORT_SC);
-              powerpanic.Data.FilePosition = powerpanic.pre_data_.Valid;
+              powerpanic.Data.FilePosition = powerpanic.pre_data_.FilePosition;
               if (powerpanic.Data.FilePosition > 0)
                 current_line =  powerpanic.Data.FilePosition - 1;
               else
                 current_line = 0;
               SNAP_DEBUG_SET_GCODE_LINE(0);
+              powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
               MarkNeedReack(0);
               LOG_I("trigger RESTORE: ok\n");
             }

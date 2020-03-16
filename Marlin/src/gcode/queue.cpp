@@ -89,7 +89,7 @@ static int serial_count[NUM_SERIAL] = { 0 };
 bool send_ok[BUFSIZE];
 bool Screen_send_ok[BUFSIZE];
 uint8_t Screen_send_ok_opcode[BUFSIZE];
-uint32_t CommandLine[BUFSIZE];
+uint32_t CommandLine[BUFSIZE] = { INVALID_CMD_LINE };
 
 /**
  * Next Injected Command pointer. NULL if no commands are being injected.
@@ -120,6 +120,7 @@ inline void _commit_command(bool say_ok
 ) {
   send_ok[cmd_queue_index_w] = say_ok;
   Screen_send_ok[cmd_queue_index_w] = false;
+  CommandLine[cmd_queue_index_w] = INVALID_CMD_LINE;
   #if NUM_SERIAL > 1
     command_queue_port[cmd_queue_index_w] = port;
   #endif
@@ -236,7 +237,7 @@ void enqueue_hmi_to_marlin() {
     Screen_send_ok_opcode[cmd_queue_index_w] = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
     // if is not file printing, then use previous line number.
     if(Screen_send_ok_opcode[cmd_queue_index_w] == 0x02)
-        CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
+        CommandLine[cmd_queue_index_w] = INVALID_CMD_LINE;
     else
         CommandLine[cmd_queue_index_w] = hmi_commandline_queue[hmi_cmd_queue_index_r];
     send_ok[cmd_queue_index_w] = false;
@@ -323,7 +324,7 @@ void ok_to_send() {
     ok_to_sc[2] = (char)((line & 0x0000FF00) >> 8);
     ok_to_sc[3] = (char)(line & 0x000000FF);
 
-    HMI.SendEvent(0x4, ok_to_sc, 4);
+    HMI.SendEvent(Screen_send_ok_opcode[cmd_queue_index_r], ok_to_sc, 4);
     SNAP_DEBUG_SET_GCODE_LINE(line);
   }
 }

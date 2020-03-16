@@ -622,7 +622,8 @@ void PowerPanic::TurnOffPower(void) {
  * when powerloss happened, no need to record line num.
  */
 void PowerPanic::SaveCmdLine(uint32_t l) {
-	last_line = l;
+	if (l != INVALID_CMD_LINE)
+		last_line = l;
 }
 
 /*
