@@ -14,7 +14,7 @@ public:
   HMI_SC20(){};
   void PollingCommand(bool nested);
   void HandleOneCommand(bool reject_sync_write);
-  void SendGcode(char *GCode, uint8_t EventID);
+  void SendEvent(uint8_t EventID, char *buffer, uint16_t len);
   void SendMachineStatusChange(uint8_t Status, uint8_t Result);
   void SendMachineFaultFlag(uint32_t flag = 0);
   void SendBreakPointData();
@@ -88,6 +88,8 @@ private:
   uint8_t next_cmd_idx;
   bool is_handling_cmd;
   float last_feedrate;
+
+  uint32_t current_line;
 };
 
 

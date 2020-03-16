@@ -897,6 +897,7 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
 }
 
 
+extern uint8_t hmi_commands_in_queue;
 void HMI_SC20::PollingCommand(bool nested) {
   int len;
 
@@ -915,6 +916,19 @@ void HMI_SC20::PollingCommand(bool nested) {
         LOG_T("%08X ", *((uint32_t *)status_buff + i));
       }
       LOG_T("\n\n");
+    }
+
+    // make sure we are working
+    if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK) {
+      // and no movement planned
+      if(!planner.movesplanned()) {
+        // and we have replied screen
+        if (current_line && current_line == debug.GetSCGcodeLine()) {
+          // then we known maybe screen lost out last reply
+          SendGeneralReack(EID_STATUS_RESP, 0xC, 1);
+          LOG_I("waiting HMI command, current line: %u\n", current_line);
+        }
+      }
     }
     return;
   }
@@ -986,20 +1000,38 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         // line number
         ID = BYTES_TO_32BITS(tmpBuff, 9);
 
-        // pad '0' to the end of string command
-        j = cmdLen + 8;
-        tmpBuff[j] = 0;
+        if (ID > current_line || current_line == 0) {
+          // pad '0' to the end of string command
+          j = cmdLen + 8;
+          tmpBuff[j] = 0;
 
-        // when we are resuming, won't handle any Gcode
-        if (cur_stage == SYSTAGE_RESUMING) {
-          if (SystemStatus.ResumeOver() == E_SUCCESS) {
-            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+          current_line = ID;
+
+          // when we are resuming, won't handle any Gcode
+          if (cur_stage == SYSTAGE_RESUMING) {
+            if (SystemStatus.ResumeOver() == E_SUCCESS) {
+              Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+            }
+            else {
+              SendEvent(EID_FILE_GCODE_RESP, &tmpBuff[9], 4);
+            }
           }
           else
-            SendGcode("ok\n", 0x4);
+            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
         }
-        else
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+        else if (ID == current_line) {
+          // if we have replied this line, just sent ok
+          if (ID == debug.GetSCGcodeLine()) {
+            SendEvent(EID_FILE_GCODE_RESP, &tmpBuff[9], 4);
+            return;
+          }
+          else
+            return;
+        }
+        else {
+          LOG_E("recv line[%u] less than cur line[%u]\n", ID, current_line);
+          return;
+        }
       }
     }
 
@@ -1020,6 +1052,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         if (E_SUCCESS == err) {
           // lock screen
           HMICommandSave = 1;
+
+          current_line = 0;
 
           MarkNeedReack(0);
           LOG_I("trigger WORK: ok\n");
@@ -1052,6 +1086,11 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         err = SystemStatus.ResumeTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_RESUME;
+          if (powerpanic.Data.FilePosition > 0)
+            current_line =  powerpanic.Data.FilePosition - 1;
+          else
+            current_line = 0;
+          SNAP_DEBUG_SET_GCODE_LINE(0);
           LOG_I("trigger RESUME: ok\n");
         }
         else {
@@ -1150,6 +1189,11 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
               SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
               SystemStatus.SetWorkingPort(WORKING_PORT_SC);
               powerpanic.Data.FilePosition = powerpanic.pre_data_.Valid;
+              if (powerpanic.Data.FilePosition > 0)
+                current_line =  powerpanic.Data.FilePosition - 1;
+              else
+                current_line = 0;
+              SNAP_DEBUG_SET_GCODE_LINE(0);
               MarkNeedReack(0);
               LOG_I("trigger RESTORE: ok\n");
             }
@@ -2232,18 +2276,15 @@ void HMI_SC20::SendMachineStatus()
 }
 
 
-//发送Gcode
-void HMI_SC20::SendGcode(char * GCode, uint8_t EventID)
-{
-  uint8_t i;
-  i = 0;
+void HMI_SC20::SendEvent(uint8_t EventID, char *buffer, uint16_t len) {
+  uint8_t i = 0;
 
-  //EventID
   packBuff[i++] = EventID;
-  while (*GCode != 0) packBuff[i++] = *GCode++;
+
+  while (len-- > 0) packBuff[i++] = *buffer++;
+
   PackedProtocal(packBuff, i);
 }
-
 
 #endif //ENABLED(HMI_SC20)
 
