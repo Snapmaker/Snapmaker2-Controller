@@ -42,6 +42,8 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
+#include "../../snap_module/snap_dbg.h"
+
 #if ENABLED(G26_MESH_VALIDATION)
   bool g26_debug_flag; // = false
 #endif
@@ -74,6 +76,8 @@ void set_bed_leveling_enabled(const bool enable/*=true*/) {
   #else
     constexpr bool can_change = true;
   #endif
+
+  LOG_I("leveling %s\n", enable ? "ON": "OFF");
 
   if (can_change && enable != planner.leveling_active) {
 
