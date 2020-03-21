@@ -1551,7 +1551,9 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
     }
     // waiting all block buffer are outputed by stepper
     planner.synchronize();
-    set_bed_leveling_enabled(false);
+
+    // for safety, we don't disable leveling here
+
     // Subtract the mean from all values
     for (uint8_t x = GRID_MAX_POINTS_X; x--;)
       for (uint8_t y = GRID_MAX_POINTS_Y; y--;)
@@ -1559,7 +1561,6 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
     #if ENABLED(ABL_BILINEAR_SUBDIVISION)
       bed_level_virt_interpolate();
     #endif
-    set_bed_leveling_enabled(true);
 
     move_to_limited_z(current_position[Z_AXIS] + param, 5);
 
