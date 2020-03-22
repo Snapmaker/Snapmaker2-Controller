@@ -119,15 +119,31 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
       return E_FAILURE;
     }
     break;
+
+  case TRIGGER_SOURCE_FINISH:
+    // if screen tell us Gcode is ended, wait for all movement output
+    // because planner.synchronize() will call HMI process nestedly,
+    // and maybe some function will check the status, so we change the status
+    // firstly
+    cur_status_ = SYSTAT_END_TRIG;
+    planner.synchronize();
+    break;
+
+  default:
+    break;
   }
 
   // recover scaling
   feedrate_scaling = 100;
 
-  // disable filament checking
+  // set temp to 0
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
     thermalManager.setTargetBed(0);
     HOTEND_LOOP() { thermalManager.setTargetHotend(0, e); }
+
+    // if user abort the work, FAN0 will not be closed
+    // set target temp to 0 only make FAN1 be closed
+    ExecuterHead.SetFan(0, 0);
   }
 
   print_job_timer.stop();
@@ -147,7 +163,9 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
 
   cur_status_ = SYSTAT_END_TRIG;
 
-  quickstop.Trigger(QS_EVENT_STOP);
+  // to workaround issue QS bug maybe make bed heating always
+  // enable power after finish QS
+  disable_power_domain(POWER_DOMAIN_BED);
 
   stop_source_ = type;
 
@@ -156,6 +174,8 @@ ErrCode StatusControl::StopTrigger(TriggerSource type) {
   }
 
   lightbar.set_state(LB_STATE_STANDBY);
+
+  quickstop.Trigger(QS_EVENT_STOP);
 
   return E_SUCCESS;
 }
@@ -200,9 +220,7 @@ void StatusControl::StopProcess()
   cur_status_ = SYSTAT_IDLE;
   quickstop.Reset();
 
-  thermalManager.setTargetBed(0);
-  thermalManager.setTargetHotend(0, 0);
-
+  enable_power_domain(POWER_DOMAIN_BED);
 
   LOG_I("Finish stop\n");
 }
@@ -1533,7 +1551,9 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
     }
     // waiting all block buffer are outputed by stepper
     planner.synchronize();
-    set_bed_leveling_enabled(false);
+
+    // for safety, we don't disable leveling here
+
     // Subtract the mean from all values
     for (uint8_t x = GRID_MAX_POINTS_X; x--;)
       for (uint8_t y = GRID_MAX_POINTS_Y; y--;)
@@ -1541,7 +1561,6 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
     #if ENABLED(ABL_BILINEAR_SUBDIVISION)
       bed_level_virt_interpolate();
     #endif
-    set_bed_leveling_enabled(true);
 
     move_to_limited_z(current_position[Z_AXIS] + param, 5);
 

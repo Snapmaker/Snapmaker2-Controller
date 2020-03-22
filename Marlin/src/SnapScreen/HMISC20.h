@@ -14,8 +14,7 @@ public:
   HMI_SC20(){};
   void PollingCommand(bool nested);
   void HandleOneCommand(bool reject_sync_write);
-  void SendGcode(char *GCode, uint8_t EventID);
-  void SendChDirResult(uint8_t Result);
+  void SendEvent(uint8_t EventID, char *buffer, uint16_t len);
   void SendMachineStatusChange(uint8_t Status, uint8_t Result);
   void SendMachineFaultFlag(uint32_t flag = 0);
   void SendBreakPointData();
@@ -26,13 +25,8 @@ public:
   void SendHalfCalibratePoint(uint8_t Opcode, uint8_t Index);
   void SendMachineSize();
   void SendLaserFocus(uint8_t OpCode, float Height);
-  void SendProgressPercent(uint8_t Percent);
-  void SendPowerPanicResume(uint8_t OpCode, uint8_t Result);
-  void SendFaultClearReack();
   void MovementRequestReack(uint8_t OP_ID, uint8_t Result);
   void SendUpdatePackRequest(uint16_t PackRequested);
-  void SendUpdateCompleteReack(uint16_t Resultl);
-  void SendStartUpdateReack(uint8_t Result);
   bool UpdateDownloadComplete(void);
   void SendUpdateComplete(uint8_t Type);
   void SendUpdateStatus(uint8_t Status);
@@ -58,7 +52,6 @@ private:
   short GetCommand(unsigned char *pBuff);
   uint8_t HalfAutoCalibrate(bool fast_leveling);
   uint8_t ManualCalibrateStart();
-  void ResizeMachine(char *pBuff);
   void SendWifiIP(uint8_t OpCode, uint8_t Result, char * SSID, char * PWD, char * IP);
   void SendBluetoothName(uint8_t OpCode, uint8_t Result, char * Name);
   void SendBluetoothMac(uint8_t OpCode, uint8_t Result, uint8_t * Mac);
@@ -95,6 +88,8 @@ private:
   uint8_t next_cmd_idx;
   bool is_handling_cmd;
   float last_feedrate;
+
+  uint32_t current_line;
 };
 
 

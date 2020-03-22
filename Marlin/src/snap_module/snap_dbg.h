@@ -63,6 +63,7 @@ class SnapDebug {
     SnapDebugLevel GetLevel();
     void CmdChecksumError(bool screen);
     void SetSCGcodeLine(uint32_t l);
+    uint32_t GetSCGcodeLine() { return info.last_line_num_of_sc_gcode; }
 
     void ShowException();
 

@@ -1072,6 +1072,7 @@ void Temperature::manage_heater() {
 
   #if HAS_HEATED_BED
     #if WATCH_BED
+    #if SM2_BED_FULLY_PROTECT
       // Make sure temperature is increasing
       if (watch_bed.elapsed(ms)) {        // Time to check the bed?
         if (degBed() < watch_bed.target) {                                // Failed to increase enough?
@@ -1093,6 +1094,7 @@ void Temperature::manage_heater() {
 
       start_watching_bed_tempdrop();
     }
+    #endif
     #endif // WATCH_BED
 
     // check if temperature doesn't increase when heating
@@ -1967,6 +1969,7 @@ void Temperature::init() {
 #endif
 
 #if WATCH_BED
+#if SM2_BED_FULLY_PROTECT
   /**
    * Start Heating Sanity Check for hotends that are below
    * their target temperature by a configurable margin.
@@ -1996,6 +1999,7 @@ void Temperature::init() {
     else
       watch_bed_tempdrop.next_ms = 0;
   }
+#endif
 #endif
 
   /**

@@ -33,6 +33,8 @@
 #endif
 
 #include "ExecuterManager.h"
+#include "StatusControl.h"
+#include "../snap_module/snap_dbg.h"
 #include "../Marlin.h"
 
 #ifndef SOFT_PWM_SCALE
@@ -583,9 +585,11 @@ class Temperature {
     static void setTargetHotend(const int16_t celsius, const uint8_t e) {
       E_UNUSED();
 
+      LOG_I("new E target temp: %d\n", celsius);
+
       if (action_ban & ACTION_BAN_NO_HEATING_HOTEND) {
         if (celsius > 0) {
-          SERIAL_ECHOLN("ERROR: System Fault! NOW cannot heat hotend!");
+          LOG_E("ERROR: System Fault[0x%X]! NOW cannot heat hotend!\n", SystemStatus.GetFaultFlag());
           return;
         }
       }
@@ -667,9 +671,11 @@ class Temperature {
 
       static void setTargetBed(const int16_t celsius) {
 
+        LOG_I("new B target temp: %d\n", celsius);
+
         if (action_ban & ACTION_BAN_NO_HEATING_BED) {
           if (celsius > 0) {
-            SERIAL_ECHOLN("ERROR: System Fault! now cannot heat Bed!");
+            LOG_E("ERROR: System Fault[0x%X]! now cannot heat Bed!\n", SystemStatus.GetFaultFlag());
             return;
           }
         }
@@ -683,7 +689,8 @@ class Temperature {
             celsius
           #endif
         ;
-        start_watching_bed();
+        // start_watching_bed();
+        // for now we check if bed start heating and if bed temp over upper limit
         start_watching_bed_notheated(true);
       }
 

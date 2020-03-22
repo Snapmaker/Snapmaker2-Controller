@@ -42,6 +42,8 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
+#include "../../snap_module/snap_dbg.h"
+
 #if ENABLED(G26_MESH_VALIDATION)
   bool g26_debug_flag; // = false
 #endif
@@ -74,6 +76,8 @@ void set_bed_leveling_enabled(const bool enable/*=true*/) {
   #else
     constexpr bool can_change = true;
   #endif
+
+  LOG_I("leveling %s\n", enable ? "ON": "OFF");
 
   if (can_change && enable != planner.leveling_active) {
 
@@ -138,7 +142,7 @@ void reset_bed_level() {
     bilinear_grid_spacing[Y_AXIS] = (Y_MAX_POS - BACK_PROBE_BED_POSITION) / GRID_MAX_POINTS_Y;
     for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
       for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
-        z_values[x][y] = 9;
+        z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
         #if ENABLED(EXTENSIBLE_UI)
           ExtUI::onMeshUpdate(x, y, 0);
         #endif

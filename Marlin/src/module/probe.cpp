@@ -37,6 +37,8 @@
 
 #include "../gcode/gcode.h"
 
+#include "../snap_module/snap_dbg.h"
+
 #if ANY(Z_PROBE_SLED, Z_PROBE_ALLEN_KEY, PROBE_TRIGGERED_WHEN_STOWED_TEST) || (QUIET_PROBING && ENABLED(PROBING_STEPPERS_OFF))
   #include "../Marlin.h" // for stop(), disable_e_steppers
 #endif
@@ -620,6 +622,7 @@ static float run_z_probe() {
   float clearance = Z_CLEARANCE_MULTI_PROBE;
   float probes[MULTIPLE_PROBING];
   float probes_total = 0;
+  float last_probed_z = -10;
     for (uint8_t p = MULTIPLE_PROBING + 1; --p;) {
   #endif
 
@@ -632,6 +635,7 @@ static float run_z_probe() {
           DEBUG_ECHOLNPGM("SLOW Probe fail!");
           DEBUG_POS("<<< run_z_probe", current_position);
         }
+        LOG_E("probe didn't triggered\n");
         return NAN;
       }
 
@@ -643,10 +647,26 @@ static float run_z_probe() {
       // won't use the first probed position
       if (p < MULTIPLE_PROBING)
         probes_total += current_position[Z_AXIS];
-      SERIAL_ECHOLNPAIR("probed z: ", current_position[Z_AXIS]);
+      LOG_I("probed z: %.2f\n", current_position[Z_AXIS]);
+
+      if (last_probed_z != -10) {
+        if (ABS(current_position[Z_AXIS] - last_probed_z) > 0.2)
+          LOG_W("larger clearance between 2 probe!\n");
+      }
+      last_probed_z = current_position[Z_AXIS];
 
       if (p > 1) do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_SLOW));
 
+      if (TEST(endstops.trigger_state(),
+        #if ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
+          Z_MIN
+        #else
+          Z_MIN_PROBE
+        #endif
+      )) {
+        LOG_E("probe is triggered before probed! raise again!\n");
+        do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_SLOW));
+      }
       clearance -= 0.5;
     }
   #endif
@@ -721,7 +741,7 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
   feedrate_mm_s = XY_PROBE_FEEDRATE_MM_S;
 
   // Move the probe to the starting XYZ
-  SERIAL_ECHOLNPAIR("Move to X:", nx, " Y:", ny);
+  LOG_I("Move to X: %.2f, Y: %.2f, Z: %.2f\n", nx, ny, nz);
   do_blocking_move_to(nx, ny, nz);
 
   float measured_z = NAN;

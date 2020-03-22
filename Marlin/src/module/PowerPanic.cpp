@@ -313,7 +313,7 @@ int PowerPanic::SaveEnv(void) {
   Data.accumulator = print_job_timer.duration();
 
   for (i = 0; i < PP_FAN_COUNT; i++)
-    Data.FanSpeed[i] = Periph.GetFanSpeed(i);
+    Data.FanSpeed[i] = ExecuterHead.GetFanSpeed(i);
 
   // if power loss, we have record the position to Data.PositionData[]
 	// NOTE that we save logical position for XYZ
@@ -622,7 +622,8 @@ void PowerPanic::TurnOffPower(void) {
  * when powerloss happened, no need to record line num.
  */
 void PowerPanic::SaveCmdLine(uint32_t l) {
-	last_line = l;
+	if (l != INVALID_CMD_LINE)
+		last_line = l;
 }
 
 /*

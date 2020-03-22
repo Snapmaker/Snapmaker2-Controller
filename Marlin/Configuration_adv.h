@@ -123,7 +123,7 @@
   #define WATCH_BED_TEMP_PERIOD 120                // Seconds
   #define WATCH_BED_TEMP_INCREASE 2               // Degrees Celsius
 
-  #define WATCH_BED_TEMP__DROP_DEBOUNCE 3
+  #define WATCH_BED_TEMP_DROP_DEBOUNCE 3
   #define WATCH_BED_TEMP_DROP_PERIOD    2   // Seconds
   #define WATCH_BED_TEMP_DROP_LIMIT     6
   #define WATCH_BED_TEMP_DROP_DELTA     1   // Degrees Celsius
@@ -475,8 +475,8 @@
 // Homing hits each endstop, retracts by these distances, then does a slower bump.
 #define X_HOME_BUMP_MM 3
 #define Y_HOME_BUMP_MM 3
-#define Z_HOME_BUMP_MM 6
-#define HOMING_BUMP_DIVISOR { 9, 9, 4 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
+#define Z_HOME_BUMP_MM 3
+#define HOMING_BUMP_DIVISOR { 9, 9, 10 }  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
 //#define QUICK_HOME                     // If homing includes X and Y, do a diagonal move initially
 
 // When G28 is called, this option will make Y home before X
@@ -1183,6 +1183,7 @@
 #define MAX_CMD_SIZE 96
 #define BUFSIZE 4
 #define HMI_BUFSIZE 8
+#define INVALID_CMD_LINE  0xFFFFFFFFU
 
 // Transmission to Host Buffer Size
 // To save 386 bytes of PROGMEM (and TX_BUFFER_SIZE+3 bytes of RAM) set to 0.

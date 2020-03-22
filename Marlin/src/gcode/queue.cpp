@@ -89,7 +89,7 @@ static int serial_count[NUM_SERIAL] = { 0 };
 bool send_ok[BUFSIZE];
 bool Screen_send_ok[BUFSIZE];
 uint8_t Screen_send_ok_opcode[BUFSIZE];
-uint32_t CommandLine[BUFSIZE];
+uint32_t CommandLine[BUFSIZE] = { INVALID_CMD_LINE };
 
 /**
  * Next Injected Command pointer. NULL if no commands are being injected.
@@ -120,6 +120,7 @@ inline void _commit_command(bool say_ok
 ) {
   send_ok[cmd_queue_index_w] = say_ok;
   Screen_send_ok[cmd_queue_index_w] = false;
+  CommandLine[cmd_queue_index_w] = INVALID_CMD_LINE;
   #if NUM_SERIAL > 1
     command_queue_port[cmd_queue_index_w] = port;
   #endif
@@ -225,10 +226,40 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
  * execution guaranteed
  */
 #if ENABLED(HMI_SC20W)
+void enqueue_hmi_to_marlin() {
+  // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
+  // fetch as much command as possible
+  while (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
+  {
+    // fetch from buffer queue
+    strcpy(command_queue[cmd_queue_index_w], hmi_command_queue[hmi_cmd_queue_index_r]);
+    Screen_send_ok[cmd_queue_index_w] = true;
+    Screen_send_ok_opcode[cmd_queue_index_w] = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
+    // if is not file printing, then use previous line number.
+    if(Screen_send_ok_opcode[cmd_queue_index_w] == 0x02)
+        CommandLine[cmd_queue_index_w] = INVALID_CMD_LINE;
+    else
+        CommandLine[cmd_queue_index_w] = hmi_commandline_queue[hmi_cmd_queue_index_r];
+    send_ok[cmd_queue_index_w] = false;
+    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
+
+    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
+    hmi_commands_in_queue--;
+
+    commands_in_queue++;
+  }
+}
+
+
 void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opcode)
 {
+  // we put HMI command to Marlin queue firstly
+  // to avoid jumping directly, we check the condition before call it
+  if (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
+    enqueue_hmi_to_marlin();
+
   if (hmi_commands_in_queue == HMI_BUFSIZE) {
-    LOG_E("Fatal Error, The HMI command queue supposed never overflow! Rejected.. Losing Gcode");
+    LOG_E("HMI gcode buffer is full, losing line: %u\n", Lines);
     return;
   }
 
@@ -239,36 +270,9 @@ void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opco
   hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
   hmi_commands_in_queue++;
 
-
-  // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
-  // fetch as much command as possible
-  while (commands_in_queue < BUFSIZE)
-  {
-    if (hmi_commands_in_queue == 0) {
-      // buffer queue is emtpy.
-      break;
-    }
-
-    // fetch from buffer queue
-    strcpy(pgcode, hmi_command_queue[hmi_cmd_queue_index_r]);
-    Lines = hmi_commandline_queue[hmi_cmd_queue_index_r];
-    Opcode = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
-    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
-    hmi_commands_in_queue--;
-
-
-    strcpy(command_queue[cmd_queue_index_w], pgcode);
-    Screen_send_ok[cmd_queue_index_w] = true;
-    Screen_send_ok_opcode[cmd_queue_index_w] = Opcode;
-    // if is not file printing, then use previous line number.
-    if(Opcode == 0x02)
-        CommandLine[cmd_queue_index_w] = CommandLine[(cmd_queue_index_w + BUFSIZE - 1) % BUFSIZE];
-    else
-        CommandLine[cmd_queue_index_w] = Lines;
-    send_ok[cmd_queue_index_w] = false;
-    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
-    commands_in_queue++;
-  }
+  // to avoid jumping directly, we check the condition before call it
+  if (commands_in_queue < BUFSIZE)
+    enqueue_hmi_to_marlin();
 }
 #endif
 
@@ -290,7 +294,7 @@ bool ok_to_HMI() {
  *   B<int>  Block queue space remaining
  */
 void ok_to_send() {
-  static char ok_to_sc[10] = "okline\r\n";
+  char ok_to_sc[4] = {0};
   #if NUM_SERIAL > 1
     const int16_t port = command_queue_port[cmd_queue_index_r];
     if (port < 0) return;
@@ -315,12 +319,13 @@ void ok_to_send() {
   if(Screen_send_ok[cmd_queue_index_r])
   {
     uint32_t line = CommandLine[cmd_queue_index_r];
-    ok_to_sc[2] = (char)(line & 0x000000FF);
-    ok_to_sc[3] = (char)((line & 0x0000FF00) >> 8);
-    ok_to_sc[4] = (char)((line & 0x00FF0000) >> 16);
-    ok_to_sc[5] = (char)((line & 0xFF000000) >> 24);
-    HMI.SendGcode(ok_to_sc, Screen_send_ok_opcode[cmd_queue_index_r]);
-    SNAP_DEBUG_SET_GCODE_LINE(CommandLine[cmd_queue_index_r]);
+    ok_to_sc[0] = (char)((line & 0xFF000000) >> 24);
+    ok_to_sc[1] = (char)((line & 0x00FF0000) >> 16);
+    ok_to_sc[2] = (char)((line & 0x0000FF00) >> 8);
+    ok_to_sc[3] = (char)(line & 0x000000FF);
+
+    HMI.SendEvent(Screen_send_ok_opcode[cmd_queue_index_r], ok_to_sc, 4);
+    SNAP_DEBUG_SET_GCODE_LINE(line);
   }
 }
 

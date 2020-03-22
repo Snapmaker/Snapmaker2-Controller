@@ -630,11 +630,15 @@ uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
 {
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
+  LOG_I("e temp: %.2f / %.2f\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+  LOG_I("b temp: %.2f / %.2f\n", thermalManager.degBed(), thermalManager.degTargetBed());
+
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
     // Turn off the heaters
     thermalManager.disable_all_heaters();
 
-    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+    if (!go_home_before_cali && all_axes_homed() &&
+      (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
@@ -679,13 +683,17 @@ uint8_t HMI_SC20::ManualCalibrateStart()
   int i, j;
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
+  // when user do manual leveling, clear this var to disable fast-calibration
+  nozzle_height_probed = 0;
+
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     // Disable all heaters
     thermalManager.disable_all_heaters();
-    if (all_axes_homed() && (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
+    if (!go_home_before_cali && all_axes_homed() &&
+      (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
         move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
       move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
@@ -707,9 +715,9 @@ uint8_t HMI_SC20::ManualCalibrateStart()
     // Preset the index to 99 for initial status
     PointIndex = 99;
 
-    for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-      for (j = 0; j < GRID_MAX_POINTS_X; j++) {
-        MeshPointZ[i * GRID_MAX_POINTS_X + j] = z_values[i][j];
+    for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+      for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+        MeshPointZ[j * GRID_MAX_POINTS_X + i] = z_values[i][j];
       }
     }
 
@@ -722,6 +730,7 @@ uint8_t HMI_SC20::ManualCalibrateStart()
 }
 
 
+#if 0
 /****************************************************
 机器尺寸重定义
 ***************************************************/
@@ -781,6 +790,7 @@ void HMI_SC20::ResizeMachine(char * pBuff)
   //保存数据
   settings.save();
 }
+#endif
 
  /**
  * ReportModuleFirmwareVersion:Send module firmware version to SC20
@@ -887,6 +897,7 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
 }
 
 
+extern uint8_t hmi_commands_in_queue;
 void HMI_SC20::PollingCommand(bool nested) {
   int len;
 
@@ -905,6 +916,19 @@ void HMI_SC20::PollingCommand(bool nested) {
         LOG_T("%08X ", *((uint32_t *)status_buff + i));
       }
       LOG_T("\n\n");
+    }
+
+    // make sure we are working
+    if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK) {
+      // and no movement planned
+      if(!planner.movesplanned()) {
+        // and we have replied screen
+        if (current_line && current_line == debug.GetSCGcodeLine()) {
+          // then we known maybe screen lost out last reply
+          SendGeneralReack(EID_STATUS_RESP, 0xC, 1);
+          LOG_I("waiting HMI command, current line: %u\n", current_line);
+        }
+      }
     }
     return;
   }
@@ -976,20 +1000,38 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         // line number
         ID = BYTES_TO_32BITS(tmpBuff, 9);
 
-        // pad '0' to the end of string command
-        j = cmdLen + 8;
-        tmpBuff[j] = 0;
+        if (ID > current_line || current_line == 0) {
+          // pad '0' to the end of string command
+          j = cmdLen + 8;
+          tmpBuff[j] = 0;
 
-        // when we are resuming, won't handle any Gcode
-        if (cur_stage == SYSTAGE_RESUMING) {
-          if (SystemStatus.ResumeOver() == E_SUCCESS) {
-            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+          current_line = ID;
+
+          // when we are resuming, won't handle any Gcode
+          if (cur_stage == SYSTAGE_RESUMING) {
+            if (SystemStatus.ResumeOver() == E_SUCCESS) {
+              Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+            }
+            else {
+              SendEvent(EID_FILE_GCODE_RESP, &tmpBuff[9], 4);
+            }
           }
           else
-            SendGcode("ok\n", 0x4);
+            Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
         }
-        else
-          Screen_enqueue_and_echo_commands(&tmpBuff[13], ID, 0x04);
+        else if (ID == current_line) {
+          // if we have replied this line, just sent ok
+          if (ID == debug.GetSCGcodeLine()) {
+            SendEvent(EID_FILE_GCODE_RESP, &tmpBuff[9], 4);
+            return;
+          }
+          else
+            return;
+        }
+        else {
+          LOG_E("recv line[%u] less than cur line[%u]\n", ID, current_line);
+          return;
+        }
       }
     }
 
@@ -1010,6 +1052,8 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         if (E_SUCCESS == err) {
           // lock screen
           HMICommandSave = 1;
+
+          current_line = 0;
 
           MarkNeedReack(0);
           LOG_I("trigger WORK: ok\n");
@@ -1042,6 +1086,12 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         err = SystemStatus.ResumeTrigger(TRIGGER_SOURCE_SC);
         if (err == E_SUCCESS) {
           RequestStatus = HMI_REQ_RESUME;
+          if (powerpanic.Data.FilePosition > 0)
+            current_line =  powerpanic.Data.FilePosition - 1;
+          else
+            current_line = 0;
+          SNAP_DEBUG_SET_GCODE_LINE(0);
+          powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
           LOG_I("trigger RESUME: ok\n");
         }
         else {
@@ -1139,7 +1189,13 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             if (E_SUCCESS == err) {
               SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
               SystemStatus.SetWorkingPort(WORKING_PORT_SC);
-              powerpanic.Data.FilePosition = powerpanic.pre_data_.Valid;
+              powerpanic.Data.FilePosition = powerpanic.pre_data_.FilePosition;
+              if (powerpanic.Data.FilePosition > 0)
+                current_line =  powerpanic.Data.FilePosition - 1;
+              else
+                current_line = 0;
+              SNAP_DEBUG_SET_GCODE_LINE(0);
+              powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
               MarkNeedReack(0);
               LOG_I("trigger RESTORE: ok\n");
             }
@@ -1161,7 +1217,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
       }
       // homing status
       else if (StatuID == 0x0e) {
-        LOG_I("SC req homing!\n");
+        LOG_V("SC req homing!\n");
         CoordinateMgrReportStatus(eventId, OpCode);
       }
       // query coordinates data
@@ -1204,9 +1260,10 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             if (PointIndex < 10) {
               // save point index
               MeshPointZ[PointIndex] = current_position[Z_AXIS];
+              LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", PointIndex, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
               // if got new point, raise Z firstly
-              if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < 10)
+              if ((PointIndex != tmpBuff[10] -1) && current_position[Z_AXIS] < z_position_before_calibration)
                 do_blocking_move_to_z(current_position[Z_AXIS] + 3, speed_in_calibration[Z_AXIS]);
             }
 
@@ -1222,7 +1279,10 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         case 6:
           int32Value = (int32_t)BYTES_TO_32BITS(tmpBuff, 10);
           fZ = int32Value / 1000.0f;
-          move_to_limited_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
+
+          // sometimes the bed plane will be under the low limit point
+          // to make z can move down always by user, we don't use limited API
+          do_blocking_move_to_z(current_position[Z_AXIS] + fZ, speed_in_calibration[Z_AXIS]);
           MarkNeedReack(0);
           break;
 
@@ -1233,9 +1293,10 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           if (CalibrateMethod == 2 && PointIndex < 10) {
             // save the last point
             MeshPointZ[PointIndex] = current_position[Z_AXIS];
-            for (i = 0; i < GRID_MAX_POINTS_Y; i++) {
-              for (j = 0; j < GRID_MAX_POINTS_X; j++) {
-                z_values[i][j] = MeshPointZ[i * GRID_MAX_POINTS_X + j];
+            LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", PointIndex, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
+            for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+              for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+                z_values[i][j] = MeshPointZ[j * GRID_MAX_POINTS_X + i];
               }
             }
 
@@ -1250,11 +1311,18 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             break;
           }
 
+          LOG_I("new leveling data:\n");
+          for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+              LOG_I("%.2f ", z_values[i][j]);
+            }
+            LOG_I("\n");
+          }
+
           set_bed_leveling_enabled(true);
 
           // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
           // make sure we are in absolute mode
@@ -1282,7 +1350,6 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
             // move to stop
             move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-            move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
             planner.synchronize();
 
             HMICommandSave = 0;
@@ -1376,11 +1443,11 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
           break;
 
         case 14:
-          LOG_I("SC req auto probe\n");
+          LOG_I("SC req fast calibration, nozzle height: %.2f\n", nozzle_height_probed);
           // auto leveling, only offset between probe and extruder is known
-          if (nozzle_height_probed == 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
+          if (nozzle_height_probed <= 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
             MarkNeedReack(2);
-            LOG_E("Invalid Z offset: %.3f, please adjust the Z offset first!\n", nozzle_height_probed);
+            LOG_E("Invalid Z offset: %.3f!\n", nozzle_height_probed);
             break;
           }
 
@@ -1392,18 +1459,25 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 
           process_cmd_imd("G1029 S1");
 
+          LOG_I("new leveling data:\n");
+          for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+            for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+              LOG_I("%.2f ", z_values[i][j]);
+            }
+            LOG_I("\n");
+          }
+
           set_bed_leveling_enabled(true);
 
           // move to stop
           move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-          move_to_limited_xy(0, Y_MAX_POS, XY_PROBE_FEEDRATE_MM_S);
           planner.synchronize();
 
 
           CalibrateMethod = 0;
           HMICommandSave = 0;
           MarkNeedReack(0);
-          LOG_I("SC req auto probe: Done!\n");
+          LOG_I("SC req fast calibration: Done!\n");
           break;
 
         case 0xF:
@@ -1434,13 +1508,16 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
         // clear auto-leveling data
         case 0x10:
           LOG_I("SC req clear leveling data\n");
-          for (i = 0; i < GRID_MAX_POINTS_Y; i++)
-            for (j = 0; j < GRID_MAX_POINTS_X; j++)
-              z_values[i][j] = 6;
+          set_bed_leveling_enabled(false);
+          for (i = 0; i < GRID_MAX_POINTS_X; i++)
+            for (j = 0; j < GRID_MAX_POINTS_Y; j++)
+              z_values[i][j] = DEFAUT_LEVELING_HEIGHT;
 
           bed_level_virt_interpolate();
 
           nozzle_height_probed = 0;
+
+          set_bed_leveling_enabled(true);
 
           MarkNeedReack(0);
           break;
@@ -1755,6 +1832,7 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
 }
 
 
+#if 0
 /***********************************************
 发送进度
 参数    Percent:进度值，取值范围0-100
@@ -1799,7 +1877,7 @@ void HMI_SC20::SendPowerPanicResume(uint8_t OpCode, uint8_t Result)
   packBuff[i++] = Result;
   PackedProtocal(packBuff, i);
 }
-
+#endif
 
 /***********************************************
 发送Wifi应答
@@ -2200,18 +2278,15 @@ void HMI_SC20::SendMachineStatus()
 }
 
 
-//发送Gcode
-void HMI_SC20::SendGcode(char * GCode, uint8_t EventID)
-{
-  uint8_t i;
-  i = 0;
+void HMI_SC20::SendEvent(uint8_t EventID, char *buffer, uint16_t len) {
+  uint8_t i = 0;
 
-  //EventID
   packBuff[i++] = EventID;
-  while (*GCode != 0) packBuff[i++] = *GCode++;
+
+  while (len-- > 0) packBuff[i++] = *buffer++;
+
   PackedProtocal(packBuff, i);
 }
-
 
 #endif //ENABLED(HMI_SC20)
 

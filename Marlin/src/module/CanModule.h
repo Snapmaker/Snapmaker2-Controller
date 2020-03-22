@@ -15,8 +15,8 @@ public:
   void Init(void);
   void CollectPlugModules(void);
   void PrepareLinearModules(void);
-  void PrepareExecuterModules(void);
-  void PrepareExtendModules(void);
+  // void PrepareExecuterModules(void);
+  // void PrepareExtendModules(void);
   void PrepareRestModules(void);
   bool Update(uint8_t CanNum, uint32_t ID, char *Version);
   void EraseUpdatePack(void);
