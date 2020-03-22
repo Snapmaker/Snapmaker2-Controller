@@ -1700,7 +1700,10 @@ bool Planner::_buffer_steps(const int32_t (&target)[XYZE]
   }
 
   // record the gcode line number in its block, then we can use in power-loss data recording
-  block->filePos = CommandLine[cmd_queue_index_r];
+  if (commands_in_queue)
+    block->filePos = CommandLine[cmd_queue_index_r];
+  else
+    block->filePos = INVALID_CMD_LINE;
 
   // If this is the first added movement, reload the delay, otherwise, cancel it.
   if (block_buffer_head == block_buffer_tail) {
