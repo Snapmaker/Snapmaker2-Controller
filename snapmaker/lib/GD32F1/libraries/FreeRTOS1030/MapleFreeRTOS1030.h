@@ -30,11 +30,11 @@
 #include <wirish.h>
 
 extern "C" {
-#define GCC_ARMCM3
-#include "utility/FreeRTOS.h"
-#include "utility/task.h"
-#include "utility/queue.h"
-#include "utility/semphr.h"
+#define GCC_ARMCM4F
+#include "utility/include/FreeRTOS.h"
+#include "utility/include/task.h"
+#include "utility/include/queue.h"
+#include "utility/include/semphr.h"
 }
 
 #endif
