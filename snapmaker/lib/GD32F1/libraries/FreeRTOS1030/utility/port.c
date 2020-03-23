@@ -239,7 +239,10 @@ volatile uint32_t ulDummy = 0;
 }
 /*-----------------------------------------------------------*/
 
-void vPortSVCHandler( void )
+// !!! Maple
+//void vPortSVCHandler( void )
+void __exc_svc( void )
+// !!! Maple
 {
 	__asm volatile (
 					"	ldr	r3, pxCurrentTCBConst2		\n" /* Restore the context. */
@@ -364,7 +367,9 @@ BaseType_t xPortStartScheduler( void )
 
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled
 	here already. */
-	vPortSetupTimerInterrupt();
+	//vPortSetupTimerInterrupt();
+	systick_attach_callback(&xPortSysTickHandler);
+	// !!! Maple
 
 	/* Initialise the critical nesting count ready for the first task. */
 	uxCriticalNesting = 0;
@@ -428,7 +433,9 @@ void vPortExitCritical( void )
 }
 /*-----------------------------------------------------------*/
 
-void xPortPendSVHandler( void )
+// !!! Maple
+//void xPortPendSVHandler( void )
+void __exc_pendsv( void )
 {
 	/* This is a naked function. */
 
