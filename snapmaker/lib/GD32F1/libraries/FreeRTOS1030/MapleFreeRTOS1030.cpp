@@ -24,7 +24,7 @@
  * SOFTWARE.
  *****************************************************************************/
 
-#include "MapleFreeRTOS900.h"
+#include "MapleFreeRTOS1030.h"
 
 extern "C" {
 

@@ -68,6 +68,8 @@
 
 #include "module/executermanager.h"
 
+#include "MapleFreeRTOS1030.h"
+
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
 #endif
@@ -1269,6 +1271,9 @@ void setup() {
   #endif
 
   BreathLightInit();
+
+
+  xPortStartScheduler();
 }
 
 /**
@@ -1306,14 +1311,9 @@ void CheckAppValidFlag(void)
 }
 
 /**
- * The main Marlin program loop
- *
- *  - Save or log commands to SD
- *  - Process available commands (if not saving)
- *  - Call endstop manager
- *  - Call inactivity manager
+ * main task
  */
-void loop() {
+void main_loop(void *param) {
   // clear UART buffer
   rb_reset(MYSERIAL0.c_dev()->rb);
   rb_reset(HMISERIAL.c_dev()->rb);
@@ -1425,5 +1425,14 @@ void loop() {
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
     }
   }
+}
+
+
+/**
+ * do not place any code here
+ * this function won't be executed!
+ */
+void loop() {
+  return;
 }
 
