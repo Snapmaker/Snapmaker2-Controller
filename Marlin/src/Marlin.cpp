@@ -193,6 +193,13 @@
   #include "libs/L6470/L6470_Marlin.h"
 #endif
 
+
+#define MARLIN_LOOP_TASK_PRIO     (configMAX_PRIORITIES - 1)
+#define MARLIN_LOOP_STACK_DEPTH   1024
+
+#define HMI_TASK_PRIO             (configMAX_PRIORITIES - 2)
+#define HMI_TASK_STACK_DEPTH      1024
+
 bool Running = true;
 
 #if ENABLED(TEMPERATURE_UNITS_SUPPORT)
@@ -951,6 +958,8 @@ void stop() {
   }
 }
 
+void main_loop(void *param);
+
 /**
  * Marlin entry-point: Set up before the program loop
  *  - Set up the kill pin, filament runout, power hold
@@ -1272,8 +1281,20 @@ void setup() {
 
   BreathLightInit();
 
+  // create marlin task
+  BaseType_t ret;
+  ret = xTaskCreate((TaskFunction_t)main_loop, "marlin_loop", MARLIN_LOOP_STACK_DEPTH, NULL, MARLIN_LOOP_TASK_PRIO, NULL);
+  if (ret != pdPASS) {
+    LOG_E("failt to create marlin loop task!\n");
+    while(1) {
+      HMI.CommandProcess(true);
+    }
+  }
+  else {
+    LOG_I("success to create marlin task!\n");
+  }
 
-  xPortStartScheduler();
+  vTaskStartScheduler();
 }
 
 /**
