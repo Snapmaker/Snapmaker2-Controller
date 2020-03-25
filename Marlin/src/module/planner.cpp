@@ -117,8 +117,6 @@ uint32_t Planner::max_acceleration_steps_per_s2[XYZE_N]; // (steps/s^2) Derived 
 
 float Planner::steps_to_mm[XYZE_N];           // (mm) Millimeters per step
 
-uint32_t Planner::sync_cnt = 0;
-
 #if ENABLED(JUNCTION_DEVIATION)
   float Planner::junction_deviation_mm;       // (mm) M205 J
   #if ENABLED(LIN_ADVANCE)
@@ -1554,17 +1552,12 @@ float Planner::get_axis_position_mm(const AxisEnum axis) {
  * Block until all buffered steps are executed / cleaned
  */
 void Planner::synchronize() {
-  ++sync_cnt;
-  if (sync_cnt > 1) {
-    LOG_V("SYNC CNT  %d\n", sync_cnt);
-  }
   while (
     has_blocks_queued() || cleaning_buffer_counter
     #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
       || (READ(CLOSED_LOOP_ENABLE_PIN) && !READ(CLOSED_LOOP_MOVE_COMPLETE_PIN))
     #endif
   ) idle();
-  --sync_cnt;
 }
 
 /**

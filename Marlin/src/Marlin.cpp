@@ -68,8 +68,6 @@
 
 #include "module/executermanager.h"
 
-#include "MapleFreeRTOS1030.h"
-
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
 #endif
@@ -197,8 +195,14 @@
 #define MARLIN_LOOP_TASK_PRIO     (configMAX_PRIORITIES - 1)
 #define MARLIN_LOOP_STACK_DEPTH   1024
 
-#define HMI_TASK_PRIO             (configMAX_PRIORITIES - 2)
-#define HMI_TASK_STACK_DEPTH      1024
+#define HMI_TASK_PRIO             (configMAX_PRIORITIES - 1)
+#define HMI_TASK_STACK_DEPTH      512
+
+// mutex lock for gcode queue from HMI to marlin
+SemaphoreHandle_t gcode_queue_lock;
+
+// 
+MessageBufferHandle_t hmi_queue;
 
 bool Running = true;
 
@@ -797,16 +801,11 @@ void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
  */
 void idle(
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
-    bool no_stepper_sleep/*=false*/,
+    bool no_stepper_sleep/*=false*/
   #endif
-      bool nested/*=true*/
 ) {
   #if ENABLED(MAX7219_DEBUG)
     max7219.idle_tasks();
-  #endif
-
-  #if ENABLED(HMISUPPORT)
-    HMI.CommandProcess(nested);
   #endif
 
   SystemStatus.CheckException();
@@ -863,6 +862,9 @@ void idle(
   #if ENABLED(PRUSA_MMU2)
     mmu2.mmuLoop();
   #endif
+
+  if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+    vTaskDelay(1);
 }
 
 /**
@@ -993,7 +995,7 @@ void CheckAppValidFlag(void)
 }
 
 void main_loop(void *param);
-
+void hmi_task(void *param);
 /**
  * Marlin entry-point: Set up before the program loop
  *  - Set up the kill pin, filament runout, power hold
@@ -1336,6 +1338,7 @@ void setup() {
   if (CanModules.LinearModuleCount == 0) {
     SystemStatus.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
   }
+
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
     endstops.reinit_hit_status();
@@ -1375,17 +1378,34 @@ void setup() {
 
   SERIAL_ECHOLN("Finish init");
 
+
+  // create queue and lock
+  gcode_queue_lock = xSemaphoreCreateMutex();
+
+  hmi_queue = xMessageBufferCreate(1024);
+
   // create marlin task
   BaseType_t ret;
-  ret = xTaskCreate((TaskFunction_t)main_loop, "marlin_loop", MARLIN_LOOP_STACK_DEPTH, NULL, MARLIN_LOOP_TASK_PRIO, NULL);
+  ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH, NULL, MARLIN_LOOP_TASK_PRIO, NULL);
   if (ret != pdPASS) {
-    LOG_E("failt to create marlin loop task!\n");
+    LOG_E("failt to create marlin task!\n");
     while(1) {
-      HMI.CommandProcess(true);
+      HMI.CommandProcess();
     }
   }
   else {
     LOG_I("success to create marlin task!\n");
+  }
+
+  ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH, NULL, HMI_TASK_PRIO, NULL);
+  if (ret != pdPASS) {
+    LOG_E("failt to create HMI task!\n");
+    while(1) {
+      HMI.CommandProcess();
+    }
+  }
+  else {
+    LOG_I("success to create HMI task!\n");
   }
 
   vTaskStartScheduler();
@@ -1395,7 +1415,6 @@ void setup() {
  * main task
  */
 void main_loop(void *param) {
-
 
   for (;;) {
 
@@ -1436,7 +1455,7 @@ void main_loop(void *param) {
     SystemStatus.Process();
     Periph.Process();
     ExecuterHead.Process();
-    idle(false);
+    idle();
 
     // avoid module proactive reply failure, loop query
     // case 1: unexpected faliment runout trigger if we startup withou toolhead loaded.
@@ -1448,6 +1467,14 @@ void main_loop(void *param) {
       cur_mills = millis();
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
     }
+  }
+}
+
+
+void hmi_task(void *param) {
+  while (1) {
+    HMI.CommandProcess();
+    vTaskDelay(5);
   }
 }
 

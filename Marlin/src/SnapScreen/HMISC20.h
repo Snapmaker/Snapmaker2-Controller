@@ -12,8 +12,8 @@ class HMI_SC20
 {
 public:
   HMI_SC20(){};
-  void PollingCommand(bool nested);
-  void HandleOneCommand(bool reject_sync_write);
+  void PollingCommand();
+  void HandleOneCommand();
   void SendEvent(uint8_t EventID, char *buffer, uint16_t len);
   void SendMachineStatusChange(uint8_t Status, uint8_t Result);
   void SendMachineFaultFlag(uint32_t flag = 0);

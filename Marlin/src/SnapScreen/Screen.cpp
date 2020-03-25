@@ -23,13 +23,13 @@ void HMIScreen::Init(void)
 /**
  * CommandProcess:process the data from hmi
  */
-void HMIScreen::CommandProcess(bool nested)
+void HMIScreen::CommandProcess()
 {
   #if ENABLED(HMI_LONG)
     LongHMI.PollingCommand();
     LongHMI.Show();
   #elif ENABLED(HMI_SC20W)
-    SC20HMI.PollingCommand(nested);
+    SC20HMI.PollingCommand();
   #endif
 }
 

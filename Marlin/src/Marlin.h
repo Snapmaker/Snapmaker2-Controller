@@ -23,6 +23,8 @@
 
 #include "inc/MarlinConfig.h"
 
+#include "MapleFreeRTOS1030.h"
+
 #ifdef DEBUG_GCODE_PARSER
   #include "gcode/parser.h"
 #endif
@@ -42,9 +44,8 @@ void stop();
 
 void idle(
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
-    bool no_stepper_sleep = false, // pass true to keep steppers from disabling on timeout
+    bool no_stepper_sleep = false // pass true to keep steppers from disabling on timeout
   #endif
-      bool nested = true
 );
 
 void manage_inactivity(const bool ignore_stepper_queue=false);
@@ -441,3 +442,5 @@ void protected_pin_err();
 #define UInt32ToBytes(u32V, pBuff) do{pBuff[0] = (uint8_t)(u32V >> 24); pBuff[1] = (uint8_t)(u32V >> 16); pBuff[2] = (uint8_t)(u32V >> 8); pBuff[3] = (uint8_t)(u32V); }while(0)
 #define UInt16ToBytes(u16V, pBuff) do{pBuff[0] = (uint8_t)(u16V >> 8); pBuff[1] = (uint8_t)(u16V);}while(0)
 
+
+extern SemaphoreHandle_t gcode_queue_lock;

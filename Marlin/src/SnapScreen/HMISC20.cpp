@@ -30,7 +30,7 @@
 #include "../snap_module/M1028.h"
 #include "../snap_module/coordinate_mgr.h"
 #include "../libs/GenerialFunctions.h"
-
+#include "MapleFreeRTOS1030.h"
 
 #define SEND_BUFF_SIZE    1024
 #define PACK_BUFFER_SIZE  1024
@@ -40,8 +40,8 @@
 
 static char status_buff[STATUS_BUFF_SIZE];
 
-static char *tmpBuff;
-static char checkout_cmd[2][ONE_CMD_MAX_SIZE];
+static char tmpBuff[ONE_CMD_MAX_SIZE];
+//static char checkout_cmd[2][ONE_CMD_MAX_SIZE];
 // buffer used to packed a command to be sent
 static char SendBuff[SEND_BUFF_SIZE];
 static char packBuff[PACK_BUFFER_SIZE];
@@ -630,8 +630,8 @@ uint8_t HMI_SC20::HalfAutoCalibrate(bool fast_leveling)
 {
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
-  LOG_I("e temp: %.2f / %.2f\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
-  LOG_I("b temp: %.2f / %.2f\n", thermalManager.degBed(), thermalManager.degTargetBed());
+  LOG_I("e temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+  LOG_I("b temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
 
   if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
     // Turn off the heaters
@@ -898,26 +898,18 @@ void HMI_SC20::ReportLinearModuleMacID(void) {
 
 
 extern uint8_t hmi_commands_in_queue;
-void HMI_SC20::PollingCommand(bool nested) {
+void HMI_SC20::PollingCommand() {
   int len;
 
-  len = GetCommand((unsigned char *) checkout_cmd[next_cmd_idx]);
+  len = GetCommand((unsigned char *) tmpBuff);
   // invalid command whose PDU len is less than 8
-  if (len < 8)
+  if (len < 8) {
     return;
+  }
 
   // if this command is heartbeat checking, ack it directly
-  if (checkout_cmd[next_cmd_idx][IDX_EVENT_ID] == EID_STATUS_REQ &&
-        checkout_cmd[next_cmd_idx][IDX_OP_CODE] == 1) {
-    SendMachineStatus();
-    LOG_V("Heartbeat: ");
-    if (debug.GetLevel() <= SNAP_DEBUG_LEVEL_TRACE) {
-      for (int i=0; i<10; i++) {
-        LOG_T("%08X ", *((uint32_t *)status_buff + i));
-      }
-      LOG_T("\n\n");
-    }
-
+  if (tmpBuff[IDX_EVENT_ID] == EID_STATUS_REQ &&
+        tmpBuff[IDX_OP_CODE] == 1) {
     // make sure we are working
     if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK) {
       // and no movement planned
@@ -930,34 +922,13 @@ void HMI_SC20::PollingCommand(bool nested) {
         }
       }
     }
-    return;
   }
 
-  // if it's not heartbeat checking, but another command is being handled
-  // we drop this command
-  if (is_handling_cmd) {
-    LOG_W("handling another cmd, reject cmd [%u:%u]\n", checkout_cmd[next_cmd_idx][IDX_EVENT_ID],
-            checkout_cmd[next_cmd_idx][IDX_OP_CODE]);
-    return;
-  }
-
-  is_handling_cmd = true;
-
-  // need to change next_cmd_idx before calling HandleOneCommand()
-  // becase PollingCommand maybe call nested by HandleOneCommand()
-  tmpBuff = checkout_cmd[next_cmd_idx];
-  if (next_cmd_idx)
-    next_cmd_idx = 0;
-  else
-    next_cmd_idx = 1;
-
-  HandleOneCommand(nested);
-
-  is_handling_cmd = false;
+  HandleOneCommand();
 }
 
 
-void HMI_SC20::HandleOneCommand(bool reject_sync_write)
+void HMI_SC20::HandleOneCommand()
 {
   float fX, fY, fZ;
   uint32_t ID;
@@ -1040,8 +1011,13 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
       uint8_t StatuID;
       StatuID = tmpBuff[9];
 
+      if (StatuID == 0x1) {
+        SendMachineStatus();
+        return;
+      }
+
       // query exception
-      if (StatuID == 0x02) {
+      else if (StatuID == 0x02) {
         SendMachineFaultFlag();
       }
 
@@ -1485,23 +1461,17 @@ void HMI_SC20::HandleOneCommand(bool reject_sync_write)
             j = IDX_DATA0 + 1;
             BYTES_TO_32BITS_WITH_INDEXMOVE(int32Value, tmpBuff, j);
             fX = int32Value / 1000.0f;
-            if (planner.sync_cnt > 0 && tmpBuff[IDX_DATA0] == RENV_TYPE_ZOFFSET) {
-//            if (false && reject_sync_write && tmpBuff[IDX_DATA0] == RENV_TYPE_ZOFFSET) {
-              LOG_I("REJECT_SYNC_WRITE, RENV_TYPE_ZOFFSET %d\n", planner.sync_cnt);
-              MarkNeedReack(E_REJECT_SYNC_WRITE);
-            } else {
-              err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
-              if (err == E_SUCCESS) {
-                MarkNeedReack(0);
-              }
-              else if (err == E_INVALID_STATE) {
-                MarkNeedReack(2);
-                LOG_E("not supported parameter by current Tool head\n");
-              }
-              else {
-                MarkNeedReack(1);
-                LOG_E("invalid parameter\n");
-              }
+            err = SystemStatus.ChangeRuntimeEnv(tmpBuff[IDX_DATA0], fX);
+            if (err == E_SUCCESS) {
+              MarkNeedReack(0);
+            }
+            else if (err == E_INVALID_STATE) {
+              MarkNeedReack(2);
+              LOG_E("not supported parameter by current Tool head\n");
+            }
+            else {
+              MarkNeedReack(1);
+              LOG_E("invalid parameter\n");
             }
           break;
 

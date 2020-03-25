@@ -35,6 +35,7 @@ extern "C" {
 #include "utility/include/task.h"
 #include "utility/include/queue.h"
 #include "utility/include/semphr.h"
+#include "utility/include/message_buffer.h"
 }
 
 #endif
