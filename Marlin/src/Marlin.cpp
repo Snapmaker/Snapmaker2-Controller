@@ -958,6 +958,40 @@ void stop() {
   }
 }
 
+/**
+ * Check Update Flag
+ */
+void CheckUpdateFlag(void)
+{
+  uint32_t Address;
+  uint32_t Flag;
+  Address = FLASH_UPDATE_CONTENT_INFO;
+  Flag = *((uint32_t*)Address);
+  if(Flag != 0xffffffff)
+  {
+    FLASH_Unlock();
+    FLASH_ErasePage(Address);
+    FLASH_Lock();
+  }
+}
+
+/**
+ * Check App Valid Flag
+ */
+void CheckAppValidFlag(void)
+{
+  uint32_t Value;
+  uint32_t Address;
+  Address = FLASH_BOOT_PARA;
+  Value = *((uint32_t*)Address);
+  if(Value != 0xaa55ee11) {
+    FLASH_Unlock();
+    FLASH_ErasePage(Address);
+    FLASH_ProgramWord(Address, 0xaa55ee11);
+    FLASH_Lock();
+  }
+}
+
 void main_loop(void *param);
 
 /**
@@ -1281,60 +1315,7 @@ void setup() {
 
   BreathLightInit();
 
-  // create marlin task
-  BaseType_t ret;
-  ret = xTaskCreate((TaskFunction_t)main_loop, "marlin_loop", MARLIN_LOOP_STACK_DEPTH, NULL, MARLIN_LOOP_TASK_PRIO, NULL);
-  if (ret != pdPASS) {
-    LOG_E("failt to create marlin loop task!\n");
-    while(1) {
-      HMI.CommandProcess(true);
-    }
-  }
-  else {
-    LOG_I("success to create marlin task!\n");
-  }
 
-  vTaskStartScheduler();
-}
-
-/**
- * Check Update Flag
- */
-void CheckUpdateFlag(void)
-{
-  uint32_t Address;
-  uint32_t Flag;
-  Address = FLASH_UPDATE_CONTENT_INFO;
-  Flag = *((uint32_t*)Address);
-  if(Flag != 0xffffffff)
-  {
-    FLASH_Unlock();
-    FLASH_ErasePage(Address);
-    FLASH_Lock();
-  }
-}
-
-/**
- * Check App Valid Flag
- */
-void CheckAppValidFlag(void)
-{
-  uint32_t Value;
-  uint32_t Address;
-  Address = FLASH_BOOT_PARA;
-  Value = *((uint32_t*)Address);
-  if(Value != 0xaa55ee11) {
-    FLASH_Unlock();
-    FLASH_ErasePage(Address);
-    FLASH_ProgramWord(Address, 0xaa55ee11);
-    FLASH_Lock();
-  }
-}
-
-/**
- * main task
- */
-void main_loop(void *param) {
   // clear UART buffer
   rb_reset(MYSERIAL0.c_dev()->rb);
   rb_reset(HMISERIAL.c_dev()->rb);
@@ -1393,6 +1374,28 @@ void main_loop(void *param) {
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
   SERIAL_ECHOLN("Finish init");
+
+  // create marlin task
+  BaseType_t ret;
+  ret = xTaskCreate((TaskFunction_t)main_loop, "marlin_loop", MARLIN_LOOP_STACK_DEPTH, NULL, MARLIN_LOOP_TASK_PRIO, NULL);
+  if (ret != pdPASS) {
+    LOG_E("failt to create marlin loop task!\n");
+    while(1) {
+      HMI.CommandProcess(true);
+    }
+  }
+  else {
+    LOG_I("success to create marlin task!\n");
+  }
+
+  vTaskStartScheduler();
+}
+
+/**
+ * main task
+ */
+void main_loop(void *param) {
+
 
   for (;;) {
 
