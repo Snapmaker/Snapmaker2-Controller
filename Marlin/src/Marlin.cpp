@@ -67,6 +67,8 @@
 #include "feature/bedlevel/bedlevel.h"
 
 #include "module/executermanager.h"
+#include "snap_module/hmi_host.h"
+#include "snap_module/event_handler.h"
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
@@ -1386,7 +1388,7 @@ void setup() {
 
   // create marlin task
   BaseType_t ret;
-  ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH, NULL, MARLIN_LOOP_TASK_PRIO, NULL);
+  ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH, (void *)hmi_queue, MARLIN_LOOP_TASK_PRIO, NULL);
   if (ret != pdPASS) {
     LOG_E("failt to create marlin task!\n");
     while(1) {
@@ -1397,7 +1399,7 @@ void setup() {
     LOG_I("success to create marlin task!\n");
   }
 
-  ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH, NULL, HMI_TASK_PRIO, NULL);
+  ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH, (void *)hmi_queue, HMI_TASK_PRIO, NULL);
   if (ret != pdPASS) {
     LOG_E("failt to create HMI task!\n");
     while(1) {
@@ -1472,9 +1474,27 @@ void main_loop(void *param) {
 
 
 void hmi_task(void *param) {
+  MessageBufferHandle_t cmd_queue = NULL;
+  int size = 0;
+  uint8_t *cmd = NULL;
+
+  configASSERT(param);
+
+  cmd_queue = (MessageBufferHandle_t)param;
+
+  cmd = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(cmd);
+
   while (1) {
-    HMI.CommandProcess();
-    vTaskDelay(5);
+    size = hmihost.CheckoutCmd(cmd);
+    if (size <= 0) {
+      vTaskDelay(configTICK_RATE_HZ/100);
+      continue;
+    }
+
+    HandleEvent(cmd, size, cmd_queue);
+
+    vTaskDelay(configTICK_RATE_HZ/100);
   }
 }
 

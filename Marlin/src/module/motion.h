@@ -81,6 +81,7 @@ float get_homing_bump_feedrate(const AxisEnum axis);
 
 extern float feedrate_mm_s;
 extern float feedrate_scaling;
+extern float last_feedrate;
 /**
  * Feedrate scaling and conversion
  */
