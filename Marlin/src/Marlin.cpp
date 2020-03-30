@@ -196,9 +196,11 @@
 
 #define MARLIN_LOOP_TASK_PRIO     (configMAX_PRIORITIES - 1)
 #define MARLIN_LOOP_STACK_DEPTH   1024
+TaskHandle_t marlin_task = NULL;
 
 #define HMI_TASK_PRIO             (configMAX_PRIORITIES - 1)
 #define HMI_TASK_STACK_DEPTH      512
+TaskHandle_t hmi_task = NULL;
 
 // mutex lock for gcode queue from HMI to marlin
 SemaphoreHandle_t gcode_queue_lock;

@@ -1,7 +1,12 @@
 #include "event_handler.h"
 #include "snap_dbg.h"
+
+#include "level_handler.h"
+
+#include "../Marlin.h"
 #include "../module/motion.h"
 #include "../module/temperature.h"
+#include "../module/planner.h"
 
 #include "../module/StatusControl.h"
 #include "../module/PowerPanic.h"
@@ -21,6 +26,11 @@ struct EventCallback_t {
   uint8_t attr;
   CallbackFunc_t cb;
 };
+
+
+static ErrCode HandleGcode(Event_t &event) {
+
+}
 
 
 typedef struct {
@@ -57,7 +67,6 @@ static ErrCode SendStatus(Event_t &event) {
   uint16_t tmp_u16;
 
   // save to use original event to construct new event
-  event.id++;
   event.data = (uint8_t *)&sta;
   event.length = sizeof(SystemStatus_t);
 
@@ -120,7 +129,6 @@ static ErrCode SendException(Event_t &event) {
 
   LOG_I("SC req Exception\n");
 
-  event.id++;
   event.length = 0;
   event.data = buff;
 
@@ -174,7 +182,6 @@ static ErrCode ChangeSystemStatus(Event_t &event) {
     LOG_I("SC req -> Sucess\n");
   }
   else {
-    event.id++;
     event.length = 1;
 
     event.data = (uint8_t *)&err;
@@ -190,7 +197,6 @@ static ErrCode SendLastLine(Event_t &event) {
   uint8_t buff[4];
   uint32_t last_line = powerpanic.;
 
-  event.id++;
   event.data = buff;
   event.length = 0;
 
@@ -208,7 +214,6 @@ static ErrCode SendLastLine(Event_t &event) {
 static ErrCode ClearException(Event_t &event) {
   ErrCode err = E_SUCCESS;
 
-  event.id++;
   event.data = &err;
   event.length = 1;
 
@@ -245,7 +250,6 @@ static ErrCode RecoverFromPowerLoss(Event_t &event) {
 
   LOG_I("SC trigger restore from power-loss\n");
 
-  event.id++;
   event.data = &err;
   event.length = 1;
 
@@ -287,7 +291,6 @@ static ErrCode SendHomeAndCoordinateStatus(Event_t &event) {
 
   int i = 0;
 
-  event.id++;
   event.data = buff;
 
   if (all_axes_homed()) {
@@ -336,8 +339,6 @@ static ErrCode SendHomeAndCoordinateStatus(Event_t &event) {
 static ErrCode SetLogLevel(Event_t &event) {
   ErrCode err = E_FAILURE;
 
-  event.id++;
-
   if (event.length != 1) {
     LOG_E("Need to specify log level!\n");
     event.data = &err;
@@ -352,124 +353,157 @@ static ErrCode SetLogLevel(Event_t &event) {
   return hmi.Send(event);
 }
 
-
 EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
-  [SYSCTL_OPC_REQ_STATUES]            = {EVENT_ATTR_DEFAULT,               SendStatus},
-  [SYSCTL_OPC_REQ_EXCEPTION]          = {EVENT_ATTR_DEFAULT,               SendException},
-  [SYSCTL_OPC_REQ_START_WORK]         = {EVENT_ATTR_DEFAULT,               ChangeSystemStatus},
-  [SYSCTL_OPC_REQ_PAUSE]              = {EVENT_ATTR_DEFAULT,               ChangeSystemStatus},
-  [SYSCTL_OPC_REQ_RESUME]             = {EVENT_ATTR_DEFAULT,               ChangeSystemStatus},
-  [SYSCTL_OPC_REQ_STOP]               = {EVENT_ATTR_DEFAULT,               ChangeSystemStatus},
-  [SYSCTL_OPC_REQ_FINISH]             = {EVENT_ATTR_DEFAULT,               ChangeSystemStatus},
-  [SYSCTL_OPC_REQ_LAST_LINE]          = {EVENT_ATTR_DEFAULT,               SendLastLine},
-  [SYSCTL_OPC_REQ_CLEAR_FAULT]        = {EVENT_ATTR_DEFAULT,               ClearException},
-  [SYSCTL_OPC_REQ_RECOVER_POWER_LOSS] = {EVENT_ATTR_DEFAULT,               RecoverFromPowerLoss},
-  [SYSCTL_OPC_REQ_HOME_STATUS]        = {EVENT_ATTR_DEFAULT,               SendHomeAndCoordinateStatus},
-  [SYSCTL_OPC_SET_LOG_LEVEL]          = {EVENT_ATTR_DEFAULT,               SetLogLevel}
+  [SYSCTL_OPC_REQ_STATUES]            = {EVENT_ATTR_DEFAULT,    SendStatus},
+  [SYSCTL_OPC_REQ_EXCEPTION]          = {EVENT_ATTR_DEFAULT,    SendException},
+  [SYSCTL_OPC_REQ_START_WORK]         = {EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
+  [SYSCTL_OPC_REQ_PAUSE]              = {EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
+  [SYSCTL_OPC_REQ_RESUME]             = {EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
+  [SYSCTL_OPC_REQ_STOP]               = {EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
+  [SYSCTL_OPC_REQ_FINISH]             = {EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
+  [SYSCTL_OPC_REQ_LAST_LINE]          = {EVENT_ATTR_DEFAULT,    SendLastLine},
+  [SYSCTL_OPC_REQ_CLEAR_FAULT]        = {EVENT_ATTR_DEFAULT,    ClearException},
+  [SYSCTL_OPC_REQ_RECOVER_POWER_LOSS] = {EVENT_ATTR_DEFAULT,    RecoverFromPowerLoss},
+  [SYSCTL_OPC_REQ_HOME_STATUS]        = {EVENT_ATTR_DEFAULT,    SendHomeAndCoordinateStatus},
+  [SYSCTL_OPC_SET_LOG_LEVEL]          = {EVENT_ATTR_DEFAULT,    SetLogLevel}
 };
-
-
-static ErrCode DoAutoLeveling(Event_t &event) {
-
-  return hmi.Send(event);
-}
-
-
-static ErrCode DoManualLeveling(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode SetManualLevelingPoint(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode AdjustZOffsetInLeveling(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode SaveAndExitLeveling(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode ExitLeveling(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode GetFocalLength(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode SetFocalLength(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode DoManualFocusing(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode DoAutoFocusing(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode DoFastLeveling(Event_t &event) {
-  return hmi.Send(event);
-}
 
 
 static ErrCode ChangeRuntimeEnv(Event_t &event) {
   return hmi.Send(event);
 }
 
-
-static ErrCode ResetLeveling(Event_t &event) {
-  return hmi.Send(event);
-}
-
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   [SETTINGS_OPC_SET_MACHINE_SIZE]       = {EVENT_ATTR_DEFAULT,      NULL},
-  [SETTINGS_OPC_REQ_AUTO_LEVELING]      = {EVENT_ATTR_HAVE_MOTION,  DoAutoLeveling},
-  [SETTINGS_OPC_REQ_MANUAL_LEVELING]    = {EVENT_ATTR_HAVE_MOTION,  DoManualLeveling},
-  [SETTINGS_OPC_SET_LEVELING_PONIT]     = {EVENT_ATTR_HAVE_MOTION,  SetManualLevelingPoint},
-  [SETTINGS_OPC_ADJUST_Z_OFFSET]        = {EVENT_ATTR_HAVE_MOTION,  AdjustZOffsetInLeveling},
-  [SETTINGS_OPC_SAVE_AND_EXIT_LEVELING] = {EVENT_ATTR_HAVE_MOTION,  SaveAndExitLeveling},
-  [SETTINGS_OPC_EXIT_LEVELING]          = {EVENT_ATTR_HAVE_MOTION,  ExitLeveling},
+  [SETTINGS_OPC_REQ_AUTO_LEVELING]      = {EVENT_ATTR_HAVE_MOTION,  levelhandler.DoAutoLeveling},
+  [SETTINGS_OPC_REQ_MANUAL_LEVELING]    = {EVENT_ATTR_HAVE_MOTION,  levelhandler.DoManualLeveling},
+  [SETTINGS_OPC_SET_LEVELING_PONIT]     = {EVENT_ATTR_HAVE_MOTION,  levelhandler.SetManualLevelingPoint},
+  [SETTINGS_OPC_ADJUST_Z_OFFSET]        = {EVENT_ATTR_HAVE_MOTION,  levelhandler.AdjustZOffsetInLeveling},
+  [SETTINGS_OPC_SAVE_AND_EXIT_LEVELING] = {EVENT_ATTR_HAVE_MOTION,  levelhandler.SaveAndExitLeveling},
+  [SETTINGS_OPC_EXIT_LEVELING]          = {EVENT_ATTR_HAVE_MOTION,  levelhandler.ExitLeveling},
   [SETTINGS_OPC_RESTORE_TO_FACTORY]     = {EVENT_ATTR_DEFAULT,      NULL},
-  [SETTINGS_OPC_READ_FOCAL_LENGTH]      = {EVENT_ATTR_DEFAULT,      GetFocalLength},
-  [SETTINGS_OPC_SET_FOCAL_LENGTH]       = {EVENT_ATTR_DEFAULT,      SetFocalLength},
-  [SETTINGS_OPC_REQ_MANUAL_FOCUSING]    = {EVENT_ATTR_HAVE_MOTION,  DoManualFocusing},
-  [SETTINGS_OPC_REQ_AUTO_FOCUSING]      = {EVENT_ATTR_HAVE_MOTION,  DoAutoFocusing},
-  [SETTINGS_OPC_REQ_FAST_CALIBRATION]   = {EVENT_ATTR_HAVE_MOTION,  DoFastLeveling},
+  [SETTINGS_OPC_READ_FOCAL_LENGTH]      = {EVENT_ATTR_DEFAULT,      ExecuterHead.Laser.GetFocalLength},
+  [SETTINGS_OPC_SET_FOCAL_LENGTH]       = {EVENT_ATTR_DEFAULT,      ExecuterHead.Laser.SetFocalLength},
+  [SETTINGS_OPC_REQ_MANUAL_FOCUSING]    = {EVENT_ATTR_HAVE_MOTION,  ExecuterHead.Laser.DoManualFocusing},
+  [SETTINGS_OPC_REQ_AUTO_FOCUSING]      = {EVENT_ATTR_HAVE_MOTION,  ExecuterHead.Laser.DoAutoFocusing},
+  [SETTINGS_OPC_REQ_FAST_CALIBRATION]   = {EVENT_ATTR_HAVE_MOTION,  levelhandler.DoAutoLeveling},
   [SETTINGS_OPC_CHANGE_RUNTIME_ENV]     = {EVENT_ATTR_DEFAULT,      ChangeRuntimeEnv},
-  [SETTINGS_OPC_RESET_LEVELING]         = {EVENT_ATTR_DEFAULT,      ResetLeveling}
+  [SETTINGS_OPC_RESET_LEVELING]         = {EVENT_ATTR_WILL_BLOCKED, levelhandler.ResetLeveling}
 };
 
 
-static ErrCode DoAbsoluteMove(Event_t &event) {
-  return hmi.Send(event);
-}
+static ErrCode DoXYZMove(Event_t &event) {
+  ErrCode err = E_FAILURE;
 
+  float target_pos[XYZ];
+  float speed = 0;
 
-static ErrCode DoRelativeMove(Event_t &event) {
+  if (event.length < 12) {
+    LOG_E("Must specify target X, Y, Z in event\n");
+    goto out;
+  }
+
+  hmi.ToLocalBytes((uint8_t *)&target_pos[X_AXIS], event.data, 4);
+  hmi.ToLocalBytes((uint8_t *)&target_pos[Y_AXIS], event.data+4, 4);
+  hmi.ToLocalBytes((uint8_t *)&target_pos[Z_AXIS], event.data+8, 4);
+
+  LOOP_XYZ(i) {
+    target_pos[i] /= 1000;
+  }
+
+  if (event.length == 16) {
+    hmi.ToLocalBytes((uint8_t *)&speed, event.data+12, 4);
+    speed /= 1000;
+  }
+
+  planner.synchronize();
+
+  if (event.op_code == MOTION_OPC_DO_ABSOLUTE_MOVE) {
+    move_to_limited_z(RAW_Z_POSITION(target_pos[Z_AXIS]), speed? speed : 10);
+    move_to_limited_xy(RAW_X_POSITION(target_pos[X_AXIS]),
+      RAW_Y_POSITION(target_pos[Y_AXIS]), speed? speed : 30);
+  }
+  else {
+    // current_position[] is native position, so cannot use API 'do_blocking_move_to_logical_<axis>'
+    // it only get logical position
+    move_to_limited_z(current_position[Z_AXIS] + target_pos[Z_AXIS], speed? speed : 10);
+    move_to_limited_xy(current_position[X_AXIS] + target_pos[X_AXIS],
+      current_position[Y_AXIS] + target_pos[Y_AXIS], speed? speed : 30);
+  }
+
+  planner.synchronize();
+
+  err = E_SUCCESS;
+
+out:
+  event.data = &err;
+  event.length = 1;
+
   return hmi.Send(event);
 }
 
 
 static ErrCode DoEMove(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  float extrude_len;
+  float extrude_speed;
+  float retract_len;
+  float retract_speed;
+
+  if (event.length < 17) {
+    LOG_E("invalid parameter length: %u\n", event.length);
+    goto out;
+  }
+
+  if (thermalManager.tooColdToExtrude(0)) {
+    LOG_E("temperature is cool, cannot move E!\n");
+    goto out;
+  }
+
+  hmi.ToLocalBytes((uint8_t *)&extrude_len, event.data+1, 4);
+  hmi.ToLocalBytes((uint8_t *)&extrude_speed, event.data+5, 4);
+  hmi.ToLocalBytes((uint8_t *)&retract_len, event.data+9, 4);
+  hmi.ToLocalBytes((uint8_t *)&retract_speed, event.data+13, 4);
+
+  extrude_len /= 1000;
+  extrude_speed /= 60000;
+  retract_len /=1000;
+  retract_speed /= 60000;
+
+  planner.synchronize();
+
+  if (event.data[0] == 0) {
+    // extrude firstly
+    current_position[E_AXIS] += extrude_len;
+    line_to_current_position(extrude_speed);
+    planner.synchronize();
+    current_position[E_AXIS] -= retract_len;
+    line_to_current_position(retract_speed);
+  }
+  else {
+    // retract firstly
+    current_position[E_AXIS] -= retract_len;
+    line_to_current_position(retract_speed);
+    planner.synchronize();
+    current_position[E_AXIS] += extrude_len;
+    line_to_current_position(extrude_speed);
+  }
+
+  planner.synchronize();
+
+  err = E_SUCCESS;
+
+out:
+  event.data = &err;
+  event.length = 1;
+
   return hmi.Send(event);
 }
 
 EventCallback_t motion_event_cb[MOTION_OPC_MAX] = {
-  [MOTION_OPC_DO_ABSOLUTE_MOVE]     = {EVENT_ATTR_HAVE_MOTION,  DoAbsoluteMove},
-  [MOTION_OPC_DO_RELATIVE_MOVE]     = {EVENT_ATTR_HAVE_MOTION,  DoRelativeMove},
+  [MOTION_OPC_DO_ABSOLUTE_MOVE]     = {EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
+  [MOTION_OPC_DO_RELATIVE_MOVE]     = {EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
   [MOTION_OPC_DO_E_MOVE]            = {EVENT_ATTR_HAVE_MOTION,  DoEMove}
 };
 
@@ -611,75 +645,122 @@ EventCallback_t upgrade_event_cb[UPGRADE_OPC_MAX] = {
 // need to known which task we running with
 // then we won't send out event again
 ErrCode HandleEvent(uint8_t *cmd, uint16_t size, MessageBufferHandle_t cmd_queue=NULL) {
-  Event_t event;
+  ErrCode err = E_INVALID_CMD;
+  Event_t event = {INVALID_EVENT_ID, INVALID_OP_CODE};
+
+  EventCallback_t *callbacks = NULL;
+  uint8_t op_code_max = INVALID_OP_CODE;
+
   bool send_to_marlin = false;
+  bool onwer_is_marlin = false;
 
-  uint8_t handler;
-
-  if (cmd_queue) {
-    handler = EVENT_HANDLER_HMI;
+  if (!cmd || size == 0) {
+    LOG_E("invalid cmd pointer or size is zero!\n");
+    return E_PARAM;
   }
-  else
+
+  // if owner is marlin task, will not send out command
+  if (xTaskGetCurrentTaskHandle() == marlin_task)
+    onwer_is_marlin = true;
 
   event.id = cmd[CMD_IDX_EVENT_ID];
-
-  if (size <= 0)
-    return;
 
   switch (event.id) {
   case EID_GCODE_REQ:
   case EID_FILE_GCODE_REQ:
-    send_to_marlin = true;
+    if (onwer_is_marlin) {
+      return HandleGcode(event);
+    }
+    else
+      send_to_marlin = true;
     break;
 
   case EID_SYS_CTRL_REQ:
-    event.op_code = cmd[CMD_IDX_OP_CODE];
-
-    if (event.op_code >= SYSCTL_OPC_MAX) {
-      LOG_E("event[0x%X]: op code [0x%X] is out of range: %d\n", event.id, event.op_code, SYSCTL_OPC_MAX);
-      return E_PARAM;
-    }
-
-    if (!sysctl_event_cb[event.op_code].cb) {
-      LOG_E("event[0x%X]: op code [0x%X] doesn't have callback\n", event.id, event.op_code);
-      return E_NO_RESRC;
-    }
-
-    if (sysctl_event_cb[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) {
-      send_to_marlin = true;
-      break;
-    }
-
-    return sysctl_event_cb[event.op_code].cb(event);
+    callbacks = sysctl_event_cb;
+    op_code_max = SYSCTL_OPC_MAX;
     break;
 
   case EID_SETTING_REQ:
+    callbacks = settings_event_cb;
+    op_code_max = SETTINGS_OPC_MAX;
     break;
 
-  case EID_MOVEMENT_REQ:
+  case EID_MOTION_REQ:
+    callbacks = motion_event_cb;
+    op_code_max = MOTION_OPC_MAX;
     break;
 
-  case EID_LAS_CAM_OP_REQ:
+  case EID_CAMERA_REQ:
+    callbacks = camera_event_cb;
+    op_code_max = CAMERA_OPC_MAX;
     break;
 
-  case EID_ADDON_OP_REQ:
+  case EID_ADDON_REQ:
+    callbacks = addon_event_cb;
+    op_code_max = ADDON_OPC_MAX;
     break;
 
-  case EID_LASER_CALIBRATE_REQ:
+  case EID_DEBUG_REQ:
+    callbacks = debug_event_cb;
+    op_code_max = DEBUG_OPC_MAX;
     break;
 
   case EID_UPGRADE_REQ:
+    callbacks = upgrade_event_cb;
+    op_code_max = UPGRADE_OPC_MAX;
     break;
 
   default:
     break;
   }
 
+  // well, per the event id, we know the event need to be handle by Marlin task
+  if (send_to_marlin) {
+    if (cmd_queue)
+      return (ErrCode)xMessageBufferSend(cmd_queue, cmd, size, portMAX_DELAY);
+    else {
+      LOG_E("event[%x:%x] need to send to Marlin, but no command queue!\n",
+        cmd[CMD_IDX_EVENT_ID], cmd[CMD_IDX_OP_CODE]);
+      return E_PARAM;
+    }
+  }
 
-  if (cmd_queue && send_to_marlin)
-    xMessageBufferSend(cmd_queue, cmd, size, portMAX_DELAY);
+  event.op_code = cmd[CMD_IDX_OP_CODE];
 
-  return;
+  // increase the event id to get ACK id for event callback
+  event.id++;
+
+  if (!callbacks || (op_code_max == INVALID_OP_CODE) || event.op_code >= op_code_max) {
+    LOG_E("event[0x%X]: op code [0x%X] is out of range: %d\n",
+      cmd[CMD_IDX_EVENT_ID], cmd[CMD_IDX_OP_CODE], SETTINGS_OPC_MAX);
+    event.data = &err;
+    event.length = 1;
+    hmi.Send(event);
+    return err;
+  }
+
+  if (!callbacks[event.op_code].cb) {
+    LOG_E("event[0x%X]: op code [0x%X] doesn't have callback\n",
+      cmd[CMD_IDX_EVENT_ID], cmd[CMD_IDX_OP_CODE]);
+    event.data = &err;
+    event.length = 1;
+    hmi.Send(event);
+    return err;
+  }
+
+  if ((callbacks[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) && !onwer_is_marlin) {
+    // arrive here, we know the event need to send to Marlin by check event id & op code
+    if (cmd_queue)
+      return (ErrCode)xMessageBufferSend(cmd_queue, cmd, size, portMAX_DELAY);
+    else {
+      LOG_E("event[%x:%x] need to send to Marlin, but no command queue!\n",
+        cmd[CMD_IDX_EVENT_ID], cmd[CMD_IDX_OP_CODE]);
+      return E_PARAM;
+    }
+  }
+
+
+  return settings_event_cb[event.op_code].cb(event);
 }
 
 

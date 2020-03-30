@@ -97,7 +97,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
  * Triggle the stop
  * return: true if stop triggle success, or false
  */
-ErrCode StatusControl::StopTrigger(TriggerSource type) {
+ErrCode StatusControl::StopTrigger(TriggerSource type, uint8_t event_opc) {
 
   if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {

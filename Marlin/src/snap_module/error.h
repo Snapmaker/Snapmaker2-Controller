@@ -26,7 +26,10 @@ typedef uint8_t ErrCode;
 
 #define E_INVALID_STATE   (COMMON_ERR_BASE + 8)     /* state is invalid for current operation */
 
-#define E_SAME_STATE      (COMMON_ERR_BASE + 8)     /* current state is same with new state */
+#define E_SAME_STATE      (COMMON_ERR_BASE + 9)     /* current state is same with new state */
+
+#define E_INVALID_CMD     (COMMON_ERR_BASE + 10)     /* invalid event id or operation code */
+
 
 #define PRIVATE_ERROR_BASE  200
 #define E_NO_SWITCHING_STA  (PRIVATE_ERROR_BASE + 0)

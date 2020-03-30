@@ -89,7 +89,7 @@ enum MotionOpc: uint8_t {
 #define EID_CAMERA_ACK    0xe
 
 enum CameraOpc: uint8_t {
-  CAMERA_OPC_SET_BT_NAME = 5
+  CAMERA_OPC_SET_BT_NAME = 5,
   CAMERA_OPC_READ_BT_NAME,
   CAMERA_OPC_READ_BT_MAC,
 
