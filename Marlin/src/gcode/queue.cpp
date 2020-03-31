@@ -118,11 +118,6 @@ inline void _commit_command(bool say_ok
     , int16_t port = -1
   #endif
 ) {
-  if (xSemaphoreTake(gcode_queue_lock, 100) != pdPASS) {
-    LOG_I("marlin task gcode lock failed\n");
-    return;
-  }
-
   send_ok[cmd_queue_index_w] = say_ok;
   Screen_send_ok[cmd_queue_index_w] = false;
   CommandLine[cmd_queue_index_w] = INVALID_CMD_LINE;
@@ -131,8 +126,6 @@ inline void _commit_command(bool say_ok
   #endif
   if (++cmd_queue_index_w >= BUFSIZE) cmd_queue_index_w = 0;
   commands_in_queue++;
-
-  xSemaphoreGive(gcode_queue_lock);
 }
 
 /**
@@ -235,11 +228,6 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
 #if ENABLED(HMI_SC20W)
 void enqueue_hmi_to_marlin() {
 
-  if (xSemaphoreTake(gcode_queue_lock, 5) != pdPASS) {
-    LOG_I("failed to take gcode queue lock!\n");
-    return;
-  }
-
   // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
   // fetch as much command as possible
   while (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
@@ -261,8 +249,6 @@ void enqueue_hmi_to_marlin() {
 
     commands_in_queue++;
   }
-
-  xSemaphoreGive(gcode_queue_lock);
 }
 
 
@@ -280,7 +266,10 @@ void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opco
 
   // enter buffer queue
   strcpy(hmi_command_queue[hmi_cmd_queue_index_w], pgcode);
-  hmi_commandline_queue[hmi_cmd_queue_index_w] = Lines;
+  if (Opcode == EID_GCODE_ACK)
+    hmi_commandline_queue[hmi_cmd_queue_index_w] = INVALID_CMD_LINE;
+  else
+    hmi_commandline_queue[hmi_cmd_queue_index_w] = Lines;
   hmi_send_opcode_queue[hmi_cmd_queue_index_w] = Opcode;
   hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
   hmi_commands_in_queue++;
@@ -840,16 +829,10 @@ void advance_command_queue() {
 
   gcode.process_next_command();
 
-  if (xSemaphoreTake(gcode_queue_lock, 100) != pdPASS) {
-    LOG_I("marlin task gcode lock failed\n");
-    return;
-  }
-
   // The queue may be reset by a command handler or by code invoked by idle() within a handler
   if (commands_in_queue) {
     --commands_in_queue;
     if (++cmd_queue_index_r >= BUFSIZE) cmd_queue_index_r = 0;
   }
 
-  xSemaphoreGive(gcode_queue_lock);
 }

@@ -194,14 +194,6 @@
 #endif
 
 
-#define MARLIN_LOOP_TASK_PRIO     (configMAX_PRIORITIES - 1)
-#define MARLIN_LOOP_STACK_DEPTH   1024
-TaskHandle_t marlin_task = NULL;
-
-#define HMI_TASK_PRIO             (configMAX_PRIORITIES - 1)
-#define HMI_TASK_STACK_DEPTH      512
-TaskHandle_t hmi_task = NULL;
-
 // mutex lock for gcode queue from HMI to marlin
 SemaphoreHandle_t gcode_queue_lock;
 
@@ -1019,6 +1011,8 @@ void hmi_task(void *param);
  *    • status LEDs
  */
 void setup() {
+  SnapParameters_t task_param;
+
   SystemStatus.Init();
 
   #ifdef HAL_INIT
@@ -1382,31 +1376,26 @@ void setup() {
 
   SERIAL_ECHOLN("Finish init");
 
-
-  // create queue and lock
-  gcode_queue_lock = xSemaphoreCreateMutex();
-
-  hmi_queue = xMessageBufferCreate(1024);
+  task_param = (SnapParameters_t)pvPortMalloc(sizeof(struct SnapParameters));
+  task_param->event_queue = xMessageBufferCreate(1024);
 
   // create marlin task
   BaseType_t ret;
-  ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH, (void *)hmi_queue, MARLIN_LOOP_TASK_PRIO, NULL);
+  ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH,
+        (void *)task_param, MARLIN_LOOP_TASK_PRIO, &task_param->marlin_task);
   if (ret != pdPASS) {
     LOG_E("failt to create marlin task!\n");
-    while(1) {
-      HMI.CommandProcess();
-    }
+    while(1);
   }
   else {
     LOG_I("success to create marlin task!\n");
   }
 
-  ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH, (void *)hmi_queue, HMI_TASK_PRIO, NULL);
+  ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH,
+        (void *)task_param, HMI_TASK_PRIO, &task_param->hmi_task);
   if (ret != pdPASS) {
     LOG_E("failt to create HMI task!\n");
-    while(1) {
-      HMI.CommandProcess();
-    }
+    while(1);
   }
   else {
     LOG_I("success to create HMI task!\n");
@@ -1419,6 +1408,18 @@ void setup() {
  * main task
  */
 void main_loop(void *param) {
+  SnapParameters_t task_param;
+  struct EventHandlerParam handler_param;
+
+  configASSERT(param);
+  task_param = (SnapParameters_t)param;
+
+  handler_param.owner = TASK_OWN_MARLIN;
+
+  handler_param.event = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(handler_param.event);
+
+  handler_param.event_queue = task_param->event_queue;
 
   for (;;) {
 
@@ -1452,7 +1453,10 @@ void main_loop(void *param) {
         SERIAL_ECHO(" ");
       }
     }
+
+    if (commands_in_queue < BUFSIZE) HandleEvent(&handler_param);
     if (commands_in_queue < BUFSIZE) get_available_commands();
+
     advance_command_queue();
     quickstop.Process();
     endstops.event_handler();
@@ -1476,25 +1480,27 @@ void main_loop(void *param) {
 
 
 void hmi_task(void *param) {
-  MessageBufferHandle_t cmd_queue = NULL;
-  int size = 0;
-  uint8_t *cmd = NULL;
+  SnapParameters_t    task_param;
+  struct EventHandlerParam handler_param;
 
   configASSERT(param);
+  task_param = (SnapParameters_t)param;
 
-  cmd_queue = (MessageBufferHandle_t)param;
+  handler_param.owner = TASK_OWN_HMI;
 
-  cmd = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
-  configASSERT(cmd);
+  handler_param.event = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(handler_param.event);
 
-  while (1) {
-    size = hmihost.CheckoutCmd(cmd);
-    if (size <= 0) {
+  handler_param.event_queue = task_param->event_queue;
+
+  for (;;) {
+    handler_param.size = hmi.CheckoutCmd(handler_param.event);
+    if (handler_param.size <= 0) {
       vTaskDelay(configTICK_RATE_HZ/100);
       continue;
     }
 
-    HandleEvent(cmd, size, cmd_queue);
+    HandleEvent(&handler_param);
 
     vTaskDelay(configTICK_RATE_HZ/100);
   }

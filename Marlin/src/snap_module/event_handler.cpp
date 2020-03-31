@@ -2,11 +2,14 @@
 #include "snap_dbg.h"
 
 #include "level_handler.h"
+#include "upgrade_handler.h"
 
 #include "../Marlin.h"
 #include "../module/motion.h"
 #include "../module/temperature.h"
 #include "../module/planner.h"
+
+#include "../gcode/gcode.h"
 
 #include "../module/StatusControl.h"
 #include "../module/PowerPanic.h"
@@ -19,8 +22,10 @@
 
 #define EVENT_HANDLE_WITH_MARLIN  (~(EVENT_ATTR_HAVE_MOTION | EVENT_ATTR_WILL_BLOCKED))
 
-typedef ErrCode (*CallbackFunc_t)(Event_t &event);
+static uint32_t current_line = 0;
 
+
+typedef ErrCode (*CallbackFunc_t)(Event_t &event);
 
 struct EventCallback_t {
   uint8_t attr;
@@ -28,8 +33,13 @@ struct EventCallback_t {
 };
 
 
-static ErrCode HandleGcode(Event_t &event) {
+static ErrCode HandleGcode(uint8_t *event_buff) {
+  uint8_t ack_id = event_buff[0] + 1;
+  uint32_t line;
 
+  hmi.ToLocalBytes((uint8_t *)&line, event_buff + 1, 4);
+
+  Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, ack_id);
 }
 
 
@@ -57,6 +67,32 @@ typedef struct {
 } __packed SystemStatus_t;
 
 
+static ErrCode CheckIfSendWaitEvent() {
+  Event_t event;
+  ErrCode err;
+
+  // make sure we are working
+  if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK) {
+    // and no movement planned
+    if(!planner.movesplanned()) {
+      // and we have replied screen
+      if (current_line && current_line == debug.GetSCGcodeLine()) {
+        // then we known maybe screen lost out last reply
+        LOG_I("waiting HMI command, current line: %u\n", current_line);
+        event.id = EID_SYS_CTRL_ACK;
+        event.op_code = SYSCTL_OPC_WAIT_EVENT;
+        event.data = &err;
+        err = E_FAILURE;
+
+        return hmi.Send(event);
+      }
+    }
+  }
+
+  return E_SUCCESS;
+}
+
+
 static ErrCode SendStatus(Event_t &event) {
   SystemStatus_t sta;
 
@@ -65,6 +101,8 @@ static ErrCode SendStatus(Event_t &event) {
 
   uint32_t tmp_u32;
   uint16_t tmp_u16;
+
+  CheckIfSendWaitEvent();
 
   // save to use original event to construct new event
   event.data = (uint8_t *)&sta;
@@ -116,7 +154,6 @@ static ErrCode SendStatus(Event_t &event) {
 
   // executor type
   sta.executor_type = ExecuterHead.MachineType;
-
 
   return hmi.Send(event);
 }
@@ -273,7 +310,6 @@ static ErrCode RecoverFromPowerLoss(Event_t &event) {
         current_line = 0;
       SNAP_DEBUG_SET_GCODE_LINE(0);
       powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
-      MarkNeedReack(0);
       LOG_I("trigger RESTORE: ok\n");
     }
     else {
@@ -595,48 +631,14 @@ EventCallback_t debug_event_cb[DEBUG_OPC_MAX] = {
 };
 
 
-static ErrCode StartUpgrade(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode TansferFW(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode EndUpgarde(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode GetMainControllerVer(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode CompareMCVer(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode GetUpgradeStatus(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode GetModuleVer(Event_t &event) {
-  return hmi.Send(event);
-}
-
 EventCallback_t upgrade_event_cb[UPGRADE_OPC_MAX] = {
-  [UPGRADE_OPC_START]               = {EVENT_ATTR_DEFAULT,  StartUpgrade},
-  [UPGRADE_OPC_TRANS_FW]            = {EVENT_ATTR_DEFAULT,  TansferFW},
-  [UPGRADE_OPC_END]                 = {EVENT_ATTR_DEFAULT,  EndUpgarde},
-  [UPGRADE_OPC_GET_MC_VER]          = {EVENT_ATTR_DEFAULT,  GetMainControllerVer},
-  [UPGRADE_OPC_REQ_COMPARE_VER]     = {EVENT_ATTR_DEFAULT,  CompareMCVer},
-  [UPGRADE_OPC_GET_UP_STATUS]       = {EVENT_ATTR_DEFAULT,  GetUpgradeStatus},
-  [UPGRADE_OPC_GET_MODULE_VER]      = {EVENT_ATTR_DEFAULT,  GetModuleVer}
+  [UPGRADE_OPC_START]               = {EVENT_ATTR_DEFAULT,  upgrade.StartUpgrade},
+  [UPGRADE_OPC_TRANS_FW]            = {EVENT_ATTR_DEFAULT,  upgrade.ReceiveFW},
+  [UPGRADE_OPC_END]                 = {EVENT_ATTR_DEFAULT,  upgrade.EndUpgarde},
+  [UPGRADE_OPC_GET_MC_VER]          = {EVENT_ATTR_DEFAULT,  upgrade.GetMainControllerVer},
+  [UPGRADE_OPC_REQ_COMPARE_VER]     = {EVENT_ATTR_DEFAULT,  upgrade.CompareMCVer},
+  [UPGRADE_OPC_GET_UP_STATUS]       = {EVENT_ATTR_DEFAULT,  upgrade.GetUpgradeStatus},
+  [UPGRADE_OPC_GET_MODULE_VER]      = {EVENT_ATTR_DEFAULT,  upgrade.GetModuleVer}
 };
 
 
@@ -644,7 +646,7 @@ EventCallback_t upgrade_event_cb[UPGRADE_OPC_MAX] = {
 #define EVENT_HANDLER_HMI     1
 // need to known which task we running with
 // then we won't send out event again
-ErrCode HandleEvent(uint8_t *cmd, uint16_t size, MessageBufferHandle_t cmd_queue=NULL) {
+ErrCode HandleEvent(EventHandlerParam_t param) {
   ErrCode err = E_INVALID_CMD;
   Event_t event = {INVALID_EVENT_ID, INVALID_OP_CODE};
 
@@ -652,24 +654,21 @@ ErrCode HandleEvent(uint8_t *cmd, uint16_t size, MessageBufferHandle_t cmd_queue
   uint8_t op_code_max = INVALID_OP_CODE;
 
   bool send_to_marlin = false;
-  bool onwer_is_marlin = false;
 
-  if (!cmd || size == 0) {
-    LOG_E("invalid cmd pointer or size is zero!\n");
-    return E_PARAM;
+  if (param->owner == TASK_OWN_MARLIN) {
+    if (xMessageBufferIsEmpty(param->event_queue))
+      return E_NO_RESRC;
+    param->size = (uint16_t)xMessageBufferReceive(param->event_queue, param->event_buff,
+                              HMI_RECV_BUFFER_SIZE, configTICK_RATE_HZ/1000);
   }
 
-  // if owner is marlin task, will not send out command
-  if (xTaskGetCurrentTaskHandle() == marlin_task)
-    onwer_is_marlin = true;
-
-  event.id = cmd[CMD_IDX_EVENT_ID];
+  event.id = param->event_buff[EVENT_IDX_EVENT_ID];
 
   switch (event.id) {
   case EID_GCODE_REQ:
   case EID_FILE_GCODE_REQ:
-    if (onwer_is_marlin) {
-      return HandleGcode(event);
+    if (param->owner == TASK_OWN_MARLIN) {
+      return HandleGcode(param->event_buff);
     }
     else
       send_to_marlin = true;
@@ -716,23 +715,19 @@ ErrCode HandleEvent(uint8_t *cmd, uint16_t size, MessageBufferHandle_t cmd_queue
 
   // well, per the event id, we know the event need to be handle by Marlin task
   if (send_to_marlin) {
-    if (cmd_queue)
-      return (ErrCode)xMessageBufferSend(cmd_queue, cmd, size, portMAX_DELAY);
-    else {
-      LOG_E("event[%x:%x] need to send to Marlin, but no command queue!\n",
-        cmd[CMD_IDX_EVENT_ID], cmd[CMD_IDX_OP_CODE]);
-      return E_PARAM;
-    }
+    // blocked 100ms for max duration to wait
+    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    return E_SUCCESS;
   }
 
-  event.op_code = cmd[CMD_IDX_OP_CODE];
+  event.op_code = param->event_buff[EVENT_IDX_OP_CODE];
 
   // increase the event id to get ACK id for event callback
   event.id++;
 
   if (!callbacks || (op_code_max == INVALID_OP_CODE) || event.op_code >= op_code_max) {
-    LOG_E("event[0x%X]: op code [0x%X] is out of range: %d\n",
-      cmd[CMD_IDX_EVENT_ID], cmd[CMD_IDX_OP_CODE], SETTINGS_OPC_MAX);
+    LOG_E("invalid event： [%X : %X], max opc: %d\n",
+      param->event_buff[EVENT_IDX_EVENT_ID], param->event_buff[EVENT_IDX_OP_CODE], op_code_max);
     event.data = &err;
     event.length = 1;
     hmi.Send(event);
@@ -741,26 +736,20 @@ ErrCode HandleEvent(uint8_t *cmd, uint16_t size, MessageBufferHandle_t cmd_queue
 
   if (!callbacks[event.op_code].cb) {
     LOG_E("event[0x%X]: op code [0x%X] doesn't have callback\n",
-      cmd[CMD_IDX_EVENT_ID], cmd[CMD_IDX_OP_CODE]);
+      param->event_buff[EVENT_IDX_EVENT_ID], param->event_buff[EVENT_IDX_OP_CODE]);
     event.data = &err;
     event.length = 1;
     hmi.Send(event);
     return err;
   }
 
-  if ((callbacks[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) && !onwer_is_marlin) {
+  if ((callbacks[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) && (param->owner != TASK_OWN_MARLIN) {
     // arrive here, we know the event need to send to Marlin by check event id & op code
-    if (cmd_queue)
-      return (ErrCode)xMessageBufferSend(cmd_queue, cmd, size, portMAX_DELAY);
-    else {
-      LOG_E("event[%x:%x] need to send to Marlin, but no command queue!\n",
-        cmd[CMD_IDX_EVENT_ID], cmd[CMD_IDX_OP_CODE]);
-      return E_PARAM;
-    }
+    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    return E_SUCCESS;
   }
 
-
-  return settings_event_cb[event.op_code].cb(event);
+  return callbacks[event.op_code].cb(event);
 }
 
 

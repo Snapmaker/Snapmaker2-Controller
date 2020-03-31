@@ -37,6 +37,7 @@ enum SysControlOpc: uint8_t {
   SYSCTL_OPC_REQ_LAST_LINE,
   SYSCTL_OPC_REQ_CLEAR_FAULT = 0xA,
   SYSCTL_OPC_REQ_RECOVER_POWER_LOSS = 0xB,
+  SYSCTL_OPC_WAIT_EVENT = 0xC,
   SYSCTL_OPC_REQ_HOME_STATUS = 0xE,
   SYSCTL_OPC_SET_LOG_LEVEL = 0xF,
 
@@ -161,9 +162,9 @@ enum UpgradeOpc: uint8_t {
 #define PDU_IDX_DATA0     10
 
 
-#define CMD_IDX_EVENT_ID  0
-#define CMD_IDX_OP_CODE   1
-#define CMD_IDX_DATA0     2
+#define EVENT_IDX_EVENT_ID  0
+#define EVENT_IDX_OP_CODE   1
+#define EVENT_IDX_DATA0     2
 
 // common commands for add-ons
 #define CMD_ADDON_CHK_ONLINE        0
@@ -175,7 +176,21 @@ enum UpgradeOpc: uint8_t {
 // commands for enclosure fan
 #define CMD_ENCLOSURE_FAN_SWITCH    4
 
+enum TaskOwner: uint8_t {
+  TASK_OWN_MARLIN = 0,
+  TASK_OWN_HMI,
+  TASK_OWN_NONE
+};
 
-ErrCode HandleEvent(uint8_t *cmd, uint16_t size, MessageBufferHandle_t cmd_queue=NULL);
+struct EventHandlerParam {
+  TaskOwner owner;
+  uint8_t   *event_buff;
+  uint16_t  size;
+  MessageBufferHandle_t event_queue;
+};
+
+typedef struct EventHandlerParam* EventHandlerParam_t;
+
+ErrCode HandleEvent(EventHandlerParam_t param);
 
 #endif  //#ifndef EVENT_HANDLER_H_
