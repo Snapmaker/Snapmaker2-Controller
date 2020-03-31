@@ -22,6 +22,9 @@
 
 #define EVENT_HANDLE_WITH_MARLIN  (~(EVENT_ATTR_HAVE_MOTION | EVENT_ATTR_WILL_BLOCKED))
 
+#define SUPPORT_MODULE_MAX  32
+
+
 static uint32_t current_line = 0;
 
 
@@ -232,7 +235,6 @@ static ErrCode ChangeSystemStatus(Event_t &event) {
 
 static ErrCode SendLastLine(Event_t &event) {
   uint8_t buff[4];
-  uint32_t last_line = powerpanic.;
 
   event.data = buff;
   event.length = 0;
@@ -544,24 +546,10 @@ EventCallback_t motion_event_cb[MOTION_OPC_MAX] = {
 };
 
 
-static ErrCode SetCameraBtName(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode GetCameraBtName(Event_t &event) {
-  return hmi.Send(event);
-}
-
-
-static ErrCode GetCameraBtMAC(Event_t &event) {
-  return hmi.Send(event);
-}
-
 EventCallback_t camera_event_cb[CAMERA_OPC_MAX] = {
-  [CAMERA_OPC_SET_BT_NAME]          = {EVENT_ATTR_DEFAULT,  SetCameraBtName},
-  [CAMERA_OPC_READ_BT_NAME]         = {EVENT_ATTR_DEFAULT,  GetCameraBtName},
-  [CAMERA_OPC_READ_BT_MAC]          = {EVENT_ATTR_DEFAULT,  GetCameraBtMAC}
+  [CAMERA_OPC_SET_BT_NAME]          = {EVENT_ATTR_DEFAULT,  ExecuterHead.Laser.SetCameraBtName},
+  [CAMERA_OPC_READ_BT_NAME]         = {EVENT_ATTR_DEFAULT,  ExecuterHead.Laser.GetCameraBtName},
+  [CAMERA_OPC_READ_BT_MAC]          = {EVENT_ATTR_DEFAULT,  ExecuterHead.Laser.GetCameraBtMAC}
 };
 
 
@@ -593,31 +581,131 @@ EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
 
 
 static ErrCode SetModuleMAC(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  uint32_t old_mac;
+  uint32_t new_mac;
+
+  hmi.ToLocalBytes((uint8_t *)&old_mac, event.data, 4);
+  hmi.ToLocalBytes((uint8_t *)&new_mac, event.data+4, 4);
+
+  if(CanModules.SetMacID(old_mac, new_mac) == true)
+    err = E_SUCCESS;
+
+  event.data = &err;
+  event.length = 1;
+
   return hmi.Send(event);
 }
 
 
 static ErrCode GetModuleMAC(Event_t &event) {
+  int i;
+  uint32_t tmp;
+  uint8_t buffer[4 * SUPPORT_MODULE_MAX];
+
+  for(i = 0; i < CanModules.LinearModuleCount; i++) {
+    tmp = CanModules.LinearModuleID[i];
+    hmi.ToPDUBytes(buffer + 4*i, (uint8_t *)&tmp, 4);
+  }
+
+  event.data = buffer;
+  event.length = 4 * i;
+
   return hmi.Send(event);
 }
 
 
 static ErrCode SetLinearModuleLength(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  uint32_t new_length;
+  uint32_t target_mac;
+
+  hmi.ToLocalBytes((uint8_t *)&target_mac, event.data, 4);
+  hmi.ToLocalBytes((uint8_t *)&new_length, event.data+4, 4);
+
+  target_mac = ((uint32_t)target_mac << 1);
+  new_length = new_length / 1000.0f;
+
+  LOG_I("ID", target_mac, "New Len:", new_length);
+  if(CanModules.SetAxesLength(target_mac, new_length) == true)
+    err = E_SUCCESS;
+
+  event.data = &err;
+  event.length = 1;
+
   return hmi.Send(event);
 }
 
 
 static ErrCode GetLinearModuleLength(Event_t &event) {
+  int i;
+  uint32_t mac;
+  uint32_t length;
+  uint8_t buffer[8 * SUPPORT_MODULE_MAX];
+
+  CanModules.GetAxesLength();
+
+  for(i = 0; i < CanModules.LinearModuleCount; i++) {
+    mac = CanModules.LinearModuleID[i];
+    hmi.ToPDUBytes(buffer + 8*i, (uint8_t *)&mac, 4);
+
+    length = CanModules.GetLinearModuleLength(i) * 1000.0f;
+    hmi.ToPDUBytes(buffer + 8*i + 4, (uint8_t *)&length, 4);
+  }
+
+  event.data = buffer;
+  event.length = 8 * i;
+
   return hmi.Send(event);
 }
 
 
 static ErrCode SetLinearModuleLead(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  uint32_t new_lead;
+  uint32_t target_mac;
+
+  hmi.ToLocalBytes((uint8_t *)&target_mac, event.data, 4);
+  hmi.ToLocalBytes((uint8_t *)&new_lead, event.data+4, 4);
+
+  target_mac = ((uint32_t)target_mac << 1);
+
+  new_lead = new_lead / 1000.0f;
+
+  SERIAL_ECHOLNPAIR("ID", target_mac, "New Lead:", new_lead);
+
+  if(CanModules.SetAxesLead(target_mac, new_lead) == true)
+    err = E_SUCCESS;
+
+  event.data = &err;
+  event.length = 1;
+
   return hmi.Send(event);
 }
 
 
 static ErrCode GetLinearModuleLead(Event_t &event) {
+  int i;
+  uint32_t mac;
+  uint32_t lead;
+  uint8_t buffer[8 * SUPPORT_MODULE_MAX];
+
+  CanModules.GetAxesLead();
+
+  for(i = 0; i < CanModules.LinearModuleCount; i++) {
+    mac = CanModules.LinearModuleID[i];
+    hmi.ToPDUBytes(buffer + 8*i, (uint8_t *)&mac, 4);
+
+    lead = CanModules.GetLinearModuleLead(i) * 1000.0f;
+    hmi.ToPDUBytes(buffer + 8*i + 4, (uint8_t *)&lead, 4);
+  }
+
+  event.data = buffer;
+  event.length = 8 * i;
+
   return hmi.Send(event);
 }
 
@@ -642,11 +730,9 @@ EventCallback_t upgrade_event_cb[UPGRADE_OPC_MAX] = {
 };
 
 
-#define EVENT_HANDLER_MARLIN  0
-#define EVENT_HANDLER_HMI     1
 // need to known which task we running with
 // then we won't send out event again
-ErrCode HandleEvent(EventHandlerParam_t param) {
+ErrCode DispatchEvent(DispatcherParam_t param) {
   ErrCode err = E_INVALID_CMD;
   Event_t event = {INVALID_EVENT_ID, INVALID_OP_CODE};
 
@@ -655,11 +741,18 @@ ErrCode HandleEvent(EventHandlerParam_t param) {
 
   bool send_to_marlin = false;
 
+  // if we are running in Marlin task, need to get command from the queue
   if (param->owner == TASK_OWN_MARLIN) {
     if (xMessageBufferIsEmpty(param->event_queue))
       return E_NO_RESRC;
+
     param->size = (uint16_t)xMessageBufferReceive(param->event_queue, param->event_buff,
                               HMI_RECV_BUFFER_SIZE, configTICK_RATE_HZ/1000);
+
+    if (!param->size) {
+      LOG_E("No data read from event queue!\n");
+      return E_NO_RESRC;
+    }
   }
 
   event.id = param->event_buff[EVENT_IDX_EVENT_ID];
@@ -714,42 +807,51 @@ ErrCode HandleEvent(EventHandlerParam_t param) {
   }
 
   // well, per the event id, we know the event need to be handle by Marlin task
+  // actually, there is only the Gcode event can go into it
   if (send_to_marlin) {
     // blocked 100ms for max duration to wait
     xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 
-  event.op_code = param->event_buff[EVENT_IDX_OP_CODE];
-
   // increase the event id to get ACK id for event callback
+  // or for return error to Screen
   event.id++;
 
-  if (!callbacks || (op_code_max == INVALID_OP_CODE) || event.op_code >= op_code_max) {
-    LOG_E("invalid event： [%X : %X], max opc: %d\n",
-      param->event_buff[EVENT_IDX_EVENT_ID], param->event_buff[EVENT_IDX_OP_CODE], op_code_max);
-    event.data = &err;
-    event.length = 1;
-    hmi.Send(event);
-    return err;
+  if (param->size < 2) {
+    LOG_E("invalid event[%X], no operation code field\n", param->event_buff[EVENT_IDX_EVENT_ID]);
+    goto out_err;
   }
 
+  // if no callback or invalid op code for this event, should ack error to Screen
+  if (!callbacks || (op_code_max == INVALID_OP_CODE) || param->event_buff[EVENT_IDX_OP_CODE] >= op_code_max) {
+    LOG_E("invalid event： [%X : %X], max opc: %d\n",
+      param->event_buff[EVENT_IDX_EVENT_ID], param->event_buff[EVENT_IDX_OP_CODE], op_code_max);
+    goto out_err;
+  }
+
+  // found relative callback group, but didn't add cabllback function for this operation code
   if (!callbacks[event.op_code].cb) {
     LOG_E("event[0x%X]: op code [0x%X] doesn't have callback\n",
       param->event_buff[EVENT_IDX_EVENT_ID], param->event_buff[EVENT_IDX_OP_CODE]);
-    event.data = &err;
-    event.length = 1;
-    hmi.Send(event);
-    return err;
+    goto out_err;
   }
 
-  if ((callbacks[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) && (param->owner != TASK_OWN_MARLIN) {
+  if ((callbacks[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) && (param->owner != TASK_OWN_MARLIN)) {
     // arrive here, we know the event need to send to Marlin by check event id & op code
     xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 
+  event.op_code = param->event_buff[EVENT_IDX_OP_CODE];
+
   return callbacks[event.op_code].cb(event);
+
+out_err:
+  event.data = &err;
+  event.length = 1;
+  hmi.Send(event);
+  return err;
 }
 
 

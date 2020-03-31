@@ -1409,17 +1409,17 @@ void setup() {
  */
 void main_loop(void *param) {
   SnapParameters_t task_param;
-  struct EventHandlerParam handler_param;
+  struct DispatcherParam dispather_param;
 
   configASSERT(param);
   task_param = (SnapParameters_t)param;
 
-  handler_param.owner = TASK_OWN_MARLIN;
+  dispather_param.owner = TASK_OWN_MARLIN;
 
-  handler_param.event = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
-  configASSERT(handler_param.event);
+  dispather_param.event = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(dispather_param.event);
 
-  handler_param.event_queue = task_param->event_queue;
+  dispather_param.event_queue = task_param->event_queue;
 
   for (;;) {
 
@@ -1454,7 +1454,7 @@ void main_loop(void *param) {
       }
     }
 
-    if (commands_in_queue < BUFSIZE) HandleEvent(&handler_param);
+    HandleEvent(&dispather_param);
     if (commands_in_queue < BUFSIZE) get_available_commands();
 
     advance_command_queue();
@@ -1481,26 +1481,26 @@ void main_loop(void *param) {
 
 void hmi_task(void *param) {
   SnapParameters_t    task_param;
-  struct EventHandlerParam handler_param;
+  struct DispatcherParam dispather_param;
 
   configASSERT(param);
   task_param = (SnapParameters_t)param;
 
-  handler_param.owner = TASK_OWN_HMI;
+  dispather_param.owner = TASK_OWN_HMI;
 
-  handler_param.event = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
-  configASSERT(handler_param.event);
+  dispather_param.event = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(dispather_param.event);
 
-  handler_param.event_queue = task_param->event_queue;
+  dispather_param.event_queue = task_param->event_queue;
 
   for (;;) {
-    handler_param.size = hmi.CheckoutCmd(handler_param.event);
-    if (handler_param.size <= 0) {
+    dispather_param.size = hmi.CheckoutCmd(dispather_param.event);
+    if (dispather_param.size <= 0) {
       vTaskDelay(configTICK_RATE_HZ/100);
       continue;
     }
 
-    HandleEvent(&handler_param);
+    HandleEvent(&dispather_param);
 
     vTaskDelay(configTICK_RATE_HZ/100);
   }

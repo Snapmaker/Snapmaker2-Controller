@@ -749,3 +749,55 @@ out:
   hmi.Send(event);
 }
 
+
+ErrCode LaserExecuter::SetCameraBtName(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  LOG_I("BlueTooth Name:", event.data);
+
+  if(SetBluetoothName((char *)event.data) == 0)
+    err = E_SUCCESS;
+
+  event.data = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+
+
+ErrCode LaserExecuter::GetCameraBtName(Event_t &event) {
+  uint8_t buffer[34] = {0};
+  int i;
+
+  buffer[0] = ExecuterHead.Laser.ReadBluetoothName((char *)(buffer + 1));
+
+  LOG_I("Bluetooth Name:", buffer + 1);
+
+  event.data = buffer;
+
+  if (buffer[0] != 0) {
+    event.length = 1;
+  }
+  else {
+    for (i = 1; i < 34; i++)
+      if (buffer[i] == 0)
+        break;
+
+    event.length = i;
+  }
+
+  return hmi.Send(event);
+}
+
+
+ErrCode LaserExecuter::GetCameraBtMAC(Event_t &event) {
+  uint8_t buffer[8] = {0};
+  int i;
+
+  buffer[0] = ReadBluetoothMac(buffer+1);
+
+  event.data = buffer;
+  event.length = 7;
+
+  return hmi.Send(event);
+}

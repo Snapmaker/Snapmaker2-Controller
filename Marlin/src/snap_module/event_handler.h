@@ -182,15 +182,15 @@ enum TaskOwner: uint8_t {
   TASK_OWN_NONE
 };
 
-struct EventHandlerParam {
+struct DispatcherParam {
   TaskOwner owner;
   uint8_t   *event_buff;
   uint16_t  size;
   MessageBufferHandle_t event_queue;
 };
 
-typedef struct EventHandlerParam* EventHandlerParam_t;
+typedef struct DispatcherParam* DispatcherParam_t;
 
-ErrCode HandleEvent(EventHandlerParam_t param);
+ErrCode DispatchEvent(DispatcherParam param);
 
 #endif  //#ifndef EVENT_HANDLER_H_

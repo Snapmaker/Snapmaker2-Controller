@@ -64,6 +64,10 @@ public:
   ErrCode DoManualFocusing(Event_t &event);
   ErrCode DoAutoFocusing(Event_t &event);
 
+  ErrCode SetCameraBtName(Event_t &event);
+  ErrCode GetCameraBtName(Event_t &event);
+  ErrCode GetCameraBtMAC(Event_t &event);
+
 private:
   void PackedProtocal(uint8_t *pData, uint16_t len);
   char GetReply(uint8_t *Buff, millis_t Timeout);
