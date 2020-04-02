@@ -16,7 +16,7 @@ void Host::Init() {
 
 void Host::SwapBytesSeq(uint8_t *dst, uint8_t *src, uint16_t size) {
   while (size-- > 0) {
-    *dst++ = *(src + size)
+    *dst++ = *(src + size);
   }
 }
 
@@ -141,6 +141,7 @@ uint16_t Host::CalcChecksum(uint8_t *buffer, uint16_t size, uint16_t event_id, u
     }
     else {
       // just event_id, no op_code, and no data field
+      // actually it should not arrive here!!!
       checksum += event_id;
     }
   }
@@ -178,8 +179,8 @@ ErrCode Host::Send(Event_t &event) {
   pdu_header[i++] = SOF_H;
   pdu_header[i++] = SOF_L;
 
-  pdu_header[i++] = (uint8_t)(size>>8);
-  pdu_header[i++] = (uint8_t)(size & 0x00FF);
+  pdu_header[i++] = (uint8_t)(event.length>>8);
+  pdu_header[i++] = (uint8_t)(event.length & 0x00FF);
 
   pdu_header[i++] = PROTOCOL_SM2_VER;
 

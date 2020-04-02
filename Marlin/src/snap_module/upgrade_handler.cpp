@@ -28,10 +28,9 @@ ErrCode UpgradeHandler::StartUpgrade(Event_t &event) {
   uint32_t addr;
   uint8_t pages;
 
-  //擦除FLASH
   FLASH_Unlock();
 
-  //擦除升级文件信息
+  // erase update info
   pages = UPDATE_CONTENT_INFO_SIZE / 2048;
   addr = FLASH_UPDATE_CONTENT_INFO;
   for (int i = 0; i < pages; i++) {
@@ -39,7 +38,7 @@ ErrCode UpgradeHandler::StartUpgrade(Event_t &event) {
     addr += 2048;
   }
 
-  //擦除升级内容
+  // erase flash for new fw
   pages = MARLIN_CODE_SIZE / 2048;
   addr = FLASH_UPDATE_CONTENT;
   for (int i = 0; i < pages; i++) {

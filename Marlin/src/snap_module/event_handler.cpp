@@ -284,6 +284,7 @@ static ErrCode ClearException(Event_t &event) {
   hmi.Send(event);
 }
 
+
 static ErrCode RecoverFromPowerLoss(Event_t &event) {
   ErrCode err = E_SUCCESS;
 
@@ -322,6 +323,7 @@ static ErrCode RecoverFromPowerLoss(Event_t &event) {
 
   return hmi.Send(event);
 }
+
 
 static ErrCode SendHomeAndCoordinateStatus(Event_t &event) {
   uint8_t buff[16] = {0};
@@ -553,6 +555,7 @@ EventCallback_t camera_event_cb[CAMERA_OPC_MAX] = {
 };
 
 
+// implement follow 4 function after rebase chamber branch
 static ErrCode GetChamerStatus(Event_t &event) {
   return hmi.Send(event);
 }
