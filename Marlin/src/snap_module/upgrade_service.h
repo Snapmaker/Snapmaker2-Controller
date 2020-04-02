@@ -10,7 +10,7 @@ enum UpgradeStatus: uint8_t {
   UPGRADE_STA_INVALID
 };
 
-class UpgradeHandler {
+class UpgradeService {
   public:
     ErrCode StartUpgrade(Event_t &event);
     ErrCode ReceiveFW(Event_t &event);
@@ -32,6 +32,6 @@ class UpgradeHandler {
 };
 
 
-extern UpgradeHandler upgrade;
+extern UpgradeService upgrade;
 
 #endif  //#ifndef UPGRADE_HANDLER_H_

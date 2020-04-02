@@ -14,7 +14,7 @@ enum LevelMode: uint8_t {
 #define MANUAL_LEVEL_INDEX_INVALID  0x99
 #define MESH_POINT_SIZE             25
 
-class LevelHandler {
+class LevelService {
   public:
     ErrCode DoAutoLeveling(Event_t &event);
     ErrCode DoManualLeveling(Event_t &event);
@@ -32,6 +32,6 @@ class LevelHandler {
     float MeshPointZ[MESH_POINT_SIZE];
 };
 
-class LevelHandler levelhandler;
+class LevelService levelhandler;
 
 #endif  //#ifndef LEVEL_HANDLER_H_

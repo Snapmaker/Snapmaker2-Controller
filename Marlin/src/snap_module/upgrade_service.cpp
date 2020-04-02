@@ -1,4 +1,4 @@
-#include "upgrade_handler.h"
+#include "upgrade_service.h"
 #include "snap_dbg.h"
 
 #include "../Marlin.h"
@@ -7,10 +7,10 @@
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
 
 
-UpgradeHandler upgrade;
+UpgradeService upgrade;
 
 
-ErrCode UpgradeHandler::RequestNextPacket() {
+ErrCode UpgradeService::RequestNextPacket() {
   Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_TRANS_FW};
 
   uint8_t buff[2];
@@ -23,7 +23,7 @@ ErrCode UpgradeHandler::RequestNextPacket() {
   return hmi.Send(event);
 }
 
-ErrCode UpgradeHandler::StartUpgrade(Event_t &event) {
+ErrCode UpgradeService::StartUpgrade(Event_t &event) {
   ErrCode err = E_SUCCESS;
   uint32_t addr;
   uint8_t pages;
@@ -59,7 +59,7 @@ ErrCode UpgradeHandler::StartUpgrade(Event_t &event) {
 }
 
 
-ErrCode UpgradeHandler::ReceiveFW(Event_t &event) {
+ErrCode UpgradeService::ReceiveFW(Event_t &event) {
 
   uint32_t addr;
   uint16_t packet_index;
@@ -102,7 +102,7 @@ ErrCode UpgradeHandler::ReceiveFW(Event_t &event) {
 }
 
 
-ErrCode UpgradeHandler::EndUpgarde(Event_t &event) {
+ErrCode UpgradeService::EndUpgarde(Event_t &event) {
   ErrCode err = E_FAILURE;
 
   event.data = &err;
@@ -132,7 +132,7 @@ ErrCode UpgradeHandler::EndUpgarde(Event_t &event) {
 }
 
 
-ErrCode UpgradeHandler::GetMainControllerVer(Event_t &event) {
+ErrCode UpgradeService::GetMainControllerVer(Event_t &event) {
   uint32_t addr;
   uint16_t i;
 
@@ -153,7 +153,7 @@ ErrCode UpgradeHandler::GetMainControllerVer(Event_t &event) {
 }
 
 
-ErrCode UpgradeHandler::CompareMCVer(Event_t &event) {
+ErrCode UpgradeService::CompareMCVer(Event_t &event) {
   uint32_t  addr;
   int       i;
   ErrCode   err = E_SUCCESS;
@@ -180,7 +180,7 @@ ErrCode UpgradeHandler::CompareMCVer(Event_t &event) {
 }
 
 
-ErrCode UpgradeHandler::GetUpgradeStatus(Event_t &event) {
+ErrCode UpgradeService::GetUpgradeStatus(Event_t &event) {
   uint8_t up_status = (uint8_t) upgrade_status_;
 
   event.data = &up_status;
@@ -190,7 +190,7 @@ ErrCode UpgradeHandler::GetUpgradeStatus(Event_t &event) {
 }
 
 
-ErrCode UpgradeHandler::GetModuleVer(Event_t &event) {
+ErrCode UpgradeService::GetModuleVer(Event_t &event) {
 
   LOG_I("SC req MODULE ver\n");
   uint8_t ver[32];

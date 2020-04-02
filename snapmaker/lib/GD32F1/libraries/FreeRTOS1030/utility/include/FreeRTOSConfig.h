@@ -52,7 +52,7 @@
 #define configUSE_TICK_HOOK				0
 #define configCPU_CLOCK_HZ				( F_CPU )
 #define configTICK_RATE_HZ				( ( TickType_t ) 1000 )
-#define configMAX_PRIORITIES			( 5 )
+#define configMAX_PRIORITIES			( 4 )
 #define configMINIMAL_STACK_SIZE		( ( unsigned short ) 120 )
 #define configTOTAL_HEAP_SIZE			( ( size_t ) ( 24 * 1024 ) )
 #define configMAX_TASK_NAME_LEN			( 10 )

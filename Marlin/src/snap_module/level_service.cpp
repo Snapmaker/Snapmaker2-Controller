@@ -1,4 +1,4 @@
-#include "level_handler.h"
+#include "level_service.h"
 #include "M1028.h"
 
 #include "../module/planner.h"
@@ -7,7 +7,7 @@
 #include "../feature/bedlevel/ubl/ubl.h"
 
 
-ErrCode LevelHandler::DoAutoLeveling(Event_t &event) {
+ErrCode LevelService::DoAutoLeveling(Event_t &event) {
   ErrCode err = E_FAILURE;
 
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
@@ -58,7 +58,7 @@ ErrCode LevelHandler::DoAutoLeveling(Event_t &event) {
 }
 
 
-ErrCode LevelHandler::DoManualLeveling(Event_t &event) {
+ErrCode LevelService::DoManualLeveling(Event_t &event) {
   ErrCode err = E_FAILURE;
   int i, j;
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
@@ -117,7 +117,7 @@ ErrCode LevelHandler::DoManualLeveling(Event_t &event) {
 }
 
 
-ErrCode LevelHandler::SetManualLevelingPoint(Event_t &event) {
+ErrCode LevelService::SetManualLevelingPoint(Event_t &event) {
   ErrCode err = E_FAILURE;
 
   uint8_t index;
@@ -159,7 +159,7 @@ ErrCode LevelHandler::SetManualLevelingPoint(Event_t &event) {
 }
 
 
-ErrCode LevelHandler::AdjustZOffsetInLeveling(Event_t &event) {
+ErrCode LevelService::AdjustZOffsetInLeveling(Event_t &event) {
   ErrCode err = E_FAILURE;
   float   offset = 0;
 
@@ -189,7 +189,7 @@ ErrCode LevelHandler::AdjustZOffsetInLeveling(Event_t &event) {
 }
 
 
-ErrCode LevelHandler::SaveAndExitLeveling(Event_t &event) {
+ErrCode LevelService::SaveAndExitLeveling(Event_t &event) {
   ErrCode err = E_SUCCESS;
 
   event.data = &err;
@@ -246,7 +246,7 @@ ErrCode LevelHandler::SaveAndExitLeveling(Event_t &event) {
 }
 
 
-ErrCode LevelHandler::ExitLeveling(Event_t &event) {
+ErrCode LevelService::ExitLeveling(Event_t &event) {
   ErrCode err = E_SUCCESS;
 
   LOG_I("SC req exit level\n");
@@ -280,7 +280,7 @@ ErrCode LevelHandler::ExitLeveling(Event_t &event) {
 }
 
 
-ErrCode LevelHandler::ResetLeveling(Event_t &event) {
+ErrCode LevelService::ResetLeveling(Event_t &event) {
   ErrCode err = E_SUCCESS;
 
   event.data = &err;
