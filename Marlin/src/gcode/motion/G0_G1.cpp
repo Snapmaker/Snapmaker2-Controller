@@ -34,8 +34,6 @@
   #include "../../module/stepper.h"
 #endif
 
-#include "../../SnapScreen/Screen.h"
-
 extern float destination[XYZE];
 
 #if ENABLED(VARIABLE_G0_FEEDRATE)

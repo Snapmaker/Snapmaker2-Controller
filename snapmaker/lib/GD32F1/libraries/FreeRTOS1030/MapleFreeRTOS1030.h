@@ -27,15 +27,19 @@
 #ifndef __MAPLE_FREERTOS_H__
 #define __MAPLE_FREERTOS_H__
 
-#include <wirish.h>
-
+#ifdef __cplusplus
 extern "C" {
+#endif
+
 #define GCC_ARMCM4F
 #include "utility/include/FreeRTOS.h"
 #include "utility/include/task.h"
 #include "utility/include/queue.h"
 #include "utility/include/semphr.h"
 #include "utility/include/message_buffer.h"
+
+#ifdef __cplusplus
 }
+#endif
 
 #endif

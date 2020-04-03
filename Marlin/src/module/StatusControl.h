@@ -2,6 +2,7 @@
 
 #include "../inc/MarlinConfig.h"
 #include "../snap_module/error.h"
+#include "../snap_module/event_handler.h"
 
 #ifndef _STATUS_CONTROL_H_
 #define _STATUS_CONTROL_H_
@@ -87,11 +88,19 @@ enum TriggerSource : uint8_t {
   TRIGGER_SOURCE_DOOR_OPEN,       // trigger by door opened
   TRIGGER_SOURCE_DOOR_CLOSE,      // trigger by door closed
   TRIGGER_SOURCE_STOP_BUTTON,     // trigger by emergency button
-  TRIGGER_SOURCE_FINISH,          // trigger by job finished
   TRIGGER_SOURCE_EXCEPTION,       // trigger by exception
 
   TRIGGER_SOURCE_INVALID
 };
+
+
+enum StopType : uint8_t {
+  STOP_TYPE_ABORTED = 0,
+  STOP_TYPE_FINISH,
+
+  STOP_TYPE_INVALID
+};
+
 
 // status of system
 enum SysStatus: uint8_t {
@@ -142,6 +151,31 @@ enum RuntimeEnvType : uint8_t {
 
   RENV_TYPE_INVALID
 };
+
+
+typedef struct {
+  uint32_t x;
+  uint32_t y;
+  uint32_t z;
+  uint32_t e;
+
+  int16_t bed_current_temp;
+  int16_t bed_target_temp;
+
+  int16_t hotend_current_temp;
+  int16_t hotend_target_temp;
+
+  uint16_t  feedrate;    // mm/min
+
+  uint32_t  laser_power; // (uint32_t)(float * 1000)
+  uint32_t  cnc_rpm;
+
+  uint8_t system_state;
+  uint8_t addon_state;
+
+  uint8_t executor_type;
+} __packed SystemStatus_t;
+
 
 class StatusControl
 {
@@ -198,7 +232,20 @@ public:
   void CallbackOpenDoor();
   void CallbackCloseDoor();
 
+  // event callback
   ErrCode ChangeRuntimeEnv(uint8_t param_type, float param);
+  ErrCode ChangeRuntimeEnv(Event_t &event);
+  ErrCode SendStatus(Event_t &event);
+  ErrCode SendException(Event_t &event);
+  ErrCode ChangeSystemStatus(Event_t &event);
+  ErrCode SendLastLine(Event_t &event);
+  ErrCode ClearException(Event_t &event);
+  ErrCode RecoverFromPowerLoss(Event_t &event);
+  ErrCode SendHomeAndCoordinateStatus(Event_t &event);
+
+  ErrCode SendException(uint32_t fault);
+
+  ErrCode FinishSystemStatusChange(uint8_t op_code, uint8_t result);
 
 private:
   void inline resume_3dp(void);
@@ -211,13 +258,17 @@ private:
   ErrCode PauseResume();
   void MapFaultFlagToException(uint32_t flag, ExceptionHost &host, ExceptionType &type);
 
+  ErrCode CheckIfSendWaitEvent();
+
 public:
   uint32_t PeriphDeviceStatus;
 
 private:
   uint8_t TriggleStat;
   TriggerSource pause_source_;  // record latest pause source
+  TriggerSource resume_source_;
   TriggerSource stop_source_;
+  StopType stop_type_;
   uint32_t fault_flag_;
 
   int8_t isr_exception[EXCEPTION_ISR_BUFFSER_SIZE][2];
@@ -227,6 +278,8 @@ private:
 
   SysStatus cur_status_;
   WorkingPort work_port_;    // indicates we are handling Gcode from which UART
+
+  uint32_t  current_line_;
 };
 
 extern StatusControl SystemStatus;

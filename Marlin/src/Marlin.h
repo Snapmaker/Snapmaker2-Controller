@@ -411,10 +411,6 @@ void protected_pin_err();
 #endif
 
 
-#if ENABLED(HMISUPPORT)
-  #include "SnapScreen/HMILongDefines.h"
-#endif
-
 // Software machine size
 #if ENABLED(SW_MACHINE_SIZE)
   extern bool X_DIR;

@@ -39,15 +39,12 @@
 #include "module/configuration_store.h"
 #include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "feature/closedloop.h"
-#include "SnapScreen/Screen.h"
 #include "module/LaserExecuter.h"
 #include "module/statuscontrol.h"
 #include "module/periphdevice.h"
 #include "libs/GenerialFunctions.h"
 #include "module/PowerPanic.h"
-#include "snap_module/lightbar.h"
 #include "snap_module/quickstop.h"
-
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
 
@@ -67,7 +64,7 @@
 #include "feature/bedlevel/bedlevel.h"
 
 #include "module/executermanager.h"
-#include "snap_module/hmi_host.h"
+#include "snap_module/host.h"
 #include "snap_module/event_handler.h"
 
 #if ENABLED(HOST_ACTION_COMMANDS)
@@ -130,9 +127,6 @@
 #if ENABLED(SDSUPPORT)
 #endif
 
-#if ENABLED(HMISUPPORT)
-  HMIScreen HMI;
-#endif
 
 #if ENABLED(G38_PROBE_TARGET)
   uint8_t G38_move; // = 0
@@ -1067,9 +1061,6 @@ void setup() {
     #endif
   #endif
 
-  #if ENABLED(HMISUPPORT)
-    HMI.Init();
-  #endif
 
   #if NUM_SERIAL > 0
     uint32_t serial_connect_timeout = millis() + 1000UL;
@@ -1342,7 +1333,6 @@ void setup() {
     endstops.reinit_hit_status();
   #endif
 
-  lightbar.init();
   // init power panic handler and load data from flash
   powerpanic.Init();
 
@@ -1416,8 +1406,8 @@ void main_loop(void *param) {
 
   dispather_param.owner = TASK_OWN_MARLIN;
 
-  dispather_param.event = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
-  configASSERT(dispather_param.event);
+  dispather_param.event_buff = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(dispather_param.event_buff);
 
   dispather_param.event_queue = task_param->event_queue;
 
@@ -1454,7 +1444,8 @@ void main_loop(void *param) {
       }
     }
 
-    HandleEvent(&dispather_param);
+    DispatchEvent(&dispather_param);
+
     if (commands_in_queue < BUFSIZE) get_available_commands();
 
     advance_command_queue();
@@ -1483,24 +1474,28 @@ void hmi_task(void *param) {
   SnapParameters_t    task_param;
   struct DispatcherParam dispather_param;
 
+  ErrCode ret = E_FAILURE;
+
   configASSERT(param);
   task_param = (SnapParameters_t)param;
 
   dispather_param.owner = TASK_OWN_HMI;
 
-  dispather_param.event = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
-  configASSERT(dispather_param.event);
+  dispather_param.event_buff = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(dispather_param.event_buff);
 
   dispather_param.event_queue = task_param->event_queue;
 
+  hmi.Init();
+
   for (;;) {
-    dispather_param.size = hmi.CheckoutCmd(dispather_param.event);
-    if (dispather_param.size <= 0) {
+    ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
+    if (ret != E_SUCCESS) {
       vTaskDelay(configTICK_RATE_HZ/100);
       continue;
     }
 
-    HandleEvent(&dispather_param);
+    DispatchEvent(&dispather_param);
 
     vTaskDelay(configTICK_RATE_HZ/100);
   }

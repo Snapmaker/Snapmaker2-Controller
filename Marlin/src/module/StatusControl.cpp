@@ -10,14 +10,13 @@
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/configuration_store.h"
 #include "../gcode/parser.h"
-#include "../SnapScreen/Screen.h"
 #include "periphdevice.h"
 #include "StatusControl.h"
 #include "PowerPanic.h"
 #include "printcounter.h"
 #include "stepper.h"
 #include "../feature/runout.h"
-#include "../snap_module/lightbar.h"
+//#include "../snap_module/lightbar.h"
 #include "../snap_module/quickstop.h"
 #include "../snap_module/snap_dbg.h"
 
@@ -51,7 +50,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
   switch (type) {
   case TRIGGER_SOURCE_RUNOUT:
     fault_flag_ |= FAULT_FLAG_FILAMENT;
-    HMI.SendMachineFaultFlag(FAULT_FLAG_FILAMENT);
+    SendException(FAULT_FLAG_FILAMENT);
     break;
 
   case TRIGGER_SOURCE_DOOR_OPEN:
@@ -85,7 +84,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
   pause_source_ = type;
 
-  lightbar.set_state(LB_STATE_STANDBY);
+  //lightbar.set_state(LB_STATE_STANDBY);
 
   // reset the status of filament monitor
   runout.reset();
@@ -120,18 +119,21 @@ ErrCode StatusControl::StopTrigger(TriggerSource type, uint8_t event_opc) {
     }
     break;
 
-  case TRIGGER_SOURCE_FINISH:
+  default:
+    break;
+  }
+
+  if (event_opc == SYSCTL_OPC_FINISH) {
     // if screen tell us Gcode is ended, wait for all movement output
     // because planner.synchronize() will call HMI process nestedly,
     // and maybe some function will check the status, so we change the status
     // firstly
     cur_status_ = SYSTAT_END_TRIG;
+    stop_type_ = STOP_TYPE_FINISH;
     planner.synchronize();
-    break;
-
-  default:
-    break;
   }
+  else
+    stop_type_ = STOP_TYPE_ABORTED;
 
   // recover scaling
   feedrate_scaling = 100;
@@ -173,7 +175,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type, uint8_t event_opc) {
     ExecuterHead.Laser.Off();
   }
 
-  lightbar.set_state(LB_STATE_STANDBY);
+  //lightbar.set_state(LB_STATE_STANDBY);
 
   quickstop.Trigger(QS_EVENT_STOP);
 
@@ -185,14 +187,16 @@ ErrCode StatusControl::StopTrigger(TriggerSource type, uint8_t event_opc) {
  */
 void StatusControl::PauseProcess()
 {
-  if (GetCurrentStatus() != SYSTAT_PAUSE_STOPPED)
+  if (cur_status_ != SYSTAT_PAUSE_STOPPED)
     return;
 
-  if (HMI.GetRequestStatus() == HMI_REQ_PAUSE) {
-    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
-    // clear request flag of HMI
-    HMI.ClearRequestStatus();
+  if (pause_source_ == TRIGGER_SOURCE_SC) {
+    // ack HMI
+    FinishSystemStatusChange(SYSCTL_OPC_PAUSE, 0);
   }
+
+  pause_source_ = TRIGGER_SOURCE_NONE;
+  stop_source_ = TRIGGER_SOURCE_NONE;
 
   LOG_I("Finish pause\n");
   cur_status_ = SYSTAT_PAUSE_FINISH;
@@ -207,16 +211,18 @@ void StatusControl::StopProcess()
     return;
 
   // tell Screen we finish stop
-  if (HMI.GetRequestStatus() == HMI_REQ_STOP || HMI.GetRequestStatus() == HMI_REQ_FINISH) {
-    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
-    work_port_ = WORKING_PORT_NONE;
-    // clear flag
-    HMI.ClearRequestStatus();
+  if (stop_source_ == TRIGGER_SOURCE_SC) {
+    // ack HMI
+    if (stop_type_ == STOP_TYPE_ABORTED)
+      FinishSystemStatusChange(SYSCTL_OPC_STOP, 0);
+    else
+      FinishSystemStatusChange(SYSCTL_OPC_FINISH, 0);
   }
 
   // clear stop type because stage will be changed
   stop_source_ = TRIGGER_SOURCE_NONE;
   pause_source_ = TRIGGER_SOURCE_NONE;
+  resume_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_IDLE;
   quickstop.Reset();
 
@@ -335,9 +341,8 @@ void StatusControl::ResumeProcess() {
   quickstop.Reset();
 
   // tell screen we are ready  to work
-  if (HMI.GetRequestStatus() == HMI_REQ_RESUME) {
-    HMI.SendMachineStatusChange((uint8_t)HMI.GetRequestStatus(), 0);
-    HMI.ClearRequestStatus();
+  if (resume_source_ = TRIGGER_SOURCE_SC) {
+    FinishSystemStatusChange(SYSCTL_OPC_RESUME, 0);
   }
 }
 
@@ -401,6 +406,8 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
     break;
   }
 
+  resume_source_ = s;
+
   cur_status_ = SYSTAT_RESUME_TRIG;
 
   return E_SUCCESS;
@@ -415,7 +422,7 @@ ErrCode StatusControl::ResumeOver() {
   // give a opportunity to stop working
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
-    StopTrigger(TRIGGER_SOURCE_EXCEPTION);
+    StopTrigger(TRIGGER_SOURCE_EXCEPTION, INVALID_OP_CODE);
     return E_NO_WORKING;
   }
 
@@ -454,7 +461,7 @@ ErrCode StatusControl::ResumeOver() {
 
   LOG_I("Receive first cmd after resume\n");
   cur_status_ = SYSTAT_WORK;
-  lightbar.set_state(LB_STATE_WORKING);
+  //lightbar.set_state(LB_STATE_WORKING);
 
   return E_SUCCESS;
 }
@@ -619,7 +626,7 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
   // set state
   cur_status_ = SYSTAT_WORK;
 
-  lightbar.set_state(LB_STATE_WORKING);
+  //lightbar.set_state(LB_STATE_WORKING);
 
   return E_SUCCESS;
 }
@@ -1021,14 +1028,14 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     thermalManager.setTargetBed(0);
 
   if (action & EACTION_STOP_WORKING) {
-    StopTrigger(TRIGGER_SOURCE_EXCEPTION);
+    StopTrigger(TRIGGER_SOURCE_EXCEPTION, INVALID_OP_CODE);
   }
   else if (action & EACTION_PAUSE_WORKING) {
     PauseTrigger(TRIGGER_SOURCE_EXCEPTION);
   }
 
   fault_flag_ |= new_fault_flag;
-  HMI.SendMachineFaultFlag(new_fault_flag);
+  SendException(fault_flag_);
 
   return E_SUCCESS;
 }
@@ -1477,7 +1484,7 @@ ErrCode StatusControl::ClearExceptionByFaultFlag(uint32_t flag) {
 void StatusControl::CallbackOpenDoor() {
   if (cur_status_ == SYSTAT_WORK) {
     PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
-    HMI.SendMachineFaultFlag(FAULT_FLAG_DOOR_OPENED);
+    SendException(FAULT_FLAG_DOOR_OPENED);
   }
 
   fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
@@ -1573,4 +1580,396 @@ ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
   }
 
   return ret;
+}
+
+
+ErrCode StatusControl::CheckIfSendWaitEvent() {
+  Event_t event;
+  ErrCode err;
+
+  // make sure we are working
+  if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK) {
+    // and no movement planned
+    if(!planner.movesplanned()) {
+      // and we have replied screen
+      if (current_line_ && current_line_ == debug.GetSCGcodeLine()) {
+        // then we known maybe screen lost out last reply
+        LOG_I("waiting HMI command, current line: %u\n", current_line_);
+        event.id = EID_SYS_CTRL_ACK;
+        event.op_code = SYSCTL_OPC_WAIT_EVENT;
+        event.data = &err;
+        err = E_FAILURE;
+
+        return hmi.Send(event);
+      }
+    }
+  }
+
+  return E_SUCCESS;
+}
+
+
+#if 0
+ErrCode StatusControl::SendStatus(Event_t &event) {
+  SystemStatus_t sta;
+
+  int32_t tmp_i32;
+  int16_t tmp_i16;
+
+  uint32_t tmp_u32;
+
+  CheckIfSendWaitEvent();
+
+  // save to use original event to construct new event
+  event.data = (uint8_t *)&sta;
+  event.length = sizeof(SystemStatus_t);
+
+  // current logical position
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) * 1000);
+  hmi.ToPDUBytes((uint8_t *)&sta.x, (uint8_t *)&tmp_i32, 4);
+
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) * 1000);
+  hmi.ToPDUBytes((uint8_t *)&sta.y, (uint8_t *)&tmp_i32, 4);
+
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) * 1000);
+  hmi.ToPDUBytes((uint8_t *)&sta.z, (uint8_t *)&tmp_i32, 4);
+
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[E_AXIS], E_AXIS) * 1000);
+  hmi.ToPDUBytes((uint8_t *)&sta.e, (uint8_t *)&tmp_i32, 4);
+
+  // temperatures of Bed
+  tmp_i16 = (int16_t)thermalManager.degBed();
+  hmi.ToPDUBytes((uint8_t *)&sta.bed_current_temp, (uint8_t *)&tmp_i16, 2);
+
+  tmp_i16 = (int16_t)thermalManager.degTargetBed();
+  hmi.ToPDUBytes((uint8_t *)&sta.bed_target_temp, (uint8_t *)&tmp_i16, 2);
+
+  // temperatures of hotend
+  tmp_i16 = (int16_t)thermalManager.degHotend(0);
+  hmi.ToPDUBytes((uint8_t *)&sta.hotend_current_temp, (uint8_t *)&tmp_i16, 2);
+  tmp_i16 = (int16_t)thermalManager.degTargetHotend(0);
+  hmi.ToPDUBytes((uint8_t *)&sta.hotend_target_temp, (uint8_t *)&tmp_i16, 2);
+
+  // save last feedrate
+  tmp_i16 = (int16_t)last_feedrate;
+  hmi.ToPDUBytes((uint8_t *)&sta.feedrate, (uint8_t *)&tmp_i16, 2);
+
+  // laser power
+  tmp_u32 = ExecuterHead.Laser.GetPower();
+  hmi.ToPDUBytes((uint8_t *)&sta.laser_power, (uint8_t *)&tmp_u32, 2);
+
+  // RPM of CNC
+  tmp_u32 = ExecuterHead.CNC.GetRPM();
+  hmi.ToPDUBytes((uint8_t *)&sta.cnc_rpm, (uint8_t *)&tmp_u32, 2);
+
+  // system status
+  sta.system_state = (uint8_t)SystemStatus.MapCurrentStatusForSC();
+
+  // Add-On status
+  sta.addon_state = (uint8_t)SystemStatus.GetPeriphDeviceStatus();
+
+  // executor type
+  sta.executor_type = ExecuterHead.MachineType;
+
+  return hmi.Send(event);
+}
+#else
+ErrCode StatusControl::SendStatus(Event_t &event) {
+  SystemStatus_t sta;
+
+  int i = 0;
+  uint8_t *buff = (uint8_t *)&sta;
+
+  int32_t   tmp_i32;
+  int16_t   tmp_i16;
+  uint32_t  tmp_u32;
+
+  CheckIfSendWaitEvent();
+
+  // save to use original event to construct new event
+  event.data = buff;
+  event.length = sizeof(SystemStatus_t);
+
+  // current logical position
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) * 1000);
+  WORD_TO_PDU_BYTES(buff, tmp_i32, i);
+
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) * 1000);
+  WORD_TO_PDU_BYTES(buff, tmp_i32, i);
+
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) * 1000);
+  WORD_TO_PDU_BYTES(buff, tmp_i32, i);
+
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[E_AXIS], E_AXIS) * 1000);
+  WORD_TO_PDU_BYTES(buff, tmp_i32, i);
+
+  // temperatures of Bed
+  tmp_i16 = (int16_t)thermalManager.degBed();
+  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+
+  tmp_i16 = (int16_t)thermalManager.degTargetBed();
+  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+
+  // temperatures of hotend
+  tmp_i16 = (int16_t)thermalManager.degHotend(0);
+  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+  tmp_i16 = (int16_t)thermalManager.degTargetHotend(0);
+  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+
+  // save last feedrate
+  tmp_i16 = (int16_t)last_feedrate;
+  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+
+  // laser power
+  tmp_u32 = ExecuterHead.Laser.GetPower();
+  WORD_TO_PDU_BYTES(buff, tmp_u32, i);
+
+  // RPM of CNC
+  tmp_u32 = ExecuterHead.CNC.GetRPM();
+  WORD_TO_PDU_BYTES(buff, tmp_u32, i);
+
+  // system status
+  sta.system_state = (uint8_t)SystemStatus.MapCurrentStatusForSC();
+
+  // Add-On status
+  sta.addon_state = (uint8_t)SystemStatus.GetPeriphDeviceStatus();
+
+  // executor type
+  sta.executor_type = ExecuterHead.MachineType;
+
+  return hmi.Send(event);
+}
+#endif
+
+
+ErrCode StatusControl::SendException(Event_t &event) {
+  LOG_I("SC req Exception\n");
+
+  return SendException(fault_flag_);
+}
+
+
+ErrCode StatusControl::SendException(uint32_t fault) {
+  Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_EXCEPTION};
+  uint8_t buff[4];
+
+  event.length = 4;
+  event.data = buff;
+
+  hmi.ToPDUBytes(buff, (uint8_t *)&fault, 4);
+
+  return hmi.Send(event);
+}
+
+
+ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  switch (event.op_code)
+  {
+  case SYSCTL_OPC_START_WORK:
+    LOG_I("SC req START work\n");
+    err = SystemStatus.StartWork(TRIGGER_SOURCE_SC);
+    if (err == E_SUCCESS)
+      current_line_ = 0;
+    break;
+
+  case SYSCTL_OPC_PAUSE:
+    LOG_I("SC req PAUSE\n");
+    err = SystemStatus.PauseTrigger(TRIGGER_SOURCE_SC);
+    break;
+
+  case SYSCTL_OPC_RESUME:
+    LOG_I("SC req RESUME\n");
+    err = SystemStatus.ResumeTrigger(TRIGGER_SOURCE_SC);
+    if (err == E_SUCCESS) {
+      if (powerpanic.Data.FilePosition > 0)
+        current_line_ =  powerpanic.Data.FilePosition - 1;
+      else
+        current_line_ = 0;
+      SNAP_DEBUG_SET_GCODE_LINE(0);
+      powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
+    }
+    break;
+
+  case SYSCTL_OPC_STOP:
+  case SYSCTL_OPC_FINISH:
+    LOG_I("SC req %s\n", (event.op_code == SYSCTL_OPC_STOP)? "STOP" : "FINISH");
+    err = SystemStatus.StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
+    break;
+
+  default:
+    break;
+  }
+
+  if (err != E_SUCCESS) {
+    LOG_I("SC req -> Sucess\n");
+  }
+  else {
+    event.length = 1;
+
+    event.data = (uint8_t *)&err;
+
+    LOG_I("SC req -> failed\n");
+
+    hmi.Send(event);
+  }
+}
+
+
+ErrCode StatusControl::FinishSystemStatusChange(uint8_t op_code, uint8_t result) {
+  Event_t event = {EID_SYS_CTRL_ACK, op_code};
+
+  event.data = &result;
+  event.length = 1;
+
+  hmi.Send(event);
+}
+
+
+ErrCode StatusControl::SendLastLine(Event_t &event) {
+  uint8_t buff[4];
+
+  event.data = buff;
+  event.length = 0;
+
+  if (SystemStatus.GetCurrentStage() != SYSTAGE_PAUSE) {
+    hmi.ToPDUBytes(buff, (uint8_t *)&powerpanic.pre_data_.FilePosition, 4);
+  }
+  else {
+    hmi.ToPDUBytes(buff, (uint8_t *)&powerpanic.Data.FilePosition, 4);
+  }
+
+  return hmi.Send(event);
+}
+
+
+ErrCode StatusControl::ClearException(Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  event.data = &err;
+  event.length = 1;
+
+  if (event.length == 0) {
+    LOG_I("SC req clear power loss bits\n");
+    SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_POWER_LOSS);
+    if (powerpanic.pre_data_.Valid == 1) {
+      // clear flash data
+      LOG_I("mask flash data ...");
+      powerpanic.MaskPowerPanicData();
+      powerpanic.pre_data_.Valid = 0;
+      LOG_I("Done!\n");
+    }
+  }
+  else if (event.length == 4) {
+    uint32_t bit_to_clear = 0;
+
+    hmi.ToLocalBytes((uint8_t *)&bit_to_clear, event.data, 4);
+    LOG_I("SC req clear exception, fault bits: 0x%08X\n", bit_to_clear);
+
+    bit_to_clear &= FAULT_FLAG_SC_CLEAR_MASK;
+    SystemStatus.ClearExceptionByFaultFlag(bit_to_clear);
+  }
+  else {
+    LOG_E("too many data: %d\n", event.length);
+    err = E_FAILURE;
+  }
+
+  hmi.Send(event);
+}
+
+
+ErrCode StatusControl::RecoverFromPowerLoss(Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  LOG_I("SC trigger restore from power-loss\n");
+
+  event.data = &err;
+  event.length = 1;
+
+  SysStatus cur_status = SystemStatus.GetCurrentStatus();
+
+  if (cur_status != SYSTAT_IDLE) {
+    LOG_E("cannot trigger recovery at current status: %d\n", cur_status);
+    err = E_NO_SWITCHING_STA;
+  }
+  else {
+    // screen bug: why will we receive two consecutive recovery command @TODO
+    SystemStatus.SetCurrentStatus(SYSTAT_RESUME_TRIG);
+    err = powerpanic.ResumeWork();
+    if (err == E_SUCCESS) {
+      SystemStatus.SetCurrentStatus(SYSTAT_RESUME_WAITING);
+      SystemStatus.SetWorkingPort(WORKING_PORT_SC);
+      powerpanic.Data.FilePosition = powerpanic.pre_data_.FilePosition;
+      if (powerpanic.Data.FilePosition > 0)
+        current_line_ =  powerpanic.Data.FilePosition - 1;
+      else
+        current_line_ = 0;
+      SNAP_DEBUG_SET_GCODE_LINE(0);
+      powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
+      LOG_I("trigger RESTORE: ok\n");
+    }
+    else {
+      LOG_I("trigger RESTORE: failed, err = %d\n", err);
+      SystemStatus.SetCurrentStatus(cur_status);
+    }
+  }
+
+  return hmi.Send(event);
+}
+
+
+ErrCode StatusControl::SendHomeAndCoordinateStatus(Event_t &event) {
+  uint8_t buff[16] = {0};
+  int32_t pos_shift[XYZ];
+
+  int i = 0;
+
+  event.data = buff;
+
+  if (all_axes_homed()) {
+    buff[i++] = 0;
+  }
+  else {
+    buff[i++] = 1;
+  }
+
+  if (gcode.active_coordinate_system < 0) {
+    // number
+    buff[i++] = 0;
+    // state
+    buff[i++] = 0;
+    pos_shift[X_AXIS] = (int32_t)(position_shift[X_AXIS] * 1000);
+    pos_shift[Y_AXIS] = (int32_t)(position_shift[Y_AXIS] * 1000);
+    pos_shift[Z_AXIS] = (int32_t)(position_shift[Z_AXIS] * 1000);
+  }
+  else {
+    buff[i++] = gcode.active_coordinate_system + 1;
+    // check state
+    if ((position_shift[X_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS]) &&
+        (position_shift[Y_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS]) &&
+        (position_shift[Z_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS])) {
+      buff[i++] = 0;
+    }
+    else {
+      buff[i++] = 1;
+    }
+    pos_shift[X_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS] * 1000);
+    pos_shift[Y_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS] * 1000);
+    pos_shift[Z_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS] * 1000);
+  }
+
+  hmi.ToPDUBytes(buff, (uint8_t *)&pos_shift[X_AXIS], 4);
+  hmi.ToPDUBytes(buff, (uint8_t *)&pos_shift[Y_AXIS], 4);
+  hmi.ToPDUBytes(buff, (uint8_t *)&pos_shift[Z_AXIS], 4);
+  i += 12;
+
+  event.length = i;
+
+  return hmi.Send(event);
+}
+
+
+ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
+  return hmi.Send(event);
 }

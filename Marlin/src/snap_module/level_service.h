@@ -24,6 +24,8 @@ class LevelService {
     ErrCode ExitLeveling(Event_t &event);
     ErrCode ResetLeveling(Event_t &event);
 
+    ErrCode SyncPointIndex(uint8_t index);
+
   private:
     LevelMode level_mode_ = LEVEL_MODE_INVALD;
 
@@ -32,6 +34,6 @@ class LevelService {
     float MeshPointZ[MESH_POINT_SIZE];
 };
 
-class LevelService levelhandler;
+extern LevelService levelservice;
 
 #endif  //#ifndef LEVEL_HANDLER_H_

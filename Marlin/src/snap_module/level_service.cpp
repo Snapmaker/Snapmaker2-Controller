@@ -1,11 +1,22 @@
 #include "level_service.h"
 #include "M1028.h"
 
+#include "../Marlin.h"
 #include "../module/planner.h"
 #include "../module/endstops.h"
-#include "../feature/bedlevel/abl/abl.h"
-#include "../feature/bedlevel/ubl/ubl.h"
+#include "../module/temperature.h"
+#include "../module/configuration_store.h"
 
+#include "../gcode/gcode.h"
+#include "../gcode/parser.h"
+
+#include "../feature/bedlevel/abl/abl.h"
+#include "../feature/bedlevel/bedlevel.h"
+
+LevelService levelservice;
+
+extern uint32_t GRID_MAX_POINTS_X;
+extern uint32_t GRID_MAX_POINTS_Y;
 
 ErrCode LevelService::DoAutoLeveling(Event_t &event) {
   ErrCode err = E_FAILURE;
@@ -41,7 +52,10 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
     planner.synchronize();
 
-    err = auto_probing(true, fast_leveling);
+    if (event.op_code == SETTINGS_OPC_DO_AUTO_LEVELING)
+      err = auto_probing(true, false);
+    else
+      err = auto_probing(true, true);
 
     endstops.enable_z_probe(false);
 
@@ -54,7 +68,7 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
   event.data = &err;
   event.length = 1;
 
-  return hmi.send(event);
+  return hmi.Send(event);
 }
 
 
@@ -68,7 +82,7 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
 
   LOG_I("SC req manual level\n");
 
-  if ((CMD_BUFF_EMPTY() == true) && (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType)) {
+  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
@@ -113,7 +127,7 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
   event.data = &err;
   event.length = 1;
 
-  return hmi.send(event);
+  return hmi.Send(event);
 }
 
 
@@ -126,7 +140,7 @@ ErrCode LevelService::SetManualLevelingPoint(Event_t &event) {
     LOG_E("Need to specify point index!\n");
     event.length = 1;
     event.data = &err;
-    return hmi.send(event);
+    return hmi.Send(event);
   }
   else {
     index = event.data[0];
@@ -149,13 +163,12 @@ ErrCode LevelService::SetManualLevelingPoint(Event_t &event) {
     manual_level_index_ = index -1;
     do_blocking_move_to_logical_xy(_GET_MESH_X(manual_level_index_ % GRID_MAX_POINTS_X),
                     _GET_MESH_Y(manual_level_index_ / GRID_MAX_POINTS_Y), speed_in_calibration[X_AXIS]);
-    MarkNeedReack(0);
   }
 
   event.data[0] = E_SUCCESS;
   event.length = 1;
 
-  return hmi.send(event);
+  return hmi.Send(event);
 }
 
 
@@ -167,7 +180,7 @@ ErrCode LevelService::AdjustZOffsetInLeveling(Event_t &event) {
     LOG_E("Need to specify z offset!\n");
     event.length = 1;
     event.data = &err;
-    return hmi.send(event);
+    return hmi.Send(event);
   }
 
   hmi.ToLocalBytes((uint8_t *)&offset, event.data, 4);
@@ -185,12 +198,14 @@ ErrCode LevelService::AdjustZOffsetInLeveling(Event_t &event) {
   event.length = 1;
   event.data[0] = 0;
 
-  return hmi.send(event);
+  return hmi.Send(event);
 }
 
 
 ErrCode LevelService::SaveAndExitLeveling(Event_t &event) {
   ErrCode err = E_SUCCESS;
+
+  int i, j;
 
   event.data = &err;
   event.length = 1;
@@ -301,6 +316,21 @@ ErrCode LevelService::ResetLeveling(Event_t &event) {
   nozzle_height_probed = 0;
 
   set_bed_leveling_enabled(true);
+
+  return hmi.Send(event);
+}
+
+
+ErrCode LevelService::SyncPointIndex(uint8_t index) {
+  Event_t event = {EID_SETTING_ACK, SETTINGS_OPC_SYNC_LEVEL_POINT};
+
+  uint8_t buffer[2];
+
+  event.data = buffer;
+  event.length = 2;
+
+  buffer[0] = 0;
+  buffer[1] = index;
 
   return hmi.Send(event);
 }

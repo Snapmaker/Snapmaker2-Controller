@@ -1,5 +1,6 @@
 #include "upgrade_service.h"
 #include "snap_dbg.h"
+#include <EEPROM.h>
 
 #include "../Marlin.h"
 #include "../module/CanModule.h"
@@ -67,14 +68,14 @@ ErrCode UpgradeService::ReceiveFW(Event_t &event) {
 
   uint16_t data_len;
 
-  uint8_t buff[2];
-
   packet_index = (uint16_t)(event.data[0]<<8 | event.data[1]);
 
   if ((packet_index < max_packet_) && (upgrade_status_ == UPGRADE_STA_IS_UPGRADING) && (packet_index == req_pkt_counter_)) {
 
+    data_len = (event.length - 2);
+
     // every packet should have 512 bytes besides the last packet
-    received_fw_size_ = packet_index<<7 + (event.length - 2);
+    received_fw_size_ = packet_index<<7 + data_len;
 
     addr = FLASH_UPDATE_CONTENT + packet_index<<7;
 
@@ -84,8 +85,8 @@ ErrCode UpgradeService::ReceiveFW(Event_t &event) {
     taskENTER_CRITICAL();
     FLASH_Unlock();
 
-    for (int i = 2; i < data_len; i = i + 2) {
-      tmp = ((event.data[i + 3]<<8) | event.data[i + 2]);
+    for (int i = 2; i < (data_len + 2); i = i + 2) {
+      tmp = ((event.data[i + 1]<<8) | event.data[i]);
 
       FLASH_ProgramHalfWord(addr, tmp);
 
@@ -193,19 +194,21 @@ ErrCode UpgradeService::GetUpgradeStatus(Event_t &event) {
 ErrCode UpgradeService::GetModuleVer(Event_t &event) {
 
   LOG_I("SC req MODULE ver\n");
-  uint8_t ver[32];
+  uint8_t buffer[VERSION_STRING_SIZE + 4];
   uint32_t mac;
   int l;
 
-  event.data = ver;
+  event.data = buffer;
 
   for (int i = 0; i < CanBusControlor.ModuleCount; i++) {
 
     mac = CanBusControlor.ModuleMacList[i];
 
-    if (CanModules.GetFirmwareVersion(BASIC_CAN_NUM, mac, (char *)ver) == true) {
-      for (l = 0; l < 32; l++) {
-        if (ver[l] == 0)
+    hmi.ToPDUBytes(buffer, (uint8_t *)&mac, 4);
+
+    if (CanModules.GetFirmwareVersion(BASIC_CAN_NUM, mac, (char *)(buffer + 4)) == true) {
+      for (l = 4; l < (VERSION_STRING_SIZE + 4); l++) {
+        if (buffer[l] == 0)
           break;
       }
 
@@ -217,3 +220,14 @@ ErrCode UpgradeService::GetModuleVer(Event_t &event) {
 
   return E_SUCCESS;
 }
+
+
+ErrCode UpgradeService::SendModuleUpgradeStatus(uint8_t sta) {
+  Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_SYNC_MODULE_UP_STATUS};
+
+  event.data = &sta;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+

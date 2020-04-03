@@ -2,6 +2,9 @@
 #define UPGRADE_HANDLER_H_
 
 #include "event_handler.h"
+#include "../core/macros.h"
+
+#define VERSION_STRING_SIZE 32
 
 enum UpgradeStatus: uint8_t {
   UPGRADE_STA_IDLE = 0,
@@ -19,6 +22,9 @@ class UpgradeService {
     ErrCode CompareMCVer(Event_t &event);
     ErrCode GetUpgradeStatus(Event_t &event);
     ErrCode GetModuleVer(Event_t &event);
+
+    ErrCode SendModuleUpgradeStatus(uint8_t sta);
+    ErrCode SendModuleVer(uint32_t mac, char ver[VERSION_STRING_SIZE]);
 
   private:
     ErrCode RequestNextPacket();

@@ -29,10 +29,10 @@
 
 #include "../module/planner.h"
 #include "../module/temperature.h"
-#include "../SnapScreen/Screen.h"
 #include "../Marlin.h"
 #include "../module/StatusControl.h"
 #include "../snap_module/snap_dbg.h"
+#include "../snap_module/event_handler.h"
 
 #if ENABLED(PRINTER_EVENT_LEDS)
   #include "../feature/leds/printer_event_leds.h"
@@ -288,6 +288,19 @@ bool ok_to_HMI() {
   return Screen_send_ok[cmd_queue_index_r];
 }
 
+
+void ack_gcode_event(uint8_t event_id, uint32_t line) {
+  Event_t event = {event_id, INVALID_OP_CODE};
+  uint8_t buffer[4];
+
+  event.length = 0;
+  event.data = buffer;
+
+  WORD_TO_PDU_BYTES(buffer, line, event.length);
+
+  hmi.Send(event);
+}
+
 /**
  * Send an "ok" message to the host, indicating
  * that a command was successfully processed.
@@ -322,14 +335,8 @@ void ok_to_send() {
   }
   if(Screen_send_ok[cmd_queue_index_r])
   {
-    uint32_t line = CommandLine[cmd_queue_index_r];
-    ok_to_sc[0] = (char)((line & 0xFF000000) >> 24);
-    ok_to_sc[1] = (char)((line & 0x00FF0000) >> 16);
-    ok_to_sc[2] = (char)((line & 0x0000FF00) >> 8);
-    ok_to_sc[3] = (char)(line & 0x000000FF);
-
-    HMI.SendEvent(Screen_send_ok_opcode[cmd_queue_index_r], ok_to_sc, 4);
-    SNAP_DEBUG_SET_GCODE_LINE(line);
+    ack_gcode_event(Screen_send_ok_opcode[cmd_queue_index_r], CommandLine[cmd_queue_index_r]);
+    SNAP_DEBUG_SET_GCODE_LINE(CommandLine[cmd_queue_index_r]);
   }
 }
 
