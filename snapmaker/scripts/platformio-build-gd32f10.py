@@ -207,8 +207,8 @@ env.Append(
 
 # remap ldscript
 ldscript = get_linker_script(board_name, mcu, upload_protocol)
-print "board_name: %s, mcu: %s, upload_protocol: %s" % (board_name,mcu,upload_protocol)
-print "ldscript: %s" % ldscript
+print("board_name: %s, mcu: %s, upload_protocol: %s" % (board_name,mcu,upload_protocol))
+print("ldscript: %s" % ldscript)
 env.Replace(LDSCRIPT_PATH=ldscript)
 
 if not isfile(join(FRAMEWORK_DIR, "variants", variant, "ld", ldscript)):
