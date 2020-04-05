@@ -56,7 +56,7 @@
 #include "../../core/debug_out.h"
 
 #if ENABLED(EXECUTER_MANAGER_SUPPORT)
-  #include "../../module/executermanager.h"
+  #include "../../module/ExecuterManager.h"
 #endif
 
 #if ENABLED(QUICK_HOME)

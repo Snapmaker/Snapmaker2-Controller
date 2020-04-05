@@ -2,7 +2,7 @@
 // --------------------------------------------------------------------------
 // Includes
 // --------------------------------------------------------------------------
-#include "Hal_LaserPwm_STM32F1.h"
+#include "HAL_LaserPwm_STM32F1.h"
 #include "std_library/inc/stm32f10x_gpio.h"
 #include "std_library/inc/stm32f10x_rcc.h"
 

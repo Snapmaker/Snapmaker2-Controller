@@ -55,7 +55,7 @@
 #include "../gcode/gcode.h"
 #include "../Marlin.h"
 #include "LaserExecuter.h"
-#include "CNCexecuter.h"
+#include "CNCExecuter.h"
 //#include "../snap_module/lightbar.h"
 #include "StatusControl.h"
 

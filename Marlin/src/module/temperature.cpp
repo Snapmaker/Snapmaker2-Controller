@@ -31,7 +31,7 @@
 #include "planner.h"
 #include "../core/language.h"
 #include "../HAL/shared/Delay.h"
-#include "executermanager.h"
+#include "ExecuterManager.h"
 #include "StatusControl.h"
 
 #define MAX6675_SEPARATE_SPI EITHER(HEATER_0_USES_MAX6675, HEATER_1_USES_MAX6675) && PIN_EXISTS(MAX6675_SCK, MAX6675_DO)

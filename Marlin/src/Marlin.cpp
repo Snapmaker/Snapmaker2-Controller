@@ -40,8 +40,8 @@
 #include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "feature/closedloop.h"
 #include "module/LaserExecuter.h"
-#include "module/statuscontrol.h"
-#include "module/periphdevice.h"
+#include "module/StatusControl.h"
+#include "module/PeriphDevice.h"
 #include "libs/GenerialFunctions.h"
 #include "module/PowerPanic.h"
 #include "snap_module/quickstop.h"
@@ -63,7 +63,7 @@
 #include "gcode/queue.h"
 #include "feature/bedlevel/bedlevel.h"
 
-#include "module/executermanager.h"
+#include "module/ExecuterManager.h"
 #include "snap_module/host.h"
 #include "snap_module/event_handler.h"
 

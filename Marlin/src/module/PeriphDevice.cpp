@@ -3,7 +3,7 @@
 #include "../Marlin.h"
 #include "../module/temperature.h"
 #include "../module/configuration_store.h"
-#include "periphdevice.h"
+#include "PeriphDevice.h"
 #include "../HAL/HAL_GD32F1/HAL_exti_STM32F1.h"
 #include "CanBus.h"
 #include "CanModule.h"

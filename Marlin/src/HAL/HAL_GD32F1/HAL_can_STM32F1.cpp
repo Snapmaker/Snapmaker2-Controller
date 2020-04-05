@@ -4,7 +4,7 @@
 // Includes
 // --------------------------------------------------------------------------
 #include "std_library/inc/stm32f10x_conf.h"
-#include "Hal_can_STM32F1.h"
+#include "HAL_can_STM32F1.h"
 #include <libmaple/systick.h>
 
 /**

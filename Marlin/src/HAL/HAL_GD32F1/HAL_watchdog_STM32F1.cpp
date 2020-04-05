@@ -6,7 +6,7 @@
 #include "std_library/inc/stm32f10x_iwdg.h"
 #include "std_library/inc/stm32f10x_rcc.h"
 #include "std_library/inc/misc.h"
-#include "Hal_watchdog_STM32F1.h"
+#include "HAL_watchdog_STM32F1.h"
 
 /**
  * WatchDogInit:

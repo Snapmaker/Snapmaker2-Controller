@@ -7,7 +7,7 @@
 #include "temperature.h"
 #include "configuration_store.h"
 #include "ExecuterManager.h"
-#include "Periphdevice.h"
+#include "PeriphDevice.h"
 #include "CanModule.h"
 #include "BasicCan.h"
 #include <EEPROM.h>
