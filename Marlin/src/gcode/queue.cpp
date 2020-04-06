@@ -293,10 +293,10 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
   Event_t event = {event_id, INVALID_OP_CODE};
   uint8_t buffer[4];
 
-  event.length = 0;
+  event.length = 4;
   event.data = buffer;
 
-  WORD_TO_PDU_BYTES(buffer, line, event.length);
+  WORD_TO_PDU_BYTES(buffer, line);
 
   hmi.Send(event);
 }

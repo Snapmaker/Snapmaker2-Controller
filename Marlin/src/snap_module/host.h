@@ -16,24 +16,36 @@
 #define COMMAND_PACKET_MIN_SIZE   8
 #define COMMAND_SOF_SIZE          2
 
-#define WORD_TO_PDU_BYTES(buff, var, index)   do { \
-                                                buff[index++] = (uint8_t)(var>>24 & 0x000000FF);  \
-                                                buff[index++] = (uint8_t)(var>>16 & 0x000000FF);  \
-                                                buff[index++] = (uint8_t)(var>>8 & 0x000000FF);  \
-                                                buff[index++] = (uint8_t)(var & 0x000000FF);  \
-                                              } while (0)
+// convert lcoal word to the bytes in protocol data unit
+#define WORD_TO_PDU_BYTES(buff, var)  do { \
+                                        (buff)[0] = (uint8_t)((var)>>24 & 0x000000FF);  \
+                                        (buff)[1] = (uint8_t)((var)>>16 & 0x000000FF);  \
+                                        (buff)[2] = (uint8_t)((var)>>8 & 0x000000FF);  \
+                                        (buff)[3] = (uint8_t)((var) & 0x000000FF);  \
+                                      } while (0)
 
+// convert lcoal word to the bytes in protocol data unit, and moving index forward
+#define WORD_TO_PDU_BYTES_INDEX_MOVE(buff, var, index)  do { \
+                                                          (buff)[index++] = (uint8_t)((var)>>24 & 0x000000FF);  \
+                                                          (buff)[index++] = (uint8_t)((var)>>16 & 0x000000FF);  \
+                                                          (buff)[index++] = (uint8_t)((var)>>8 & 0x000000FF);  \
+                                                          (buff)[index++] = (uint8_t)((var) & 0x000000FF);  \
+                                                        } while (0)
+
+// convert bytes in protocol unit to local word
 #define PDU_TO_LOCAL_WORD(var, buff)   do { \
-                                                var = (typeof(var))(buff[index++]<<24 | buff[index++]<<16 | buff[index++]<<8 | buff[index++]); \
+                                                var = (typeof(var))((buff)[0]<<24 | (buff)[1]<<16 | (buff)[2]<<8 | (buff)[3]); \
                                               } while (0)
 
-#define HALF_WORD_TO_PDU_BYTES(buff, var, index)  do { \
-                                                    buff[index++] = (uint8_t)(var>>8 & 0x00FF);  \
-                                                    buff[index++] = (uint8_t)(var & 0x00FF);  \
+// convert local half word to bytes in PDU
+#define HWORD_TO_PDU_BYTES_INDE_MOVE(buff, var, index)  do { \
+                                                    (buff)[index++] = (uint8_t)((var)>>8 & 0x00FF);  \
+                                                    (buff)[index++] = (uint8_t)((var) & 0x00FF);  \
                                                   } while (0)
 
+// convert bytes in protocol unit to local half word
 #define PDU_TO_LOCAL_HALF_WORD(var, buff)  do { \
-                                                    var = (typeof(var))(buff[index++]<<8 | buff[index++]); \
+                                                    var = (typeof(var))((buff)[0]<<8 | (buff)[1]); \
                                                   } while (0)
 
 
@@ -68,21 +80,21 @@ public:
    * so need to swap the bytes sequence when read / write PDU.
    * ToPDUBytes() & ToLocalBytes() just wrap the SwapBytesSeq()
    */
-  void inline ToPDUBytes(uint8_t *dst, uint8_t *src, uint16_t size) {
-    SwapBytesSeq(dst, src, size);
-  }
-  void inline ToLocalBytes(uint8_t *dst, uint8_t *src, uint16_t size) {
-    SwapBytesSeq(dst, src, size);
-  }
+  // void inline ToPDUBytes(uint8_t *dst, uint8_t *src, uint16_t size) {
+  //   SwapBytesSeq(dst, src, size);
+  // }
+  // void inline ToLocalBytes(uint8_t *dst, uint8_t *src, uint16_t size) {
+  //   SwapBytesSeq(dst, src, size);
+  // }
 
 private:
-  void inline SwapBytesSeq(uint8_t *dst, uint8_t *src, uint16_t size) {
-    while (--size) {
-      *dst++ = *(src + size);
-      if (!size)
-        break;
-    }
-  }
+  // void inline SwapBytesSeq(uint8_t *dst, uint8_t *src, uint16_t size) {
+  //   while (--size) {
+  //     *dst++ = *(src + size);
+  //     if (!size)
+  //       break;
+  //   }
+  // }
 
   uint16_t CalcChecksum(Event_t &e);
   uint16_t CalcChecksum(uint8_t *buffer, uint16_t size);

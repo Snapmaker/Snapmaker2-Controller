@@ -183,7 +183,7 @@ ErrCode LevelService::AdjustZOffsetInLeveling(Event_t &event) {
     return hmi.Send(event);
   }
 
-  hmi.ToLocalBytes((uint8_t *)&offset, event.data, 4);
+  PDU_TO_LOCAL_WORD(offset, event.data);
 
   offset /= 1000;
 

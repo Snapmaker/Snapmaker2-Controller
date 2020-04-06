@@ -560,7 +560,7 @@ ErrCode LaserExecuter::GetFocalLength(Event_t &event) {
 
   focal_length = (uint32_t)(FocusHeight * 1000);
 
-  hmi.ToPDUBytes(buff, (uint8_t *)&focal_length, 4);
+  WORD_TO_PDU_BYTES(buff, focal_length);
 
   hmi.Send(event);
 }
@@ -581,7 +581,7 @@ ErrCode LaserExecuter::SetFocalLength(Event_t &event) {
     return hmi.Send(event);
   }
 
-  hmi.ToLocalBytes((uint8_t *)&focal_length, event.data, 4);
+  PDU_TO_LOCAL_WORD(focal_length, event.data);
 
   // length and data is picked up, can be changed
   event.length = 1;
@@ -632,9 +632,9 @@ ErrCode LaserExecuter::DoManualFocusing(Event_t &event) {
 
   max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
-  hmi.ToLocalBytes((uint8_t *)&pos[X_AXIS], event.data, 4);
-  hmi.ToLocalBytes((uint8_t *)&pos[Y_AXIS], event.data+4, 4);
-  hmi.ToLocalBytes((uint8_t *)&pos[Z_AXIS], event.data+8, 4);
+  PDU_TO_LOCAL_WORD(pos[X_AXIS], event.data);
+  PDU_TO_LOCAL_WORD(pos[Y_AXIS], event.data+4);
+  PDU_TO_LOCAL_WORD(pos[Z_AXIS], event.data+8);
   LOG_I("Laser will move to (%.2f, %.2f, %.2f)\n", pos[X_AXIS], pos[Y_AXIS], pos[Z_AXIS]);
 
   planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
@@ -683,7 +683,7 @@ ErrCode LaserExecuter::DoAutoFocusing(Event_t &event) {
   }
 
   if (event.length == 4) {
-    hmi.ToLocalBytes((uint8_t *)&z_interval, event.data, 4);
+    PDU_TO_LOCAL_WORD(z_interval, event.data);
     LOG_E("new Z interval: %.2f\n", z_interval);
     z_interval /= 1000;
   }

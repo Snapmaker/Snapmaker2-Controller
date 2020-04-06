@@ -167,6 +167,12 @@ uint16_t Host::CalcChecksum(Event_t &event) {
 
   SERIAL_ECHOLNPAIR("send eid: ", hex_word(event.id), ", opc: ", hex_word(event.op_code), ", len: ", event.length);
 
+  SERIAL_ECHOLN("content:");
+  for (int i = 0; i < event.length; i++) {
+    SERIAL_ECHOPAIR(" ", hex_byte(event.data[i]));
+  }
+  SERIAL_EOL();
+
   /* when send out event, we will have a event structure
    * so we will have independent event_id and maybe more one op_code.
    * If yes, need to calculate them into checksum
@@ -195,8 +201,9 @@ uint16_t Host::CalcChecksum(Event_t &event) {
   for (int j = start; j < (size - 1); j = j + 2)
     checksum += (uint32_t)(event.data[j] << 8 | event.data[j + 1]);
 
-  if ((size - start) % 2)
+  if ((size - start) % 2) {
     checksum += event.data[size - 1];
+  }
 
   while (checksum > 0xffff)
     checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);

@@ -1692,41 +1692,41 @@ ErrCode StatusControl::SendStatus(Event_t &event) {
 
   // current logical position
   tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[X_AXIS], X_AXIS) * 1000);
-  WORD_TO_PDU_BYTES(buff, tmp_i32, i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
 
   tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[Y_AXIS], Y_AXIS) * 1000);
-  WORD_TO_PDU_BYTES(buff, tmp_i32, i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
 
   tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) * 1000);
-  WORD_TO_PDU_BYTES(buff, tmp_i32, i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
 
   tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[E_AXIS], E_AXIS) * 1000);
-  WORD_TO_PDU_BYTES(buff, tmp_i32, i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
 
   // temperatures of Bed
   tmp_i16 = (int16_t)thermalManager.degBed();
-  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   tmp_i16 = (int16_t)thermalManager.degTargetBed();
-  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // temperatures of hotend
   tmp_i16 = (int16_t)thermalManager.degHotend(0);
-  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
   tmp_i16 = (int16_t)thermalManager.degTargetHotend(0);
-  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // save last feedrate
   tmp_i16 = (int16_t)last_feedrate;
-  HALF_WORD_TO_PDU_BYTES(buff, tmp_i16, i);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // laser power
   tmp_u32 = ExecuterHead.Laser.GetPower();
-  WORD_TO_PDU_BYTES(buff, tmp_u32, i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
 
   // RPM of CNC
   tmp_u32 = ExecuterHead.CNC.GetRPM();
-  WORD_TO_PDU_BYTES(buff, tmp_u32, i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
 
   // system status
   sta.system_state = (uint8_t)SystemStatus.MapCurrentStatusForSC();
@@ -1756,7 +1756,7 @@ ErrCode StatusControl::SendException(uint32_t fault) {
   event.length = 4;
   event.data = buff;
 
-  hmi.ToPDUBytes(buff, (uint8_t *)&fault, 4);
+  WORD_TO_PDU_BYTES(buff, fault);
 
   return hmi.Send(event);
 }
@@ -1834,10 +1834,10 @@ ErrCode StatusControl::SendLastLine(Event_t &event) {
   event.length = 0;
 
   if (SystemStatus.GetCurrentStage() != SYSTAGE_PAUSE) {
-    hmi.ToPDUBytes(buff, (uint8_t *)&powerpanic.pre_data_.FilePosition, 4);
+    WORD_TO_PDU_BYTES(buff, powerpanic.pre_data_.FilePosition);
   }
   else {
-    hmi.ToPDUBytes(buff, (uint8_t *)&powerpanic.Data.FilePosition, 4);
+    WORD_TO_PDU_BYTES(buff, powerpanic.Data.FilePosition);
   }
 
   return hmi.Send(event);
@@ -1864,7 +1864,7 @@ ErrCode StatusControl::ClearException(Event_t &event) {
   else if (event.length == 4) {
     uint32_t bit_to_clear = 0;
 
-    hmi.ToLocalBytes((uint8_t *)&bit_to_clear, event.data, 4);
+    PDU_TO_LOCAL_WORD(bit_to_clear, event.data);
     LOG_I("SC req clear exception, fault bits: 0x%08X\n", bit_to_clear);
 
     bit_to_clear &= FAULT_FLAG_SC_CLEAR_MASK;
@@ -1959,10 +1959,9 @@ ErrCode StatusControl::SendHomeAndCoordinateStatus(Event_t &event) {
     pos_shift[Z_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS] * 1000);
   }
 
-  hmi.ToPDUBytes(buff, (uint8_t *)&pos_shift[X_AXIS], 4);
-  hmi.ToPDUBytes(buff, (uint8_t *)&pos_shift[Y_AXIS], 4);
-  hmi.ToPDUBytes(buff, (uint8_t *)&pos_shift[Z_AXIS], 4);
-  i += 12;
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, pos_shift[X_AXIS], i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, pos_shift[Y_AXIS], i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, pos_shift[Z_AXIS], i);
 
   event.length = i;
 

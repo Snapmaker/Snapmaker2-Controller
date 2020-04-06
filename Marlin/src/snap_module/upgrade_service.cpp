@@ -16,7 +16,8 @@ ErrCode UpgradeService::RequestNextPacket() {
 
   uint8_t buff[2];
 
-  hmi.ToPDUBytes(buff, (uint8_t *)&req_pkt_counter_, 2);
+  event.length = 0;
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, req_pkt_counter_, event.length);
 
   event.data = buff;
   event.length = 2;
@@ -204,10 +205,11 @@ ErrCode UpgradeService::GetModuleVer(Event_t &event) {
 
     mac = CanBusControlor.ModuleMacList[i];
 
-    hmi.ToPDUBytes(buffer, (uint8_t *)&mac, 4);
+    l = 0;
+    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, mac, l);
 
     if (CanModules.GetFirmwareVersion(BASIC_CAN_NUM, mac, (char *)(buffer + 4)) == true) {
-      for (l = 4; l < (VERSION_STRING_SIZE + 4); l++) {
+      for (; l < (VERSION_STRING_SIZE + 4); l++) {
         if (buffer[l] == 0)
           break;
       }

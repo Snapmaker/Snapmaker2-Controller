@@ -40,7 +40,7 @@ static ErrCode HandleGcode(uint8_t *event_buff) {
   uint8_t ack_id = event_buff[0] + 1;
   uint32_t line;
 
-  hmi.ToLocalBytes((uint8_t *)&line, event_buff + 1, 4);
+  PDU_TO_LOCAL_WORD(line, event_buff+1);
 
   Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, ack_id);
 
@@ -191,16 +191,16 @@ static ErrCode DoXYZMove(Event_t &event) {
     goto out;
   }
 
-  hmi.ToLocalBytes((uint8_t *)&target_pos[X_AXIS], event.data, 4);
-  hmi.ToLocalBytes((uint8_t *)&target_pos[Y_AXIS], event.data+4, 4);
-  hmi.ToLocalBytes((uint8_t *)&target_pos[Z_AXIS], event.data+8, 4);
+  PDU_TO_LOCAL_WORD(target_pos[X_AXIS], event.data);
+  PDU_TO_LOCAL_WORD(target_pos[Y_AXIS], event.data+4);
+  PDU_TO_LOCAL_WORD(target_pos[Z_AXIS], event.data+8);
 
   LOOP_XYZ(i) {
     target_pos[i] /= 1000;
   }
 
   if (event.length == 16) {
-    hmi.ToLocalBytes((uint8_t *)&speed, event.data+12, 4);
+    PDU_TO_LOCAL_WORD(speed, event.data+12);
     speed /= 1000;
   }
 
@@ -249,10 +249,10 @@ static ErrCode DoEMove(Event_t &event) {
     goto out;
   }
 
-  hmi.ToLocalBytes((uint8_t *)&extrude_len, event.data+1, 4);
-  hmi.ToLocalBytes((uint8_t *)&extrude_speed, event.data+5, 4);
-  hmi.ToLocalBytes((uint8_t *)&retract_len, event.data+9, 4);
-  hmi.ToLocalBytes((uint8_t *)&retract_speed, event.data+13, 4);
+  PDU_TO_LOCAL_WORD(extrude_len, event.data+1);
+  PDU_TO_LOCAL_WORD(extrude_speed, event.data+5);
+  PDU_TO_LOCAL_WORD(retract_len, event.data+9);
+  PDU_TO_LOCAL_WORD(retract_speed, event.data+13);
 
   extrude_len /= 1000;
   extrude_speed /= 60000;
@@ -357,8 +357,8 @@ static ErrCode SetModuleMAC(Event_t &event) {
   uint32_t old_mac;
   uint32_t new_mac;
 
-  hmi.ToLocalBytes((uint8_t *)&old_mac, event.data, 4);
-  hmi.ToLocalBytes((uint8_t *)&new_mac, event.data+4, 4);
+  PDU_TO_LOCAL_WORD(old_mac, event.data);
+  PDU_TO_LOCAL_WORD(new_mac, event.data+4);
 
   if(CanModules.SetMacID(old_mac, new_mac) == true)
     err = E_SUCCESS;
@@ -371,17 +371,17 @@ static ErrCode SetModuleMAC(Event_t &event) {
 
 
 static ErrCode GetModuleMAC(Event_t &event) {
-  int i;
+  int i, j = 0;
   uint32_t tmp;
   uint8_t buffer[4 * SUPPORT_MODULE_MAX];
 
   for(i = 0; i < CanModules.LinearModuleCount; i++) {
     tmp = CanModules.LinearModuleID[i];
-    hmi.ToPDUBytes(buffer + 4*i, (uint8_t *)&tmp, 4);
+    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp, j);
   }
 
   event.data = buffer;
-  event.length = 4 * i;
+  event.length = (uint16_t)j;
 
   return hmi.Send(event);
 }
@@ -393,8 +393,8 @@ static ErrCode SetLinearModuleLength(Event_t &event) {
   uint32_t new_length;
   uint32_t target_mac;
 
-  hmi.ToLocalBytes((uint8_t *)&target_mac, event.data, 4);
-  hmi.ToLocalBytes((uint8_t *)&new_length, event.data+4, 4);
+  PDU_TO_LOCAL_WORD(target_mac, event.data);
+  PDU_TO_LOCAL_WORD(new_length, event.data+4);
 
   target_mac = ((uint32_t)target_mac << 1);
   new_length = new_length / 1000.0f;
@@ -411,7 +411,7 @@ static ErrCode SetLinearModuleLength(Event_t &event) {
 
 
 static ErrCode GetLinearModuleLength(Event_t &event) {
-  int i;
+  int i, j = 0;
   uint32_t mac;
   uint32_t length;
   uint8_t buffer[8 * SUPPORT_MODULE_MAX];
@@ -420,14 +420,14 @@ static ErrCode GetLinearModuleLength(Event_t &event) {
 
   for(i = 0; i < CanModules.LinearModuleCount; i++) {
     mac = CanModules.LinearModuleID[i];
-    hmi.ToPDUBytes(buffer + 8*i, (uint8_t *)&mac, 4);
+    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, mac, j);
 
     length = CanModules.GetLinearModuleLength(i) * 1000.0f;
-    hmi.ToPDUBytes(buffer + 8*i + 4, (uint8_t *)&length, 4);
+    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, length, j);
   }
 
   event.data = buffer;
-  event.length = 8 * i;
+  event.length = (uint16_t)j;
 
   return hmi.Send(event);
 }
@@ -439,8 +439,8 @@ static ErrCode SetLinearModuleLead(Event_t &event) {
   uint32_t new_lead;
   uint32_t target_mac;
 
-  hmi.ToLocalBytes((uint8_t *)&target_mac, event.data, 4);
-  hmi.ToLocalBytes((uint8_t *)&new_lead, event.data+4, 4);
+  PDU_TO_LOCAL_WORD(target_mac, event.data);
+  PDU_TO_LOCAL_WORD(new_lead, event.data+4);
 
   target_mac = ((uint32_t)target_mac << 1);
 
@@ -459,7 +459,7 @@ static ErrCode SetLinearModuleLead(Event_t &event) {
 
 
 static ErrCode GetLinearModuleLead(Event_t &event) {
-  int i;
+  int i, j = 0;
   uint32_t mac;
   uint32_t lead;
   uint8_t buffer[8 * SUPPORT_MODULE_MAX];
@@ -468,14 +468,15 @@ static ErrCode GetLinearModuleLead(Event_t &event) {
 
   for(i = 0; i < CanModules.LinearModuleCount; i++) {
     mac = CanModules.LinearModuleID[i];
-    hmi.ToPDUBytes(buffer + 8*i, (uint8_t *)&mac, 4);
+    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, mac, j);
+
 
     lead = CanModules.GetLinearModuleLead(i) * 1000.0f;
-    hmi.ToPDUBytes(buffer + 8*i + 4, (uint8_t *)&lead, 4);
+    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, lead, j);
   }
 
   event.data = buffer;
-  event.length = 8 * i;
+  event.length = (uint16_t)j;
 
   return hmi.Send(event);
 }
