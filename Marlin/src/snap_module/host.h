@@ -9,6 +9,36 @@
 
 #include "MapleFreeRTOS1030.h"
 
+// protocol relative macros
+#define SOF_H   0xAA
+#define SOF_L   0x55
+
+#define PROTOCOL_SM2_VER  0
+
+#define PDU_HEADER_SIZE   8
+
+// index of each field in command header
+#define PDU_IDX_DATA_LEN  2
+#define PDU_IDX_DATA_LEN_H  2
+#define PDU_IDX_DATA_LEN_L  3
+
+#define PDU_IDX_VERSION   4
+#define PDU_IDX_LEN_CHK   5
+#define PDU_IDX_CHKSUM    6
+#define PDU_IDX_CHKSUM_H  6
+#define PDU_IDX_CHKSUM_L  7
+
+#define PDU_IDX_EVENT_ID  8
+#define PDU_IDX_OP_CODE   9
+#define PDU_IDX_DATA0     10
+
+#define TIMEOUT_FOR_HEADER    (2)
+#define TIMEOUT_FOR_DATA      (5)
+#define TIMEOUT_FOR_NEXT_BYTE (1)
+#define INVALID_EVENT_ID      ((uint16_t)0x100)
+#define INVALID_OP_CODE       ((uint16_t)0x100)
+#define INVALID_DATA_LENGTH   ((uint16_t)1024)
+
 
 // buffer using to checkout command from UART buffer
 #define HMI_RECV_BUFFER_SIZE  1024
@@ -56,8 +86,6 @@ enum StateCheckoutCMD: uint8_t {
 };
 
 
-#define INVALID_EVENT_ID  ((uint16_t)0x100)
-#define INVALID_OP_CODE   ((uint16_t)0x100)
 typedef struct {
   uint16_t id;
   uint16_t op_code;
@@ -102,11 +130,8 @@ private:
 private:
   bool task_started_ = false;
 
-  // parameters for checkout command
-  StateCheckoutCMD  sta_checkout_cmd_ = STA_CHK_CMD_NONE;
-  uint8_t  volatile timeout_ = 0;
-  uint16_t volatile length_ = 0;
-  uint16_t volatile checksum_ = 0;
+  // buffer for checkout command
+  uint8_t   pdu_header_[PDU_HEADER_SIZE];
 
   // lock for HMI uart
   SemaphoreHandle_t mlock_uart_ = NULL;

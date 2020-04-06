@@ -26,116 +26,130 @@ void Host::Init() {
  */
 ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   int       c = -1;
-  uint16_t  volatile high_byte, low_byte;
+  int       i;
+  uint16_t  timeout = 0;
+  uint16_t  length = 0;
   uint16_t  calc_chk = 0;
+  uint16_t  recv_chk = 0;
+  ErrCode   ret = E_FAILURE;
 
-  switch (sta_checkout_cmd_) {
-  case STA_CHK_CMD_NONE:
-    // no enough bytes for one command
-    if (HMISERIAL.available() < COMMAND_PACKET_MIN_SIZE)
-      return E_NO_RESRC;
+  // no enough bytes for one command
+  if (HMISERIAL.available() < COMMAND_PACKET_MIN_SIZE)
+    return E_NO_RESRC;
 
-    // ok, we have enough bytes, now find SOF
-    // if no SOF in all available bytes, return with same state
-    do {
-      c = HMISERIAL.read();
-        if (c == SOF_H) {
-          if (HMISERIAL.read() == SOF_L) {
-            sta_checkout_cmd_ = STA_CHK_CMD_GOT_SOF;
-            break;
-          }
-          else {
-            continue;
-          }
-        }
-    } while (c != -1);
-
-    if (c == -1) {
-      return E_FAILURE;
-    }
-
-  case STA_CHK_CMD_GOT_SOF:
-    // arrive here, the state maybe still STA_CHK_CMD_NONE, it doesn't matter
-    // follow statement will make it return
-    if (HMISERIAL.available() < (COMMAND_PACKET_MIN_SIZE - COMMAND_SOF_SIZE))
-      return E_NO_RESRC;
-
-    // arrive here, we got SOF, and also have enough bytes for one command
-    // so just start actually check if there is a avalible command, I mean if all checksums
-    // are right.
-    high_byte = (uint8_t)HMISERIAL.read();
-    low_byte = (uint8_t)HMISERIAL.read();
-
-    // skip version field
-    HMISERIAL.read();
-
-    // read checksum for length
+  // ok, we have enough bytes, now find SOF
+  // if no SOF in all available bytes, return with same state
+  do {
     c = HMISERIAL.read();
-    if ((uint8_t)c != (uint8_t)(high_byte^low_byte)) {
-      // All right, Y we got uncorrect checksum for length!
-      // exit with reseting state, find SOF again in next loop
-      sta_checkout_cmd_ = STA_CHK_CMD_NONE;
-      length_ = 0;
-      return E_FAILURE;
-    }
-
-    // now we know the length, just check if we have correct available
-    // bytes in UART ring buffer
-    length_ = (uint16_t)(high_byte<<8 | low_byte);
-
-    high_byte = (uint8_t)HMISERIAL.read();
-    low_byte = (uint8_t)HMISERIAL.read();
-    checksum_ = (uint16_t)(high_byte<<8 | low_byte);
-
-    sta_checkout_cmd_ = STA_CHK_CMD_GOT_CHECKSUM;
-
-  case STA_CHK_CMD_GOT_CHECKSUM:
-
-    if (HMISERIAL.available() < length_) {
-      if (++timeout_ > 2) {
-        sta_checkout_cmd_ = STA_CHK_CMD_NONE;
-        timeout_ = 0;
-        length_ = 0;
-        checksum_ = 0;
-        SERIAL_ECHOLNPAIR("not enough bytes for data: ", length_);
-        return E_NO_RESRC;
+      if (c == SOF_H) {
+        if (HMISERIAL.read() == SOF_L) {
+          break;
+        }
+        else {
+          continue;
+        }
       }
-    }
+  } while (c != -1);
 
-    // read all data field in UART RX buffer
-    for (int i = 0; i < length_; i++) {
-      cmd[i] = (uint8_t)HMISERIAL.read();
-    }
-
-    calc_chk = CalcChecksum(cmd, length_);
-
-    sta_checkout_cmd_ = STA_CHK_CMD_NONE;
-    timeout_ = 0;
-
-    // calc checksum of data
-    if (calc_chk != checksum_) {
-      SNAP_DEBUG_CMD_CHECKSUM_ERROR(true);
-      SERIAL_ECHOLNPAIR("uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(checksum_));
-      if (length_ > 0)
-        SERIAL_ECHOLNPAIR("eid: ", cmd[0], ", opc: ", cmd[1]);
-      checksum_ = 0;
-      length_ = 0;
-      return E_FAILURE;
-    }
-
-    // now we get an available command
-    *size = length_;
-
-    checksum_ = 0;
-    length_ = 0;
-
-    return E_SUCCESS;
-
-  default:
-    break;
+  if (c == -1) {
+    // not found SOF
+    return E_NO_SOF;
   }
 
-  return E_FAILURE;
+  // if it doesn't have enough bytes in UART buffer for header, just return
+  while (HMISERIAL.available() < (COMMAND_PACKET_MIN_SIZE - COMMAND_SOF_SIZE)) {
+    vTaskDelay(1);
+    if (++timeout > TIMEOUT_FOR_HEADER) {
+      SERIAL_ECHOLN("timeout to wait for PDU header");
+      return E_NO_HEADER;
+    }
+  }
+
+  // arrive here, we got SOF, and also have enough bytes for one command header
+  // so just start actually check if we got correct header.
+  // read all of header
+  for (i = 2; i < (PDU_HEADER_SIZE); i++) {
+    timeout = 0;
+    do {
+      c = HMISERIAL.read();
+      if (c != -1)
+        break;
+      else {
+        vTaskDelay(1);
+        if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
+          SERIAL_ECHOLNPAIR("not enough bytes for header, just got ", i);
+          return E_NO_HEADER;
+        }
+      }
+    } while (1);
+    pdu_header_[i] = (uint8_t)c;
+  }
+
+  // now we know the length, just check if we have correct data length
+  length = (uint16_t)(pdu_header_[PDU_IDX_DATA_LEN_H]<<8 | pdu_header_[PDU_IDX_DATA_LEN_L]);
+  // 1. check if we got normal length
+  if (length > INVALID_DATA_LENGTH) {
+    SERIAL_ECHOLNPAIR("length out of range, recv: ", hex_word(length));
+    return E_INVALID_DATA_LENGTH;
+  }
+
+  // 2. verify the length with checksum
+  c = pdu_header_[PDU_IDX_DATA_LEN_H]^pdu_header_[PDU_IDX_DATA_LEN_L];
+  if (pdu_header_[PDU_IDX_LEN_CHK] != (uint8_t)c) {
+    SERIAL_ECHOLNPAIR("length checksum error, recv: ", hex_byte(pdu_header_[PDU_IDX_LEN_CHK]), "calc: ", hex_byte((uint8_t)c));
+    return E_INVALID_DATA_LENGTH;
+  }
+
+  // ok, got correct length, checkout the command checksum then switch state
+  recv_chk = (uint16_t)(pdu_header_[PDU_IDX_CHKSUM_H]<<8 | pdu_header_[PDU_IDX_CHKSUM_L]);
+
+  while (HMISERIAL.available() < length) {
+    vTaskDelay(1);
+    if (++timeout > TIMEOUT_FOR_DATA) {
+      SERIAL_ECHOLNPAIR("not enough bytes for data: ", length);
+      return E_NO_DATA;
+    }
+  }
+
+  // read all data field in UART RX buffer
+  for (int i = 0; i < length; i++) {
+    timeout = 0;
+    do {
+      c = HMISERIAL.read();
+      if (c != -1)
+        break;
+      else {
+        vTaskDelay(1);
+        if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
+          SERIAL_ECHOLN("timeout wait for next byte of data");
+          return E_NO_DATA;
+        }
+      }
+    } while (1);
+    cmd[i] = (uint8_t)c;
+  }
+
+  calc_chk = CalcChecksum(cmd, length);
+
+  // calc checksum of data
+  if (calc_chk != recv_chk) {
+    SNAP_DEBUG_CMD_CHECKSUM_ERROR(true);
+    SERIAL_ECHOLNPAIR("uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(recv_chk));
+    if (length > 0) {
+      SERIAL_ECHO("content:");
+      for (int i = 0; i < length; i++) {
+        SERIAL_ECHOPAIR(" ", hex_byte(cmd[i]));
+      }
+      SERIAL_EOL();
+      SERIAL_EOL();
+    }
+    return E_INVALID_DATA;
+  }
+
+  // now we get an available command
+  *size = length;
+
+  return E_SUCCESS;
 }
 
 
@@ -165,9 +179,10 @@ uint16_t Host::CalcChecksum(Event_t &event) {
   uint16_t volatile size = event.length;
   uint16_t volatile start = 0;
 
+  SERIAL_EOL();
   SERIAL_ECHOLNPAIR("send eid: ", hex_word(event.id), ", opc: ", hex_word(event.op_code), ", len: ", event.length);
 
-  SERIAL_ECHOLN("content:");
+  SERIAL_ECHO("content:");
   for (int i = 0; i < event.length; i++) {
     SERIAL_ECHOPAIR(" ", hex_byte(event.data[i]));
   }
@@ -180,13 +195,13 @@ uint16_t Host::CalcChecksum(Event_t &event) {
   if (event.id < INVALID_EVENT_ID) {
     if (event.op_code < INVALID_OP_CODE) {
       checksum += (event.id<<8 | (event.op_code&0x00FF));
-      SERIAL_ECHOLNPAIR("eid+op: chk: ", hex_word(checksum));
+      SERIAL_ECHOLNPAIR("eid+op: ", hex_word(checksum));
     }
     else if (size > 0) {
       // No independent op_code, but have data field
       checksum += (event.id<<8 | event.data[0]);
       start = 1;
-      SERIAL_ECHOLNPAIR("eid+d0: chk: ", hex_word(checksum));
+      SERIAL_ECHOLNPAIR("eid+d0: ", hex_word(checksum));
     }
     else {
       // just event_id, no op_code, and no data field
@@ -210,7 +225,8 @@ uint16_t Host::CalcChecksum(Event_t &event) {
 
   checksum = ~checksum;
 
-  SERIAL_ECHOLNPAIR("checksum for eid: ", hex_word(event.id), ", opc: ", hex_word(event.op_code), ": ", hex_word(checksum));
+  SERIAL_ECHOLNPAIR("checnksum: ", hex_word(checksum));
+  SERIAL_EOL();
 
   return (uint16_t)checksum;
 }
@@ -221,6 +237,7 @@ uint16_t Host::CalcChecksum(Event_t &event) {
  */
 ErrCode Host::Send(Event_t &event) {
   int i = 0;
+  int j;
   uint8_t pdu_header[PDU_HEADER_SIZE + 2];
   uint16_t tmp = 0;
 
@@ -238,7 +255,7 @@ ErrCode Host::Send(Event_t &event) {
 
   pdu_header[i++] = PROTOCOL_SM2_VER;
 
-  pdu_header[i++] = pdu_header[PDU_IDX_DATA_LEN_H] ^ pdu_header[PDU_IDX_DATA_LEN_L];
+  pdu_header[i++] = (uint8_t)(pdu_header[PDU_IDX_DATA_LEN_H] ^ pdu_header[PDU_IDX_DATA_LEN_L]);
 
   tmp = CalcChecksum(event);
 
@@ -258,7 +275,7 @@ ErrCode Host::Send(Event_t &event) {
     return E_BUSY;
   }
 
-  for (int j = 0; j < i; j++)
+  for (j = 0; j < i; j++)
     HMISERIAL.write(pdu_header[j]);
 
   for (int j = 0; j < event.length; j++)

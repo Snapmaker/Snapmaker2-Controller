@@ -4,14 +4,6 @@
 #include "host.h"
 #include "error.h"
 
-#define SOF_H   0xAA
-#define SOF_L   0x55
-
-#define PROTOCOL_SM2_VER  0
-
-#define PDU_HEADER_SIZE   8
-
-
 // event IDs
 // gcode from PC
 #define EID_GCODE_REQ         1
@@ -160,21 +152,6 @@ enum UpgradeOpc: uint8_t {
 
   UPGRADE_OPC_MAX
 };
-
-
-
-// index of each field in command header
-#define PDU_IDX_DATA_LEN  2
-#define PDU_IDX_DATA_LEN_H  2
-#define PDU_IDX_DATA_LEN_L  3
-
-#define PDU_IDX_VERSION   4
-#define PDU_IDX_LEN_CHK   5
-#define PDU_IDX_CHKSUM    6
-
-#define PDU_IDX_EVENT_ID  8
-#define PDU_IDX_OP_CODE   9
-#define PDU_IDX_DATA0     10
 
 
 #define EVENT_IDX_EVENT_ID  0
