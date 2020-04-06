@@ -655,7 +655,8 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
   }
 
   SERIAL_ECHOLNPAIR("new event, id: ", hex_word(event.id), ", opc: ", hex_word(event.op_code));
-
+  event.length = param->size - 2;
+  event.data = param->event_buff + 2;
   return callbacks[event.op_code].cb(event);
 
 out_err:
