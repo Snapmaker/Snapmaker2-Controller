@@ -96,7 +96,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
  * Triggle the stop
  * return: true if stop triggle success, or false
  */
-ErrCode StatusControl::StopTrigger(TriggerSource type, uint8_t event_opc) {
+ErrCode StatusControl::StopTrigger(TriggerSource type, uint16_t event_opc) {
 
   if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {
@@ -239,7 +239,6 @@ void inline StatusControl::RestoreXYZ(void) {
   LOG_I("\nrestore ponit:\n X:%.2f, Y:%.2f, Z:%.2f, E:%.2f)\n", powerpanic.Data.PositionData[X_AXIS],
         powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
         powerpanic.Data.PositionData[E_AXIS]);
-  char cmd[RESUME_PROCESS_CMD_SIZE] = {0};
 
   // the positions we recorded are logical positions, so cannot use native movement API
   // restore X, Y
@@ -1473,6 +1472,8 @@ ErrCode StatusControl::ClearExceptionByFaultFlag(uint32_t flag) {
       ClearException(host, type);
     }
   }
+
+  return E_SUCCESS;
 }
 
 void StatusControl::CallbackOpenDoor() {
@@ -1727,7 +1728,7 @@ ErrCode StatusControl::FinishSystemStatusChange(uint8_t op_code, uint8_t result)
   event.data = &result;
   event.length = 1;
 
-  hmi.Send(event);
+  return hmi.Send(event);
 }
 
 
@@ -1779,7 +1780,7 @@ ErrCode StatusControl::ClearException(Event_t &event) {
     err = E_FAILURE;
   }
 
-  hmi.Send(event);
+  return hmi.Send(event);
 }
 
 

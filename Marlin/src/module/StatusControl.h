@@ -195,7 +195,7 @@ public:
   ErrCode ClearExceptionByFaultFlag(uint32_t flag);
 
   ErrCode PauseTrigger(TriggerSource type);
-  ErrCode StopTrigger(TriggerSource type, uint8_t event_opc);
+  ErrCode StopTrigger(TriggerSource type, uint16_t event_opc);
   ErrCode ResumeTrigger(TriggerSource s);
   ErrCode ResumeOver();
   ErrCode StartWork(TriggerSource s);
