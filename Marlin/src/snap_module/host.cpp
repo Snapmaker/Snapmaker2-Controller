@@ -8,6 +8,7 @@
 
 Host hmi;
 
+#define HOST_DEBUG  1
 
 void Host::Init() {
   HMISERIAL.begin(115200);
@@ -179,6 +180,7 @@ uint16_t Host::CalcChecksum(Event_t &event) {
   uint16_t volatile size = event.length;
   uint16_t volatile start = 0;
 
+#if HOST_DEBUG
   SERIAL_EOL();
   SERIAL_ECHOLNPAIR("send eid: ", hex_word(event.id), ", opc: ", hex_word(event.op_code), ", len: ", event.length);
 
@@ -187,6 +189,7 @@ uint16_t Host::CalcChecksum(Event_t &event) {
     SERIAL_ECHOPAIR(" ", hex_byte(event.data[i]));
   }
   SERIAL_EOL();
+#endif
 
   /* when send out event, we will have a event structure
    * so we will have independent event_id and maybe more one op_code.
@@ -195,13 +198,11 @@ uint16_t Host::CalcChecksum(Event_t &event) {
   if (event.id < INVALID_EVENT_ID) {
     if (event.op_code < INVALID_OP_CODE) {
       checksum += (event.id<<8 | (event.op_code&0x00FF));
-      SERIAL_ECHOLNPAIR("eid+op: ", hex_word(checksum));
     }
     else if (size > 0) {
       // No independent op_code, but have data field
       checksum += (event.id<<8 | event.data[0]);
       start = 1;
-      SERIAL_ECHOLNPAIR("eid+d0: ", hex_word(checksum));
     }
     else {
       // just event_id, no op_code, and no data field
@@ -225,8 +226,10 @@ uint16_t Host::CalcChecksum(Event_t &event) {
 
   checksum = ~checksum;
 
+#if HOST_DEBUG
   SERIAL_ECHOLNPAIR("checnksum: ", hex_word(checksum));
   SERIAL_EOL();
+#endif
 
   return (uint16_t)checksum;
 }
