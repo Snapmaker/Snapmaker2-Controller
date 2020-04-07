@@ -191,7 +191,7 @@
 // mutex lock for gcode queue from HMI to marlin
 SemaphoreHandle_t gcode_queue_lock;
 
-// 
+//
 MessageBufferHandle_t hmi_queue;
 
 bool Running = true;
@@ -977,6 +977,7 @@ void CheckAppValidFlag(void)
 
 void main_loop(void *param);
 void hmi_task(void *param);
+void heartbeat_task(void *param);
 /**
  * Marlin entry-point: Set up before the program loop
  *  - Set up the kill pin, filament runout, power hold
@@ -1289,11 +1290,6 @@ void setup() {
     OUT_WRITE(POWER2_SUPPLY_PIN, LOW);
   #endif
 
-  #if PIN_EXISTS(SCREEN_DET)
-    SET_INPUT_PULLUP(SCREEN_DET_PIN);
-    if(READ(SCREEN_DET_PIN)) SERIAL_ECHOLN("Screen Unplugged!");
-    else SERIAL_ECHOLN("Screen Plugged!");
-  #endif
 
   BreathLightInit();
 
@@ -1380,6 +1376,17 @@ void setup() {
   }
   else {
     LOG_I("success to create HMI task!\n");
+  }
+
+
+  ret = xTaskCreate((TaskFunction_t)heartbeat_task, "HB_task", HB_TASK_STACK_DEPTH,
+        (void *)task_param, HB_TASK_STACK_DEPTH, &task_param->heartbeat_task);
+  if (ret != pdPASS) {
+    LOG_E("failt to create heartbeat task!\n");
+    while(1);
+  }
+  else {
+    LOG_I("success to create heartbeat task!\n");
   }
 
   vTaskStartScheduler();
@@ -1480,9 +1487,33 @@ void hmi_task(void *param) {
 
   hmi.Init();
 
+  #if PIN_EXISTS(SCREEN_DET)
+  SET_INPUT_PULLUP(SCREEN_DET_PIN);
+  if(READ(SCREEN_DET_PIN)) {
+    LOG_I("Screen Unplugged!");
+    vTaskSuspend(task_param->heartbeat_task);
+  }
+  else {
+    LOG_I("Screen Plugged!");
+  }
+  #endif
+
   for (;;) {
     #if HAS_FILAMENT_SENSOR
       runout.run();
+    #endif
+
+    #if PIN_EXISTS(SCREEN_DET)
+      if(READ(SCREEN_DET_PIN)) {
+        if (eTaskGetState(task_param->heartbeat_task) != eSuspended) {
+          xTaskNotifyStateClear(task_param->heartbeat_task);
+          vTaskSuspend(task_param->heartbeat_task);
+        }
+      }
+      else {
+        if (eTaskGetState(task_param->heartbeat_task) == eSuspended)
+          vTaskResume(task_param->heartbeat_task);
+      }
     #endif
 
     SystemStatus.CheckException();
@@ -1494,9 +1525,30 @@ void hmi_task(void *param) {
       continue;
     }
 
+    if (dispather_param.event_buff[0] == EID_SYS_CTRL_REQ &&
+        dispather_param.event_buff[0] == SYSCTL_OPC_GET_STATUES) {
+      xTaskNotifyGive(task_param->heartbeat_task);
+      continue;
+    }
+
     DispatchEvent(&dispather_param);
 
     vTaskDelay(configTICK_RATE_HZ/500);
+  }
+}
+
+
+void heartbeat_task(void *param) {
+  uint32_t  notificaiton = 0;
+  Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
+
+  for (;;) {
+    notificaiton = ulTaskNotifyTake(false, 0);
+
+    if (notificaiton)
+      SystemStatus.SendStatus(event);
+
+    vTaskDelay(configTICK_RATE_HZ);
   }
 }
 

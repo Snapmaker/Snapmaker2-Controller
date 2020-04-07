@@ -441,6 +441,7 @@ void protected_pin_err();
 struct SnapParameters{
 TaskHandle_t marlin_task;
 TaskHandle_t hmi_task;
+TaskHandle_t heartbeat_task;
 MessageBufferHandle_t event_queue;
 };
 typedef struct SnapParameters* SnapParameters_t;
@@ -451,3 +452,6 @@ typedef struct SnapParameters* SnapParameters_t;
 #define HMI_TASK_PRIO             (configMAX_PRIORITIES - 1)
 #define HMI_TASK_STACK_DEPTH      512
 
+// task parameters for heartbeat task
+#define HB_TASK_PRIO             (configMAX_PRIORITIES - 1)
+#define HB_TASK_STACK_DEPTH      configMINIMAL_STACK_SIZE
