@@ -36,12 +36,13 @@ struct EventCallback_t {
 
 
 
-static ErrCode HandleGcode(uint8_t *event_buff) {
+static ErrCode HandleGcode(uint8_t *event_buff, uint16_t size) {
   uint8_t ack_id = event_buff[0] + 1;
   uint32_t line;
 
   PDU_TO_LOCAL_WORD(line, event_buff+1);
 
+  event_buff[size] = 0;
   Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, ack_id);
 
   return E_SUCCESS;
@@ -562,7 +563,7 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
   case EID_GCODE_REQ:
   case EID_FILE_GCODE_REQ:
     if (param->owner == TASK_OWN_MARLIN) {
-      return HandleGcode(param->event_buff);
+      return HandleGcode(param->event_buff, param->size);
     }
     else
       send_to_marlin = true;
@@ -636,7 +637,7 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 
   // if no callback or invalid op code for this event, should ack error to Screen
   if (param->event_buff[EVENT_IDX_OP_CODE] >= op_code_max) {
-    LOG_E("invalid event [0x%X : 0x%X], received opc is out of range (%d)\n",
+    LOG_E("invalid event [0x%X : 0x%X], opc is out of range (%d)\n",
       param->event_buff[EVENT_IDX_EVENT_ID], param->event_buff[EVENT_IDX_OP_CODE], op_code_max);
     goto out_err;
   }
