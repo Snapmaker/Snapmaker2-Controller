@@ -22,10 +22,11 @@
 
 #define EVENT_ATTR_DEFAULT      0x0
 
-#define EVENT_HANDLE_WITH_MARLIN  (~(EVENT_ATTR_HAVE_MOTION | EVENT_ATTR_WILL_BLOCKED))
+#define EVENT_HANDLE_WITH_MARLIN  ((EVENT_ATTR_HAVE_MOTION | EVENT_ATTR_WILL_BLOCKED))
 
 #define SUPPORT_MODULE_MAX  32
 
+#define DEBUG_EVENT_HANDLER 0
 
 typedef ErrCode (*CallbackFunc_t)(Event_t &event);
 
@@ -610,7 +611,9 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
   // well, per the event id, we know the event need to be handle by Marlin task
   // actually, there is only the Gcode event can go into it
   if (send_to_marlin) {
+#if DEBUG_EVENT_HANDLER
     SERIAL_ECHOLNPAIR("new gcode, eid: ", event.id);
+#endif
     // blocked 100ms for max duration to wait
     xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
@@ -650,11 +653,16 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 
   if ((callbacks[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) && (param->owner != TASK_OWN_MARLIN)) {
     // arrive here, we know the event need to send to Marlin by check event id & op code
+#if DEBUG_EVENT_HANDLER
+    SERIAL_ECHOLNPAIR("Marlin's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
+#endif
     xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 
-  SERIAL_ECHOLNPAIR("new event, id: ", hex_word(event.id), ", opc: ", hex_word(event.op_code));
+#if DEBUG_EVENT_HANDLER
+  SERIAL_ECHOLNPAIR("HMI's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
+#endif
   event.length = param->size - 2;
   event.data = param->event_buff + 2;
   return callbacks[event.op_code].cb(event);

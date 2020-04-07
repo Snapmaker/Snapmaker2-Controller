@@ -8,7 +8,7 @@
 
 Host hmi;
 
-#define HOST_DEBUG  1
+#define HOST_DEBUG  0
 
 void Host::Init() {
   HMISERIAL.begin(115200);
