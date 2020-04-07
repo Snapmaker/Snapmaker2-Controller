@@ -556,10 +556,6 @@ void disable_power_domain(uint8_t pd) {
 
 void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
 
-  #if HAS_FILAMENT_SENSOR
-    runout.run();
-  #endif
-
   if (commands_in_queue < BUFSIZE) get_available_commands();
 
   const millis_t ms = millis();
@@ -795,9 +791,6 @@ void idle(
   #if ENABLED(MAX7219_DEBUG)
     max7219.idle_tasks();
   #endif
-
-  SystemStatus.CheckException();
-  ExecuterHead.CheckAlive();
 
   #if ENABLED(HOST_KEEPALIVE_FEATURE)
     gcode.host_keepalive();
@@ -1487,15 +1480,22 @@ void hmi_task(void *param) {
   hmi.Init();
 
   for (;;) {
+    #if HAS_FILAMENT_SENSOR
+      runout.run();
+    #endif
+
+    SystemStatus.CheckException();
+    ExecuterHead.CheckAlive();
+
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
     if (ret != E_SUCCESS) {
-      vTaskDelay(configTICK_RATE_HZ/100);
+      vTaskDelay(configTICK_RATE_HZ/500);
       continue;
     }
 
     DispatchEvent(&dispather_param);
 
-    vTaskDelay(configTICK_RATE_HZ/100);
+    vTaskDelay(configTICK_RATE_HZ/500);
   }
 }
 
