@@ -27,8 +27,6 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
   LOG_I("b temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
 
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
-    // Turn off the heaters
-    thermalManager.disable_all_heaters();
 
     if (!go_home_before_cali && all_axes_homed() &&
       (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
@@ -86,8 +84,6 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
-    // Disable all heaters
-    thermalManager.disable_all_heaters();
     if (!go_home_before_cali && all_axes_homed() &&
       (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
       if (current_position[Z_AXIS] < z_limit_in_cali)
