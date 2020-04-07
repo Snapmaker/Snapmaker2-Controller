@@ -272,8 +272,6 @@ uint32_t ABL_TEMP_POINTS_Y;
  */
 
 void reset_homeoffset() {
-  int i;
-
   float s_home_offset_def[XYZ] = S_HOME_OFFSET_DEFAULT;
   float m_home_offset_def[XYZ] = M_HOME_OFFSET_DEFAULT;
   float l_home_offset_def[XYZ] = L_HOME_OFFSET_DEFAULT;
@@ -1461,7 +1459,7 @@ void main_loop(void *param) {
     // case 2: Z axis hit boundary when we run G28.
     // case 3: Z_MIN_Probe error, when we do z probe, the triggered message didn't arrive main controller
 
-    static int cur_mills = millis() - 3000;
+    static millis_t cur_mills = millis() - 3000;
     if (cur_mills + 2500 <  millis()) {
       cur_mills = millis();
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
@@ -1501,6 +1499,10 @@ void hmi_task(void *param) {
   }
 }
 
+
+void vApplicationMallocFailedHook( void ) {
+  LOG_E("RTOS malloc failed");
+}
 
 /**
  * do not place any code here
