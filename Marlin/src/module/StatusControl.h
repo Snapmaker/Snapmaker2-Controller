@@ -233,7 +233,6 @@ public:
   void CallbackCloseDoor();
 
   // event callback
-  ErrCode ChangeRuntimeEnv(uint8_t param_type, float param);
   ErrCode ChangeRuntimeEnv(Event_t &event);
   ErrCode SendStatus(Event_t &event);
   ErrCode SendException(Event_t &event);
@@ -244,7 +243,6 @@ public:
   ErrCode SendHomeAndCoordinateStatus(Event_t &event);
 
   ErrCode SendException(uint32_t fault);
-
   ErrCode FinishSystemStatusChange(uint8_t op_code, uint8_t result);
 
 private:

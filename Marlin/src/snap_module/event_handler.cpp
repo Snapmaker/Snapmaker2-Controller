@@ -17,12 +17,11 @@
 
 
 #define EVENT_ATTR_HAVE_MOTION  0x1
-#define EVENT_ATTR_WILL_BLOCKED 0x2
-#define EVENT_ATTR_ABORT_MOTION 0x4
+#define EVENT_ATTR_ABORT_MOTION 0x2
 
 #define EVENT_ATTR_DEFAULT      0x0
 
-#define EVENT_HANDLE_WITH_MARLIN  ((EVENT_ATTR_HAVE_MOTION | EVENT_ATTR_WILL_BLOCKED))
+#define EVENT_HANDLE_WITH_MARLIN  (EVENT_ATTR_HAVE_MOTION)
 
 #define SUPPORT_MODULE_MAX  32
 
@@ -90,21 +89,21 @@ static ErrCode SetLogLevel(Event_t &event) {
 
 EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   UNDEFINED_CALLBACK,
-  /* [SYSCTL_OPC_GET_STATUES]        =  */{EVENT_ATTR_DEFAULT,    SendStatus},
-  /* [SYSCTL_OPC_GET_EXCEPTION]      =  */{EVENT_ATTR_DEFAULT,    SendException},
-  /* [SYSCTL_OPC_START_WORK]         =  */{EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
-  /* [SYSCTL_OPC_PAUSE]              =  */{EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
-  /* [SYSCTL_OPC_RESUME]             =  */{EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
-  /* [SYSCTL_OPC_STOP]               =  */{EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
-  /* [SYSCTL_OPC_FINISH]             =  */{EVENT_ATTR_DEFAULT,    ChangeSystemStatus},
-  /* [SYSCTL_OPC_GET_LAST_LINE]      =  */{EVENT_ATTR_DEFAULT,    SendLastLine},
+  /* [SYSCTL_OPC_GET_STATUES]        =  */{EVENT_ATTR_DEFAULT,      SendStatus},
+  /* [SYSCTL_OPC_GET_EXCEPTION]      =  */{EVENT_ATTR_DEFAULT,      SendException},
+  /* [SYSCTL_OPC_START_WORK]         =  */{EVENT_ATTR_DEFAULT,      ChangeSystemStatus},
+  /* [SYSCTL_OPC_PAUSE]              =  */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
+  /* [SYSCTL_OPC_RESUME]             =  */{EVENT_ATTR_HAVE_MOTION,  ChangeSystemStatus},
+  /* [SYSCTL_OPC_STOP]               =  */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
+  /* [SYSCTL_OPC_FINISH]             =  */{EVENT_ATTR_HAVE_MOTION,  ChangeSystemStatus},
+  /* [SYSCTL_OPC_GET_LAST_LINE]      =  */{EVENT_ATTR_DEFAULT,      SendLastLine},
   UNDEFINED_CALLBACK,
-  /* [SYSCTL_OPC_CLEAR_FAULT]        =  */{EVENT_ATTR_DEFAULT,    ClearException},
-  /* [SYSCTL_OPC_RECOVER_POWER_LOSS] =  */{EVENT_ATTR_DEFAULT,    RecoverFromPowerLoss},
+  /* [SYSCTL_OPC_CLEAR_FAULT]        =  */{EVENT_ATTR_DEFAULT,      ClearException},
+  /* [SYSCTL_OPC_RECOVER_POWER_LOSS] =  */{EVENT_ATTR_DEFAULT,      RecoverFromPowerLoss},
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
-  /* [SYSCTL_OPC_GET_HOME_STATUS]    =  */{EVENT_ATTR_DEFAULT,    SendHomeAndCoordinateStatus},
-  /* [SYSCTL_OPC_SET_LOG_LEVEL]      =  */{EVENT_ATTR_DEFAULT,    SetLogLevel},
+  /* [SYSCTL_OPC_GET_HOME_STATUS]    =  */{EVENT_ATTR_DEFAULT,      SendHomeAndCoordinateStatus},
+  /* [SYSCTL_OPC_SET_LOG_LEVEL]      =  */{EVENT_ATTR_DEFAULT,      SetLogLevel},
   UNDEFINED_CALLBACK
 };
 
@@ -177,7 +176,7 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_DO_AUTO_FOCUSING]       =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoFocusing},
   /* [SETTINGS_OPC_DO_FAST_CALIBRATION]    =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoLeveling},
   /* [SETTINGS_OPC_CHANGE_RUNTIME_ENV]     =  */{EVENT_ATTR_DEFAULT,      ChangeRuntimeEnv},
-  /* [SETTINGS_OPC_RESET_LEVELING]         =  */{EVENT_ATTR_WILL_BLOCKED, ResetLeveling}
+  /* [SETTINGS_OPC_RESET_LEVELING]         =  */{EVENT_ATTR_HAVE_MOTION,  ResetLeveling}
 };
 
 

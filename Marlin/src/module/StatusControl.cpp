@@ -165,10 +165,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource type, uint8_t event_opc) {
 
   cur_status_ = SYSTAT_END_TRIG;
 
-  // to workaround issue QS bug maybe make bed heating always
-  // enable power after finish QS
-  disable_power_domain(POWER_DOMAIN_BED);
-
   stop_source_ = type;
 
   if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
@@ -225,8 +221,6 @@ void StatusControl::StopProcess()
   resume_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_IDLE;
   quickstop.Reset();
-
-  enable_power_domain(POWER_DOMAIN_BED);
 
   LOG_I("Finish stop\n");
 }
@@ -1494,95 +1488,6 @@ void StatusControl::CallbackCloseDoor() {
   fault_flag_ &= FAULT_FLAG_DOOR_OPENED;
 }
 
-ErrCode StatusControl::ChangeRuntimeEnv(uint8_t param_type, float param) {
-  ErrCode ret = E_SUCCESS;
-
-  switch (param_type) {
-  case RENV_TYPE_FEEDRATE:
-    LOG_I("feedrate scaling: %.2f\n", param);
-    if (param > 500 || param < 0) {
-      ret = E_PARAM;
-      break;
-    }
-    feedrate_scaling = param;
-    break;
-
-  case RENV_TYPE_HOTEND_TEMP:
-    LOG_I("new hotend temp: %.2f\n", param);
-    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
-      ret = E_INVALID_STATE;
-      break;
-    }
-
-    if (param < HEATER_0_MAXTEMP)
-      thermalManager.setTargetHotend((int16_t)param, 0);
-    else
-      ret = E_PARAM;
-    break;
-
-  case RENV_TYPE_BED_TEMP:
-    LOG_I("new bed temp: %.2f\n", param);
-    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
-      ret = E_INVALID_STATE;
-      break;
-    }
-
-    if (param < BED_MAXTEMP)
-      thermalManager.setTargetBed(param);
-    else
-      ret = E_PARAM;
-    break;
-
-  case RENV_TYPE_LASER_POWER:
-    LOG_I("new laser power: %.2f\n", param);
-    if (MACHINE_TYPE_LASER != ExecuterHead.MachineType) {
-      ret = E_INVALID_STATE;
-      break;
-    }
-
-    if (param > 100 || param < 0)
-      ret = E_PARAM;
-    else {
-      ExecuterHead.Laser.ChangePower(param);
-      // change current output when it was turned on
-      if (ExecuterHead.Laser.GetTimPwm() > 0)
-        ExecuterHead.Laser.On();
-    }
-    break;
-
-  case RENV_TYPE_ZOFFSET:
-    LOG_I("adjust Z offset: %.2f\n", param);
-    if (param < -0.5) {
-      ret = E_PARAM;
-      break;
-    }
-    // waiting all block buffer are outputed by stepper
-    planner.synchronize();
-
-    // for safety, we don't disable leveling here
-
-    // Subtract the mean from all values
-    for (uint8_t x = GRID_MAX_POINTS_X; x--;)
-      for (uint8_t y = GRID_MAX_POINTS_Y; y--;)
-        Z_VALUES(x, y) += param;
-    #if ENABLED(ABL_BILINEAR_SUBDIVISION)
-      bed_level_virt_interpolate();
-    #endif
-
-    move_to_limited_z(current_position[Z_AXIS] + param, 5);
-
-    break;
-
-  default:
-    LOG_E("invalid parameter type\n", param_type);
-    ret = E_PARAM;
-    break;
-  }
-
-  return ret;
-}
-
-
 ErrCode StatusControl::CheckIfSendWaitEvent() {
   Event_t event;
   ErrCode err;
@@ -1807,8 +1712,7 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   }
   else {
     event.length = 1;
-
-    event.data = (uint8_t *)&err;
+    event.data = &err;
 
     LOG_I("SC req -> failed\n");
 
@@ -1970,5 +1874,95 @@ ErrCode StatusControl::SendHomeAndCoordinateStatus(Event_t &event) {
 
 
 ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
+  ErrCode ret = E_SUCCESS;
+
+  float param;
+
+  PDU_TO_LOCAL_WORD(param, event.data + 1);
+
+  switch (event.data[0]) {
+  case RENV_TYPE_FEEDRATE:
+    LOG_I("feedrate scaling: %.2f\n", param);
+    if (param > 500 || param < 0) {
+      ret = E_PARAM;
+      break;
+    }
+    feedrate_scaling = param;
+    break;
+
+  case RENV_TYPE_HOTEND_TEMP:
+    LOG_I("new hotend temp: %.2f\n", param);
+    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param < HEATER_0_MAXTEMP)
+      thermalManager.setTargetHotend((int16_t)param, 0);
+    else
+      ret = E_PARAM;
+    break;
+
+  case RENV_TYPE_BED_TEMP:
+    LOG_I("new bed temp: %.2f\n", param);
+    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param < BED_MAXTEMP)
+      thermalManager.setTargetBed(param);
+    else
+      ret = E_PARAM;
+    break;
+
+  case RENV_TYPE_LASER_POWER:
+    LOG_I("new laser power: %.2f\n", param);
+    if (MACHINE_TYPE_LASER != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param > 100 || param < 0)
+      ret = E_PARAM;
+    else {
+      ExecuterHead.Laser.ChangePower(param);
+      // change current output when it was turned on
+      if (ExecuterHead.Laser.GetTimPwm() > 0)
+        ExecuterHead.Laser.On();
+    }
+    break;
+
+  case RENV_TYPE_ZOFFSET:
+    LOG_I("adjust Z offset: %.2f\n", param);
+    if (param < -0.5) {
+      ret = E_PARAM;
+      break;
+    }
+    // waiting all block buffer are outputed by stepper
+    planner.synchronize();
+
+    // for safety, we don't disable leveling here
+
+    // Subtract the mean from all values
+    for (uint8_t x = GRID_MAX_POINTS_X; x--;)
+      for (uint8_t y = GRID_MAX_POINTS_Y; y--;)
+        Z_VALUES(x, y) += param;
+    #if ENABLED(ABL_BILINEAR_SUBDIVISION)
+      bed_level_virt_interpolate();
+    #endif
+
+    move_to_limited_z(current_position[Z_AXIS] + param, 5);
+
+    break;
+
+  default:
+    LOG_E("invalid parameter type\n", event.data[0]);
+    ret = E_PARAM;
+    break;
+  }
+
+  event.length = 1;
+  event.data = &ret;
   return hmi.Send(event);
 }
