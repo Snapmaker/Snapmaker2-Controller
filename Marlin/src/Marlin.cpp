@@ -1392,6 +1392,8 @@ void main_loop(void *param) {
   SnapParameters_t task_param;
   struct DispatcherParam dispather_param;
 
+  millis_t cur_mills = millis() - 3000;
+
   configASSERT(param);
   task_param = (SnapParameters_t)param;
 
@@ -1452,7 +1454,6 @@ void main_loop(void *param) {
     // case 2: Z axis hit boundary when we run G28.
     // case 3: Z_MIN_Probe error, when we do z probe, the triggered message didn't arrive main controller
 
-    static millis_t cur_mills = millis() - 3000;
     if (cur_mills + 2500 <  millis()) {
       cur_mills = millis();
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
