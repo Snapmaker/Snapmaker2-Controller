@@ -72,7 +72,7 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
 
 ErrCode LevelService::DoManualLeveling(Event_t &event) {
   ErrCode err = E_FAILURE;
-  int i, j;
+  uint32_t i, j;
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
   // when user do manual leveling, clear this var to disable fast-calibration
@@ -201,7 +201,7 @@ ErrCode LevelService::AdjustZOffsetInLeveling(Event_t &event) {
 ErrCode LevelService::SaveAndExitLeveling(Event_t &event) {
   ErrCode err = E_SUCCESS;
 
-  int i, j;
+  uint32_t i, j;
 
   event.data = &err;
   event.length = 1;
@@ -293,6 +293,7 @@ ErrCode LevelService::ExitLeveling(Event_t &event) {
 
 ErrCode LevelService::ResetLeveling(Event_t &event) {
   ErrCode err = E_SUCCESS;
+  uint32_t i, j;
 
   event.data = &err;
   event.length = 1;
@@ -303,8 +304,8 @@ ErrCode LevelService::ResetLeveling(Event_t &event) {
 
   set_bed_leveling_enabled(false);
 
-  for (int i = 0; i < GRID_MAX_POINTS_X; i++)
-    for (int j = 0; j < GRID_MAX_POINTS_Y; j++)
+  for (i = 0; i < GRID_MAX_POINTS_X; i++)
+    for (j = 0; j < GRID_MAX_POINTS_Y; j++)
       z_values[i][j] = DEFAUT_LEVELING_HEIGHT;
 
   bed_level_virt_interpolate();
