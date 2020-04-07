@@ -1669,7 +1669,7 @@ ErrCode StatusControl::SendException(uint32_t fault) {
 
 
 ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
-  ErrCode err = E_FAILURE;
+  ErrCode err = E_SUCCESS;
 
   switch (event.op_code)
   {
@@ -1708,17 +1708,17 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
     break;
   }
 
-  if (err != E_SUCCESS) {
+  event.length = 1;
+  event.data = &err;
+
+  if (err == E_SUCCESS) {
     LOG_I("SC req -> Sucess\n");
   }
   else {
-    event.length = 1;
-    event.data = &err;
-
     LOG_I("SC req -> failed\n");
-
-    hmi.Send(event);
   }
+
+  return hmi.Send(event);
 }
 
 
