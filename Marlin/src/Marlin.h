@@ -438,13 +438,15 @@ void protected_pin_err();
 #define UInt32ToBytes(u32V, pBuff) do{pBuff[0] = (uint8_t)(u32V >> 24); pBuff[1] = (uint8_t)(u32V >> 16); pBuff[2] = (uint8_t)(u32V >> 8); pBuff[3] = (uint8_t)(u32V); }while(0)
 #define UInt16ToBytes(u16V, pBuff) do{pBuff[0] = (uint8_t)(u16V >> 8); pBuff[1] = (uint8_t)(u16V);}while(0)
 
-struct SnapParameters{
-TaskHandle_t marlin_task;
-TaskHandle_t hmi_task;
-TaskHandle_t heartbeat_task;
+struct SnapTasks{
+TaskHandle_t marlin;
+TaskHandle_t hmi;
+TaskHandle_t heartbeat;
 MessageBufferHandle_t event_queue;
 };
-typedef struct SnapParameters* SnapParameters_t;
+typedef struct SnapTasks* SnapTasks_t;
+
+extern SnapTasks_t snap_tasks;
 
 #define MARLIN_LOOP_TASK_PRIO     (configMAX_PRIORITIES - 1)
 #define MARLIN_LOOP_STACK_DEPTH   1024

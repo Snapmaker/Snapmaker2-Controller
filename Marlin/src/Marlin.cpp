@@ -265,6 +265,8 @@ uint32_t ABL_GRID_POINTS_VIRT_Y;
 uint32_t ABL_TEMP_POINTS_X;
 uint32_t ABL_TEMP_POINTS_Y;
 
+SnapTasks_t snap_tasks;
+
 /**
  * ***************************************************************************
  * ******************************** FUNCTIONS ********************************
@@ -997,8 +999,6 @@ void heartbeat_task(void *param);
  *    • status LEDs
  */
 void setup() {
-  SnapParameters_t task_param;
-
   SystemStatus.Init();
 
   #ifdef HAL_INIT
@@ -1303,13 +1303,13 @@ void setup() {
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
   reset_bed_level_if_upgraded();
 
-  task_param = (SnapParameters_t)pvPortMalloc(sizeof(struct SnapParameters));
-  task_param->event_queue = xMessageBufferCreate(1024);
+  snap_tasks = (SnapTasks_t)pvPortMalloc(sizeof(struct SnapTasks));
+  snap_tasks->event_queue = xMessageBufferCreate(1024);
 
   // create marlin task
   BaseType_t ret;
   ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH,
-        (void *)task_param, MARLIN_LOOP_TASK_PRIO, &task_param->marlin_task);
+        (void *)snap_tasks, MARLIN_LOOP_TASK_PRIO, &snap_tasks->marlin);
   if (ret != pdPASS) {
     LOG_E("failt to create marlin task!\n");
     while(1);
@@ -1319,7 +1319,7 @@ void setup() {
   }
 
   ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH,
-        (void *)task_param, HMI_TASK_PRIO, &task_param->hmi_task);
+        (void *)snap_tasks, HMI_TASK_PRIO, &snap_tasks->hmi);
   if (ret != pdPASS) {
     LOG_E("failt to create HMI task!\n");
     while(1);
@@ -1330,7 +1330,7 @@ void setup() {
 
 
   ret = xTaskCreate((TaskFunction_t)heartbeat_task, "HB_task", HB_TASK_STACK_DEPTH,
-        (void *)task_param, HB_TASK_STACK_DEPTH, &task_param->heartbeat_task);
+        (void *)snap_tasks, HB_TASK_STACK_DEPTH, &snap_tasks->heartbeat);
   if (ret != pdPASS) {
     LOG_E("failt to create heartbeat task!\n");
     while(1);
@@ -1346,13 +1346,13 @@ void setup() {
  * main task
  */
 void main_loop(void *param) {
-  SnapParameters_t task_param;
+  SnapTasks_t task_param;
   struct DispatcherParam dispather_param;
 
   millis_t cur_mills;
 
   configASSERT(param);
-  task_param = (SnapParameters_t)param;
+  task_param = (SnapTasks_t)param;
 
   dispather_param.owner = TASK_OWN_MARLIN;
 
@@ -1474,13 +1474,13 @@ void main_loop(void *param) {
 
 
 void hmi_task(void *param) {
-  SnapParameters_t    task_param;
+  SnapTasks_t    task_param;
   struct DispatcherParam dispather_param;
 
   ErrCode ret = E_FAILURE;
 
   configASSERT(param);
-  task_param = (SnapParameters_t)param;
+  task_param = (SnapTasks_t)param;
 
   dispather_param.owner = TASK_OWN_HMI;
 
@@ -1495,7 +1495,7 @@ void hmi_task(void *param) {
   SET_INPUT_PULLUP(SCREEN_DET_PIN);
   if(READ(SCREEN_DET_PIN)) {
     LOG_I("Screen Unplugged!");
-    vTaskSuspend(task_param->heartbeat_task);
+    vTaskSuspend(task_param->heartbeat);
   }
   else {
     LOG_I("Screen Plugged!");
@@ -1509,14 +1509,14 @@ void hmi_task(void *param) {
 
     #if PIN_EXISTS(SCREEN_DET)
       if(READ(SCREEN_DET_PIN)) {
-        if (eTaskGetState(task_param->heartbeat_task) != eSuspended) {
-          xTaskNotifyStateClear(task_param->heartbeat_task);
-          vTaskSuspend(task_param->heartbeat_task);
+        if (eTaskGetState(task_param->heartbeat) != eSuspended) {
+          xTaskNotifyStateClear(task_param->heartbeat);
+          vTaskSuspend(task_param->heartbeat);
         }
       }
       else {
-        if (eTaskGetState(task_param->heartbeat_task) == eSuspended)
-          vTaskResume(task_param->heartbeat_task);
+        if (eTaskGetState(task_param->heartbeat) == eSuspended)
+          vTaskResume(task_param->heartbeat);
       }
     #endif
 
@@ -1526,12 +1526,6 @@ void hmi_task(void *param) {
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
     if (ret != E_SUCCESS) {
       vTaskDelay(configTICK_RATE_HZ/500);
-      continue;
-    }
-
-    if (dispather_param.event_buff[0] == EID_SYS_CTRL_REQ &&
-        dispather_param.event_buff[0] == SYSCTL_OPC_GET_STATUES) {
-      xTaskNotifyGive(task_param->heartbeat_task);
       continue;
     }
 

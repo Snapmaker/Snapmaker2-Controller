@@ -50,7 +50,9 @@ static ErrCode HandleGcode(uint8_t *event_buff, uint16_t size) {
 
 
 static ErrCode SendStatus(Event_t &event) {
-  return SystemStatus.SendStatus(event);
+  if (snap_tasks && snap_tasks->heartbeat)
+    xTaskNotify(snap_tasks->heartbeat, 0x1, eSetBits);
+  return E_SUCCESS;
 }
 
 
@@ -90,7 +92,7 @@ static ErrCode SetLogLevel(Event_t &event) {
 
 EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   UNDEFINED_CALLBACK,
-  /* [SYSCTL_OPC_GET_STATUES]        =  */UNDEFINED_CALLBACK,
+  /* [SYSCTL_OPC_GET_STATUES]        =  */{EVENT_ATTR_DEFAULT,      SendStatus},
   /* [SYSCTL_OPC_GET_EXCEPTION]      =  */{EVENT_ATTR_DEFAULT,      SendException},
   /* [SYSCTL_OPC_START_WORK]         =  */{EVENT_ATTR_DEFAULT,      ChangeSystemStatus},
   /* [SYSCTL_OPC_PAUSE]              =  */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
