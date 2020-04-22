@@ -1967,3 +1967,55 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
   event.data = &ret;
   return hmi.Send(event);
 }
+
+
+ErrCode StatusControl::GetMachineSize(Event_t &event) {
+  uint8_t buffer[64];
+  uint16_t i = 0;
+
+  int32_t  tmp_i32;
+  uint32_t tmp_u32;
+
+
+  buffer[i++] = 0;
+
+  //Machine size type
+  buffer[i++] = CanModules.GetMachineSizeType();
+
+  //Size
+  tmp_u32 = (uint32_t) (X_MAX_POS * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_u32, i);
+  tmp_u32 = (uint32_t) (Y_MAX_POS * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_u32, i);
+  tmp_u32 = (uint32_t) (Z_MAX_POS * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_u32, i);
+
+  //Home Dir
+  tmp_i32 = (int32_t) (X_HOME_DIR);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+  tmp_i32 = (int32_t) (Y_HOME_DIR);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+  tmp_i32 = (int32_t) (Z_HOME_DIR);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+
+  //Dir
+  tmp_i32 = X_DIR == true?(int32_t)1:(int32_t)-1;
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+  tmp_i32 = Y_DIR == true?(int32_t)1:(int32_t)-1;
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+  tmp_i32 = Z_DIR == true?(int32_t)1:(int32_t)-1;
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+
+  //Offset
+  tmp_i32 = (int32_t) (home_offset[X_AXIS] *1000.0f);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+  tmp_i32 = (int32_t) (home_offset[Y_AXIS] *1000.0f);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+  tmp_i32 = (int32_t) (home_offset[Z_AXIS] *1000.0f);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, i);
+
+  event.data = buffer;
+  event.length = i;
+
+  return hmi.Send(event);
+}

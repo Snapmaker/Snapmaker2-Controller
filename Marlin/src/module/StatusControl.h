@@ -241,6 +241,7 @@ public:
   ErrCode ClearException(Event_t &event);
   ErrCode RecoverFromPowerLoss(Event_t &event);
   ErrCode SendHomeAndCoordinateStatus(Event_t &event);
+  ErrCode GetMachineSize(Event_t &event);
 
   ErrCode SendException(uint32_t fault);
   ErrCode FinishSystemStatusChange(uint8_t op_code, uint8_t result);

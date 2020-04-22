@@ -162,6 +162,11 @@ static ErrCode ChangeRuntimeEnv(Event_t &event) {
   return SystemStatus.ChangeRuntimeEnv(event);
 }
 
+
+static ErrCode GetMachineSize(Event_t &event) {
+  return SystemStatus.GetMachineSize(event);
+}
+
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* SETTINGS_OPC_SET_MACHINE_SIZE */ UNDEFINED_CALLBACK,
@@ -179,7 +184,11 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_DO_AUTO_FOCUSING]       =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoFocusing},
   /* [SETTINGS_OPC_DO_FAST_CALIBRATION]    =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoLeveling},
   /* [SETTINGS_OPC_CHANGE_RUNTIME_ENV]     =  */{EVENT_ATTR_DEFAULT,      ChangeRuntimeEnv},
-  /* [SETTINGS_OPC_RESET_LEVELING]         =  */{EVENT_ATTR_HAVE_MOTION,  ResetLeveling}
+  /* [SETTINGS_OPC_RESET_LEVELING]         =  */{EVENT_ATTR_HAVE_MOTION,  ResetLeveling},
+  UNDEFINED_CALLBACK,
+  UNDEFINED_CALLBACK,
+  UNDEFINED_CALLBACK,
+  /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize}
 };
 
 
