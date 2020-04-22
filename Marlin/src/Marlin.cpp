@@ -1303,56 +1303,6 @@ void setup() {
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
   reset_bed_level_if_upgraded();
 
-
-  millis_t tmptick;
-
-  tmptick = millis() + 4000;
-  while(tmptick > millis());
-  ExecuterHead.Init();
-  CanModules.Init();
-  CheckUpdateFlag();
-  if (CanModules.LinearModuleCount == 0) {
-    SystemStatus.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
-  }
-
-  #if ENABLED(SW_MACHINE_SIZE)
-    UpdateMachineDefines();
-    endstops.reinit_hit_status();
-  #endif
-
-  // init power panic handler and load data from flash
-  powerpanic.Init();
-
-  if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    SERIAL_ECHOLNPGM("Laser Module\r\n");
-    ExecuterHead.Laser.Init();
-  }
-  else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-    SERIAL_ECHOLNPGM("CNC Module\r\n");
-    ExecuterHead.CNC.Init();
-  }
-  else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
-    SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
-    ExecuterHead.Print3D.Init();
-    runout.enabled = true;
-  }
-  else {
-    SERIAL_ECHOLNPGM("No Executor detected!");
-    SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_NO_HOST);
-  }
-
-  if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
-    ExecuterHead.watch.Start();
-  }
-
-  ExecuterHead.Print3D.HeatedBedSelfCheck();
-
-  Periph.Init();
-
-  SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
-
-  SERIAL_ECHOLN("Finish init");
-
   task_param = (SnapParameters_t)pvPortMalloc(sizeof(struct SnapParameters));
   task_param->event_queue = xMessageBufferCreate(1024);
 
@@ -1399,7 +1349,7 @@ void main_loop(void *param) {
   SnapParameters_t task_param;
   struct DispatcherParam dispather_param;
 
-  millis_t cur_mills = millis() - 3000;
+  millis_t cur_mills;
 
   configASSERT(param);
   task_param = (SnapParameters_t)param;
@@ -1410,6 +1360,60 @@ void main_loop(void *param) {
   configASSERT(dispather_param.event_buff);
 
   dispather_param.event_queue = task_param->event_queue;
+
+  cur_mills = millis() + 4000;
+  while(cur_mills > millis());
+  ExecuterHead.Init();
+  CanModules.Init();
+  CheckUpdateFlag();
+  if (CanModules.LinearModuleCount == 0) {
+    SystemStatus.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
+  }
+
+  #if ENABLED(SW_MACHINE_SIZE)
+    UpdateMachineDefines();
+    endstops.reinit_hit_status();
+  #endif
+
+  // init power panic handler and load data from flash
+  powerpanic.Init();
+
+  switch (ExecuterHead.MachineType) {
+  case MACHINE_TYPE_LASER:
+    SERIAL_ECHOLNPGM("Laser Module\r\n");
+    ExecuterHead.Laser.Init();
+    break;
+
+  case MACHINE_TYPE_CNC:
+    SERIAL_ECHOLNPGM("CNC Module\r\n");
+    ExecuterHead.CNC.Init();
+    break;
+
+  case MACHINE_TYPE_3DPRINT:
+    SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
+    ExecuterHead.Print3D.Init();
+    runout.enabled = true;
+    break;
+
+  default:
+    SERIAL_ECHOLNPGM("No Executor detected!");
+    SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_NO_HOST);
+    break;
+  }
+
+  if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
+    ExecuterHead.watch.Start();
+  }
+
+  ExecuterHead.Print3D.HeatedBedSelfCheck();
+
+  Periph.Init();
+
+  SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
+
+  SERIAL_ECHOLN("Finish init");
+
+  cur_mills = millis() - 3000;
 
   for (;;) {
 

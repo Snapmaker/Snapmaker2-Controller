@@ -7,6 +7,10 @@
 #include "HAL_can_STM32F1.h"
 #include <libmaple/systick.h>
 
+#include "MapleFreeRTOS1030.h"
+
+static SemaphoreHandle_t can_lock = NULL;
+
 /**
  * Returns time (in milliseconds) since the beginning of program
  * execution. On overflow, restarts at 0.
@@ -26,6 +30,9 @@ void CanInitFilter() {
   uint32_t FilterMask;
   uint32_t FilterID;
   CAN_FilterInitTypeDef CAN_FilterInitStruct;
+
+  can_lock = xSemaphoreCreateMutex();
+  configASSERT(can_lock);
   
   CAN_SlaveStartBank(24);
 
@@ -213,7 +220,9 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   retry = 1;
   if(PortNum == 1) {
     while(retry--) {
+      xSemaphoreTake(can_lock, portMAX_DELAY);
       CAN_Transmit(CAN1, &TxMessage);
+      xSemaphoreGive(can_lock);
       tmptick = millis();
       //while pending
       do {
@@ -230,7 +239,9 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   }
   else {
     while(retry--) {
+      xSemaphoreTake(can_lock, portMAX_DELAY);
       CAN_Transmit(CAN2, &TxMessage);
+      xSemaphoreGive(can_lock);
       tmptick = millis();
       //while pending
       do {
@@ -282,7 +293,10 @@ bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t Dat
   retry = 1;
   if(PortNum == 1) {
     while(retry--) {
+      /* must call this function at one task */
+      xSemaphoreTake(can_lock, portMAX_DELAY);
       CAN_Transmit(CAN1, &TxMessage);
+      xSemaphoreGive(can_lock);
       tmptick = millis();
       //while pending
       do {
@@ -301,7 +315,9 @@ bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t Dat
   }
   else {
     while(retry--) {
+      xSemaphoreTake(can_lock, portMAX_DELAY);
       CAN_Transmit(CAN2, &TxMessage);
+      xSemaphoreGive(can_lock);
       tmptick = millis();
       //while pending
       do {
