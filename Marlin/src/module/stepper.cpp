@@ -98,7 +98,7 @@ Stepper stepper; // Singleton
 #include "../gcode/queue.h"
 #include "../HAL/shared/Delay.h"
 #include "PowerPanic.h"
-#include "../snap_module/quickstop.h"
+#include "../snap_module/quickstop_service.h"
 
 #if MB(ALLIGATOR)
   #include "../feature/dac/dac_dac084s085.h"
@@ -1289,7 +1289,7 @@ void Stepper::isr() {
   // checking power loss here because when no moves in block buffer, ISR will not
   // execute to endstop.update(), then we cannot check power loss there.
   // But if power loss happened and ISR cannot get block, no need to check again
-  if (quickstop.CheckISR(current_block)) {
+  if (quickstop.CheckInISR(current_block)) {
     abort_current_block = false;
     if (current_block) {
       axis_did_move = 0;
@@ -1302,7 +1302,7 @@ void Stepper::isr() {
 
     // interval = 500 us
     HAL_timer_set_compare(STEP_TIMER_NUM,
-        hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 2000)));
+        hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
 
     ENABLE_ISRS();
     return;

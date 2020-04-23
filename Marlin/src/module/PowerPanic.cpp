@@ -17,6 +17,7 @@
 #include "stepper.h"
 #include "../snap_module/snap_dbg.h"
 #include "../feature/runout.h"
+#include "../snap_module/quickstop.h"
 
 #include "PowerPanic.h"
 #include "ExecuterManager.h"
@@ -299,7 +300,7 @@ int PowerPanic::SaveEnv(void) {
 
 	LOOP_XYZ(i) Data.position_shift[i] = position_shift[i];
 
-	Data.FilePosition = last_line;
+	Data.FilePosition = last_line_;
 
   // heated bed
   Data.BedTamp = thermalManager.temp_bed.target;
@@ -577,43 +578,41 @@ ErrCode PowerPanic::ResumeWork() {
 /*
  * disable other unused peripherals in ISR
  */
-void PowerPanic::TurnOffPowerISR(void) {
+void PowerPanic::TurnOffPower(QuickStopState sta) {
   // these 2 statement will disable power supply for
   // HMI, BED, and all addones except steppers
 	disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+
+	if (sta  >= QSS_TRIGGERED) {
+		BreathLightClose();
+
+		// disble timer except the stepper's
+		rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
+		rcc_clk_disable(TIMER7->clk_id);
+
+		// disalbe ADC
+		rcc_clk_disable(ADC1->clk_id);
+		rcc_clk_disable(ADC2->clk_id);
+
+		//disble DMA
+		rcc_clk_disable(DMA1->clk_id);
+		rcc_clk_disable(DMA2->clk_id);
+
+		// disable other unnecessary soc peripherals
+		// disable usart
+		//rcc_clk_disable(MSerial1.c_dev()->clk_id);
+		//rcc_clk_disable(MSerial2.c_dev()->clk_id);
+		//rcc_clk_disable(MSerial3.c_dev()->clk_id);
+
+	#if ENABLED(EXECUTER_CANBUS_SUPPORT)
+		// turn off hot end and FAN
+		// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+		// 	ExecuterHead.SetTemperature(0, 0);
+		// }
+	#endif
+	}
 }
 
-/*
- * disable other unused peripherals after ISR
- */
-void PowerPanic::TurnOffPower(void) {
-	BreathLightClose();
-
-	// disble timer except the stepper's
-	rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
-	rcc_clk_disable(TIMER7->clk_id);
-
-	// disalbe ADC
-	rcc_clk_disable(ADC1->clk_id);
-	rcc_clk_disable(ADC2->clk_id);
-
-	//disble DMA
-	rcc_clk_disable(DMA1->clk_id);
-	rcc_clk_disable(DMA2->clk_id);
-
-	// disable other unnecessary soc peripherals
-	// disable usart
-	//rcc_clk_disable(MSerial1.c_dev()->clk_id);
-	//rcc_clk_disable(MSerial2.c_dev()->clk_id);
-	//rcc_clk_disable(MSerial3.c_dev()->clk_id);
-
-#if ENABLED(EXECUTER_CANBUS_SUPPORT)
-  // turn off hot end and FAN
-	// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
-	// 	ExecuterHead.SetTemperature(0, 0);
-	// }
-#endif
-}
 
 /*
  * when a block is output ended, save it's line number
@@ -622,7 +621,7 @@ void PowerPanic::TurnOffPower(void) {
  */
 void PowerPanic::SaveCmdLine(uint32_t l) {
 	if (l != INVALID_CMD_LINE)
-		last_line = l;
+		last_line_ = l;
 }
 
 /*
@@ -637,3 +636,20 @@ void PowerPanic::Reset() {
 		*ptr++ = 0;
 	}
 }
+
+void PowerPanic::Check(void) {
+  uint8_t powerstat = READ(POWER_DETECT_PIN);
+
+  // debounce for power loss, will delay 10ms for responce
+  if (powerstat != POWER_LOSS_STATE)
+    last_powerloss_ = millis();
+  else {
+    if ((millis() - last_powerloss_) < POWERPANIC_DEBOUNCE) {
+      powerstat = POWER_NORMAL_STATE;
+		}
+		else {
+			quickstop.Trigger(QS_SOURCE_POWER_LOSS);
+		}
+  }
+}
+

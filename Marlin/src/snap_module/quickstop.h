@@ -28,6 +28,18 @@ enum QuickStopSync : uint8_t {
   QS_SYNC_INVALID
 };
 
+enum QuickStopState : uint8_t {
+  QSS_IDLE,
+  QSS_TRIGGERED,
+  QSS_SAVED_ENV,
+  QSS_WROTE_FLASH,
+  QSS_PARKING,
+  QSS_DONE,
+
+  QSS_INVALID
+};
+
+
 class QuickStop {
   public:
     void Reset();

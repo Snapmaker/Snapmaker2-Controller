@@ -2,6 +2,7 @@
 
 #include "../inc/MarlinConfig.h"
 #include "../snap_module/error.h"
+#include "../snap_module/quickstop_service.h"
 
 #ifndef _POWER_PANIC_H_
 #define _POWER_PANIC_H_
@@ -18,7 +19,7 @@ typedef enum
 #define PP_HEATER         4
 
 // delay for debounce, uint: ms, for now we use 10ms
-#define POWERPANIC_DEBOUNCE	10
+#define POWERPANIC_DEBOUNCE	6
 typedef struct __attribute__((aligned (4)))
 {
 	// checksum of this section
@@ -73,11 +74,11 @@ public:
   int  SaveEnv(void);
   ErrCode ResumeWork();
   void SaveCmdLine(uint32_t l);
-  void TurnOffPower(void);
-	void TurnOffPowerISR(void);
-	void Reset();
+  void TurnOffPower(QuickStopState sta);
+	void Reset(void);
+	void Check(void);
 
-	uint32_t LastLine() { return last_line; }
+	uint32_t LastLine() { return last_line_; }
 
 public:
   strPowerPanicSave Data;
@@ -85,7 +86,8 @@ public:
 
 private:
   uint32_t WriteIndex;
-	uint32_t last_line;
+	uint32_t last_line_;
+	millis_t last_powerloss_;
 
   int Load(void);
 
