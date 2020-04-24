@@ -3,6 +3,7 @@
 #include "../inc/MarlinConfig.h"
 #include "../snap_module/error.h"
 #include "../snap_module/event_handler.h"
+#include "../snap_module/quickstop_service.h"
 
 #ifndef _STATUS_CONTROL_H_
 #define _STATUS_CONTROL_H_
@@ -246,15 +247,17 @@ public:
   ErrCode SendException(uint32_t fault);
   ErrCode FinishSystemStatusChange(uint8_t op_code, uint8_t result);
 
+  ErrCode CallbackPreQS(QuickStopSource source);
+  ErrCode CallbackPostQS(QuickStopSource source);
+
 private:
   void inline resume_3dp(void);
   void inline resume_cnc(void);
   void inline resume_laser(void);
   void inline RestoreXYZ(void);
-  void PauseProcess();
-  void StopProcess();
-  void ResumeProcess();
-  ErrCode PauseResume();
+
+  ErrCode PreProcessStop();
+
   void MapFaultFlagToException(uint32_t flag, ExceptionHost &host, ExceptionType &type);
 
   ErrCode CheckIfSendWaitEvent();

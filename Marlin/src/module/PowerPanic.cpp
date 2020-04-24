@@ -17,7 +17,7 @@
 #include "stepper.h"
 #include "../snap_module/snap_dbg.h"
 #include "../feature/runout.h"
-#include "../snap_module/quickstop.h"
+#include "../snap_module/quickstop_service.h"
 
 #include "PowerPanic.h"
 #include "ExecuterManager.h"
@@ -583,7 +583,7 @@ void PowerPanic::TurnOffPower(QuickStopState sta) {
   // HMI, BED, and all addones except steppers
 	disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
 
-	if (sta  >= QSS_TRIGGERED) {
+	if (sta  > QS_STA_TRIGGERED) {
 		BreathLightClose();
 
 		// disble timer except the stepper's

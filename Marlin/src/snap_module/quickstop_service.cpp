@@ -194,6 +194,8 @@ void QuickStopService::Process() {
   if (state_ == QS_STA_IDLE)
     return;
 
+  SystemStatus.CallbackPreQS(source_);
+
   // pending the HMI task
   vTaskSuspend(snap_tasks->hmi);
   xMessageBufferReset(snap_tasks->event_queue);
@@ -215,33 +217,10 @@ void QuickStopService::Process() {
 
   vTaskResume(snap_tasks->hmi);
 
+  SystemStatus.CallbackPostQS(source_);
+
   state_ = QS_STA_IDLE;
   source_ = QS_SOURCE_IDLE;
   wrote_flash_ = false;
-}
-
-
-ErrCode QuickStopService::RegisterCB(QuickStopSource s, QSCallback_t cb, QuickStopCallbackType t) {
-  if (s >= QS_SOURCE_INVALID || !cb)
-    return E_PARAM;
-
-  if (t == QS_CB_TYPE_PRE) {
-    if (cb_pre_[s]) {
-      LOG_E("already register callback for source[%d]\n", s);
-      return E_NO_RESRC;
-    }
-
-    cb_pre_[s] = cb;
-  }
-  else {
-    if (cb_post_[s]) {
-      LOG_E("already register callback for source[%d]\n", s);
-      return E_NO_RESRC;
-    }
-
-    cb_post_[s] = cb;
-  }
-
-  return E_SUCCESS;
 }
 

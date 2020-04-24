@@ -44,7 +44,7 @@
 #include "module/PeriphDevice.h"
 #include "libs/GenerialFunctions.h"
 #include "module/PowerPanic.h"
-#include "snap_module/quickstop.h"
+#include "snap_module/quickstop_service.h"
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
 
@@ -1113,9 +1113,6 @@ void setup() {
   // This also updates variables in the planner, elsewhere
   (void)settings.load();
 
-  // reset the status of quickstop
-  quickstop.Reset();
-
   #if HAS_M206_COMMAND
     // Initialize current position based on home_offset
     LOOP_XYZ(a) current_position[a] += home_offset[a];
@@ -1455,9 +1452,6 @@ void main_loop(void *param) {
     advance_command_queue();
     quickstop.Process();
     endstops.event_handler();
-    SystemStatus.Process();
-    Periph.Process();
-    ExecuterHead.Process();
     idle();
 
     // avoid module proactive reply failure, loop query
@@ -1522,6 +1516,9 @@ void hmi_task(void *param) {
 
     SystemStatus.CheckException();
     ExecuterHead.CheckAlive();
+
+    Periph.Process();
+    ExecuterHead.Process();
 
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
     if (ret != E_SUCCESS) {

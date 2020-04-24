@@ -16,8 +16,7 @@
 #include "printcounter.h"
 #include "stepper.h"
 #include "../feature/runout.h"
-//#include "../snap_module/lightbar.h"
-#include "../snap_module/quickstop.h"
+#include "../snap_module/quickstop_service.h"
 #include "../snap_module/snap_dbg.h"
 
 StatusControl SystemStatus;
@@ -78,25 +77,43 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
   cur_status_ = SYSTAT_PAUSE_TRIG;
 
-  quickstop.Trigger(QS_EVENT_PAUSE);
-
-  print_job_timer.pause();
-
   pause_source_ = type;
 
-  //lightbar.set_state(LB_STATE_STANDBY);
-
-  // reset the status of filament monitor
-  runout.reset();
+  quickstop.Trigger(QS_SOURCE_PAUSE);
 
   return E_SUCCESS;
+}
+
+
+ErrCode StatusControl::PreProcessStop() {
+  // recover scaling
+  feedrate_scaling = 100;
+
+  // set temp to 0
+  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+    thermalManager.setTargetBed(0);
+    HOTEND_LOOP() { thermalManager.setTargetHotend(0, e); }
+
+    // if user abort the work, FAN0 will not be closed
+    // set target temp to 0 only make FAN1 be closed
+    ExecuterHead.SetFan(0, 0);
+  }
+
+  // diable power panic data
+  powerpanic.Data.Valid = 0;
+
+  print_job_timer.stop();
+
+  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
+    ExecuterHead.Laser.Off();
+  }
 }
 
 /**
  * Triggle the stop
  * return: true if stop triggle success, or false
  */
-ErrCode StatusControl::StopTrigger(TriggerSource type, uint16_t event_opc) {
+ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
 
   if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {
@@ -104,7 +121,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource type, uint16_t event_opc) {
     return E_NO_SWITCHING_STA;
   }
 
-  switch(type) {
+  switch(source) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
       LOG_E("current working port is not SC!");
@@ -123,107 +140,42 @@ ErrCode StatusControl::StopTrigger(TriggerSource type, uint16_t event_opc) {
     break;
   }
 
+  // if we already finish quick stop, just change system status
+  // disable power-loss data, and exit with success
+  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
+    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
+    cur_status_ = SYSTAT_IDLE;
+    pause_source_ = TRIGGER_SOURCE_NONE;
+
+    PreProcessStop();
+
+    if (source == TRIGGER_SOURCE_SC)
+      FinishSystemStatusChange(event_opc, 0);
+
+    LOG_I("Stop in pauseing, trigger source: %d\n", source);
+    return E_SUCCESS;
+  }
+
+
   if (event_opc == SYSCTL_OPC_FINISH) {
     // if screen tell us Gcode is ended, wait for all movement output
     // because planner.synchronize() will call HMI process nestedly,
     // and maybe some function will check the status, so we change the status
     // firstly
-    cur_status_ = SYSTAT_END_TRIG;
     stop_type_ = STOP_TYPE_FINISH;
     planner.synchronize();
   }
   else
     stop_type_ = STOP_TYPE_ABORTED;
 
-  // recover scaling
-  feedrate_scaling = 100;
-
-  // set temp to 0
-  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
-    thermalManager.setTargetBed(0);
-    HOTEND_LOOP() { thermalManager.setTargetHotend(0, e); }
-
-    // if user abort the work, FAN0 will not be closed
-    // set target temp to 0 only make FAN1 be closed
-    ExecuterHead.SetFan(0, 0);
-  }
-
-  print_job_timer.stop();
-
-  // diable power panic data
-  powerpanic.Data.Valid = 0;
-
-  // if we already finish quick stop, just change system status
-  // disable power-loss data, and exit with success
-  if (cur_status_ == SYSTAT_PAUSE_FINISH) {
-    // to make StopProcess work, cur_status_ need to be SYSTAT_END_FINISH
-    cur_status_ = SYSTAT_END_FINISH;
-    pause_source_ = TRIGGER_SOURCE_NONE;
-    LOG_I("Stop in pauseing, trigger source: %d\n", type);
-    return E_SUCCESS;
-  }
-
   cur_status_ = SYSTAT_END_TRIG;
+  stop_source_ = source;
 
-  stop_source_ = type;
-
-  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
-    ExecuterHead.Laser.Off();
-  }
-
-  //lightbar.set_state(LB_STATE_STANDBY);
-
-  quickstop.Trigger(QS_EVENT_STOP);
+  quickstop.Trigger(QS_SOURCE_STOP);
 
   return E_SUCCESS;
 }
 
-/**
- * Pause processing
- */
-void StatusControl::PauseProcess()
-{
-  if (cur_status_ != SYSTAT_PAUSE_STOPPED)
-    return;
-
-  if (pause_source_ == TRIGGER_SOURCE_SC) {
-    // ack HMI
-    FinishSystemStatusChange(SYSCTL_OPC_PAUSE, 0);
-  }
-
-  pause_source_ = TRIGGER_SOURCE_NONE;
-  stop_source_ = TRIGGER_SOURCE_NONE;
-
-  LOG_I("Finish pause\n");
-  cur_status_ = SYSTAT_PAUSE_FINISH;
-}
-
-/**
- * Stop processing
- */
-void StatusControl::StopProcess()
-{
-  if (cur_status_ != SYSTAT_END_FINISH)
-    return;
-
-  // tell Screen we finish stop
-  if (stop_source_ == TRIGGER_SOURCE_SC) {
-    // ack HMI
-    if (stop_type_ == STOP_TYPE_ABORTED)
-      FinishSystemStatusChange(SYSCTL_OPC_STOP, 0);
-    else
-      FinishSystemStatusChange(SYSCTL_OPC_FINISH, 0);
-  }
-
-  // clear stop type because stage will be changed
-  stop_source_ = TRIGGER_SOURCE_NONE;
-  pause_source_ = TRIGGER_SOURCE_NONE;
-  resume_source_ = TRIGGER_SOURCE_NONE;
-  cur_status_ = SYSTAT_IDLE;
-  quickstop.Reset();
-
-  LOG_I("Finish stop\n");
-}
 
 
 /*
@@ -290,59 +242,8 @@ void inline StatusControl::resume_laser(void) {
 /**
  * Resume Process
  */
-void StatusControl::ResumeProcess() {
-  if (cur_status_ != SYSTAT_RESUME_TRIG)
-    return;
+ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
 
-  cur_status_ = SYSTAT_RESUME_MOVING;
-
-
-  switch(ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
-    set_bed_leveling_enabled(true);
-    resume_3dp();
-    break;
-
-  case MACHINE_TYPE_CNC:
-    resume_cnc();
-    break;
-
-  case MACHINE_TYPE_LASER:
-    resume_laser();
-    break;
-
-  default:
-    break;
-  }
-
-  RestoreXYZ();
-
-  // restore speed
-  saved_g0_feedrate_mm_s = powerpanic.Data.TravelFeedRate;
-  saved_g1_feedrate_mm_s = powerpanic.Data.PrintFeedRate;
-
-  // clear command queue
-  clear_command_queue();
-
-  // resume stopwatch
-  if (print_job_timer.isPaused()) print_job_timer.start();
-
-  pause_source_ = TRIGGER_SOURCE_NONE;
-  cur_status_ = SYSTAT_RESUME_WAITING;
-
-  // reset the state of quick stop handler
-  quickstop.Reset();
-
-  // tell screen we are ready  to work
-  if (resume_source_ = TRIGGER_SOURCE_SC) {
-    FinishSystemStatusChange(SYSCTL_OPC_RESUME, 0);
-  }
-}
-
-/**
- * trigger resuming from other event
- */
-ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
     return E_NO_WORKING;
@@ -375,7 +276,7 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
     break;
   }
 
-  switch (s) {
+  switch (source) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
       LOG_W("current working port is not SC!");
@@ -394,17 +295,53 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource s) {
     break;
 
   default:
-    LOG_W("invalid trigger source: %d\n", s);
+    LOG_W("invalid trigger source: %d\n", source);
     return E_FAILURE;
     break;
   }
 
-  resume_source_ = s;
-
   cur_status_ = SYSTAT_RESUME_TRIG;
 
-  return E_SUCCESS;
+  switch(ExecuterHead.MachineType) {
+  case MACHINE_TYPE_3DPRINT:
+    set_bed_leveling_enabled(true);
+    resume_3dp();
+    break;
+
+  case MACHINE_TYPE_CNC:
+    resume_cnc();
+    break;
+
+  case MACHINE_TYPE_LASER:
+    resume_laser();
+    break;
+
+  default:
+    break;
+  }
+
+  RestoreXYZ();
+
+  // restore speed
+  saved_g0_feedrate_mm_s = powerpanic.Data.TravelFeedRate;
+  saved_g1_feedrate_mm_s = powerpanic.Data.PrintFeedRate;
+
+  // clear command queue
+  clear_command_queue();
+
+  // resume stopwatch
+  if (print_job_timer.isPaused()) print_job_timer.start();
+
+
+  // tell screen we are ready  to work
+  if (resume_source_ = TRIGGER_SOURCE_SC) {
+    FinishSystemStatusChange(SYSCTL_OPC_RESUME, 0);
+  }
+
+  pause_source_ = TRIGGER_SOURCE_NONE;
+  cur_status_ = SYSTAT_RESUME_WAITING;
 }
+
 
 /**
  * when receive gcode in resume_waiting, we need to change state to work
@@ -628,9 +565,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
  * process Pause / Resume / Stop event
  */
 void StatusControl::Process() {
-  PauseProcess();
-  StopProcess();
-  ResumeProcess();
 }
 
 /**
@@ -2019,3 +1953,65 @@ ErrCode StatusControl::GetMachineSize(Event_t &event) {
 
   return hmi.Send(event);
 }
+
+
+ErrCode StatusControl::CallbackPreQS(QuickStopSource source) {
+  switch (source) {
+  case QS_SOURCE_PAUSE:
+
+    print_job_timer.pause();
+
+    // reset the status of filament monitor
+    runout.reset();
+    break;
+
+  case QS_SOURCE_STOP:
+    PreProcessStop();
+    break;
+
+  default:
+    break;
+  }
+}
+
+
+ErrCode StatusControl::CallbackPostQS(QuickStopSource source) {
+  switch (source) {
+  case QS_SOURCE_PAUSE:
+
+
+    if (pause_source_ == TRIGGER_SOURCE_SC) {
+      // ack HMI
+      FinishSystemStatusChange(SYSCTL_OPC_PAUSE, 0);
+    }
+
+    pause_source_ = TRIGGER_SOURCE_NONE;
+
+    LOG_I("Finish pause\n");
+    cur_status_ = SYSTAT_PAUSE_FINISH;
+    break;
+
+  case QS_SOURCE_STOP:
+    // tell Screen we finish stop
+    if (stop_source_ == TRIGGER_SOURCE_SC) {
+      // ack HMI
+      if (stop_type_ == STOP_TYPE_ABORTED)
+        FinishSystemStatusChange(SYSCTL_OPC_STOP, 0);
+      else
+        FinishSystemStatusChange(SYSCTL_OPC_FINISH, 0);
+    }
+
+    // clear stop type because stage will be changed
+    stop_source_ = TRIGGER_SOURCE_NONE;
+    cur_status_ = SYSTAT_IDLE;
+
+    LOG_I("Finish stop\n");
+    break;
+
+  default:
+    break;
+  }
+}
+
+
+

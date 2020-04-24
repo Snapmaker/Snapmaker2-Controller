@@ -28,14 +28,6 @@ enum QuickStopSource : uint8_t {
 };
 
 
-enum QuickStopCallbackType : uint8_t {
-  QS_CB_TYPE_PRE,
-  QS_CB_TYPE_POST,
-
-  QS_CB_TYPE_INVALID
-};
-typedef ErrCode (*QSCallback_t)(QuickStopState sta);
-
 class QuickStopService {
   public:
     void Init();
@@ -46,9 +38,6 @@ class QuickStopService {
 
     void Process();
 
-    ErrCode RegisterCB(QuickStopSource s, QSCallback_t cb, QuickStopCallbackType t);
-
-
   private:
     void Park();
 
@@ -57,9 +46,6 @@ class QuickStopService {
     QuickStopState state_ = QS_STA_IDLE;
     QuickStopSource source_ = QS_SOURCE_IDLE;
     bool wrote_flash_ = false;
-
-    QSCallback_t cb_pre_[QS_SOURCE_INVALID];
-    QSCallback_t cb_post_[QS_SOURCE_INVALID];
 };
 
 extern QuickStopService quickstop;

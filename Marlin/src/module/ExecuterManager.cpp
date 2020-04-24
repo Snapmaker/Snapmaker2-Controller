@@ -8,7 +8,7 @@
 #include "CanDefines.h"
 #include "StatusControl.h"
 #include "PeriphDevice.h"
-#include "../snap_module/quickstop.h"
+#include "../snap_module/quickstop_service.h"
 
 ExecuterManager ExecuterHead;
 
@@ -79,7 +79,7 @@ void ExecuterManager::CallbackOpenDoor() {
   case MACHINE_TYPE_CNC:
     // just handle working with PC
     if (CNC.GetRPM() > 0 && SystemStatus.GetWorkingPort() != WORKING_PORT_SC) {
-      quickstop.Trigger(QS_EVENT_STOP);
+      quickstop.Trigger(QS_SOURCE_STOP);
       Periph.SetUartLock(true);
     }
     break;
