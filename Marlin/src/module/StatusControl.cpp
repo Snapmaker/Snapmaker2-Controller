@@ -1686,9 +1686,6 @@ ErrCode StatusControl::SendLastLine(Event_t &event) {
 ErrCode StatusControl::ClearException(Event_t &event) {
   ErrCode err = E_SUCCESS;
 
-  event.data = &err;
-  event.length = 1;
-
   if (event.length == 0) {
     LOG_I("SC req clear power loss bits\n");
     SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_POWER_LOSS);
@@ -1713,6 +1710,9 @@ ErrCode StatusControl::ClearException(Event_t &event) {
     LOG_E("too many data: %d\n", event.length);
     err = E_FAILURE;
   }
+
+  event.data = &err;
+  event.length = 1;
 
   return hmi.Send(event);
 }
