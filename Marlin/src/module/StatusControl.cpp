@@ -2013,5 +2013,3 @@ ErrCode StatusControl::CallbackPostQS(QuickStopSource source) {
   }
 }
 
-
-

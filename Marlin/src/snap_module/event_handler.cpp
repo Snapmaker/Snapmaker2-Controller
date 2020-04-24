@@ -27,6 +27,9 @@
 
 #define DEBUG_EVENT_HANDLER 0
 
+#define HEART_BEAT_NITIFICATION 0X30
+
+
 typedef ErrCode (*CallbackFunc_t)(Event_t &event);
 
 struct EventCallback_t {
@@ -51,7 +54,7 @@ static ErrCode HandleGcode(uint8_t *event_buff, uint16_t size) {
 
 static ErrCode SendStatus(Event_t &event) {
   if (snap_tasks && snap_tasks->heartbeat)
-    xTaskNotify(snap_tasks->heartbeat, 0x1, eSetBits);
+    xTaskNotify(snap_tasks->heartbeat, HEART_BEAT_NITIFICATION, eSetBits);
   return E_SUCCESS;
 }
 
