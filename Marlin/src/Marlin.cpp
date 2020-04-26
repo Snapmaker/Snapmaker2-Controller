@@ -1377,17 +1377,17 @@ void main_loop(void *param) {
 
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_LASER:
-    SERIAL_ECHOLNPGM("Laser Module\r\n");
+    SERIAL_ECHOLNPGM("Laser Module");
     ExecuterHead.Laser.Init();
     break;
 
   case MACHINE_TYPE_CNC:
-    SERIAL_ECHOLNPGM("CNC Module\r\n");
+    SERIAL_ECHOLNPGM("CNC Module");
     ExecuterHead.CNC.Init();
     break;
 
   case MACHINE_TYPE_3DPRINT:
-    SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
+    SERIAL_ECHOLNPGM("3DPRINT Module");
     ExecuterHead.Print3D.Init();
     runout.enabled = true;
     break;
@@ -1408,7 +1408,7 @@ void main_loop(void *param) {
 
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
-  SERIAL_ECHOLN("Finish init");
+  SERIAL_ECHOLN("Finish init\n");
 
   cur_mills = millis() - 3000;
 
@@ -1485,40 +1485,36 @@ void hmi_task(void *param) {
 
   hmi.Init();
 
-  #if PIN_EXISTS(SCREEN_DET)
   SET_INPUT_PULLUP(SCREEN_DET_PIN);
   if(READ(SCREEN_DET_PIN)) {
-    LOG_I("Screen Unplugged!");
+    LOG_I("Screen Unplugged!\n");
     vTaskSuspend(task_param->heartbeat);
   }
   else {
-    LOG_I("Screen Plugged!");
+    LOG_I("Screen Plugged!\n");
   }
-  #endif
 
   for (;;) {
     #if HAS_FILAMENT_SENSOR
       runout.run();
     #endif
 
-    #if PIN_EXISTS(SCREEN_DET)
-      if(READ(SCREEN_DET_PIN)) {
-        if (eTaskGetState(task_param->heartbeat) != eSuspended) {
-          xTaskNotifyStateClear(task_param->heartbeat);
-          vTaskSuspend(task_param->heartbeat);
-        }
+    if(READ(SCREEN_DET_PIN)) {
+      if (eTaskGetState(task_param->heartbeat) != eSuspended) {
+        xTaskNotifyStateClear(task_param->heartbeat);
+        vTaskSuspend(task_param->heartbeat);
       }
-      else {
-        if (eTaskGetState(task_param->heartbeat) == eSuspended)
-          vTaskResume(task_param->heartbeat);
-      }
-    #endif
+    }
+    else {
+      if (eTaskGetState(task_param->heartbeat) == eSuspended)
+        vTaskResume(task_param->heartbeat);
+    }
 
     SystemStatus.CheckException();
     ExecuterHead.CheckAlive();
+    ExecuterHead.Process();
 
     Periph.Process();
-    ExecuterHead.Process();
 
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
     if (ret != E_SUCCESS) {
