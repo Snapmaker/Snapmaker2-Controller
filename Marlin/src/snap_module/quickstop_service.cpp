@@ -196,9 +196,7 @@ void QuickStopService::Process() {
 
   SystemStatus.CallbackPreQS(source_);
 
-  // pending the HMI task
   vTaskSuspend(snap_tasks->hmi);
-  xMessageBufferReset(snap_tasks->event_queue);
   clear_command_queue();
 
   // waiting for the block queue to be clear by stepper ISR
@@ -215,9 +213,12 @@ void QuickStopService::Process() {
   if (source_ == QS_SOURCE_POWER_LOSS)
     while (1);
 
-  vTaskResume(snap_tasks->hmi);
-
   SystemStatus.CallbackPostQS(source_);
+
+  // clear hmi queue and marlin queue
+  xMessageBufferReset(snap_tasks->event_queue);
+  clear_command_queue();
+  vTaskResume(snap_tasks->hmi);
 
   state_ = QS_STA_IDLE;
   source_ = QS_SOURCE_IDLE;
