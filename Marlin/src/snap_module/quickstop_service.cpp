@@ -29,6 +29,7 @@ void QuickStopService::Trigger(QuickStopSource new_source, bool from_isr /*=fals
   }
   else {
     if (new_source == QS_SOURCE_POWER_LOSS) {
+      pre_source_ = source_;
       source_ = new_source;
     }
   }
@@ -48,84 +49,97 @@ void QuickStopService::Trigger(QuickStopSource new_source, bool from_isr /*=fals
  */
 bool QuickStopService::CheckInISR(block_t *blk) {
 
+  bool ret = false;
+
   switch (state_) {
   /*
    * normal state
    */
   case QS_STA_IDLE:
-    return false;
+    break;
 
   /*
    * triggered by some one
    */
   case QS_STA_TRIGGERED:
+    // need sync count position from stepper to planner
+    // otherwise, it may park in unexpected position
+    set_current_from_steppers_for_axis(ALL_AXES);
 
     switch (source_) {
+
+    /*
+    * triggered by STOP, not save env, switch to next state directly
+    */
     case QS_SOURCE_STOP:
       state_ = QS_STA_STOPPED;
       break;
 
+    /*
+    * triggered by power-loss, turn off some power domains
+    * before save env and write flash, will run through
+    * next case to save env and write flash
+    */
     case QS_SOURCE_POWER_LOSS:
       powerpanic.TurnOffPower(state_);
 
+    /*
+    * triggered by PAUSE, just save env and switch to next state
+    */
     case QS_SOURCE_PAUSE:
       if (blk)
         powerpanic.SaveCmdLine(blk->filePos);
-      set_current_from_steppers_for_axis(ALL_AXES);
       powerpanic.SaveEnv();
 
+      // write flash only power-loss appear
       if (source_ == QS_SOURCE_POWER_LOSS) {
         powerpanic.WriteFlash();
         wrote_flash_ = true;
-        state_ = QS_STA_WROTE_FLASH;
       }
-      else {
-        state_ = QS_STA_SAVED_ENV;
-      }
+
+      state_ = QS_STA_SAVED_ENV;
       break;
 
     default:
       break;
     }
 
-    return true;
-
-  /*
-   * triggered by pause, and env has been saved.
-   * if power loss, just write env into flash,
-   * or the state_ will be changed to QS_STA_PARKING
-   */
-  case QS_STA_SAVED_ENV:
-    if (source_ == QS_SOURCE_POWER_LOSS) {
-      powerpanic.TurnOffPower(state_);
-      powerpanic.WriteFlash();
-      wrote_flash_ = true;
-      state_ = QS_STA_WROTE_FLASH;
-    }
+    ret = true;
     break;
 
   /*
-   * waiting state to be changed to QS_STA_PARKING
+   * waiting state to be changed to QS_STA_PARKING in Process()
    */
   case QS_STA_STOPPED:
-  case QS_STA_WROTE_FLASH:
-    return true;
+    ret = true;
+    break;
+
+  /*
+   * triggered by pause/power=loss, and env has been saved.
+   * if power loss, env has been written into flash, here
+   * won't break, just run to case QS_STA_PARKING, to check if
+   * power-loss happen in PAUSE
+   */
+  case QS_STA_SAVED_ENV:
+    ret = true;
 
   /*
    * ok, Process() is called, the state has been changed to QS_STA_PARKING
-   * and if power loss during parking, will save env to flash if it was not be saved
+   * if power loss happened when parking for PAUSE, we need to write env into flash
    */
   case QS_STA_PARKING:
-    if (!wrote_flash_) {
+    if ((source_ == QS_SOURCE_POWER_LOSS) && (pre_source_ == QS_SOURCE_PAUSE) && !wrote_flash_) {
       powerpanic.TurnOffPower(state_);
       powerpanic.WriteFlash();
       wrote_flash_ = true;
     }
-    return false;
+    break;
 
   default:
-    return true;
+    break;
   }
+
+  return ret;
 }
 
 
@@ -203,14 +217,18 @@ void QuickStopService::Process() {
 
   LOG_I("pos shift: X: %.3f, Y: %.3f, Z: %.3f\n", position_shift[X_AXIS], position_shift[Y_AXIS], position_shift[Z_AXIS]);
 
-  // waiting for the block queue to be clear by stepper ISR
-  while (planner.has_blocks_queued()) {
+  // 1. waiting for the block queue to be clear by stepper ISR
+  // 2. waiting state_ run over QS_STA_TRIGGERED
+  while (planner.has_blocks_queued() || state_ <= QS_STA_TRIGGERED) {
     idle();
   }
 
-  planner.cleaning_buffer_counter = 0;
-
+  // switch to QS_STA_PARKING, to recover stepper output
   state_ = QS_STA_PARKING;
+
+  DISABLE_TEMPERATURE_INTERRUPT();
+  planner.cleaning_buffer_counter = 0;
+  ENABLE_TEMPERATURE_INTERRUPT();
 
   Park();
 

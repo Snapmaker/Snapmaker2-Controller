@@ -10,7 +10,6 @@ enum QuickStopState : uint8_t {
   QS_STA_IDLE,
   QS_STA_TRIGGERED,
   QS_STA_SAVED_ENV,
-  QS_STA_WROTE_FLASH,
   QS_STA_STOPPED,
   QS_STA_PARKING,
 
@@ -45,6 +44,7 @@ class QuickStopService {
   private:
     QuickStopState state_ = QS_STA_IDLE;
     QuickStopSource source_ = QS_SOURCE_IDLE;
+    QuickStopSource pre_source_ = QS_SOURCE_IDLE;
     bool wrote_flash_ = false;
 };
 
