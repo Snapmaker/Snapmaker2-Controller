@@ -254,28 +254,6 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
     return E_NO_SWITCHING_STA;
   }
 
-  switch (ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
-    if (runout.is_filament_runout()) {
-      LOG_E("No filemant!\n");
-      fault_flag_ |= FAULT_FLAG_FILAMENT;
-      return E_NO_FILAMENT;
-    }
-    break;
-
-  case MACHINE_TYPE_CNC:
-  case MACHINE_TYPE_LASER:
-    if (Periph.IsDoorOpened()) {
-      LOG_E("Door is opened!\n");
-      fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
-      return E_DOOR_OPENED;
-    }
-    break;
-
-  default:
-    break;
-  }
-
   switch (source) {
   case TRIGGER_SOURCE_SC:
     if (work_port_ != WORKING_PORT_SC) {
@@ -297,6 +275,28 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
   default:
     LOG_W("invalid trigger source: %d\n", source);
     return E_FAILURE;
+    break;
+  }
+
+  switch (ExecuterHead.MachineType) {
+  case MACHINE_TYPE_3DPRINT:
+    if (runout.is_filament_runout()) {
+      LOG_E("No filemant!\n");
+      fault_flag_ |= FAULT_FLAG_FILAMENT;
+      return E_NO_FILAMENT;
+    }
+    break;
+
+  case MACHINE_TYPE_CNC:
+  case MACHINE_TYPE_LASER:
+    if (Periph.IsDoorOpened()) {
+      LOG_E("Door is opened!\n");
+      fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
+      return E_DOOR_OPENED;
+    }
+    break;
+
+  default:
     break;
   }
 
@@ -1667,17 +1667,27 @@ ErrCode StatusControl::FinishSystemStatusChange(uint8_t op_code, uint8_t result)
 
 
 ErrCode StatusControl::SendLastLine(Event_t &event) {
-  uint8_t buff[4];
+  uint8_t buff[6];
 
-  event.data = buff;
-  event.length = 0;
+  LOG_I("SC req last line: ");
 
-  if (SystemStatus.GetCurrentStage() != SYSTAGE_PAUSE) {
-    WORD_TO_PDU_BYTES(buff, powerpanic.pre_data_.FilePosition);
+  if (GetCurrentStage() != SYSTAGE_PAUSE) {
+    LOG_I("%u\n", powerpanic.pre_data_.FilePosition);
+
+    buff[0] = powerpanic.pre_data_.Valid;
+    buff[1] = powerpanic.pre_data_.GCodeSource;
+    WORD_TO_PDU_BYTES(buff + 2, powerpanic.pre_data_.FilePosition);
   }
   else {
-    WORD_TO_PDU_BYTES(buff, powerpanic.Data.FilePosition);
+    LOG_I("%u\n", powerpanic.Data.FilePosition);
+
+    buff[0] = powerpanic.Data.Valid;
+    buff[1] = powerpanic.Data.GCodeSource;
+    WORD_TO_PDU_BYTES(buff + 2, powerpanic.Data.FilePosition);
   }
+
+  event.data = buff;
+  event.length = 6;
 
   return hmi.Send(event);
 }
