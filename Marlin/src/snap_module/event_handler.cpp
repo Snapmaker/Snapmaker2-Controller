@@ -27,7 +27,7 @@
 
 #define DEBUG_EVENT_HANDLER 0
 
-#define HEART_BEAT_NITIFICATION 0X30
+#define HEART_BEAT_NITIFICATION (60*10)
 
 
 typedef ErrCode (*CallbackFunc_t)(Event_t &event);

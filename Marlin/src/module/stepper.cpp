@@ -1297,10 +1297,7 @@ void Stepper::isr() {
       planner.discard_current_block();
     }
 
-    planner.block_buffer_nonbusy = planner.block_buffer_tail = \
-      planner.block_buffer_planned = planner.block_buffer_head;
-
-    // interval = 500 us
+    // interval = 1 ms
     HAL_timer_set_compare(STEP_TIMER_NUM,
         hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
 

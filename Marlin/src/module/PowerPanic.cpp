@@ -50,7 +50,7 @@ void PowerPanic::Init(void) {
     // got power panic data
 		if (ExecuterHead.MachineType == pre_data_.MachineType) {
 			SystemStatus.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
-			SERIAL_ECHOLNPGM("Got power panic data!");
+			SERIAL_ECHOLNPGM("PL: Got available data!");
 		}
 		else {
 			MaskPowerPanicData();
@@ -58,12 +58,12 @@ void PowerPanic::Init(void) {
     break;
   case 1:
     // data read from flash is invalid
-    SERIAL_ECHOLNPGM("invalid power panic data!");
+    SERIAL_ECHOLNPGM("PL: Unavailable data!");
     break;
 
   default:
     // do nothing for other results such as 2 = no power panic data
-    SERIAL_ECHOLNPGM("No power panic data!");
+    SERIAL_ECHOLNPGM("PL: No data!");
     break;
   }
 }
@@ -109,6 +109,8 @@ int PowerPanic::Load(void)
 		}
 	}
 
+	LOG_I("PL: first free block index: %d\n", tmpIndex);
+
 	// try to find a non-free block
 	for (i = 0; i < TotalCount; i++)
 	{
@@ -125,6 +127,8 @@ int PowerPanic::Load(void)
 		tmpIndex = (tmpIndex + TotalCount - 1) % TotalCount;
 	}
 
+	LOG_I("PL: first non-free block index: %d\n", tmpIndex);
+
 	// check the last value of flag
 	if(Flag == 0xffffffff) {
 		// arrive here we know the flash area is empty, never recording any power-loss data
@@ -134,6 +138,8 @@ int PowerPanic::Load(void)
 		pre_data_.Valid = 0;
 		// return value
 		ret = 2;
+
+		LOG_I("PL: no any data\n");
 	}
 	else {
 		// arrive here we may have avalible power-loss data
@@ -143,7 +149,7 @@ int PowerPanic::Load(void)
 		Flag = *((uint32_t*)addr);
 		if(Flag != 0x5555) {
 			// alright, this block has been masked by Screen
-
+			LOG_I("PL: data has been masked\n");
 			// make data to be invalid
 			pre_data_.Valid = 0;
 			ret = 1;
@@ -171,7 +177,7 @@ int PowerPanic::Load(void)
 
 			if (Checksum != tmpChecksum) {
 				// shit! uncorrent checksum, flash was damaged?
-				LOG_E("Error checksum[0x%08x] for power-loss data, should be [0x%08x]\n", tmpChecksum, Checksum);
+				LOG_E("PL: Error checksum[0x%08x] for power-loss data, should be [0x%08x]\n", tmpChecksum, Checksum);
 
 				// anyway, we mask this block
 				FLASH_Unlock();
@@ -190,6 +196,8 @@ int PowerPanic::Load(void)
 
 		// make write index to point next block
 		WriteIndex = (tmpIndex + 1) % TotalCount;
+		LOG_I("PL: next write index: %u\n", WriteIndex);
+
 		// check if need to erase flash page
 		if ((WriteIndex % RECORD_COUNT_PER_PAGE) == 0)
 		{
@@ -201,6 +209,8 @@ int PowerPanic::Load(void)
 			addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
 			FLASH_ErasePage(addr);
 			FLASH_Lock();
+
+			LOG_I("PL: erased next page, addr: 0x%X\n", addr);
 		}
 	}
 
@@ -648,7 +658,7 @@ void PowerPanic::Check(void) {
       powerstat = POWER_NORMAL_STATE;
 		}
 		else {
-			quickstop.Trigger(QS_SOURCE_POWER_LOSS);
+			quickstop.Trigger(QS_SOURCE_POWER_LOSS, true);
 		}
   }
 }

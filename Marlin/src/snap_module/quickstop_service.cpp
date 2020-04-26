@@ -208,8 +208,10 @@ void QuickStopService::Process() {
   if (state_ == QS_STA_IDLE)
     return;
 
+  // tell system controller we start to handle QS in Non-ISR
   SystemStatus.CallbackPreQS(source_);
 
+  // clear the command exist in queue
   clear_command_queue();
 
   LOG_I("QS at X: %.3f, Y: %.3f, Z: %.3f, E: %.3f\n", LOGICAL_X_POSITION(current_position[X_AXIS]),
@@ -217,32 +219,45 @@ void QuickStopService::Process() {
 
   LOG_I("pos shift: X: %.3f, Y: %.3f, Z: %.3f\n", position_shift[X_AXIS], position_shift[Y_AXIS], position_shift[Z_AXIS]);
 
-  // 1. waiting for the block queue to be clear by stepper ISR
-  // 2. waiting state_ run over QS_STA_TRIGGERED
-  while (planner.has_blocks_queued() || state_ <= QS_STA_TRIGGERED) {
+  // Waiting state_ to run over QS_STA_TRIGGERED to make sure
+  // env has been saved and current_block in stepper was clean
+  while (state_ <= QS_STA_TRIGGERED) {
     idle();
   }
+
+  // arrive here, stepper won't get any block,
+  // so it's safe to clean block buffer
+  planner.clear_block_buffer();
 
   // switch to QS_STA_PARKING, to recover stepper output
   state_ = QS_STA_PARKING;
 
+  // clean the counter to recover planner
+  // tmeperature ISR maybe subtract the counter
+  // so disable the interrupt before changing it
   DISABLE_TEMPERATURE_INTERRUPT();
   planner.cleaning_buffer_counter = 0;
   ENABLE_TEMPERATURE_INTERRUPT();
 
+  // parking
   Park();
 
-  if (source_ == QS_SOURCE_POWER_LOSS)
+  if (source_ == QS_SOURCE_POWER_LOSS) {
     while (1);
+  }
 
-  SystemStatus.CallbackPostQS(source_);
-
-  // clear hmi queue and marlin queue
+  // clean HMI message exist in message buffer
   xMessageBufferReset(snap_tasks->event_queue);
+
+  // idle() will get new command during parking, clean again
   clear_command_queue();
+
+  // tell system controller we have parked
+  SystemStatus.CallbackPostQS(source_);
 
   state_ = QS_STA_IDLE;
   source_ = QS_SOURCE_IDLE;
+  pre_source_ = QS_SOURCE_IDLE;
   wrote_flash_ = false;
 }
 
