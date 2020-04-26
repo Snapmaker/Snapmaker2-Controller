@@ -158,7 +158,7 @@ void CanInit() {
   NVIC_InitStruct.NVIC_IRQChannel = CAN2_RX0_IRQn;
   NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 2;
-  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 2;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
   NVIC_Init(&NVIC_InitStruct);
 
   NVIC_InitStruct.NVIC_IRQChannel = CAN1_RX0_IRQn;
@@ -167,7 +167,7 @@ void CanInit() {
   NVIC_InitStruct.NVIC_IRQChannel = CAN2_RX1_IRQn;
   NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 3;
-  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 2;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
   NVIC_Init(&NVIC_InitStruct);
 
   NVIC_InitStruct.NVIC_IRQChannel = CAN1_RX1_IRQn;

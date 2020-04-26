@@ -210,6 +210,7 @@ static void NVIC_SetPriorityGrouping(uint32_t PriorityGroup) {
 #endif
 
 void HAL_init(void) {
+  // choose group 4, all bits is for preemption
   NVIC_SetPriorityGrouping(0x3);
 }
 
