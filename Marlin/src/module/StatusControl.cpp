@@ -188,7 +188,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
 #define RESUME_PROCESS_CMD_SIZE 40
 
 void inline StatusControl::RestoreXYZ(void) {
-  LOG_I("\nrestore ponit:\n X:%.2f, Y:%.2f, Z:%.2f, E:%.2f)\n", powerpanic.Data.PositionData[X_AXIS],
+  LOG_I("\nrestore ponit: X :%.2f, Y:%.2f, Z:%.2f, E:%.2f", powerpanic.Data.PositionData[X_AXIS],
         powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
         powerpanic.Data.PositionData[E_AXIS]);
 

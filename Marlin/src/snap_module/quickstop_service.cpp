@@ -196,8 +196,12 @@ void QuickStopService::Process() {
 
   SystemStatus.CallbackPreQS(source_);
 
-  vTaskSuspend(snap_tasks->hmi);
   clear_command_queue();
+
+  LOG_I("QS at X: %.3f, Y: %.3f, Z: %.3f, E: %.3f\n", LOGICAL_X_POSITION(current_position[X_AXIS]),
+      LOGICAL_Y_POSITION(current_position[Y_AXIS]), LOGICAL_Z_POSITION(current_position[Z_AXIS]), current_position[E_AXIS]);
+
+  LOG_I("pos shift: X: %.3f, Y: %.3f, Z: %.3f\n", position_shift[X_AXIS], position_shift[Y_AXIS], position_shift[Z_AXIS]);
 
   // waiting for the block queue to be clear by stepper ISR
   while (planner.has_blocks_queued()) {
@@ -218,7 +222,6 @@ void QuickStopService::Process() {
   // clear hmi queue and marlin queue
   xMessageBufferReset(snap_tasks->event_queue);
   clear_command_queue();
-  vTaskResume(snap_tasks->hmi);
 
   state_ = QS_STA_IDLE;
   source_ = QS_SOURCE_IDLE;
