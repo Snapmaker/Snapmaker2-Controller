@@ -5,6 +5,7 @@
 #include "../Marlin.h"
 #include "../module/CanModule.h"
 #include "../module/CanBus.h"
+#include "../module/StatusControl.h"
 #include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
 
 
@@ -30,6 +31,18 @@ ErrCode UpgradeService::StartUpgrade(Event_t &event) {
   uint32_t addr;
   uint8_t pages;
 
+  event.data = &err;
+  event.length = 1;
+
+  SysStatus sta = SystemStatus.GetCurrentStatus();
+
+  if (sta != SYSTAT_IDLE) {
+    LOG_E("cannot upgrade in current status: %u\n", sta);
+    err = E_FAILURE;
+    return hmi.Send(event);
+  }
+
+  taskENTER_CRITICAL();
   FLASH_Unlock();
 
   // erase update info
@@ -48,13 +61,12 @@ ErrCode UpgradeService::StartUpgrade(Event_t &event) {
     addr += 2048;
   }
   FLASH_Lock();
+  taskEXIT_CRITICAL();
 
   received_fw_size_ = 0;
   upgrade_status_ = UPGRADE_STA_IS_UPGRADING;
   req_pkt_counter_ = 0;
 
-  event.data = &err;
-  event.length = 1;
   hmi.Send(event);
 
   return RequestNextPacket();
@@ -126,11 +138,10 @@ ErrCode UpgradeService::EndUpgarde(Event_t &event) {
   taskEXIT_CRITICAL();
 
   err = E_SUCCESS;
-  hmi.Send(event);
 
   WatchDogInit();
 
-  return err;
+  return hmi.Send(event);
 }
 
 
