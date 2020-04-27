@@ -550,19 +550,23 @@ void LaserExecuter::ChangePower(float percent) {
 
 
 ErrCode LaserExecuter::GetFocalLength(Event_t &event) {
-  uint8_t buff[4];
+  uint8_t buff[5];
   uint32_t focal_length;
 
-  event.length = 4;
-  event.data = buff;
+  LOG_I("SC get focal length\n");
 
   LoadFocusHeight();
 
+  buff[0] = 0;
+
   focal_length = (uint32_t)(FocusHeight * 1000);
 
-  WORD_TO_PDU_BYTES(buff, focal_length);
+  WORD_TO_PDU_BYTES(buff + 1, focal_length);
 
-  hmi.Send(event);
+  event.length = 5;
+  event.data = buff;
+
+  return hmi.Send(event);
 }
 
 
@@ -572,7 +576,7 @@ ErrCode LaserExecuter::SetFocalLength(Event_t &event) {
   uint8_t buff[2];
   int     focal_length;
 
-  LOG_I("SC req set focal length\n");
+  LOG_I("SC set focal length\n");
 
   if (event.length < 4) {
     LOG_E("Must specify focal length!\n");

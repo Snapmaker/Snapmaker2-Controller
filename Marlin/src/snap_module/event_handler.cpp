@@ -324,6 +324,7 @@ static ErrCode GetCameraBtName(Event_t &event) {
 static ErrCode GetCameraBtMAC(Event_t &event) {
   return ExecuterHead.Laser.GetCameraBtMAC(event);
 }
+
 EventCallback_t camera_event_cb[CAMERA_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
