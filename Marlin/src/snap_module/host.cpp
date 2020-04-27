@@ -10,7 +10,11 @@ Host hmi;
 
 #define HOST_DEBUG  0
 
+#define LOG_HEAD  "HOST: "
+
 void Host::Init() {
+  nvic_irq_set_priority(HMISERIAL.c_dev()->irq_num, HMI_SERIAL_IRQ_PRIORITY);
+
   HMISERIAL.begin(115200);
 
   mlock_uart_ = xSemaphoreCreateMutex();
@@ -61,7 +65,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   while (HMISERIAL.available() < (COMMAND_PACKET_MIN_SIZE - COMMAND_SOF_SIZE)) {
     vTaskDelay(1);
     if (++timeout > TIMEOUT_FOR_HEADER) {
-      SERIAL_ECHOLN("timeout to wait for PDU header");
+      SERIAL_ECHOLN(LOG_HEAD "timeout to wait for PDU header");
       return E_NO_HEADER;
     }
   }
@@ -78,7 +82,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
       else {
         vTaskDelay(1);
         if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
-          SERIAL_ECHOLNPAIR("not enough bytes for header, just got ", i);
+          SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for header, just got ", i);
           return E_NO_HEADER;
         }
       }
@@ -90,24 +94,25 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   length = (uint16_t)(pdu_header_[PDU_IDX_DATA_LEN_H]<<8 | pdu_header_[PDU_IDX_DATA_LEN_L]);
   // 1. check if we got normal length
   if (length > INVALID_DATA_LENGTH) {
-    SERIAL_ECHOLNPAIR("length out of range, recv: ", hex_word(length));
+    SERIAL_ECHOLNPAIR(LOG_HEAD "length out of range, recv: ", hex_word(length));
     return E_INVALID_DATA_LENGTH;
   }
 
   // 2. verify the length with checksum
   c = pdu_header_[PDU_IDX_DATA_LEN_H]^pdu_header_[PDU_IDX_DATA_LEN_L];
   if (pdu_header_[PDU_IDX_LEN_CHK] != (uint8_t)c) {
-    SERIAL_ECHOLNPAIR("length checksum error, recv: ", hex_byte(pdu_header_[PDU_IDX_LEN_CHK]), "calc: ", hex_byte((uint8_t)c));
+    SERIAL_ECHOLNPAIR(LOG_HEAD "length checksum error, recv: ", hex_byte(pdu_header_[PDU_IDX_LEN_CHK]), "calc: ", hex_byte((uint8_t)c));
     return E_INVALID_DATA_LENGTH;
   }
 
   // ok, got correct length, checkout the command checksum then switch state
   recv_chk = (uint16_t)(pdu_header_[PDU_IDX_CHKSUM_H]<<8 | pdu_header_[PDU_IDX_CHKSUM_L]);
 
+  timeout = 0;
   while (HMISERIAL.available() < length) {
-    vTaskDelay(1);
+    vTaskDelay(DELAY_FOR_DATA);
     if (++timeout > TIMEOUT_FOR_DATA) {
-      SERIAL_ECHOLNPAIR("not enough bytes for data: ", length);
+      SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for data: ", length);
       return E_NO_DATA;
     }
   }
@@ -122,7 +127,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
       else {
         vTaskDelay(1);
         if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
-          SERIAL_ECHOLN("timeout wait for next byte of data");
+          SERIAL_ECHOLN(LOG_HEAD "timeout wait for next byte of data");
           return E_NO_DATA;
         }
       }
@@ -135,9 +140,9 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   // calc checksum of data
   if (calc_chk != recv_chk) {
     SNAP_DEBUG_CMD_CHECKSUM_ERROR(true);
-    SERIAL_ECHOLNPAIR("uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(recv_chk));
+    SERIAL_ECHOLNPAIR(LOG_HEAD "uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(recv_chk));
     if (length > 0) {
-      SERIAL_ECHO("content:");
+      SERIAL_ECHO(LOG_HEAD "content:");
       for (int i = 0; i < length; i++) {
         SERIAL_ECHOPAIR(" ", hex_byte(cmd[i]));
       }
@@ -182,9 +187,9 @@ uint16_t Host::CalcChecksum(Event_t &event) {
 
 #if HOST_DEBUG
   SERIAL_EOL();
-  SERIAL_ECHOLNPAIR("send eid: ", hex_word(event.id), ", opc: ", hex_word(event.op_code), ", len: ", event.length);
+  SERIAL_ECHOLNPAIR(LOG_HEAD "send eid: ", hex_word(event.id), ", opc: ", hex_word(event.op_code), ", len: ", event.length);
 
-  SERIAL_ECHO("content:");
+  SERIAL_ECHO(LOG_HEAD "content:");
   for (int i = 0; i < event.length; i++) {
     SERIAL_ECHOPAIR(" ", hex_byte(event.data[i]));
   }
@@ -227,7 +232,7 @@ uint16_t Host::CalcChecksum(Event_t &event) {
   checksum = ~checksum;
 
 #if HOST_DEBUG
-  SERIAL_ECHOLNPAIR("checnksum: ", hex_word(checksum));
+  SERIAL_ECHOLNPAIR(LOG_HEAD "checnksum: ", hex_word(checksum));
   SERIAL_EOL();
 #endif
 
@@ -274,7 +279,7 @@ ErrCode Host::Send(Event_t &event) {
   if (task_started_)
     ret = xSemaphoreTake(mlock_uart_, configTICK_RATE_HZ/100);
   if (ret != pdPASS) {
-    SERIAL_ECHOLN("failed to get HMI uart lock!");
+    SERIAL_ECHOLN(LOG_HEAD "failed to get HMI uart lock!");
     return E_BUSY;
   }
 

@@ -26,6 +26,9 @@ class UpgradeService {
     ErrCode SendModuleUpgradeStatus(uint8_t sta);
     ErrCode SendModuleVer(uint32_t mac, char ver[VERSION_STRING_SIZE]);
 
+
+    void Check(void);
+
   private:
     ErrCode RequestNextPacket();
 
@@ -33,7 +36,9 @@ class UpgradeService {
     static const uint16_t max_packet_ = MARLIN_CODE_SIZE / 512;
 
     UpgradeStatus upgrade_status_ = UPGRADE_STA_IDLE;
+    uint16_t  timeout_ = 0;
     uint16_t req_pkt_counter_ = 0;
+    uint16_t pre_pkt_counter_ = 0;
     uint32_t received_fw_size_ = 0;
 };
 

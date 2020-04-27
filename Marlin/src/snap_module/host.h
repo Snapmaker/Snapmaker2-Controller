@@ -33,8 +33,12 @@
 #define PDU_IDX_DATA0     10
 
 #define TIMEOUT_FOR_HEADER    (2)
-#define TIMEOUT_FOR_DATA      (5)
+
+#define DELAY_FOR_DATA        (2)
+#define TIMEOUT_FOR_DATA      (1000/DELAY_FOR_DATA)
+
 #define TIMEOUT_FOR_NEXT_BYTE (1)
+
 #define INVALID_EVENT_ID      ((uint16_t)0x100)
 #define INVALID_OP_CODE       ((uint16_t)0x100)
 #define INVALID_DATA_LENGTH   ((uint16_t)1024)

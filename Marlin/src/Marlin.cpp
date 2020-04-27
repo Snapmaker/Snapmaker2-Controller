@@ -66,6 +66,7 @@
 #include "module/ExecuterManager.h"
 #include "snap_module/host.h"
 #include "snap_module/event_handler.h"
+#include "snap_module/upgrade_service.h"
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
@@ -1047,6 +1048,7 @@ void setup() {
   #endif
 
   #if NUM_SERIAL > 0
+    nvic_irq_set_priority(MYSERIAL0.c_dev()->irq_num, MARLIN_SERIAL_IRQ_PRIORITY);
     MYSERIAL0.begin(BAUDRATE);
     #if NUM_SERIAL > 1
       MYSERIAL1.begin(BAUDRATE);
@@ -1518,13 +1520,13 @@ void hmi_task(void *param) {
 
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
     if (ret != E_SUCCESS) {
-      vTaskDelay(configTICK_RATE_HZ/500);
+      vTaskDelay(1);
       continue;
     }
 
     DispatchEvent(&dispather_param);
 
-    vTaskDelay(configTICK_RATE_HZ/500);
+    vTaskDelay(1);
   }
 }
 
@@ -1538,6 +1540,8 @@ void heartbeat_task(void *param) {
 
     if (notificaiton)
       SystemStatus.SendStatus(event);
+
+    upgrade.Check();
 
     vTaskDelay(configTICK_RATE_HZ);
   }

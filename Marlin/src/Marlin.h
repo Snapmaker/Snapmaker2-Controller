@@ -457,3 +457,7 @@ extern SnapTasks_t snap_tasks;
 // task parameters for heartbeat task
 #define HB_TASK_PRIO             (configMAX_PRIORITIES - 1)
 #define HB_TASK_STACK_DEPTH      configMINIMAL_STACK_SIZE
+
+#define HMI_SERIAL_IRQ_PRIORITY     8
+#define MARLIN_SERIAL_IRQ_PRIORITY  9
+

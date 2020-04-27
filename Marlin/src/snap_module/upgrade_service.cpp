@@ -11,6 +11,7 @@
 
 UpgradeService upgrade;
 
+#define LOG_HEAD  "UP: "
 
 ErrCode UpgradeService::RequestNextPacket() {
   Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_TRANS_FW};
@@ -21,7 +22,6 @@ ErrCode UpgradeService::RequestNextPacket() {
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, req_pkt_counter_, event.length);
 
   event.data = buff;
-  event.length = 2;
 
   return hmi.Send(event);
 }
@@ -34,10 +34,12 @@ ErrCode UpgradeService::StartUpgrade(Event_t &event) {
   event.data = &err;
   event.length = 1;
 
+  LOG_I(LOG_HEAD "SC req start upgrade\n");
+
   SysStatus sta = SystemStatus.GetCurrentStatus();
 
   if (sta != SYSTAT_IDLE) {
-    LOG_E("cannot upgrade in current status: %u\n", sta);
+    LOG_E(LOG_HEAD "cannot upgrade in current status: %u\n", sta);
     err = E_FAILURE;
     return hmi.Send(event);
   }
@@ -60,12 +62,15 @@ ErrCode UpgradeService::StartUpgrade(Event_t &event) {
     FLASH_ErasePage(addr);
     addr += 2048;
   }
+
   FLASH_Lock();
   taskEXIT_CRITICAL();
 
+  timeout_ = 0;
   received_fw_size_ = 0;
-  upgrade_status_ = UPGRADE_STA_IS_UPGRADING;
-  req_pkt_counter_ = 0;
+  req_pkt_counter_  = 0;
+  pre_pkt_counter_  = 0;
+  upgrade_status_   = UPGRADE_STA_IS_UPGRADING;
 
   hmi.Send(event);
 
@@ -76,24 +81,26 @@ ErrCode UpgradeService::StartUpgrade(Event_t &event) {
 ErrCode UpgradeService::ReceiveFW(Event_t &event) {
 
   uint32_t addr;
-  uint16_t packet_index;
+  uint32_t packet_index;
   uint16_t tmp;
 
   uint16_t data_len;
 
-  packet_index = (uint16_t)(event.data[0]<<8 | event.data[1]);
+
+  packet_index = event.data[0]<<8 | event.data[1];
 
   if ((packet_index < max_packet_) && (upgrade_status_ == UPGRADE_STA_IS_UPGRADING) && (packet_index == req_pkt_counter_)) {
 
+    // event length = 2bytes (packet length) + length of fw packet
     data_len = (event.length - 2);
 
-    // every packet should have 512 bytes besides the last packet
-    received_fw_size_ = packet_index<<7 + data_len;
+    // every packet should have 512 bytes except the last packet
+    received_fw_size_ = packet_index * 512 + data_len;
 
-    addr = FLASH_UPDATE_CONTENT + packet_index<<7;
+    addr = FLASH_UPDATE_CONTENT + packet_index * 512;
 
-    // if we have no enough
-    if ((data_len % 2) != 0) data_len++;
+    // data len should be even number
+    if (data_len & 0x0001) data_len++;
 
     taskENTER_CRITICAL();
     FLASH_Unlock();
@@ -111,6 +118,9 @@ ErrCode UpgradeService::ReceiveFW(Event_t &event) {
 
     req_pkt_counter_++;
   }
+  else {
+    LOG_E("param error in receiving FW! pkt index: %u, req index: %u\n", packet_index, req_pkt_counter_);
+  }
 
   return RequestNextPacket();
 }
@@ -122,12 +132,16 @@ ErrCode UpgradeService::EndUpgarde(Event_t &event) {
   event.data = &err;
   event.length = 1;
 
+  LOG_I(LOG_HEAD "SC req end upgrade\n");
+
   if (upgrade_status_ != UPGRADE_STA_IS_UPGRADING) {
-    LOG_E("Not in upgrading!\n");
+    LOG_E(LOG_HEAD "Not in upgrading!\n");
     return hmi.Send(event);
   }
 
   upgrade_status_ = UPGRADE_STA_IDLE;
+
+  LOG_I(LOG_HEAD "packet counts: %u,  FW size: %u\n", req_pkt_counter_, received_fw_size_);
 
   taskENTER_CRITICAL();
   FLASH_Unlock();
@@ -135,12 +149,11 @@ ErrCode UpgradeService::EndUpgarde(Event_t &event) {
   FLASH_ProgramWord((uint32_t)(FLASH_UPDATE_CONTENT_INFO), 0xaa55ee11);
 
   FLASH_Lock();
+
+  WatchDogInit();
   taskEXIT_CRITICAL();
 
   err = E_SUCCESS;
-
-  WatchDogInit();
-
   return hmi.Send(event);
 }
 
@@ -150,6 +163,8 @@ ErrCode UpgradeService::GetMainControllerVer(Event_t &event) {
   uint16_t i;
 
   uint8_t ver[33];
+
+  LOG_I(LOG_HEAD "SC req MC version\n");
 
   //Request controller's firmware version
   addr = FLASH_BOOT_PARA + 2048;
@@ -172,6 +187,8 @@ ErrCode UpgradeService::CompareMCVer(Event_t &event) {
   ErrCode   err = E_SUCCESS;
   uint8_t   cur_ver[33];
 
+  LOG_I(LOG_HEAD "SC req compare version\n");
+
   addr = FLASH_BOOT_PARA + 2048;
 
   for (i = 0; i < 32; i++)
@@ -189,12 +206,17 @@ ErrCode UpgradeService::CompareMCVer(Event_t &event) {
       break;
   }
 
+  event.data = &err;
+  event.length = 1;
+
   return hmi.Send(event);
 }
 
 
 ErrCode UpgradeService::GetUpgradeStatus(Event_t &event) {
   uint8_t up_status = (uint8_t) upgrade_status_;
+
+  LOG_I(LOG_HEAD "SC req upgrade statue\n");
 
   event.data = &up_status;
   event.length = 1;
@@ -204,11 +226,11 @@ ErrCode UpgradeService::GetUpgradeStatus(Event_t &event) {
 
 
 ErrCode UpgradeService::GetModuleVer(Event_t &event) {
-
-  LOG_I("SC req MODULE ver\n");
   uint8_t buffer[VERSION_STRING_SIZE + 4];
   uint32_t mac;
   int l;
+
+  LOG_I(LOG_HEAD "SC req MODULE ver\n");
 
   event.data = buffer;
 
@@ -238,9 +260,39 @@ ErrCode UpgradeService::GetModuleVer(Event_t &event) {
 ErrCode UpgradeService::SendModuleUpgradeStatus(uint8_t sta) {
   Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_SYNC_MODULE_UP_STATUS};
 
+  LOG_I(LOG_HEAD "SC req module upgrade statue\n");
+
   event.data = &sta;
   event.length = 1;
 
   return hmi.Send(event);
+}
+
+
+void UpgradeService::Check(void) {
+  Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_TRANS_FW};
+  uint8_t buff[2];
+
+  if (pre_pkt_counter_ != UPGRADE_STA_IS_UPGRADING) {
+    return;
+  }
+
+
+  if (pre_pkt_counter_ != req_pkt_counter_) {
+    pre_pkt_counter_ = req_pkt_counter_;
+    return;
+  }
+  else {
+    timeout_++;
+  }
+
+  if (!(timeout_ & 0x0003)) {
+    event.length = 0;
+    HWORD_TO_PDU_BYTES_INDE_MOVE(buff, req_pkt_counter_, event.length);
+
+    event.data = buff;
+
+    hmi.Send(event);
+  }
 }
 
