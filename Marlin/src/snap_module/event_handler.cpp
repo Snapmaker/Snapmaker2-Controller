@@ -542,6 +542,7 @@ EventCallback_t upgrade_event_cb[UPGRADE_OPC_MAX] = {
   /* [UPGRADE_OPC_GET_MC_VER]          =  */{EVENT_ATTR_DEFAULT,  GetMainControllerVer},
   /* [UPGRADE_OPC_COMPARE_VER]         =  */{EVENT_ATTR_DEFAULT,  CompareMCVer},
   /* [UPGRADE_OPC_GET_UP_STATUS]       =  */{EVENT_ATTR_DEFAULT,  GetUpgradeStatus},
+  /* [UPGRADE_OPC_SYNC_MODULE_UP_STATUS] =*/UNDEFINED_CALLBACK,
   /* [UPGRADE_OPC_GET_MODULE_VER]      =  */{EVENT_ATTR_DEFAULT,  GetModuleVer}
 };
 
