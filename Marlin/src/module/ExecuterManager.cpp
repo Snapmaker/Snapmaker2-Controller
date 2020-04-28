@@ -37,9 +37,7 @@ bool ExecuterManager::Detecte()
 }
 
 void ExecuterManager::Process() {
-
   Laser.TryCloseFan();
-
 }
 
 void ExecuterManager::CheckAlive() {

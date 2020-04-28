@@ -14,8 +14,8 @@
 #include "../snap_module/snap_dbg.h"
 #include "../snap_module/M1028.h"
 
-// time to delay close fan, 5s
-#define TIME_TO_CLOSE_FAN (120 * 1000)
+// time to delay close fan, 120s
+#define TIME_TO_CLOSE_FAN 120
 
 static const uint16_t LaserPowerTable[]=
 {
@@ -55,14 +55,13 @@ void LaserExecuter::CheckFan(uint16_t p) {
   case LAESR_FAN_STA_OPEN:
     if (p == 0) {
       fan_state_ = LAESR_FAN_STA_TO_BE_CLOSED;
-      fan_tick_ = millis();
+      fan_tick_ = 0;
     }
     break;
 
   case LAESR_FAN_STA_TO_BE_CLOSED:
     if (p > 0) {
       fan_state_ = LAESR_FAN_STA_OPEN;
-      fan_tick_ = 0;
     }
     break;
 
@@ -72,7 +71,6 @@ void LaserExecuter::CheckFan(uint16_t p) {
       data[1] = 255;
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, data, 2);
       fan_state_ = LAESR_FAN_STA_OPEN;
-      fan_tick_ = 0;
     }
     break;
   }
@@ -88,7 +86,7 @@ void LaserExecuter::TryCloseFan() {
     return;
 
   if (fan_state_ == LAESR_FAN_STA_TO_BE_CLOSED) {
-    if ((millis() - fan_tick_) > TIME_TO_CLOSE_FAN) {
+    if (++fan_tick_ > TIME_TO_CLOSE_FAN) {
       data[0] = 0;
       data[1] = 0;
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, data, 2);

@@ -82,7 +82,7 @@ private:
   uint8_t   tmpBuff[128];
 
   uint8_t   fan_state_;
-  millis_t  fan_tick_;
+  uint16_t  fan_tick_;
 
   float     power_limit_;
 };
