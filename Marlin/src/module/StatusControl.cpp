@@ -1825,6 +1825,8 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
 
   PDU_TO_LOCAL_WORD(param, event.data + 1);
 
+  param /= 1000;
+
   switch (event.data[0]) {
   case RENV_TYPE_FEEDRATE:
     LOG_I("feedrate scaling: %.2f\n", param);
