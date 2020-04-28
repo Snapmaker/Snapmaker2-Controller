@@ -28,18 +28,14 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
 
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
 
-    if (!go_home_before_cali && all_axes_homed() &&
-      (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
-      if (current_position[Z_AXIS] < z_limit_in_cali)
-        move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-      move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
-      planner.synchronize();
-    }
-    else
-      process_cmd_imd("G28");
-    process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
-
+    process_cmd_imd("G28");
     set_bed_leveling_enabled(false);
+
+    process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
+    bilinear_grid_manual();
+
+    current_position[Z_AXIS] = Z_MAX_POS;
+    sync_plan_position();
 
     // change the Z max feedrate
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
@@ -84,20 +80,17 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
-    if (!go_home_before_cali && all_axes_homed() &&
-      (!position_shift[X_AXIS] && !position_shift[Y_AXIS] && !position_shift[Z_AXIS])) {
-      if (current_position[Z_AXIS] < z_limit_in_cali)
-        move_to_limited_z(z_limit_in_cali, XY_PROBE_FEEDRATE_MM_S/2);
-      move_to_limited_x(0, XY_PROBE_FEEDRATE_MM_S);
-      planner.synchronize();
-    }
-    else
-      process_cmd_imd("G28");
-    process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
-
+    process_cmd_imd("G28");
     set_bed_leveling_enabled(false);
 
+    process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
     bilinear_grid_manual();
+
+    current_position[Z_AXIS] = Z_MAX_POS;
+    sync_plan_position();
+
+    // change the Z max feedrate
+    planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     // Move Z to 20mm height
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
