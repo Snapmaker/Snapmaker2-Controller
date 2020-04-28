@@ -848,7 +848,7 @@ void idle(
   #endif
 
   if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
-    vTaskDelay(1);
+    vTaskDelay(portTICK_PERIOD_MS);
 }
 
 /**
@@ -1447,6 +1447,7 @@ void main_loop(void *param) {
       }
     }
 
+    // receive and execute one command, or push Gcode into Marlin queue
     DispatchEvent(&dispather_param);
 
     if (commands_in_queue < BUFSIZE) get_available_commands();
@@ -1497,9 +1498,6 @@ void hmi_task(void *param) {
   }
 
   for (;;) {
-    #if HAS_FILAMENT_SENSOR
-      runout.run();
-    #endif
 
     if(READ(SCREEN_DET_PIN)) {
       if (eTaskGetState(task_param->heartbeat) != eSuspended) {
@@ -1512,21 +1510,17 @@ void hmi_task(void *param) {
         vTaskResume(task_param->heartbeat);
     }
 
-    SystemStatus.CheckException();
-    ExecuterHead.CheckAlive();
-    ExecuterHead.Process();
-
-    Periph.Process();
-
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
     if (ret != E_SUCCESS) {
-      vTaskDelay(1);
+      // no command, sleep 10ms for next command
+      vTaskDelay(portTICK_PERIOD_MS * 10);
       continue;
     }
 
+    // execute or send out one command
     DispatchEvent(&dispather_param);
 
-    vTaskDelay(1);
+    vTaskDelay(portTICK_PERIOD_MS);
   }
 }
 
@@ -1535,15 +1529,35 @@ void heartbeat_task(void *param) {
   uint32_t  notificaiton = 0;
   Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
 
+  int counter = 0;
+
   for (;;) {
-    notificaiton = ulTaskNotifyTake(false, 0);
+    // do following every 10ms without being blocked
+    #if HAS_FILAMENT_SENSOR
+      runout.run();
+    #endif
 
-    if (notificaiton)
-      SystemStatus.SendStatus(event);
+    SystemStatus.CheckException();
+    ExecuterHead.CheckAlive();
 
-    upgrade.Check();
+    Periph.Process();
 
-    vTaskDelay(configTICK_RATE_HZ);
+    if (++counter > 100) {
+      counter = 0;
+
+      // do following every 1s
+      upgrade.Check();
+
+      ExecuterHead.Process();
+
+      notificaiton = ulTaskNotifyTake(false, 0);
+
+      if (notificaiton)
+        SystemStatus.SendStatus(event);
+    }
+
+    // sleep for 10ms
+    vTaskDelay(portTICK_PERIOD_MS * 10);
   }
 }
 

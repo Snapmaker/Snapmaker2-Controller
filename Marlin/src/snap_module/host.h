@@ -34,7 +34,7 @@
 
 #define TIMEOUT_FOR_HEADER    (2)
 
-#define DELAY_FOR_DATA        (2)
+#define DELAY_FOR_DATA        (2*portTICK_PERIOD_MS)
 #define TIMEOUT_FOR_DATA      (1000/DELAY_FOR_DATA)
 
 #define TIMEOUT_FOR_NEXT_BYTE (1)

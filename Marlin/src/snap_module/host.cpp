@@ -63,7 +63,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
 
   // if it doesn't have enough bytes in UART buffer for header, just return
   while (HMISERIAL.available() < (COMMAND_PACKET_MIN_SIZE - COMMAND_SOF_SIZE)) {
-    vTaskDelay(1);
+    vTaskDelay(portTICK_PERIOD_MS);
     if (++timeout > TIMEOUT_FOR_HEADER) {
       SERIAL_ECHOLN(LOG_HEAD "timeout to wait for PDU header");
       return E_NO_HEADER;
@@ -80,7 +80,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
       if (c != -1)
         break;
       else {
-        vTaskDelay(1);
+        vTaskDelay(portTICK_PERIOD_MS);
         if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
           SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for header, just got ", i);
           return E_NO_HEADER;
@@ -125,7 +125,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
       if (c != -1)
         break;
       else {
-        vTaskDelay(1);
+        vTaskDelay(portTICK_PERIOD_MS);
         if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
           SERIAL_ECHOLN(LOG_HEAD "timeout wait for next byte of data");
           return E_NO_DATA;
