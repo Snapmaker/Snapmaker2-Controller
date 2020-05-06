@@ -461,3 +461,5 @@ extern SnapTasks_t snap_tasks;
 #define HMI_SERIAL_IRQ_PRIORITY     8
 #define MARLIN_SERIAL_IRQ_PRIORITY  9
 
+
+#define AT_SNAP_SECTION   __attribute__((section(".snap")))

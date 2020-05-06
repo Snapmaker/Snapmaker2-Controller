@@ -31,7 +31,7 @@ class QuickStopService {
   public:
     void Init();
 
-    bool CheckInISR(block_t *blk);
+    bool CheckInISR(block_t *blk) AT_SNAP_SECTION;
 
     void Trigger(QuickStopSource new_source, bool from_isr=false);
 

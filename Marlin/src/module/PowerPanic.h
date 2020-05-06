@@ -73,7 +73,17 @@ public:
   void MaskPowerPanicData(void);
   int  SaveEnv(void);
   ErrCode ResumeWork();
-  void SaveCmdLine(uint32_t l);
+
+  /*
+  * when a block is output ended, save it's line number
+  * this function is called by stepper isr()
+  * when powerloss happened, no need to record line num.
+  */
+  void FORCE_INLINE SaveCmdLine(uint32_t l) {
+	if (l != INVALID_CMD_LINE)
+		last_line_ = l;
+  }
+
   void TurnOffPower(QuickStopState sta);
 	void Reset(void);
 	void Check(void);

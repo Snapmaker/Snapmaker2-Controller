@@ -625,16 +625,6 @@ void PowerPanic::TurnOffPower(QuickStopState sta) {
 
 
 /*
- * when a block is output ended, save it's line number
- * this function is called by stepper isr()
- * when powerloss happened, no need to record line num.
- */
-void PowerPanic::SaveCmdLine(uint32_t l) {
-	if (l != INVALID_CMD_LINE)
-		last_line_ = l;
-}
-
-/*
  * reset the power-loss data, generally called in starting work
  */
 void PowerPanic::Reset() {
