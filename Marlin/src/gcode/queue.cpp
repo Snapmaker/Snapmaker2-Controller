@@ -266,10 +266,7 @@ void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opco
 
   // enter buffer queue
   strcpy(hmi_command_queue[hmi_cmd_queue_index_w], pgcode);
-  if (Opcode == EID_GCODE_ACK)
-    hmi_commandline_queue[hmi_cmd_queue_index_w] = INVALID_CMD_LINE;
-  else
-    hmi_commandline_queue[hmi_cmd_queue_index_w] = Lines;
+  hmi_commandline_queue[hmi_cmd_queue_index_w] = Lines;
   hmi_send_opcode_queue[hmi_cmd_queue_index_w] = Opcode;
   hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
   hmi_commands_in_queue++;

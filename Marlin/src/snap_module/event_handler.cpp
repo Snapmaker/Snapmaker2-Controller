@@ -38,15 +38,49 @@ struct EventCallback_t {
 };
 
 
-
 static ErrCode HandleGcode(uint8_t *event_buff, uint16_t size) {
-  uint8_t ack_id = event_buff[0] + 1;
   uint32_t line;
 
+  // add EOF to end of string
+  event_buff[size] = 0;
+
+  Screen_enqueue_and_echo_commands((char *)(event_buff + 5), INVALID_CMD_LINE, EID_GCODE_ACK);
+
+  return E_SUCCESS;
+}
+
+static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
+  uint32_t line;
+
+  SysStatus   cur_sta = SystemStatus.GetCurrentStatus();
+  WorkingPort port = SystemStatus.GetWorkingPort();
+
+  if (port != WORKING_PORT_SC) {
+    LOG_E("working port is not SC for file gcode!\n");
+    return E_INVALID_STATE;
+  }
+
+  // checkout the line number
   PDU_TO_LOCAL_WORD(line, event_buff+1);
 
+  // add EOF to end of string
   event_buff[size] = 0;
-  Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, ack_id);
+
+  if (cur_sta == SYSTAT_WORK) {
+    Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, EID_FILE_GCODE_ACK);
+  }
+  else if (cur_sta == SYSTAT_RESUME_WAITING) {
+    if (SystemStatus.ResumeOver() == E_SUCCESS) {
+      Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, EID_FILE_GCODE_ACK);
+    }
+    else {
+      ack_gcode_event(EID_FILE_GCODE_ACK, line);
+    }
+  }
+  else {
+    LOG_E("not handle file Gcode in this status: %u\n", cur_sta);
+    return E_INVALID_STATE;
+  }
 
   return E_SUCCESS;
 }
@@ -577,9 +611,16 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 
   switch (event.id) {
   case EID_GCODE_REQ:
-  case EID_FILE_GCODE_REQ:
     if (param->owner == TASK_OWN_MARLIN) {
       return HandleGcode(param->event_buff, param->size);
+    }
+    else
+      send_to_marlin = true;
+    break;
+
+  case EID_FILE_GCODE_REQ:
+    if (param->owner == TASK_OWN_MARLIN) {
+      return HandleFileGcode(param->event_buff, param->size);
     }
     else
       send_to_marlin = true;
