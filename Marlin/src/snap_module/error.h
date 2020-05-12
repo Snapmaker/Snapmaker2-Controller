@@ -26,7 +26,18 @@ typedef uint8_t ErrCode;
 
 #define E_INVALID_STATE   (COMMON_ERR_BASE + 8)     /* state is invalid for current operation */
 
-#define E_SAME_STATE      (COMMON_ERR_BASE + 8)     /* current state is same with new state */
+#define E_SAME_STATE      (COMMON_ERR_BASE + 9)     /* current state is same with new state */
+
+#define E_INVALID_CMD     (COMMON_ERR_BASE + 10)     /* invalid event id or operation code */
+
+
+#define DATA_LINK_ERR_BASE (COMMON_ERR_BASE + 190)
+
+#define E_NO_SOF                (DATA_LINK_ERR_BASE + 0)     /* didn't found SOF in RX buffer */
+#define E_NO_HEADER             (DATA_LINK_ERR_BASE + 1)     /* cannot get header in RX buffer */
+#define E_INVALID_DATA_LENGTH   (DATA_LINK_ERR_BASE + 2)     /* incorrect checksum for data length or it is out of range */
+#define E_NO_DATA               (DATA_LINK_ERR_BASE + 3)     /* cannot get data field in RX buffer */
+#define E_INVALID_DATA          (DATA_LINK_ERR_BASE + 2)     /* incorrect checksum of data */
 
 #define PRIVATE_ERROR_BASE  200
 #define E_NO_SWITCHING_STA  (PRIVATE_ERROR_BASE + 0)

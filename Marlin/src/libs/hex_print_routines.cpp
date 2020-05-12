@@ -23,7 +23,10 @@
 #include "../inc/MarlinConfig.h"
 #include "../gcode/parser.h"
 
-#if ANY(AUTO_BED_LEVELING_UBL, M100_FREE_MEMORY_WATCHER, DEBUG_GCODE_PARSER, TMC_DEBUG)
+// Needed for M101 - RTOS Task Report.   We can collapse this later, but for now it is nice to
+// always have the hex print functions available.
+//
+//#if ENABLED(AUTO_BED_LEVELING_UBL) || ENABLED(M100_FREE_MEMORY_WATCHER) || ENABLED(DEBUG_GCODE_PARSER)
 
   #include "hex_print_routines.h"
 
@@ -87,4 +90,4 @@
     print_hex_byte(w);
   }
 
-#endif // AUTO_BED_LEVELING_UBL || M100_FREE_MEMORY_WATCHER || DEBUG_GCODE_PARSER
+//#endif // AUTO_BED_LEVELING_UBL || M100_FREE_MEMORY_WATCHER || DEBUG_GCODE_PARSER

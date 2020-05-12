@@ -5,7 +5,7 @@ Import("env")
 
 board = env.BoardConfig()
 
-print "++++++++++++++++++++++++++++++prepare upload start++++++++++++++++++++++++++++++\n"
+print("++++++++++++++++++++++++++++++prepare upload start++++++++++++++++++++++++++++++\n")
 
 upload_protocol = env.subst("$UPLOAD_PROTOCOL")
 if upload_protocol.startswith("jlink"):
@@ -36,5 +36,5 @@ if upload_protocol.startswith("jlink"):
         UPLOADCMD='$UPLOADER $UPLOADERFLAGS -CommanderScript "${__jlink_cmd_script(__env__, SOURCE)}"'
     )
 elif upload_protocol.startswith("stlink"):
-    print "st is not supprted now!"
+    print("st is not supprted now!")
 

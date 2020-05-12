@@ -35,6 +35,7 @@ FilamentMonitor runout;
 bool FilamentMonitorBase::enabled = false,
      FilamentMonitorBase::filament_ran_out;  // = false
 uint8_t FilamentMonitorBase::statefromcan = 0;
+millis_t FilamentMonitorBase::ranout_timer = 0;
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   bool FilamentMonitorBase::host_handling; // = false

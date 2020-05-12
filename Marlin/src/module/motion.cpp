@@ -142,6 +142,7 @@ float destination[XYZE]; // = { 0 }
 // Functions that override this for custom moves *must always* restore it!
 float feedrate_mm_s = MMM_TO_MMS(1500.0f);
 float feedrate_scaling = 100;
+float last_feedrate = 0;
 
 int16_t feedrate_percentage = 100;
 

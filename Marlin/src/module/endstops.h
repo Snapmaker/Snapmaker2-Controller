@@ -26,6 +26,7 @@
  */
 
 #include "../inc/MarlinConfig.h"
+#include "../Marlin.h"
 #include <stdint.h>
 
 enum EndstopEnum : uint32_t {
@@ -125,7 +126,7 @@ class Endstops {
      * If abort_enabled() and moving towards a triggered switch, abort the current move.
      * Called from ISR contexts.
      */
-    static void update();
+    static void update() AT_SNAP_SECTION;
 
     /**
      * Get Endstop hit state.

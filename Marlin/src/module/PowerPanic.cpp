@@ -4,20 +4,20 @@
 #include "../Marlin.h"
 #include "temperature.h"
 #include "planner.h"
-#include "executermanager.h"
+#include "ExecuterManager.h"
 #include "motion.h"
 #include "../gcode/gcode.h"
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/configuration_store.h"
 #include "../gcode/parser.h"
-#include "../SnapScreen/Screen.h"
-#include "periphdevice.h"
+#include "PeriphDevice.h"
 #include <EEPROM.h>
 #include "printcounter.h"
 #include "StatusControl.h"
 #include "stepper.h"
 #include "../snap_module/snap_dbg.h"
 #include "../feature/runout.h"
+#include "../snap_module/quickstop_service.h"
 
 #include "PowerPanic.h"
 #include "ExecuterManager.h"
@@ -50,7 +50,7 @@ void PowerPanic::Init(void) {
     // got power panic data
 		if (ExecuterHead.MachineType == pre_data_.MachineType) {
 			SystemStatus.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
-			SERIAL_ECHOLNPGM("Got power panic data!");
+			SERIAL_ECHOLNPGM("PL: Got available data!");
 		}
 		else {
 			MaskPowerPanicData();
@@ -58,12 +58,12 @@ void PowerPanic::Init(void) {
     break;
   case 1:
     // data read from flash is invalid
-    SERIAL_ECHOLNPGM("invalid power panic data!");
+    SERIAL_ECHOLNPGM("PL: Unavailable data!");
     break;
 
   default:
     // do nothing for other results such as 2 = no power panic data
-    SERIAL_ECHOLNPGM("No power panic data!");
+    SERIAL_ECHOLNPGM("PL: No data!");
     break;
   }
 }
@@ -109,6 +109,8 @@ int PowerPanic::Load(void)
 		}
 	}
 
+	LOG_I("PL: first free block index: %d\n", tmpIndex);
+
 	// try to find a non-free block
 	for (i = 0; i < TotalCount; i++)
 	{
@@ -125,6 +127,8 @@ int PowerPanic::Load(void)
 		tmpIndex = (tmpIndex + TotalCount - 1) % TotalCount;
 	}
 
+	LOG_I("PL: first non-free block index: %d\n", tmpIndex);
+
 	// check the last value of flag
 	if(Flag == 0xffffffff) {
 		// arrive here we know the flash area is empty, never recording any power-loss data
@@ -134,6 +138,8 @@ int PowerPanic::Load(void)
 		pre_data_.Valid = 0;
 		// return value
 		ret = 2;
+
+		LOG_I("PL: no any data\n");
 	}
 	else {
 		// arrive here we may have avalible power-loss data
@@ -143,7 +149,7 @@ int PowerPanic::Load(void)
 		Flag = *((uint32_t*)addr);
 		if(Flag != 0x5555) {
 			// alright, this block has been masked by Screen
-
+			LOG_I("PL: data has been masked\n");
 			// make data to be invalid
 			pre_data_.Valid = 0;
 			ret = 1;
@@ -171,7 +177,7 @@ int PowerPanic::Load(void)
 
 			if (Checksum != tmpChecksum) {
 				// shit! uncorrent checksum, flash was damaged?
-				LOG_E("Error checksum[0x%08x] for power-loss data, should be [0x%08x]\n", tmpChecksum, Checksum);
+				LOG_E("PL: Error checksum[0x%08x] for power-loss data, should be [0x%08x]\n", tmpChecksum, Checksum);
 
 				// anyway, we mask this block
 				FLASH_Unlock();
@@ -190,6 +196,8 @@ int PowerPanic::Load(void)
 
 		// make write index to point next block
 		WriteIndex = (tmpIndex + 1) % TotalCount;
+		LOG_I("PL: next write index: %u\n", WriteIndex);
+
 		// check if need to erase flash page
 		if ((WriteIndex % RECORD_COUNT_PER_PAGE) == 0)
 		{
@@ -201,6 +209,8 @@ int PowerPanic::Load(void)
 			addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
 			FLASH_ErasePage(addr);
 			FLASH_Lock();
+
+			LOG_I("PL: erased next page, addr: 0x%X\n", addr);
 		}
 	}
 
@@ -300,7 +310,7 @@ int PowerPanic::SaveEnv(void) {
 
 	LOOP_XYZ(i) Data.position_shift[i] = position_shift[i];
 
-	Data.FilePosition = last_line;
+	Data.FilePosition = last_line_;
 
   // heated bed
   Data.BedTamp = thermalManager.temp_bed.target;
@@ -578,53 +588,41 @@ ErrCode PowerPanic::ResumeWork() {
 /*
  * disable other unused peripherals in ISR
  */
-void PowerPanic::TurnOffPowerISR(void) {
+void PowerPanic::TurnOffPower(QuickStopState sta) {
   // these 2 statement will disable power supply for
   // HMI, BED, and all addones except steppers
 	disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+
+	if (sta  > QS_STA_TRIGGERED) {
+		BreathLightClose();
+
+		// disble timer except the stepper's
+		rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
+		rcc_clk_disable(TIMER7->clk_id);
+
+		// disalbe ADC
+		rcc_clk_disable(ADC1->clk_id);
+		rcc_clk_disable(ADC2->clk_id);
+
+		//disble DMA
+		rcc_clk_disable(DMA1->clk_id);
+		rcc_clk_disable(DMA2->clk_id);
+
+		// disable other unnecessary soc peripherals
+		// disable usart
+		//rcc_clk_disable(MSerial1.c_dev()->clk_id);
+		//rcc_clk_disable(MSerial2.c_dev()->clk_id);
+		//rcc_clk_disable(MSerial3.c_dev()->clk_id);
+
+	#if ENABLED(EXECUTER_CANBUS_SUPPORT)
+		// turn off hot end and FAN
+		// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+		// 	ExecuterHead.SetTemperature(0, 0);
+		// }
+	#endif
+	}
 }
 
-/*
- * disable other unused peripherals after ISR
- */
-void PowerPanic::TurnOffPower(void) {
-	BreathLightClose();
-
-	// disble timer except the stepper's
-	rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
-	rcc_clk_disable(TIMER7->clk_id);
-
-	// disalbe ADC
-	rcc_clk_disable(ADC1->clk_id);
-	rcc_clk_disable(ADC2->clk_id);
-
-	//disble DMA
-	rcc_clk_disable(DMA1->clk_id);
-	rcc_clk_disable(DMA2->clk_id);
-
-	// disable other unnecessary soc peripherals
-	// disable usart
-	//rcc_clk_disable(MSerial1.c_dev()->clk_id);
-	//rcc_clk_disable(MSerial2.c_dev()->clk_id);
-	//rcc_clk_disable(MSerial3.c_dev()->clk_id);
-
-#if ENABLED(EXECUTER_CANBUS_SUPPORT)
-  // turn off hot end and FAN
-	// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
-	// 	ExecuterHead.SetTemperature(0, 0);
-	// }
-#endif
-}
-
-/*
- * when a block is output ended, save it's line number
- * this function is called by stepper isr()
- * when powerloss happened, no need to record line num.
- */
-void PowerPanic::SaveCmdLine(uint32_t l) {
-	if (l != INVALID_CMD_LINE)
-		last_line = l;
-}
 
 /*
  * reset the power-loss data, generally called in starting work
@@ -638,3 +636,20 @@ void PowerPanic::Reset() {
 		*ptr++ = 0;
 	}
 }
+
+void PowerPanic::Check(void) {
+  uint8_t powerstat = READ(POWER_DETECT_PIN);
+
+  // debounce for power loss, will delay 10ms for responce
+  if (powerstat != POWER_LOSS_STATE)
+    last_powerloss_ = millis();
+  else {
+    if ((millis() - last_powerloss_) < POWERPANIC_DEBOUNCE) {
+      powerstat = POWER_NORMAL_STATE;
+		}
+		else {
+			quickstop.Trigger(QS_SOURCE_POWER_LOSS, true);
+		}
+  }
+}
+

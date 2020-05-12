@@ -29,7 +29,7 @@
 #include "../module/printcounter.h"
 #include "../module/stepper.h"
 #include "../gcode/queue.h"
-#include "../module/periphdevice.h"
+#include "../module/PeriphDevice.h"
 #include "../module/endstops.h"
 #include "../module/CanModule.h"
 #include "../inc/MarlinConfig.h"

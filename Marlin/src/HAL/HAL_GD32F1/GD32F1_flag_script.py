@@ -6,7 +6,9 @@ if __name__ == "__main__":
   args = " ".join([ "-std=gnu11",
                     "-std=gnu++11",
                     "-Os",
-                    "-mcpu=cortex-m3",
+                    "-mcpu=cortex-m4",
+#                    "-mfpu=fpv4-sp-d16",
+#                    "-mfloat-abi=hard",
                     "-mthumb",
 
                     "-ffreestanding",
@@ -18,11 +20,14 @@ if __name__ == "__main__":
                     "--specs=nosys.specs",
 
                     "-IMarlin/src/HAL/HAL_GD32F1",
+                    "-Isnapmaker/lib/GD32F1/libraries/FreeRTOS1030",
+                    "-Isnapmaker/lib/GD32F1/libraries/FreeRTOS1030/utility/include",
 
                     "-MMD",
                     "-MP",
                     "-DTARGET_GD32F1"
                   ])
+
 
   for i in range(1, len(sys.argv)):
     args += " " + sys.argv[i]
@@ -45,7 +50,7 @@ else:
       ],
       LINKFLAGS=[
           "-Os",
-          "-mcpu=cortex-m3",
+          "-mcpu=cortex-m4",
           "-ffreestanding",
           "-mthumb",
           "--specs=nano.specs",

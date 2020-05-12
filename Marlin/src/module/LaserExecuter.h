@@ -1,9 +1,12 @@
 #pragma once
 
 #include "../inc/MarlinConfig.h"
+#include "../snap_module/event_handler.h"
 
 #define LASER_POWER_NORMAL_LIMIT   (100)
 #define LASER_POWER_SAFE_LIMIT      (0.5)
+
+#define LASER_CAMERA_FOCAL_LENGTH_MAX 65000
 
 void Tim1PwmInit();
 void Tim1SetCCR1(uint16_t Value);
@@ -56,6 +59,15 @@ public:
 
   void ChangePowerLimit(float limit);
 
+  ErrCode GetFocalLength(Event_t &event);
+  ErrCode SetFocalLength(Event_t &event);
+  ErrCode DoManualFocusing(Event_t &event);
+  ErrCode DoAutoFocusing(Event_t &event);
+
+  ErrCode SetCameraBtName(Event_t &event);
+  ErrCode GetCameraBtName(Event_t &event);
+  ErrCode GetCameraBtMAC(Event_t &event);
+
 private:
   void PackedProtocal(uint8_t *pData, uint16_t len);
   char GetReply(uint8_t *Buff, millis_t Timeout);
@@ -70,7 +82,7 @@ private:
   uint8_t   tmpBuff[128];
 
   uint8_t   fan_state_;
-  millis_t  fan_tick_;
+  uint16_t  fan_tick_;
 
   float     power_limit_;
 };

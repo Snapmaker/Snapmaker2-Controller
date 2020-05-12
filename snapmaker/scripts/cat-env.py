@@ -5,46 +5,46 @@ from os.path import join,isfile,getsize
 Import("env", "projenv")
 
 
-print "++++++++++++++++++++++++++++++CPPDEFINES start++++++++++++++++++++++++++++++"
-print projenv.get("CPPDEFINES", [])[:]
-print "++++++++++++++++++++++++++++++CPPDEFINES end++++++++++++++++++++++++++++++\n"
+print("++++++++++++++++++++++++++++++CPPDEFINES start++++++++++++++++++++++++++++++")
+print(projenv.get("CPPDEFINES", [])[:])
+print("++++++++++++++++++++++++++++++CPPDEFINES end++++++++++++++++++++++++++++++\n")
 
-print "++++++++++++++++++++++++++++++CPPPATH start++++++++++++++++++++++++++++++"
+print("++++++++++++++++++++++++++++++CPPPATH start++++++++++++++++++++++++++++++")
 cpp_path = projenv.get("CPPPATH", [])[:]
 for p in cpp_path:
-  print p
-print "++++++++++++++++++++++++++++++CPPPATH end++++++++++++++++++++++++++++++\n" 
+  print(p)
+print("++++++++++++++++++++++++++++++CPPPATH end++++++++++++++++++++++++++++++\n")
 
-print "++++++++++++++++++++++++++++++CCFLAGS start++++++++++++++++++++++++++++++"
-print projenv.get("CCFLAGS", [])[:]
-print "++++++++++++++++++++++++++++++CCFLAGS end++++++++++++++++++++++++++++++\n"
+print("++++++++++++++++++++++++++++++CCFLAGS start++++++++++++++++++++++++++++++")
+print(projenv.get("CCFLAGS", [])[:])
+print("++++++++++++++++++++++++++++++CCFLAGS end++++++++++++++++++++++++++++++\n")
 
-print "++++++++++++++++++++++++++++++CXXFLAGS start++++++++++++++++++++++++++++++"
-print projenv.get("CXXFLAGS", [])[:]
-print "++++++++++++++++++++++++++++++CXXFLAGS end++++++++++++++++++++++++++++++\n"
+print("++++++++++++++++++++++++++++++CXXFLAGS start++++++++++++++++++++++++++++++")
+print(projenv.get("CXXFLAGS", [])[:])
+print("++++++++++++++++++++++++++++++CXXFLAGS end++++++++++++++++++++++++++++++\n")
 
-print "++++++++++++++++++++++++++++++LINKFLAGS start++++++++++++++++++++++++++++++"
-print projenv.get("LINKFLAGS", [])[:]
-print "LDSCRIPT_PATH: " + projenv.get("LDSCRIPT_PATH")
-print "++++++++++++++++++++++++++++++LINKFLAGS end++++++++++++++++++++++++++++++\n"
+print("++++++++++++++++++++++++++++++LINKFLAGS start++++++++++++++++++++++++++++++")
+print(projenv.get("LINKFLAGS", [])[:])
+print("LDSCRIPT_PATH: " + projenv.get("LDSCRIPT_PATH"))
+print("++++++++++++++++++++++++++++++LINKFLAGS end++++++++++++++++++++++++++++++\n")
 
-print "++++++++++++++++++++++++++++++LIBPATH start++++++++++++++++++++++++++++++"
+print("++++++++++++++++++++++++++++++LIBPATH start++++++++++++++++++++++++++++++")
 lib_path = projenv.get("LIBPATH", [])[:]
 for p in lib_path:
-  print p
-print "++++++++++++++++++++++++++++++LIBPATH end++++++++++++++++++++++++++++++\n" 
+  print(p)
+print("++++++++++++++++++++++++++++++LIBPATH end++++++++++++++++++++++++++++++\n")
 
-print "++++++++++++++++++++++++++++++LIBSOURCE_DIRS start++++++++++++++++++++++++++++++"
+print("++++++++++++++++++++++++++++++LIBSOURCE_DIRS start++++++++++++++++++++++++++++++")
 lib_src = projenv.get("LIBSOURCE_DIRS", [])[:]
 for p in lib_src:
-  print p
-print "++++++++++++++++++++++++++++++LIBSOURCE_DIRS end++++++++++++++++++++++++++++++\n" 
+  print(p)
+print("++++++++++++++++++++++++++++++LIBSOURCE_DIRS end++++++++++++++++++++++++++++++\n")
 
 
-print "++++++++++++++++++++++++++++++record env start++++++++++++++++++++++++++++++"
+print("++++++++++++++++++++++++++++++record env start++++++++++++++++++++++++++++++")
 def save_env():
   cwd = sys.path[0]
-  print "current dir: " + cwd
+  print("current dir: " + cwd)
 
   # get file path and see if it is too large
   f_path = join(cwd, "env.txt")
@@ -73,4 +73,4 @@ def save_env():
 
   f.close()
 save_env()
-print "++++++++++++++++++++++++++++++record env end++++++++++++++++++++++++++++++\n"
+print("++++++++++++++++++++++++++++++record env end++++++++++++++++++++++++++++++\n")

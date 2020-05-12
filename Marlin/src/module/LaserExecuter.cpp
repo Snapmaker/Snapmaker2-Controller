@@ -1,8 +1,10 @@
 #include "../inc/MarlinConfig.h"
 
 #include "../Marlin.h"
-#include "../module/temperature.h"
-#include "../module/configuration_store.h"
+#include "temperature.h"
+#include "configuration_store.h"
+#include "motion.h"
+#include "planner.h"
 #include "LaserExecuter.h"
 #include "CanBus.h"
 #include "CanDefines.h"
@@ -10,9 +12,10 @@
 #include "StatusControl.h"
 
 #include "../snap_module/snap_dbg.h"
+#include "../snap_module/M1028.h"
 
-// time to delay close fan, 5s
-#define TIME_TO_CLOSE_FAN (120 * 1000)
+// time to delay close fan, 120s
+#define TIME_TO_CLOSE_FAN 120
 
 static const uint16_t LaserPowerTable[]=
 {
@@ -52,14 +55,13 @@ void LaserExecuter::CheckFan(uint16_t p) {
   case LAESR_FAN_STA_OPEN:
     if (p == 0) {
       fan_state_ = LAESR_FAN_STA_TO_BE_CLOSED;
-      fan_tick_ = millis();
+      fan_tick_ = 0;
     }
     break;
 
   case LAESR_FAN_STA_TO_BE_CLOSED:
     if (p > 0) {
       fan_state_ = LAESR_FAN_STA_OPEN;
-      fan_tick_ = 0;
     }
     break;
 
@@ -69,7 +71,6 @@ void LaserExecuter::CheckFan(uint16_t p) {
       data[1] = 255;
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, data, 2);
       fan_state_ = LAESR_FAN_STA_OPEN;
-      fan_tick_ = 0;
     }
     break;
   }
@@ -85,7 +86,7 @@ void LaserExecuter::TryCloseFan() {
     return;
 
   if (fan_state_ == LAESR_FAN_STA_TO_BE_CLOSED) {
-    if ((millis() - fan_tick_) > TIME_TO_CLOSE_FAN) {
+    if (++fan_tick_ > TIME_TO_CLOSE_FAN) {
       data[0] = 0;
       data[1] = 0;
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_FAN, data, 2);
@@ -543,4 +544,262 @@ void LaserExecuter::ChangePower(float percent) {
 
   last_percent = percent;
   last_pwm = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
+}
+
+
+ErrCode LaserExecuter::GetFocalLength(Event_t &event) {
+  uint8_t buff[5];
+  uint32_t focal_length;
+
+  LOG_I("SC get focal length\n");
+
+  LoadFocusHeight();
+
+  buff[0] = 0;
+
+  focal_length = (uint32_t)(FocusHeight * 1000);
+
+  WORD_TO_PDU_BYTES(buff + 1, focal_length);
+
+  event.length = 5;
+  event.data = buff;
+
+  return hmi.Send(event);
+}
+
+
+ErrCode LaserExecuter::SetFocalLength(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  uint8_t buff[2];
+  int     focal_length;
+
+  LOG_I("SC set focal length\n");
+
+  if (event.length < 4) {
+    LOG_E("Must specify focal length!\n");
+    event.length = 1;
+    event.data = &err;
+    return hmi.Send(event);
+  }
+
+  PDU_TO_LOCAL_WORD(focal_length, event.data);
+
+  // length and data is picked up, can be changed
+  event.length = 1;
+  event.data = &err;
+
+  if (focal_length > LASER_CAMERA_FOCAL_LENGTH_MAX) {
+    LOG_E("new focal length[%d] is out of limit!\n", focal_length);
+    return hmi.Send(event);
+  }
+
+  buff[0] = (uint8_t)(focal_length >> 8);
+  buff[1] = (uint8_t)(focal_length);
+  CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_SET_LASER_FOCUS, buff, 2);
+
+  LoadFocusHeight();
+
+  err = E_SUCCESS;
+  return hmi.Send(event);
+}
+
+
+ErrCode LaserExecuter::DoManualFocusing(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  float pos[XYZ];
+
+  float max_z_speed;
+
+  LOG_I("SC req manual focusing\n");
+
+
+  if (!all_axes_homed()) {
+    LOG_E("Machine is not be homed!\n");
+    goto out;
+  }
+
+  if (MACHINE_TYPE_LASER != ExecuterHead.MachineType) {
+    LOG_E("Laser is offline!\n");
+    goto out;
+  }
+
+  if (event.length < 12) {
+    LOG_E("need to specify position!\n");
+    goto out;
+  }
+
+  planner.synchronize();
+
+  max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
+
+  PDU_TO_LOCAL_WORD(pos[X_AXIS], event.data);
+  PDU_TO_LOCAL_WORD(pos[Y_AXIS], event.data+4);
+  PDU_TO_LOCAL_WORD(pos[Z_AXIS], event.data+8);
+  LOG_I("Laser will move to (%.2f, %.2f, %.2f)\n", pos[X_AXIS], pos[Y_AXIS], pos[Z_AXIS]);
+
+  planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
+
+  // Move to the Certain point
+  do_blocking_move_to_logical_xy(pos[X_AXIS], pos[Y_AXIS], speed_in_calibration[X_AXIS]);
+
+  // Move to the Z
+  do_blocking_move_to_logical_z( pos[Z_AXIS], speed_in_calibration[Z_AXIS]);
+
+  planner.synchronize();
+
+  planner.settings.max_feedrate_mm_s[Z_AXIS] = max_z_speed;
+
+out:
+  event.length = 1;
+  event.data = &err;
+  return hmi.Send(event);
+}
+
+
+ErrCode LaserExecuter::DoAutoFocusing(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  uint8_t Count = 21;
+  float z_interval = 0.5;
+
+  float start_pos[XYZ];
+
+  int i = 0;
+  float next_x, next_y, next_z;
+  float line_space = 2;
+  float line_len_short = 5;
+  float line_len_long = 10;
+
+  LOG_I("SC req auto focusing\n");
+
+  if (!all_axes_homed()) {
+    LOG_E("Machine is not be homed!\n");
+    goto out;
+  }
+
+  if (MACHINE_TYPE_LASER != ExecuterHead.MachineType) {
+    LOG_E("Laser is offline!\n");
+    goto out;
+  }
+
+  if (event.length == 4) {
+    PDU_TO_LOCAL_WORD(z_interval, event.data);
+    LOG_E("new Z interval: %.2f\n", z_interval);
+    z_interval /= 1000;
+  }
+
+  planner.synchronize();
+
+  LOOP_XYZ(i) {
+    start_pos[i] = current_position[i];
+  }
+
+  next_x = start_pos[X_AXIS] - (int)(Count / 2) * 2;
+  next_y = start_pos[Y_AXIS];
+  next_z = start_pos[Z_AXIS] - ((float)(Count - 1) / 2.0 * z_interval);
+
+  // too low
+  if(next_z <= 5) {
+    LOG_W("start Z height is too low: %.2f\n", next_z);
+  }
+
+  // Move to next Z
+  move_to_limited_z(next_z, 20.0f);
+
+  // Draw 10 Line
+  do {
+    // Move to the start point
+    move_to_limited_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
+    planner.synchronize();
+
+    // Laser on
+    ExecuterHead.Laser.SetLaserPower(laser_pwr_in_cali);
+
+    // Draw Line
+    if((i % 5) == 0)
+      move_to_limited_xy(next_x, next_y + line_len_long, speed_in_draw_ruler);
+    else
+      move_to_limited_xy(next_x, next_y + line_len_short, speed_in_draw_ruler);
+
+    planner.synchronize();
+
+    // Laser off
+    ExecuterHead.Laser.SetLaserPower(0.0f);
+
+    // Move up Z increase
+    if(i != (Count - 1))
+      move_to_limited_z(current_position[Z_AXIS] + z_interval, 20.0f);
+
+    next_x = next_x + line_space;
+    i++;
+  } while(i < Count);
+
+  planner.synchronize();
+
+  // Move to beginning
+  move_to_limited_z(start_pos[Z_AXIS], 20.0f);
+  move_to_limited_xy(start_pos[X_AXIS], start_pos[Y_AXIS], 20.0f);
+  planner.synchronize();
+
+  err = E_SUCCESS;
+
+out:
+  event.data = &err;
+  event.length = 1;
+  hmi.Send(event);
+}
+
+
+ErrCode LaserExecuter::SetCameraBtName(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  LOG_I("BlueTooth Name:", event.data);
+
+  if(SetBluetoothName((char *)event.data) == 0)
+    err = E_SUCCESS;
+
+  event.data = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+
+
+ErrCode LaserExecuter::GetCameraBtName(Event_t &event) {
+  uint8_t buffer[34] = {0};
+  int i;
+
+  buffer[0] = ExecuterHead.Laser.ReadBluetoothName((char *)(buffer + 1));
+
+  LOG_I("Bluetooth Name:", buffer + 1);
+
+  event.data = buffer;
+
+  if (buffer[0] != 0) {
+    event.length = 1;
+  }
+  else {
+    for (i = 1; i < 34; i++)
+      if (buffer[i] == 0)
+        break;
+
+    event.length = i;
+  }
+
+  return hmi.Send(event);
+}
+
+
+ErrCode LaserExecuter::GetCameraBtMAC(Event_t &event) {
+  uint8_t buffer[8] = {0};
+  int i;
+
+  buffer[0] = ReadBluetoothMac(buffer+1);
+
+  event.data = buffer;
+  event.length = 7;
+
+  return hmi.Send(event);
 }

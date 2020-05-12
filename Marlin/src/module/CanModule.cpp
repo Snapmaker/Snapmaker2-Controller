@@ -7,13 +7,14 @@
 #include "temperature.h"
 #include "configuration_store.h"
 #include "ExecuterManager.h"
-#include "Periphdevice.h"
+#include "PeriphDevice.h"
 #include "CanModule.h"
 #include <EEPROM.h>
 #include "../libs/GenerialFunctions.h"
-#include "../SnapScreen/Screen.h"
 #include "motion.h"
 #include "StatusControl.h"
+
+#include "../snap_module/upgrade_service.h"
 
 CanModule CanModules;
 
@@ -900,22 +901,22 @@ bool CanModule::GetFirmwareVersion(uint8_t CanNum, uint32 MacID, char* pVersion)
  * para ReportToScreen:True for reporting to the screen
  * para ReportToPC:True for reporting to the PC
  */
-void CanModule::EnumFirmwareVersion(bool ReportToScreen, bool ReportToPC) {
-  char Version[32];
-  uint32_t ID;
-  if((ReportToPC == false) && (ReportToScreen == false))
-    return;
+// void CanModule::EnumFirmwareVersion(bool ReportToScreen, bool ReportToPC) {
+//   char Version[32];
+//   uint32_t ID;
+//   if((ReportToPC == false) && (ReportToScreen == false))
+//     return;
 
-  for(int i=0;i<CanBusControlor.ModuleCount;i++) {
-    ID = CanBusControlor.ModuleMacList[i];
-    if(GetFirmwareVersion(BASIC_CAN_NUM, ID, Version) == true) {
-      if(ReportToPC == true)
-        SERIAL_ECHOPAIR("MAC:", Value32BitToString(ID), " Version", Version);
-      if(ReportToScreen == true)
-        HMI.SendModuleVersion(ID, Version);
-    }
-  }
-}
+//   for(int i=0;i<CanBusControlor.ModuleCount;i++) {
+//     ID = CanBusControlor.ModuleMacList[i];
+//     if(GetFirmwareVersion(BASIC_CAN_NUM, ID, Version) == true) {
+//       if(ReportToPC == true)
+//         SERIAL_ECHOPAIR("MAC:", Value32BitToString(ID), " Version", Version);
+//       if(ReportToScreen == true)
+//         upgrade.SendModuleVer(ID, Version);
+//     }
+//   }
+// }
 
 /**
  * SetAxesLength:Set the length of the specific linear module
@@ -1338,7 +1339,7 @@ void CanModule::UpdateProcess(void)
       }
     }
     EraseUpdatePack();
-    HMI.SendUpdateComplete(1);
+    upgrade.SendModuleUpgradeStatus(1);
     tmptick = millis() + 2000;
     while(tmptick > millis());
   }

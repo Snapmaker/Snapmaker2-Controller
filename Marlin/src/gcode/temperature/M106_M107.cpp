@@ -28,7 +28,7 @@
 #include "../../module/motion.h"
 #include "../../module/temperature.h"
 #if ENABLED(CAN_FAN)
-  #include "../../module/periphdevice.h"
+  #include "../../module/PeriphDevice.h"
 #endif
 
 #if ENABLED(SINGLENOZZLE)

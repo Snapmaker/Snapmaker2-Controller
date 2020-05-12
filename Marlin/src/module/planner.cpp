@@ -117,8 +117,6 @@ uint32_t Planner::max_acceleration_steps_per_s2[XYZE_N]; // (steps/s^2) Derived 
 
 float Planner::steps_to_mm[XYZE_N];           // (mm) Millimeters per step
 
-uint32_t Planner::sync_cnt = 0;
-
 #if ENABLED(JUNCTION_DEVIATION)
   float Planner::junction_deviation_mm;       // (mm) M205 J
   #if ENABLED(LIN_ADVANCE)
@@ -1554,17 +1552,12 @@ float Planner::get_axis_position_mm(const AxisEnum axis) {
  * Block until all buffered steps are executed / cleaned
  */
 void Planner::synchronize() {
-  ++sync_cnt;
-  if (sync_cnt > 1) {
-    LOG_V("SYNC CNT  %d\n", sync_cnt);
-  }
   while (
     has_blocks_queued() || cleaning_buffer_counter
     #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
       || (READ(CLOSED_LOOP_ENABLE_PIN) && !READ(CLOSED_LOOP_MOVE_COMPLETE_PIN))
     #endif
   ) idle();
-  --sync_cnt;
 }
 
 /**
@@ -2941,3 +2934,55 @@ void Planner::refresh_positioning() {
   }
 
 #endif
+
+/**
+ * The current block. NULL if the buffer is empty.
+ * This also marks the block as busy.
+ * WARNING: Called from Stepper ISR context!
+ */
+block_t* Planner::get_current_block() {
+
+  // Get the number of moves in the planner queue so far
+  const uint8_t nr_moves = movesplanned();
+
+  // If there are any moves queued ...
+  if (nr_moves) {
+
+    // If there is still delay of delivery of blocks running, decrement it
+    if (delay_before_delivering) {
+      --delay_before_delivering;
+      // If the number of movements queued is less than 3, and there is still time
+      //  to wait, do not deliver anything
+      if (nr_moves < 3 && delay_before_delivering) return NULL;
+      delay_before_delivering = 0;
+    }
+
+    // If we are here, there is no excuse to deliver the block
+    block_t * const block = &block_buffer[block_buffer_tail];
+
+    // No trapezoid calculated? Don't execute yet.
+    if (TEST(block->flag, BLOCK_BIT_RECALCULATE)) return NULL;
+
+    #if ENABLED(ULTRA_LCD)
+      block_buffer_runtime_us -= block->segment_time_us; // We can't be sure how long an active block will take, so don't count it.
+    #endif
+
+    // As this block is busy, advance the nonbusy block pointer
+    block_buffer_nonbusy = next_block_index(block_buffer_tail);
+
+    // Push block_buffer_planned pointer, if encountered.
+    if (block_buffer_tail == block_buffer_planned)
+      block_buffer_planned = block_buffer_nonbusy;
+
+    // Return the block
+    return block;
+  }
+
+  // The queue became empty
+  #if ENABLED(ULTRA_LCD)
+    clear_block_buffer_runtime(); // paranoia. Buffer is empty now - so reset accumulated time to zero.
+  #endif
+
+  return NULL;
+}
+

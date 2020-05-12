@@ -73,8 +73,8 @@ const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
 
 
 void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
-  int i = 0;
-  int j = 0;
+  Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_TRANS_LOG};
+
   int size = strlen(log_buf);
 
   if (size == 0)
@@ -87,51 +87,10 @@ void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
   // to include the end '\0'
   size++;
 
-// SOF
-  log_head[i++] = 0xAA;
-  log_head[i++] = 0x55;
+  event.length = size;
+  event.data = (uint8_t *)log_buf;
 
-  // length
-  log_head[i++] = (uint8_t) ((size + 4) >> 8);
-  log_head[i++] = (uint8_t) (size + 4);
-
-  // protocol version
-  log_head[i++] = 0x00;
-
-  // length checksum
-  log_head[i++] = log_head[2] ^log_head[3];
-
-  // checksum for data
-  i++;
-  i++;
-
-  // EventID & operation code
-  log_head[i++] = EID_STATUS_RESP;
-  log_head[i++] = 0x10;
-
-  // log level and length
-  log_head[i++] = l;
-  log_head[i++] = (uint8_t)size;
-
-  uint32_t checksum = 0;
-  checksum += (uint32_t) (((uint8_t) log_head[8] << 8) | (uint8_t) log_head[9]);
-  checksum += (uint32_t) (((uint8_t) log_head[10] << 8) | (uint8_t) log_head[11]);
-
-  for (j = 0; j < (size - 1); j = j + 2)
-    checksum += (uint32_t) (((uint8_t) log_buf[j] << 8) | (uint8_t) log_buf[j + 1]);
-
-  // if size is odd number
-  if (size % 2) checksum += (uint8_t)log_buf[size - 1];
-
-  while (checksum > 0xffff) checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-  checksum = ~checksum;
-  log_head[6] = checksum >> 8;
-  log_head[7] = checksum;
-
-  for (j = 0; j < i; j++)
-    HMISERIAL.write(log_head[j]);
-  for (j = 0; j < size; j++)
-    HMISERIAL.write(log_buf[j]);
+  hmi.Send(event);
 }
 
 // output debug message, will not output message whose level
@@ -177,6 +136,25 @@ void SnapDebug::SetLevel(uint8_t port, SnapDebugLevel l) {
     pc_msg_level = l;
   }
 }
+
+
+ErrCode SnapDebug::SetLogLevel(Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  if (event.length != 1) {
+    LOG_E("Need to specify log level!\n");
+    event.data = &err;
+    event.length = 1;
+  }
+  else {
+    LOG_V("SC req change log level");
+    sc_msg_level = (SnapDebugLevel)event.data[0];
+    event.data[0] = E_SUCCESS;
+  }
+
+  return hmi.Send(event);
+}
+
 
 SnapDebugLevel SnapDebug::GetLevel() {
   return sc_msg_level < pc_msg_level? sc_msg_level : pc_msg_level;
