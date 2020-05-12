@@ -1523,6 +1523,7 @@ ErrCode StatusControl::SendStatus(Event_t &event) {
   int32_t   tmp_i32;
   int16_t   tmp_i16;
   uint32_t  tmp_u32;
+  float     tmp_f32;
 
   CheckIfSendWaitEvent();
 
@@ -1557,7 +1558,8 @@ ErrCode StatusControl::SendStatus(Event_t &event) {
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // save last feedrate
-  tmp_i16 = (int16_t)last_feedrate;
+  tmp_f32 = last_feedrate * 60;
+  tmp_i16 = (int16_t)tmp_f32;
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // laser power
