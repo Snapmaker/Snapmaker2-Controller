@@ -6,7 +6,12 @@
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/StatusControl.h"
 
+
+#define CNC_SAFE_HIGH_DIFF 30  // Bed to CNC head height. mm
+
+
 QuickStopService quickstop;
+
 
 void QuickStopService::Init() {
 
@@ -187,7 +192,17 @@ void QuickStopService::Park() {
     break;
 
   case MACHINE_TYPE_CNC:
-    move_to_limited_z(Z_MAX_POS, 20);
+    if (current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF > Z_MAX_POS) {
+      move_to_limited_z(Z_MAX_POS, 20);
+    } else {
+      move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 20);
+      while (planner.has_blocks_queued()) {
+        if (source_ != QS_SOURCE_POWER_LOSS)
+          idle();
+      }
+      ExecuterHead.CNC.SetPower(0);
+      move_to_limited_z(Z_MAX_POS, 20);
+    }
     break;
 
   default:

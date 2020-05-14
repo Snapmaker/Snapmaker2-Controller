@@ -23,6 +23,8 @@
 
 #include "../../../inc/MarlinConfigPre.h"
 
+#define GRID_MAX_POINTS_INDEX (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y)
+
 extern int bilinear_grid_spacing[2], bilinear_start[2];
 extern float bilinear_grid_factor[2],
              z_values[GRID_MAX_NUM][GRID_MAX_NUM];

@@ -53,6 +53,8 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
     break;
 
   case TRIGGER_SOURCE_DOOR_OPEN:
+    fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
+    SendException(FAULT_FLAG_DOOR_OPENED);
     break;
 
   case TRIGGER_SOURCE_SC:
@@ -363,7 +365,6 @@ ErrCode StatusControl::ResumeOver() {
   case MACHINE_TYPE_3DPRINT:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
-      fault_flag_ |= FAULT_FLAG_FILAMENT;
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
       return E_NO_FILAMENT;
     }
@@ -373,7 +374,6 @@ ErrCode StatusControl::ResumeOver() {
   case MACHINE_TYPE_LASER:
     if (Periph.IsDoorOpened()) {
       LOG_E("Door is opened, please close the door!\n");
-      fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
       return E_DOOR_OPENED;
     }
@@ -669,7 +669,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     if (fault_flag_ & FAULT_FLAG_FILAMENT)
       return E_INVALID_STATE;
     new_fault_flag = FAULT_FLAG_FILAMENT;
-    LOG_I("runout fault is cleared!\n");
+    LOG_I("filament has run out!\n");
     break;
 
   case ETYPE_LOST_CFG:
@@ -707,6 +707,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_HOTEND_HEATFAIL;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_HOTEND;
+      LOG_E("heating failed for hotend! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -714,6 +715,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_BED_HEATFAIL;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
+      LOG_E("heating failed for bed! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
     default:
@@ -732,6 +734,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_HOTEND_RUNWAWY;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
+      LOG_E("thermal run away of hotend! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -740,6 +743,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_BED_RUNAWAY;
       // action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
+      LOG_E("thermal run away of Bed! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
     default:
@@ -766,7 +770,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_BAD;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
-      LOG_E("Error happened in Thermistor of Hotend!\n");
+      LOG_E("Detected error in sensor of Hotend! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -777,7 +781,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       action_ban = ACTION_BAN_NO_HEATING_BED;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
-        LOG_E("Error happened in Thermistor of Heated Bed!\n");
+        LOG_E("Detected error in sensor of Bed! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       }
       break;
 
@@ -840,7 +844,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING;
       }
-      LOG_E("current temp of hotend is more higher than MAXTEMP: %d!\n", HEATER_0_MAXTEMP + 10);
+      LOG_E("current temp [%.2f] of hotend is more higher than MAXTEMP: %d!\n", thermalManager.degHotend(0), HEATER_0_MAXTEMP + 10);
       break;
 
     case EHOST_BED:
@@ -854,7 +858,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("current temp of Bed is more higher than MAXTEMP: %d!\n", BED_MAXTEMP + 5);
+      LOG_E("current temp [%.2f] of Bed is more higher than MAXTEMP: %d!\n", thermalManager.degBed(), BED_MAXTEMP + 5);
       break;
 
     default:
@@ -876,7 +880,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("current temperature of hotend dropped abruptly!\n");
+      LOG_E("temperature of hotend dropped abruptly! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -888,7 +892,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("current temperature of bed dropped abruptly!\n");
+      LOG_E("current temperature of bed dropped abruptly! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
     default:
@@ -910,7 +914,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("Thermistor of hotend maybe is comed off!\n");
+      LOG_E("Thermistor of hotend maybe come off! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -922,7 +926,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("Thermistor of bed maybe is comed off!\n");
+      LOG_E("Thermistor of bed maybe come off! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
     default:
@@ -1411,7 +1415,7 @@ ErrCode StatusControl::ClearExceptionByFaultFlag(uint32_t flag) {
 }
 
 void StatusControl::CallbackOpenDoor() {
-  if (cur_status_ == SYSTAT_WORK) {
+  if ((SYSTAT_WORK == cur_status_ ) ||(SYSTAT_RESUME_WAITING == cur_status_)) {
     PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
     SendException(FAULT_FLAG_DOOR_OPENED);
   }

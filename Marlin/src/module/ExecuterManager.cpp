@@ -67,38 +67,14 @@ void ExecuterManager::CheckAlive() {
 }
 
 void ExecuterManager::CallbackOpenDoor() {
-  switch (MachineType) {
-  case MACHINE_TYPE_LASER:
-    // just handle working with PC
-    if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
-      Laser.ChangePowerLimit(LASER_POWER_SAFE_LIMIT);
-    break;
-
-  case MACHINE_TYPE_CNC:
-    // just handle working with PC
-    if (CNC.GetRPM() > 0 && SystemStatus.GetWorkingPort() != WORKING_PORT_SC) {
-      quickstop.Trigger(QS_SOURCE_STOP);
-      Periph.SetUartLock(true);
-    }
-    break;
-
-  default:
-    break;
+  if (MachineType == MACHINE_TYPE_LASER) {
+    Laser.ChangePowerLimit(LASER_POWER_SAFE_LIMIT);
   }
 }
 
 void ExecuterManager::CallbackCloseDoor() {
-  switch (MachineType) {
-  case MACHINE_TYPE_LASER:
+  if (MachineType == MACHINE_TYPE_LASER) {
     Laser.ChangePowerLimit(LASER_POWER_NORMAL_LIMIT);
-    break;
-
-  case MACHINE_TYPE_CNC:
-    Periph.SetUartLock(false);
-    break;
-
-  default:
-    break;
   }
 }
 

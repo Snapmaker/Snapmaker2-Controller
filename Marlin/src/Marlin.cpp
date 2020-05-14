@@ -284,6 +284,22 @@ void reset_homeoffset() {
     m_home_offset[i] = m_home_offset_def[i];
     l_home_offset[i] = l_home_offset_def[i];
   }
+
+  LOOP_XYZ(i) {
+    switch (CanModules.GetMachineSizeType()) {
+      case MACHINE_SIZE_S:
+        home_offset[i] = s_home_offset[i];
+        break;
+      case MACHINE_SIZE_M:
+        home_offset[i] = m_home_offset[i];
+        break;
+      case MACHINE_SIZE_L:
+        home_offset[i] = l_home_offset[i];
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 void setup_killpin() {
@@ -1540,7 +1556,7 @@ void heartbeat_task(void *param) {
     SystemStatus.CheckException();
     ExecuterHead.CheckAlive();
 
-    Periph.Process();
+    Periph.CheckStatus();
 
     if (++counter > 100) {
       counter = 0;

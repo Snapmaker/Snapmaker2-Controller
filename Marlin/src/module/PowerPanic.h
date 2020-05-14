@@ -60,6 +60,9 @@ typedef struct __attribute__((aligned (4)))
 	char FileName[PP_FILE_NAME_LEN];
 #endif
   int8_t active_coordinate_system;
+
+	bool axis_relative_modes[XYZE];
+	bool axes_relative_mode;	
 } strPowerPanicSave;
 
 

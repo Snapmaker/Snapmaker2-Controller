@@ -79,15 +79,28 @@ void GcodeSuite::G1029() {
       SERIAL_ECHOLNPAIR("Invalid grid size , maximum: ", GRID_MAX_NUM);
       return;
     }
-
+    set_bed_leveling_enabled(false);
     GRID_MAX_POINTS_X = size;
     GRID_MAX_POINTS_Y = size;
+
+    bilinear_grid_manual();
+    for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {
+      for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+        z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
+        #if ENABLED(EXTENSIBLE_UI)
+          ExtUI::onMeshUpdate(x, y, 0);
+        #endif
+      }
+    }
 
     ABL_GRID_POINTS_VIRT_X = (GRID_MAX_POINTS_X - 1) * (BILINEAR_SUBDIVISIONS) + 1;
     ABL_GRID_POINTS_VIRT_Y = (GRID_MAX_POINTS_Y - 1) * (BILINEAR_SUBDIVISIONS) + 1;
     ABL_TEMP_POINTS_X = (GRID_MAX_POINTS_X + 2);
     ABL_TEMP_POINTS_Y = (GRID_MAX_POINTS_Y + 2);
 
+    bed_level_virt_interpolate();
+    
+    set_bed_leveling_enabled(true);
     SERIAL_ECHOLNPAIR("Set grid size : ", size);
     return;
   }

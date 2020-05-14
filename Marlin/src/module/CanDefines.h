@@ -59,11 +59,11 @@ typedef enum {
   FUNC_SET_CAMERA_POWER      ,  // 11
   FUNC_SET_LASER_FOCUS       ,  // 12
   FUNC_REPORT_LASER_FOCUS    ,  // 13
-  FUNC_SET_ENCLOSURE_LIGHT   ,  // 14
+  FUNC_SET_LIGHT_COLOR       ,  // 14
   FUNC_REPORT_ENCLOSURE      ,  // 15
   FUNC_REPORT_TEMP_PID       ,  // 16
   FUNC_PROOFREAD_KNIFE       ,  // 17
-  FUNC_SET_LIGHT_COLOR       ,  // 18
+  FUNC_SET_ENCLOSURE_LIGHT   ,  // 18
   FUNC_SET_FAN_MODULE        ,  // 19
 }FUNC_ID_E;
 
@@ -92,7 +92,7 @@ const uint16_t PriorityTable[][2] = {
 
 
 enum PeriphSwitchEnum : uint32_t {
-  CAN_IO_ENCLOSURE,
+  CAN_IO_ENCLOSURE = 0,
 };
 
 #define MODULE_MASK_BITS  0x1ff00000

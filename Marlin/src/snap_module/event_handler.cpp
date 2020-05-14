@@ -14,6 +14,7 @@
 
 #include "../module/StatusControl.h"
 #include "../module/PowerPanic.h"
+#include "../module/PeriphDevice.h"
 
 
 #define EVENT_ATTR_HAVE_MOTION  0x1
@@ -373,31 +374,31 @@ EventCallback_t camera_event_cb[CAMERA_OPC_MAX] = {
 
 
 // implement follow 4 function after rebase chamber branch
-static ErrCode GetChamerStatus(Event_t &event) {
-  return hmi.Send(event);
+static ErrCode ReportEnclosureStatus(Event_t &event) {
+  return Periph.ReportEnclosureStatus(event);
 }
 
 
-static ErrCode SetChamberLight(Event_t &event) {
-  return hmi.Send(event);
+static ErrCode SetEnclosureLight(Event_t &event) {
+  return Periph.SetEnclosureLight(event);
 }
 
 
-static ErrCode SetChamberFAN(Event_t &event) {
-  return hmi.Send(event);
+static ErrCode SetEnclosureFan(Event_t &event) {
+  return Periph.SetEnclosureFan(event);
 }
 
 
-static ErrCode SetChamberDetection(Event_t &event) {
-  return hmi.Send(event);
+static ErrCode SetEnclosureDetection(Event_t &event) {
+  return Periph.SetEnclosureDetection(event);
 }
 
 EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
   UNDEFINED_CALLBACK,
-  /* [ADDON_OPC_GET_CHAMBER_STATUS]    =  */{EVENT_ATTR_DEFAULT,  GetChamerStatus},
-  /* [ADDON_OPC_SET_CHAMBER_LIGHT]     =  */{EVENT_ATTR_DEFAULT,  SetChamberLight},
-  /* [ADDON_OPC_SET_CHAMBER_FAN]       =  */{EVENT_ATTR_DEFAULT,  SetChamberFAN},
-  /* [ADDON_OPC_SET_CHAMBER_DETECTION] =  */{EVENT_ATTR_DEFAULT,  SetChamberDetection}
+  /* [ADDON_OPC_GET_CHAMBER_STATUS]    =  */{EVENT_ATTR_DEFAULT,  ReportEnclosureStatus},
+  /* [ADDON_OPC_SET_CHAMBER_LIGHT]     =  */{EVENT_ATTR_DEFAULT,  SetEnclosureLight},
+  /* [ADDON_OPC_SET_CHAMBER_FAN]       =  */{EVENT_ATTR_DEFAULT,  SetEnclosureFan},
+  /* [ADDON_OPC_SET_CHAMBER_DETECTION] =  */{EVENT_ATTR_DEFAULT,  SetEnclosureDetection}
 };
 
 

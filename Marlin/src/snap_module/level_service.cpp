@@ -21,7 +21,21 @@ extern uint32_t GRID_MAX_POINTS_Y;
 ErrCode LevelService::DoAutoLeveling(Event_t &event) {
   ErrCode err = E_FAILURE;
 
+  uint8_t grid = 3;
+  char cmd[16];
+
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
+
+  LOG_I("SC req auto level\n");
+
+  if (event.length > 0) {
+    if (event.data[0] > 7 || event.data[0] < 2) {
+      LOG_E("grid [%u] from SC is out of range [2:7], set to default: 3\n", event.data[0]);
+    }
+    else {
+      grid = event.data[0];
+    }
+  }
 
   LOG_I("e temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
   LOG_I("b temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
@@ -29,10 +43,11 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
 
     process_cmd_imd("G28");
-    set_bed_leveling_enabled(false);
 
-    process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
-    bilinear_grid_manual();
+    snprintf(cmd, 16, "G1029 P%u\n", grid);
+    process_cmd_imd(cmd);
+
+    set_bed_leveling_enabled(false);
 
     current_position[Z_AXIS] = Z_MAX_POS;
     sync_plan_position();
@@ -71,6 +86,18 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
   uint32_t i, j;
   float orig_max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
 
+  uint8_t grid = 3;
+  char cmd[16];
+
+  if (event.length > 0) {
+    if (event.data[0] > 7 || event.data[0] < 2) {
+      LOG_E("grid [%u] from SC is out of range [2:7], set to default: 3\n", event.data[0]);
+    }
+    else {
+      grid = event.data[0];
+    }
+  }
+
   // when user do manual leveling, clear this var to disable fast-calibration
   nozzle_height_probed = 0;
 
@@ -81,10 +108,11 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
     process_cmd_imd("G28");
-    set_bed_leveling_enabled(false);
 
-    process_cmd_imd("G1029 P3"); // set the default probe points, hardcoded
-    bilinear_grid_manual();
+    snprintf(cmd, 16, "G1029 P%u\n", grid);
+    process_cmd_imd(cmd);
+
+    set_bed_leveling_enabled(false);
 
     current_position[Z_AXIS] = Z_MAX_POS;
     sync_plan_position();
@@ -95,7 +123,7 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
     // Move Z to 20mm height
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
 
-    do_blocking_move_to_z(15, 10);
+    do_blocking_move_to_z(9, 10);
 
     for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
       for (i = 0; i < GRID_MAX_POINTS_X; i++) {

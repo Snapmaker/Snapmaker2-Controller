@@ -162,17 +162,6 @@ enum UpgradeOpc: uint8_t {
 #define EVENT_IDX_OP_CODE   1
 #define EVENT_IDX_DATA0     2
 
-// common commands for add-ons
-#define CMD_ADDON_CHK_ONLINE        0
-
-// commands for light bar, LB = light bar
-#define CMD_LB_QUERY_STATE          1
-#define CMD_LB_SWITCH               2
-#define CMD_LB_SET_MODE_BRIGHTNESS  3
-// commands for enclosure fan
-#define CMD_ENCLOSURE_FAN_SWITCH    4
-
-
 #define UNDEFINED_CALLBACK  {0, NULL}
 
 

@@ -22,8 +22,8 @@
 #include "PowerPanic.h"
 #include "ExecuterManager.h"
 
-#define FLASH_PAGE_SIZE	2048
-#define FLASH_RECORD_PAGES	(MARLIN_POWERPANIC_SIZE / 2048)
+#define FLASH_PAGE_SIZE				2048
+#define FLASH_RECORD_PAGES		(MARLIN_POWERPANIC_SIZE / 2048)
 #define RECORD_COUNT_PER_PAGE	(FLASH_PAGE_SIZE / (sizeof(strPowerPanicSave) + 8))
 
 PowerPanic powerpanic;
@@ -308,9 +308,13 @@ int PowerPanic::SaveEnv(void) {
   // extruders' temperature
 	HOTEND_LOOP() Data.HeaterTamp[e] = thermalManager.temp_hotend[e].target;
 
-	LOOP_XYZ(i) Data.position_shift[i] = position_shift[i];
+	LOOP_XYZ(idx) Data.position_shift[idx] = position_shift[idx];
 
 	Data.FilePosition = last_line_;
+
+	Data.axes_relative_mode = relative_mode;
+
+	LOOP_XYZE(idx) Data.axis_relative_modes[idx] = gcode.axis_relative_modes[idx];
 
   // heated bed
   Data.BedTamp = thermalManager.temp_bed.target;
@@ -581,6 +585,9 @@ ErrCode PowerPanic::ResumeWork() {
 	// restore speed for G0 G1
 	saved_g1_feedrate_mm_s = pre_data_.PrintFeedRate;
 	saved_g0_feedrate_mm_s = pre_data_.TravelFeedRate;
+
+	LOOP_XYZE(idx) gcode.axis_relative_modes[idx] = pre_data_.axis_relative_modes[idx];
+	relative_mode = pre_data_.axes_relative_mode;
 
 	return E_SUCCESS;
 }
