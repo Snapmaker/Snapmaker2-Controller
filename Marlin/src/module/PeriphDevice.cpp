@@ -266,6 +266,8 @@ ErrCode PeriphDevice::ReportEnclosureStatus(Event_t &event) {
 
   uint8_t buff[4];
 
+  LOG_I("SC req enclosure sta\n");
+
   if (enclosure_online) {
     buff[0] = E_SUCCESS;
   } else{
