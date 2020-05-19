@@ -193,6 +193,8 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   uint32_t tmptick;
   uint32_t regtsr;
 
+  BaseType_t ret = pdFAIL;
+
   if(DataLen > 8)
     return false;
 
@@ -220,9 +222,15 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   retry = 1;
   if(PortNum == 1) {
     while(retry--) {
-      xSemaphoreTake(can_lock, portMAX_DELAY);
+
+      if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+        ret = xSemaphoreTake(can_lock, portMAX_DELAY);
+
       CAN_Transmit(CAN1, &TxMessage);
-      xSemaphoreGive(can_lock);
+
+      if (ret == pdPASS)
+        xSemaphoreGive(can_lock);
+
       tmptick = millis();
       //while pending
       do {
@@ -239,9 +247,14 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   }
   else {
     while(retry--) {
-      xSemaphoreTake(can_lock, portMAX_DELAY);
+      if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+        ret = xSemaphoreTake(can_lock, portMAX_DELAY);
+
       CAN_Transmit(CAN2, &TxMessage);
-      xSemaphoreGive(can_lock);
+
+      if (ret == pdPASS)
+        xSemaphoreGive(can_lock);
+
       tmptick = millis();
       //while pending
       do {
@@ -274,6 +287,8 @@ bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t Dat
   uint32_t tmptick;
   uint32_t regtsr;
 
+  BaseType_t ret = pdFAIL;
+
   if(DataLen > 8)
     return false;
 
@@ -294,9 +309,14 @@ bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t Dat
   if(PortNum == 1) {
     while(retry--) {
       /* must call this function at one task */
-      xSemaphoreTake(can_lock, portMAX_DELAY);
+      if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+        ret = xSemaphoreTake(can_lock, portMAX_DELAY);
+
       CAN_Transmit(CAN1, &TxMessage);
-      xSemaphoreGive(can_lock);
+
+      if (ret == pdPASS)
+        xSemaphoreGive(can_lock);
+
       tmptick = millis();
       //while pending
       do {
@@ -315,9 +335,15 @@ bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t Dat
   }
   else {
     while(retry--) {
-      xSemaphoreTake(can_lock, portMAX_DELAY);
+
+      if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+        ret = xSemaphoreTake(can_lock, portMAX_DELAY);
+
       CAN_Transmit(CAN2, &TxMessage);
-      xSemaphoreGive(can_lock);
+
+      if (ret == pdPASS)
+        xSemaphoreGive(can_lock);
+
       tmptick = millis();
       //while pending
       do {

@@ -89,7 +89,7 @@ void PeriphDevice::SetEnclosureLightPower(uint8_t percent)
   Buff[1] = s_value;
   Buff[2] = s_value;
   Buff[3] = s_value;
-  
+
   CanModules.SetFunctionValue(EXTEND_CAN_NUM, FUNC_SET_ENCLOSURE_LIGHT, Buff, 4);
   enclosure_light_power_ = percent;
   SERIAL_ECHO("Enclosure light power: ");
@@ -261,26 +261,30 @@ void PeriphDevice::CheckStatus() {
 
 // callback for HMI events
 ErrCode PeriphDevice::ReportEnclosureStatus(Event_t &event) {
-  uint8_t enclosure_online = Periph.IsOnline(PERIPH_IOSW_DOOR);
-  uint8_t enclosure_en = Periph.GetDoorCheckFlag();
-
   uint8_t buff[4];
 
   LOG_I("SC req enclosure sta\n");
 
-  if (enclosure_online) {
+  if (TEST(online_, PERIPH_IOSW_DOOR)) {
     buff[0] = E_SUCCESS;
-  } else{
+  }
+  else {
     buff[0] = E_FAILURE;
   }
 
   buff[1] = enclosure_light_power_;
   buff[2] = enclosure_fan_speed_;
-  buff[3] = enclosure_en;
-  
+
+  if (TEST(IOSwitch, PERIPH_IOSW_DOOR)) {
+    buff[3] = 1;
+  }
+  else {
+    buff[3] = 0;
+  }
+
   event.length = 4;
   event.data = buff;
-  
+
   return hmi.Send(event);
 }
 

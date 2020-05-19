@@ -36,10 +36,10 @@ ErrCode UpgradeService::StartUpgrade(Event_t &event) {
 
   LOG_I(LOG_HEAD "SC req start upgrade\n");
 
-  SysStatus sta = SystemStatus.GetCurrentStatus();
+  SysStage sta = SystemStatus.GetCurrentStage();
 
-  if (sta != SYSTAT_IDLE) {
-    LOG_E(LOG_HEAD "cannot upgrade in current status: %u\n", sta);
+  if (sta == SYSTAGE_WORK || sta == SYSTAGE_RESUMING) {
+    LOG_E(LOG_HEAD "cannot upgrade in current stage: %u\n", sta);
     err = E_FAILURE;
     return hmi.Send(event);
   }

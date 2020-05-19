@@ -249,7 +249,7 @@ ErrCode Host::Send(Event_t &event) {
   uint8_t pdu_header[PDU_HEADER_SIZE + 2];
   uint16_t tmp = 0;
 
-  BaseType_t ret = pdPASS;
+  BaseType_t ret = pdFAIL;
 
   pdu_header[i++] = SOF_H;
   pdu_header[i++] = SOF_L;
@@ -276,7 +276,7 @@ ErrCode Host::Send(Event_t &event) {
     pdu_header[i++] = (uint8_t)event.op_code;
 
   // lock the uart, there will be more than one writer
-  if (task_started_)
+  if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
     ret = xSemaphoreTake(mlock_uart_, configTICK_RATE_HZ/100);
   if (ret != pdPASS) {
     SERIAL_ECHOLN(LOG_HEAD "failed to get HMI uart lock!");
@@ -289,7 +289,7 @@ ErrCode Host::Send(Event_t &event) {
   for (int j = 0; j < event.length; j++)
     HMISERIAL.write(event.data[j]);
 
-  if (task_started_)
+  if (ret == pdPASS)
     xSemaphoreGive(mlock_uart_);
 
   return E_SUCCESS;

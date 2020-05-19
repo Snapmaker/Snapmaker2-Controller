@@ -530,7 +530,7 @@ ErrCode LaserExecuter::GetFocalLength(Event_t &event) {
   uint8_t buff[5];
   uint32_t focal_length;
 
-  LOG_I("SC get focal length\n");
+  LOG_I("SC get focal length: %.3f\n", FocusHeight);
 
   LoadFocusHeight();
 
@@ -553,8 +553,6 @@ ErrCode LaserExecuter::SetFocalLength(Event_t &event) {
   uint8_t buff[2];
   int     focal_length;
 
-  LOG_I("SC set focal length\n");
-
   if (event.length < 4) {
     LOG_E("Must specify focal length!\n");
     event.length = 1;
@@ -563,6 +561,8 @@ ErrCode LaserExecuter::SetFocalLength(Event_t &event) {
   }
 
   PDU_TO_LOCAL_WORD(focal_length, event.data);
+
+  LOG_I("SC set focal length: %d\n", focal_length);
 
   // length and data is picked up, can be changed
   event.length = 1;
@@ -592,7 +592,6 @@ ErrCode LaserExecuter::DoManualFocusing(Event_t &event) {
   float max_z_speed;
 
   LOG_I("SC req manual focusing\n");
-
 
   if (!all_axes_homed()) {
     LOG_E("Machine is not be homed!\n");
@@ -665,8 +664,8 @@ ErrCode LaserExecuter::DoAutoFocusing(Event_t &event) {
 
   if (event.length == 4) {
     PDU_TO_LOCAL_WORD(z_interval, event.data);
-    LOG_E("new Z interval: %.2f\n", z_interval);
     z_interval /= 1000;
+    LOG_I("SC specify Z interval: %.2f\n", z_interval);
   }
 
   planner.synchronize();
@@ -734,7 +733,7 @@ out:
 ErrCode LaserExecuter::SetCameraBtName(Event_t &event) {
   ErrCode err = E_FAILURE;
 
-  LOG_I("BlueTooth Name:", event.data);
+  LOG_I("SC set BT Name: %s\n", event.data);
 
   if(SetBluetoothName((char *)event.data) == 0)
     err = E_SUCCESS;
@@ -752,7 +751,7 @@ ErrCode LaserExecuter::GetCameraBtName(Event_t &event) {
 
   buffer[0] = ExecuterHead.Laser.ReadBluetoothName((char *)(buffer + 1));
 
-  LOG_I("Bluetooth Name:", buffer + 1);
+  LOG_I("SC req BT Name: %s\n", buffer + 1);
 
   event.data = buffer;
 
@@ -774,6 +773,8 @@ ErrCode LaserExecuter::GetCameraBtName(Event_t &event) {
 ErrCode LaserExecuter::GetCameraBtMAC(Event_t &event) {
   uint8_t buffer[8] = {0};
   int i;
+
+  LOG_I("SC get BT MAC\n");
 
   buffer[0] = ReadBluetoothMac(buffer+1);
 
