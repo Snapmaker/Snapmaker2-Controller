@@ -10,6 +10,7 @@ enum QuickStopState : uint8_t {
   QS_STA_IDLE,
   QS_STA_TRIGGERED,
   QS_STA_SAVED_ENV,
+  QS_STA_CLEAN_MOVES,
   QS_STA_STOPPED,
   QS_STA_PARKING,
 

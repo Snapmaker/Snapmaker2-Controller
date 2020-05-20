@@ -1532,15 +1532,8 @@ void hmi_task(void *param) {
       continue;
     }
 
-    if (quickstop.isIdle())
     // execute or send out one command
-      DispatchEvent(&dispather_param);
-    else {
-      if (dispather_param.event_buff[EVENT_IDX_EVENT_ID] != EID_SYS_CTRL_REQ ||
-          dispather_param.event_buff[EVENT_IDX_OP_CODE] != SYSCTL_OPC_GET_STATUES)
-        LOG_I("reject cmd[%x:%x] during QS!\n", dispather_param.event_buff[EVENT_IDX_EVENT_ID] != EID_SYS_CTRL_REQ,
-          dispather_param.event_buff[EVENT_IDX_OP_CODE] != SYSCTL_OPC_GET_STATUES);
-    }
+    DispatchEvent(&dispather_param);
 
     vTaskDelay(portTICK_PERIOD_MS);
   }

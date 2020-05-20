@@ -681,7 +681,8 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
     SERIAL_ECHOLNPAIR("new gcode, eid: ", event.id);
 #endif
     // blocked 100ms for max duration to wait
-    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    if (quickstop.isIdle())
+      xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 
@@ -722,7 +723,8 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 #if DEBUG_EVENT_HANDLER
     SERIAL_ECHOLNPAIR("Marlin's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
 #endif
-    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    if (quickstop.isIdle())
+      xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 #if DEBUG_EVENT_HANDLER

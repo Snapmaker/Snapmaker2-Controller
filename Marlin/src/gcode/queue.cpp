@@ -107,6 +107,7 @@ void queue_setup() {
  * Clear the Marlin command queue
  */
 void clear_command_queue() {
+  hmi_cmd_queue_index_r = hmi_cmd_queue_index_w = hmi_commands_in_queue = 0;
   cmd_queue_index_r = cmd_queue_index_w = commands_in_queue = 0;
 }
 
