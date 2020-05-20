@@ -37,6 +37,9 @@ class QuickStopService {
 
     void Process();
 
+    bool inline isTriggered() { return source_ != QS_SOURCE_IDLE; }
+    bool inline isIdle() { return source_ == QS_SOURCE_IDLE; }
+
   private:
     void Park();
 

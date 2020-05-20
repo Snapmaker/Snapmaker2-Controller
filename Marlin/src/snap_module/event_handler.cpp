@@ -72,6 +72,7 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
   }
   else if (cur_sta == SYSTAT_RESUME_WAITING) {
     if (SystemStatus.ResumeOver() == E_SUCCESS) {
+      LOG_I("cmd: %s\n\n", (char *)(event_buff + 5));
       Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, EID_FILE_GCODE_ACK);
     }
     else {
@@ -593,6 +594,9 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
   uint8_t op_code_max = INVALID_OP_CODE;
 
   bool send_to_marlin = false;
+#if DEBUG_EVENT_HANDLER
+  bool heartbeat = false;
+#endif
 
   // if we are running in Marlin task, need to get command from the queue
   if (param->owner == TASK_OWN_MARLIN) {
@@ -629,6 +633,10 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 
   case EID_SYS_CTRL_REQ:
     callbacks = sysctl_event_cb;
+#if DEBUG_EVENT_HANDLER
+    if (param->event_buff[EVENT_IDX_OP_CODE] == 1)
+      heartbeat = true;
+#endif
     op_code_max = SYSCTL_OPC_MAX;
     break;
 
@@ -710,17 +718,20 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
   }
 
   if ((callbacks[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) && (param->owner != TASK_OWN_MARLIN)) {
-    // arrive here, we know the event need to send to Marlin by check event id & op code
+    // arrive here, we know the event need to be sent to Marlin by check event id & op code
 #if DEBUG_EVENT_HANDLER
     SERIAL_ECHOLNPAIR("Marlin's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
 #endif
     xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
-
 #if DEBUG_EVENT_HANDLER
-  SERIAL_ECHOLNPAIR("HMI's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
+  else {
+  if (!heartbeat)
+    SERIAL_ECHOLNPAIR("HMI's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
+  }
 #endif
+
   event.length = param->size - 2;
   event.data = param->event_buff + 2;
   return callbacks[event.op_code].cb(event);

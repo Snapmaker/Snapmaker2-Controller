@@ -154,7 +154,7 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
     if (source == TRIGGER_SOURCE_SC)
       FinishSystemStatusChange(event_opc, 0);
 
-    LOG_I("Stop in pauseing, trigger source: %d\n", source);
+    LOG_I("Stop in PAUSE, trigger source: %d\n", source);
     return E_SUCCESS;
   }
 
@@ -190,22 +190,22 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
 #define RESUME_PROCESS_CMD_SIZE 40
 
 void inline StatusControl::RestoreXYZ(void) {
-  LOG_I("\nrestore ponit: X :%.2f, Y:%.2f, Z:%.2f, E:%.2f", powerpanic.Data.PositionData[X_AXIS],
+  LOG_I("\nrestore ponit: X :%.3f, Y:%.3f, Z:%.3f, E:%.3f\n", powerpanic.Data.PositionData[X_AXIS],
         powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
         powerpanic.Data.PositionData[E_AXIS]);
 
   // the positions we recorded are logical positions, so cannot use native movement API
   // restore X, Y
-  do_blocking_move_to_logical_xy(powerpanic.Data.PositionData[X_AXIS], powerpanic.Data.PositionData[Y_AXIS], 60);
+  move_to_limited_xy(powerpanic.Data.PositionData[X_AXIS], powerpanic.Data.PositionData[Y_AXIS], 60);
   planner.synchronize();
 
   // restore Z
   if (MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS] + 15, 30);
-    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS], 10);
+    move_to_limited_z(powerpanic.Data.PositionData[Z_AXIS] + 15, 30);
+    move_to_limited_z(powerpanic.Data.PositionData[Z_AXIS], 10);
   }
   else {
-    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS], 30);
+    move_to_limited_z(powerpanic.Data.PositionData[Z_AXIS], 30);
   }
   planner.synchronize();
 }
@@ -389,7 +389,7 @@ ErrCode StatusControl::ResumeOver() {
     break;
   }
 
-  LOG_I("Receive first cmd after resume\n");
+  LOG_I("got 1rst cmd after resume\n");
   cur_status_ = SYSTAT_WORK;
   //lightbar.set_state(LB_STATE_WORKING);
 
@@ -1417,7 +1417,6 @@ ErrCode StatusControl::ClearExceptionByFaultFlag(uint32_t flag) {
 void StatusControl::CallbackOpenDoor() {
   if ((SYSTAT_WORK == cur_status_ ) ||(SYSTAT_RESUME_WAITING == cur_status_)) {
     PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
-    SendException(FAULT_FLAG_DOOR_OPENED);
   }
 
   fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
