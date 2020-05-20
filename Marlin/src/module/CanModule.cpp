@@ -1343,6 +1343,8 @@ void CanModule::UpdateProcess(void)
     tmptick = millis() + 2000;
     while(tmptick > millis());
   }
+
+  upgrade.SetState(UPGRADE_STA_IDLE);
 }
 
 /**

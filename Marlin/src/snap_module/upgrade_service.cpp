@@ -44,6 +44,12 @@ ErrCode UpgradeService::StartUpgrade(Event_t &event) {
     return hmi.Send(event);
   }
 
+  if (upgrade_state_ == UPGRADE_STA_UPGRADING_EM) {
+    LOG_E(LOG_HEAD "we are now upgrading module!\n");
+    err = E_FAILURE;
+    return hmi.Send(event);
+  }
+
   taskENTER_CRITICAL();
   FLASH_Unlock();
 
@@ -70,7 +76,7 @@ ErrCode UpgradeService::StartUpgrade(Event_t &event) {
   received_fw_size_ = 0;
   req_pkt_counter_  = 0;
   pre_pkt_counter_  = 0;
-  upgrade_status_   = UPGRADE_STA_IS_UPGRADING;
+  upgrade_state_   = UPGRADE_STA_RECV_FW;
 
   hmi.Send(event);
 
@@ -89,7 +95,7 @@ ErrCode UpgradeService::ReceiveFW(Event_t &event) {
 
   packet_index = event.data[0]<<8 | event.data[1];
 
-  if ((packet_index < max_packet_) && (upgrade_status_ == UPGRADE_STA_IS_UPGRADING) && (packet_index == req_pkt_counter_)) {
+  if ((packet_index < max_packet_) && (upgrade_state_ == UPGRADE_STA_RECV_FW) && (packet_index == req_pkt_counter_)) {
 
     // event length = 2bytes (packet length) + length of fw packet
     data_len = (event.length - 2);
@@ -134,12 +140,12 @@ ErrCode UpgradeService::EndUpgarde(Event_t &event) {
 
   LOG_I(LOG_HEAD "SC req end upgrade\n");
 
-  if (upgrade_status_ != UPGRADE_STA_IS_UPGRADING) {
+  if (upgrade_state_ != UPGRADE_STA_RECV_FW) {
     LOG_E(LOG_HEAD "Not in upgrading!\n");
     return hmi.Send(event);
   }
 
-  upgrade_status_ = UPGRADE_STA_IDLE;
+  upgrade_state_ = UPGRADE_STA_REBOOTING;
 
   LOG_I(LOG_HEAD "packet counts: %u,  FW size: %u\n", req_pkt_counter_, received_fw_size_);
 
@@ -214,7 +220,7 @@ ErrCode UpgradeService::CompareMCVer(Event_t &event) {
 
 
 ErrCode UpgradeService::GetUpgradeStatus(Event_t &event) {
-  uint8_t up_status = (uint8_t) upgrade_status_;
+  uint8_t up_status = (uint8_t) upgrade_state_;
 
   LOG_I(LOG_HEAD "SC req upgrade statue\n");
 
@@ -260,7 +266,7 @@ ErrCode UpgradeService::GetModuleVer(Event_t &event) {
 ErrCode UpgradeService::SendModuleUpgradeStatus(uint8_t sta) {
   Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_SYNC_MODULE_UP_STATUS};
 
-  LOG_I(LOG_HEAD "SC req module upgrade statue\n");
+  LOG_I(LOG_HEAD "Sending module upgrade statue\n");
 
   event.data = &sta;
   event.length = 1;
@@ -273,10 +279,9 @@ void UpgradeService::Check(void) {
   Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_TRANS_FW};
   uint8_t buff[2];
 
-  if (pre_pkt_counter_ != UPGRADE_STA_IS_UPGRADING) {
+  if (upgrade_state_ != UPGRADE_STA_RECV_FW) {
     return;
   }
-
 
   if (pre_pkt_counter_ != req_pkt_counter_) {
     pre_pkt_counter_ = req_pkt_counter_;
@@ -296,3 +301,11 @@ void UpgradeService::Check(void) {
   }
 }
 
+
+void UpgradeService::CheckIfUpgradeModule() {
+  uint32_t *UpdateFlagAddr = (uint32_t *)FLASH_UPDATE_CONTENT_INFO;
+
+  if (*UpdateFlagAddr == 0xaa55ee11)
+    upgrade_state_ = UPGRADE_STA_UPGRADING_EM;
+
+}

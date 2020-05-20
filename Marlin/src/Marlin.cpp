@@ -1308,12 +1308,10 @@ void setup() {
 
   BreathLightInit();
 
-
-  // clear UART buffer
-  rb_reset(MYSERIAL0.c_dev()->rb);
-  rb_reset(HMISERIAL.c_dev()->rb);
-
   CheckAppValidFlag();
+
+  // to disable heartbeat if module need to be upgraded
+  upgrade.CheckIfUpgradeModule();
 
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
   reset_bed_level_if_upgraded();
@@ -1376,8 +1374,8 @@ void main_loop(void *param) {
 
   dispather_param.event_queue = task_param->event_queue;
 
-  cur_mills = millis() + 4000;
-  while(cur_mills > millis());
+  //cur_mills = millis() + 4000;
+  //while(cur_mills > millis());
   ExecuterHead.Init();
   CanModules.Init();
   CheckUpdateFlag();
@@ -1567,7 +1565,7 @@ void heartbeat_task(void *param) {
 
       notificaiton = ulTaskNotifyTake(false, 0);
 
-      if (notificaiton)
+      if (notificaiton && upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
         SystemStatus.SendStatus(event);
     }
 

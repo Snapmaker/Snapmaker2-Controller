@@ -276,11 +276,12 @@ ErrCode Host::Send(Event_t &event) {
     pdu_header[i++] = (uint8_t)event.op_code;
 
   // lock the uart, there will be more than one writer
-  if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+  if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
     ret = xSemaphoreTake(mlock_uart_, configTICK_RATE_HZ/100);
-  if (ret != pdPASS) {
-    SERIAL_ECHOLN(LOG_HEAD "failed to get HMI uart lock!");
-    return E_BUSY;
+    if (ret != pdPASS) {
+      SERIAL_ECHOLN(LOG_HEAD "failed to get HMI uart lock!");
+      return E_BUSY;
+    }
   }
 
   for (j = 0; j < i; j++)
