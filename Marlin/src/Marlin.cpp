@@ -1022,6 +1022,19 @@ void setup() {
     HAL_init();
   #endif
 
+  #if PIN_EXISTS(POWER0_SUPPLY)
+    OUT_WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
+  #endif
+
+  #if PIN_EXISTS(POWER1_SUPPLY)
+    OUT_WRITE(POWER1_SUPPLY_PIN, POWER1_SUPPLY_OFF);
+  #endif
+
+  #if PIN_EXISTS(POWER2_SUPPLY)
+    OUT_WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
+  #endif
+
+
   #if HAS_DRIVER(L6470)
     L6470.init();         // setup SPI and then init chips
   #endif
@@ -1296,15 +1309,6 @@ void setup() {
   #if ENABLED(PRUSA_MMU2)
     mmu2.init();
   #endif
-
-  #if PIN_EXISTS(POWER1_SUPPLY)
-    OUT_WRITE(POWER1_SUPPLY_PIN, LOW);
-  #endif
-
-  #if PIN_EXISTS(POWER2_SUPPLY)
-    OUT_WRITE(POWER2_SUPPLY_PIN, LOW);
-  #endif
-
 
   BreathLightInit();
 
