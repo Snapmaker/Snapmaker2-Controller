@@ -190,9 +190,9 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
 #define RESUME_PROCESS_CMD_SIZE 40
 
 void inline StatusControl::RestoreXYZ(void) {
-  LOG_I("\nrestore ponit: X :%.3f, Y:%.3f, Z:%.3f, E:%.3f\n", powerpanic.Data.PositionData[X_AXIS],
-        powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
-        powerpanic.Data.PositionData[E_AXIS]);
+  LOG_I("restore ponit: X :%.3f, Y:%.3f, Z:%.3f, E:%.3f\n", powerpanic.Data.PositionData[X_AXIS],
+    powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
+    powerpanic.Data.PositionData[E_AXIS]);
 
   // the positions we recorded are logical positions, so cannot use native movement API
   // restore X, Y
@@ -2004,7 +2004,7 @@ ErrCode StatusControl::CallbackPostQS(QuickStopSource source) {
 
     pause_source_ = TRIGGER_SOURCE_NONE;
 
-    LOG_I("Finish pause\n");
+    LOG_I("Finish pause\n\n");
     cur_status_ = SYSTAT_PAUSE_FINISH;
     break;
 
@@ -2022,7 +2022,7 @@ ErrCode StatusControl::CallbackPostQS(QuickStopSource source) {
     stop_source_ = TRIGGER_SOURCE_NONE;
     cur_status_ = SYSTAT_IDLE;
 
-    LOG_I("Finish stop\n");
+    LOG_I("Finish stop\n\n");
     break;
 
   default:

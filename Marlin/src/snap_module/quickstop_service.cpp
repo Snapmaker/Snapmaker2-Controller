@@ -123,6 +123,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     default:
       break;
     }
+    ret = true;
     break;
 
   /*
