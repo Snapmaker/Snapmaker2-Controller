@@ -89,7 +89,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
 ErrCode StatusControl::PreProcessStop() {
   // recover scaling
-  feedrate_scaling = 100;
+  feedrate_percentage = 100;
 
   // set temp to 0
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
@@ -158,7 +158,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
     return E_SUCCESS;
   }
 
-
   if (event_opc == SYSCTL_OPC_FINISH) {
     // if screen tell us Gcode is ended, wait for all movement output
     // because planner.synchronize() will call HMI process nestedly,
@@ -177,7 +176,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
 
   return E_SUCCESS;
 }
-
 
 
 /*
@@ -1561,7 +1559,7 @@ ErrCode StatusControl::SendStatus(Event_t &event) {
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // save last feedrate
-  tmp_f32 = last_feedrate * 60;
+  tmp_f32 = MMS_SCALED(feedrate_mm_s) * 60;
   tmp_i16 = (int16_t)tmp_f32;
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
@@ -1834,12 +1832,13 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
 
   switch (event.data[0]) {
   case RENV_TYPE_FEEDRATE:
-    LOG_I("feedrate scaling: %.2f\n", param);
     if (param > 500 || param < 0) {
+      LOG_E("invalid feedrate scaling: %.2f\n", param);
       ret = E_PARAM;
       break;
     }
-    feedrate_scaling = param;
+    feedrate_percentage = (int16_t)param;
+    LOG_I("feedrate scaling: %d\n", feedrate_percentage);
     break;
 
   case RENV_TYPE_HOTEND_TEMP:
@@ -1917,6 +1916,11 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
   event.length = 1;
   event.data = &ret;
   return hmi.Send(event);
+}
+
+
+ErrCode StatusControl::GetRuntimeEnv(Event_t &event) {
+
 }
 
 

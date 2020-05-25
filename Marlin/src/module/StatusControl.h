@@ -235,6 +235,7 @@ public:
 
   // event callback
   ErrCode ChangeRuntimeEnv(Event_t &event);
+  ErrCode GetRuntimeEnv(Event_t &event);
   ErrCode SendStatus(Event_t &event);
   ErrCode SendException(Event_t &event);
   ErrCode ChangeSystemStatus(Event_t &event);
