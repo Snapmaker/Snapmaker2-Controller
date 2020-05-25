@@ -56,7 +56,7 @@
 #include "../Marlin.h"
 #include "LaserExecuter.h"
 #include "CNCExecuter.h"
-//#include "../snap_module/lightbar.h"
+#include "../snap_module/level_service.h"
 #include "StatusControl.h"
 
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
@@ -308,6 +308,9 @@ typedef struct SettingsDataStruct {
 
   // nozzle height when probed bed
   float nozzle_height_probed;
+
+
+  LEVEL_SERVICE_EEPROM_PARAM;
 } SettingsData;
 
 MarlinSettings settings;
@@ -1148,6 +1151,8 @@ void MarlinSettings::postprocess() {
     _FIELD_TEST(nozzle_height_probed);
     EEPROM_WRITE(nozzle_height_probed);
 
+    LEVEL_SERVICE_EEPROM_WRITE();
+
     //
     // Validate CRC and Data Size
     //
@@ -1897,6 +1902,8 @@ void MarlinSettings::postprocess() {
 
       _FIELD_TEST(nozzle_height_probed);
       EEPROM_READ(nozzle_height_probed);
+
+      LEVEL_SERVICE_EEPROM_READ();
 
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {

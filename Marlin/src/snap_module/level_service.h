@@ -24,14 +24,41 @@ class LevelService {
     ErrCode ExitLeveling(Event_t &event);
     ErrCode SyncPointIndex(uint8_t index);
 
+    ErrCode SetLiveZOffset(float offset);
+    float GetLiveZOffset() { return live_z_offset_; }
+    void  SaveLiveZOffset();
+    bool  IfLiveZOffsetUpdated() { return live_z_offset_updated_; }
+
   private:
     LevelMode level_mode_ = LEVEL_MODE_INVALD;
 
     uint8_t manual_level_index_ = MANUAL_LEVEL_INDEX_INVALID;
 
+    float live_z_offset_ = 0;
+    bool  live_z_offset_updated_ = false;
+
     float MeshPointZ[MESH_POINT_SIZE];
 };
 
 extern LevelService levelservice;
+
+
+#define LEVEL_SERVICE_EEPROM_PARAM  float live_z_offset
+
+#define LEVEL_SERVICE_EEPROM_READ() do { \
+                                      float live_z_offset; \
+                                      if (!levelservice.IfLiveZOffsetUpdated()) { \
+                                        _FIELD_TEST(live_z_offset); \
+                                        EEPROM_READ(live_z_offset); \
+                                        levelservice.SetLiveZOffset(live_z_offset); \
+                                      } \
+                                    } while (0)
+
+#define LEVEL_SERVICE_EEPROM_WRITE() do { \
+                                      float live_z_offset; \
+                                      live_z_offset = levelservice.GetLiveZOffset(); \
+                                      _FIELD_TEST(live_z_offset); \
+                                      EEPROM_WRITE(live_z_offset); \
+                                    } while (0)
 
 #endif  //#ifndef LEVEL_HANDLER_H_

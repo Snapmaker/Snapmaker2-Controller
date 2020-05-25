@@ -18,6 +18,7 @@
 #include "../snap_module/snap_dbg.h"
 #include "../feature/runout.h"
 #include "../snap_module/quickstop_service.h"
+#include "../snap_module/level_service.h"
 
 #include "PowerPanic.h"
 #include "ExecuterManager.h"
@@ -323,6 +324,13 @@ int PowerPanic::SaveEnv(void) {
 
   Data.PrintFeedRate = saved_g1_feedrate_mm_s;
   Data.TravelFeedRate = saved_g0_feedrate_mm_s;
+	Data.feedrate_percentage = feedrate_percentage;
+
+	// if live z offset was changed when working, record it
+	if (levelservice.IfLiveZOffsetUpdated())
+		Data.live_z_offset = levelservice.GetLiveZOffset();
+	else
+		Data.live_z_offset = 0;
 
   Data.accumulator = print_job_timer.duration();
 

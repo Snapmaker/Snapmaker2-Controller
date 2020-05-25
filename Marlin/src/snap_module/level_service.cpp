@@ -326,3 +326,30 @@ ErrCode LevelService::SyncPointIndex(uint8_t index) {
   return hmi.Send(event);
 }
 
+
+ErrCode LevelService::SetLiveZOffset(float offset) {
+  if (offset < -0.5) {
+    LOG_E("offset is out of range: %.2f\n", offset);
+    return E_PARAM;
+  }
+
+  if (offset == live_z_offset_) {
+    LOG_W("offset is same with old\n");
+    return E_PARAM;
+  }
+
+  live_z_offset_ = offset;
+  live_z_offset_updated_ = true;
+
+  LOG_I("new live Z offset: %.2f\n", live_z_offset_);
+
+  return E_SUCCESS;
+}
+
+
+void  LevelService::SaveLiveZOffset() {
+  if (live_z_offset_updated_) {
+    live_z_offset_updated_ = false;
+    settings.save();
+  }
+}

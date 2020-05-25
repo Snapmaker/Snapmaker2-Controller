@@ -43,7 +43,7 @@ typedef struct __attribute__((aligned (4)))
 	float position_shift[XYZ];
 	// line number of last gcode
 	int FilePosition;
-	// 
+	//
 	uint32_t accumulator;
 	// fans' speed
 	uint8_t FanSpeed[PP_FAN_COUNT];
@@ -62,7 +62,10 @@ typedef struct __attribute__((aligned (4)))
   int8_t active_coordinate_system;
 
 	bool axis_relative_modes[XYZE];
-	bool axes_relative_mode;	
+	bool axes_relative_mode;
+
+	int16_t feedrate_percentage;
+	float   live_z_offset;
 } strPowerPanicSave;
 
 

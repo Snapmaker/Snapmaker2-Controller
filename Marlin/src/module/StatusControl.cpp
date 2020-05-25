@@ -18,6 +18,8 @@
 #include "../feature/runout.h"
 #include "../snap_module/quickstop_service.h"
 #include "../snap_module/snap_dbg.h"
+#include "../snap_module/level_service.h"
+
 
 StatusControl SystemStatus;
 
@@ -141,6 +143,9 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
   default:
     break;
   }
+
+  // save live z offset
+  levelservice.SaveLiveZOffset();
 
   // if we already finish quick stop, just change system status
   // disable power-loss data, and exit with success
@@ -553,8 +558,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
 
   // set state
   cur_status_ = SYSTAT_WORK;
-
-  //lightbar.set_state(LB_STATE_WORKING);
 
   return E_SUCCESS;
 }
@@ -1825,6 +1828,7 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
   ErrCode ret = E_SUCCESS;
 
   float param;
+  float tmp_f32;
 
   PDU_TO_LOCAL_WORD(param, event.data + 1);
 
@@ -1885,26 +1889,41 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
     break;
 
   case RENV_TYPE_ZOFFSET:
-    LOG_I("adjust Z offset: %.2f\n", param);
-    if (param < -0.5) {
-      ret = E_PARAM;
+    if (levelservice.SetLiveZOffset(param))
       break;
-    }
+
+    tmp_f32 = levelservice.GetLiveZOffset();
+
     // waiting all block buffer are outputed by stepper
     planner.synchronize();
 
-    // for safety, we don't disable leveling here
+    tmp_f32 = current_position[Z_AXIS];
 
-    // Subtract the mean from all values
-    for (uint8_t x = GRID_MAX_POINTS_X; x--;)
-      for (uint8_t y = GRID_MAX_POINTS_Y; y--;)
-        Z_VALUES(x, y) += param;
-    #if ENABLED(ABL_BILINEAR_SUBDIVISION)
-      bed_level_virt_interpolate();
-    #endif
+    move_to_limited_z(current_position[Z_AXIS] + (param - tmp_f32), 5);
+    planner.synchronize();
 
-    move_to_limited_z(current_position[Z_AXIS] + param, 5);
+    current_position[Z_AXIS] = tmp_f32;
+    sync_plan_position();
+    break;
 
+  case RENV_TYPE_CNC_POWER:
+    if (MACHINE_TYPE_CNC != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      LOG_E("Not CNC toolhead!\n");
+      break;
+    }
+
+    if (param > 100 || param < 0) {
+      ret = E_PARAM;
+      LOG_E("out of range: %.2f\n", param);
+    }
+    else {
+      ExecuterHead.CNC.ChangePower(param);
+      // change current output when it was turned on
+      if (ExecuterHead.CNC.GetRPM() > 0)
+        ExecuterHead.CNC.On();
+      LOG_I("new CNC power: %.2f\n", param);
+    }
     break;
 
   default:
@@ -1920,7 +1939,39 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
 
 
 ErrCode StatusControl::GetRuntimeEnv(Event_t &event) {
+  int   tmp_i32;
+  uint8_t buff[5];
 
+  LOG_I("SC get env: %u\n", event.data[0]);
+
+  buff[0] = E_SUCCESS;
+
+  switch (event.data[0]) {
+  case RENV_TYPE_FEEDRATE:
+    tmp_i32 = (int)(feedrate_percentage * 1000.0f);
+    WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+    break;
+
+  case RENV_TYPE_ZOFFSET:
+    tmp_i32 = (int)(levelservice.GetLiveZOffset() * 1000);
+    WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    break;
+
+  case RENV_TYPE_CNC_POWER:
+    tmp_i32 = (int)(ExecuterHead.CNC.GetPower() * 1000);
+    WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    break;
+
+  default:
+    buff[0] = E_FAILURE;
+    LOG_I("cannot get this env: %u\n", event.data[0]);
+    break;
+  }
+
+  event.data = buff;
+  event.length = 5;
+
+  hmi.Send(event);
 }
 
 
