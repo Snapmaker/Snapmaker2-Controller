@@ -312,33 +312,6 @@ ErrCode LevelService::ExitLeveling(Event_t &event) {
 }
 
 
-ErrCode LevelService::ResetLeveling(Event_t &event) {
-  ErrCode err = E_SUCCESS;
-  uint32_t i, j;
-
-  event.data = &err;
-  event.length = 1;
-
-  LOG_I("SC req clear leveling data\n");
-
-  planner.synchronize();
-
-  set_bed_leveling_enabled(false);
-
-  for (i = 0; i < GRID_MAX_POINTS_X; i++)
-    for (j = 0; j < GRID_MAX_POINTS_Y; j++)
-      z_values[i][j] = DEFAUT_LEVELING_HEIGHT;
-
-  bed_level_virt_interpolate();
-
-  nozzle_height_probed = 0;
-
-  set_bed_leveling_enabled(true);
-
-  return hmi.Send(event);
-}
-
-
 ErrCode LevelService::SyncPointIndex(uint8_t index) {
   Event_t event = {EID_SETTING_ACK, SETTINGS_OPC_SYNC_LEVEL_POINT};
 

@@ -22,8 +22,6 @@ class LevelService {
     ErrCode AdjustZOffsetInLeveling(Event_t &event);
     ErrCode SaveAndExitLeveling(Event_t &event);
     ErrCode ExitLeveling(Event_t &event);
-    ErrCode ResetLeveling(Event_t &event);
-
     ErrCode SyncPointIndex(uint8_t index);
 
   private:
