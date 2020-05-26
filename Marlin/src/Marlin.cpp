@@ -1494,6 +1494,8 @@ void hmi_task(void *param) {
 
   ErrCode ret = E_FAILURE;
 
+  uint8_t count = 0;
+
   configASSERT(param);
   task_param = (SnapTasks_t)param;
 
@@ -1509,7 +1511,6 @@ void hmi_task(void *param) {
   SET_INPUT_PULLUP(SCREEN_DET_PIN);
   if(READ(SCREEN_DET_PIN)) {
     LOG_I("Screen Unplugged!\n");
-    vTaskSuspend(task_param->heartbeat);
   }
   else {
     LOG_I("Screen Plugged!\n");
@@ -1518,7 +1519,21 @@ void hmi_task(void *param) {
   for (;;) {
     if(READ(SCREEN_DET_PIN)) {
       xTaskNotifyStateClear(task_param->heartbeat);
+
+      if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK && count == 100) {
+        // if we lost screen in working for 10s, stop current work
+        SystemStatus.StopTrigger(TRIGGER_SOURCE_SC_LOST);
+        LOG_E("stop cur work because screen lost!\n");
+      }
+
+      if (++count > 100)
+        count = 0;
+
+      vTaskDelay(portTICK_PERIOD_MS * 100);
+      continue;
     }
+    else
+      count = 0;
 
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
     if (ret != E_SUCCESS) {
@@ -1530,7 +1545,7 @@ void hmi_task(void *param) {
     // execute or send out one command
     DispatchEvent(&dispather_param);
 
-    vTaskDelay(portTICK_PERIOD_MS);
+    vTaskDelay(portTICK_PERIOD_MS * 5);
   }
 }
 
