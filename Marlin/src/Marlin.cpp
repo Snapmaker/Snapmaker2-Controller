@@ -1517,14 +1517,7 @@ void hmi_task(void *param) {
 
   for (;;) {
     if(READ(SCREEN_DET_PIN)) {
-      if (eTaskGetState(task_param->heartbeat) != eSuspended) {
-        xTaskNotifyStateClear(task_param->heartbeat);
-        vTaskSuspend(task_param->heartbeat);
-      }
-    }
-    else {
-      if (eTaskGetState(task_param->heartbeat) == eSuspended)
-        vTaskResume(task_param->heartbeat);
+      xTaskNotifyStateClear(task_param->heartbeat);
     }
 
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
