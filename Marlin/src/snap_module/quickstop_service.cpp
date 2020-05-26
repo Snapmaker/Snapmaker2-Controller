@@ -19,8 +19,14 @@ void QuickStopService::Init() {
 
 
 void QuickStopService::Trigger(QuickStopSource new_source, bool from_isr /*=false*/) {
-  // power-loss will be check in temperature isr
-  if (!from_isr) {
+
+  // power-loss will be check in temperature time isr
+  // if we are not in working, won't handle power-loss
+  if (from_isr) {
+    if (SystemStatus.GetCurrentStage() != SYSTAGE_WORK && SystemStatus.GetCurrentStage() != SYSTAGE_PAUSE)
+      return;
+  }
+  else {
     taskENTER_CRITICAL();
     DISABLE_TEMPERATURE_INTERRUPT();
   }
