@@ -337,14 +337,10 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
   // resume stopwatch
   if (print_job_timer.isPaused()) print_job_timer.start();
 
-
-  // tell screen we are ready  to work
-  if (resume_source_ = TRIGGER_SOURCE_SC) {
-    FinishSystemStatusChange(SYSCTL_OPC_RESUME, 0);
-  }
-
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
+
+  return E_SUCCESS;
 }
 
 
@@ -1610,6 +1606,7 @@ ErrCode StatusControl::SendException(uint32_t fault) {
 
 ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   ErrCode err = E_SUCCESS;
+  bool need_ack = true;
 
   switch (event.op_code)
   {
@@ -1623,6 +1620,8 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   case SYSCTL_OPC_PAUSE:
     LOG_I("SC req PAUSE\n");
     err = SystemStatus.PauseTrigger(TRIGGER_SOURCE_SC);
+    if (err == E_SUCCESS)
+      need_ack = false;
     break;
 
   case SYSCTL_OPC_RESUME:
@@ -1642,6 +1641,8 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   case SYSCTL_OPC_FINISH:
     LOG_I("SC req %s\n", (event.op_code == SYSCTL_OPC_STOP)? "STOP" : "FINISH");
     err = SystemStatus.StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
+    if (err == E_SUCCESS)
+      need_ack = false;
     break;
 
   default:
@@ -1658,7 +1659,10 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
     LOG_I("SC req -> failed\n");
   }
 
-  return hmi.Send(event);
+  if (need_ack)
+    return hmi.Send(event);
+  else
+    return err;
 }
 
 
