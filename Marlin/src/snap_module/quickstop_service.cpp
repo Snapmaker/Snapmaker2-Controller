@@ -6,7 +6,12 @@
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/StatusControl.h"
 
+
+#define CNC_SAFE_HIGH_DIFF 30  // Bed to CNC head height. mm
+
+
 QuickStopService quickstop;
+
 
 void QuickStopService::Init() {
 
@@ -14,8 +19,14 @@ void QuickStopService::Init() {
 
 
 void QuickStopService::Trigger(QuickStopSource new_source, bool from_isr /*=false*/) {
-  // power-loss will be check in temperature isr
-  if (!from_isr) {
+
+  // power-loss will be check in temperature time isr
+  // if we are not in working, won't handle power-loss
+  if (from_isr) {
+    if (SystemStatus.GetCurrentStage() != SYSTAGE_WORK && SystemStatus.GetCurrentStage() != SYSTAGE_PAUSE)
+      return;
+  }
+  else {
     taskENTER_CRITICAL();
     DISABLE_TEMPERATURE_INTERRUPT();
   }
@@ -67,14 +78,6 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     set_current_from_steppers_for_axis(ALL_AXES);
 
     switch (source_) {
-
-    /*
-    * triggered by STOP, not save env, switch to next state directly
-    */
-    case QS_SOURCE_STOP:
-      state_ = QS_STA_STOPPED;
-      break;
-
     /*
     * triggered by power-loss, turn off some power domains
     * before save env and write flash, will run through
@@ -96,14 +99,36 @@ bool QuickStopService::CheckInISR(block_t *blk) {
         powerpanic.WriteFlash();
         wrote_flash_ = true;
       }
-
-      state_ = QS_STA_SAVED_ENV;
       break;
 
     default:
       break;
     }
 
+    /* to make sure block buffer is cleaned before QS_STA_STOPPED / QS_STA_SAVED_ENV
+     * we add a middle state QS_STA_CLEAN_MOVES
+     * */
+    state_ = QS_STA_CLEAN_MOVES;
+    ret = true;
+    break;
+
+  case QS_STA_CLEAN_MOVES:
+    switch(source_) {
+    /*
+    * triggered by STOP, save nothing, switch to next state directly
+    */
+    case QS_SOURCE_STOP:
+      state_ = QS_STA_STOPPED;
+      break;
+
+    case QS_SOURCE_POWER_LOSS:
+    case QS_SOURCE_PAUSE:
+      state_ = QS_STA_SAVED_ENV;
+      break;
+
+    default:
+      break;
+    }
     ret = true;
     break;
 
@@ -115,7 +140,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     break;
 
   /*
-   * triggered by pause/power=loss, and env has been saved.
+   * triggered by pause/power-loss, and env has been saved.
    * if power loss, env has been written into flash, here
    * won't break, just run to case QS_STA_PARKING, to check if
    * power-loss happen in PAUSE
@@ -187,7 +212,17 @@ void QuickStopService::Park() {
     break;
 
   case MACHINE_TYPE_CNC:
-    move_to_limited_z(Z_MAX_POS, 20);
+    if (current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF > Z_MAX_POS) {
+      move_to_limited_z(Z_MAX_POS, 20);
+    } else {
+      move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 20);
+      while (planner.has_blocks_queued()) {
+        if (source_ != QS_SOURCE_POWER_LOSS)
+          idle();
+      }
+      ExecuterHead.CNC.SetPower(0);
+      move_to_limited_z(Z_MAX_POS, 20);
+    }
     break;
 
   default:
@@ -208,29 +243,14 @@ void QuickStopService::Process() {
   if (state_ == QS_STA_IDLE)
     return;
 
-  // tell system controller we start to handle QS in Non-ISR
+  // tell system manager we start to handle QS in Non-ISR
   SystemStatus.CallbackPreQS(source_);
 
-  // clear the command exist in queue
-  clear_command_queue();
-
-  LOG_I("QS at X: %.3f, Y: %.3f, Z: %.3f, E: %.3f\n", LOGICAL_X_POSITION(current_position[X_AXIS]),
-      LOGICAL_Y_POSITION(current_position[Y_AXIS]), LOGICAL_Z_POSITION(current_position[Z_AXIS]), current_position[E_AXIS]);
-
-  LOG_I("pos shift: X: %.3f, Y: %.3f, Z: %.3f\n", position_shift[X_AXIS], position_shift[Y_AXIS], position_shift[Z_AXIS]);
-
-  // Waiting state_ to run over QS_STA_TRIGGERED to make sure
+  // Waiting state_ to run over QS_STA_CLEAN_MOVES to make sure
   // env has been saved and current_block in stepper was clean
-  while (state_ <= QS_STA_TRIGGERED) {
+  while (state_ <= QS_STA_CLEAN_MOVES) {
     idle();
   }
-
-  // arrive here, stepper won't get any block,
-  // so it's safe to clean block buffer
-  planner.clear_block_buffer();
-
-  // switch to QS_STA_PARKING, to recover stepper output
-  state_ = QS_STA_PARKING;
 
   // clean the counter to recover planner
   // tmeperature ISR maybe subtract the counter
@@ -238,6 +258,24 @@ void QuickStopService::Process() {
   DISABLE_TEMPERATURE_INTERRUPT();
   planner.cleaning_buffer_counter = 0;
   ENABLE_TEMPERATURE_INTERRUPT();
+
+  // restore current position from stepper again,
+  // because current position maybe changed between
+  // disabling stepper output and reach this function
+  set_current_from_steppers_for_axis(ALL_AXES);
+  sync_plan_position();
+
+  // switch to QS_STA_PARKING, to recover stepper output
+  state_ = QS_STA_PARKING;
+
+  if (source_ != QS_SOURCE_POWER_LOSS) {
+    // logical position
+    LOG_I("QS at machine pos X: %.3f, Y: %.3f, Z: %.3f, E: %.3f\n", powerpanic.Data.PositionData[X_AXIS],
+        powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS], powerpanic.Data.PositionData[E_AXIS]);
+    LOG_I("QS at logical pos: X: %.3f, Y: %.3f, Z: %.3f\n", LOGICAL_X_POSITION(current_position[X_AXIS]),
+        LOGICAL_Y_POSITION(current_position[Y_AXIS]), LOGICAL_Z_POSITION(current_position[Z_AXIS]));
+    LOG_I("work offset: X: %.3f, Y: %.3f, Z: %.3f\n", workspace_offset[X_AXIS], workspace_offset[Y_AXIS], workspace_offset[Z_AXIS]);
+  }
 
   // parking
   Park();
@@ -260,4 +298,3 @@ void QuickStopService::Process() {
   pre_source_ = QS_SOURCE_IDLE;
   wrote_flash_ = false;
 }
-

@@ -38,6 +38,7 @@ public:
   float GetPowerPercent() { return last_percent; }
   uint16_t GetTimPwm();
   void ChangePower(float percent);
+  void SetLaserPwm(uint16_t pwm);
 
   void UpdateLaserPower(float NewPower);
   #if ENABLED(EXECUTER_CANBUS_SUPPORT)

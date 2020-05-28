@@ -18,12 +18,13 @@
 #include "../snap_module/snap_dbg.h"
 #include "../feature/runout.h"
 #include "../snap_module/quickstop_service.h"
+#include "../snap_module/level_service.h"
 
 #include "PowerPanic.h"
 #include "ExecuterManager.h"
 
-#define FLASH_PAGE_SIZE	2048
-#define FLASH_RECORD_PAGES	(MARLIN_POWERPANIC_SIZE / 2048)
+#define FLASH_PAGE_SIZE				2048
+#define FLASH_RECORD_PAGES		(MARLIN_POWERPANIC_SIZE / 2048)
 #define RECORD_COUNT_PER_PAGE	(FLASH_PAGE_SIZE / (sizeof(strPowerPanicSave) + 8))
 
 PowerPanic powerpanic;
@@ -308,9 +309,13 @@ int PowerPanic::SaveEnv(void) {
   // extruders' temperature
 	HOTEND_LOOP() Data.HeaterTamp[e] = thermalManager.temp_hotend[e].target;
 
-	LOOP_XYZ(i) Data.position_shift[i] = position_shift[i];
+	LOOP_XYZ(idx) Data.position_shift[idx] = position_shift[idx];
 
 	Data.FilePosition = last_line_;
+
+	Data.axes_relative_mode = relative_mode;
+
+	LOOP_XYZE(idx) Data.axis_relative_modes[idx] = gcode.axis_relative_modes[idx];
 
   // heated bed
   Data.BedTamp = thermalManager.temp_bed.target;
@@ -319,6 +324,13 @@ int PowerPanic::SaveEnv(void) {
 
   Data.PrintFeedRate = saved_g1_feedrate_mm_s;
   Data.TravelFeedRate = saved_g0_feedrate_mm_s;
+	Data.feedrate_percentage = feedrate_percentage;
+
+	// if live z offset was changed when working, record it
+	if (levelservice.IfLiveZOffsetUpdated())
+		Data.live_z_offset = levelservice.GetLiveZOffset();
+	else
+		Data.live_z_offset = 0;
 
   Data.accumulator = print_job_timer.duration();
 
@@ -328,8 +340,7 @@ int PowerPanic::SaveEnv(void) {
   // if power loss, we have record the position to Data.PositionData[]
 	// NOTE that we save logical position for XYZ
 	for (i=0; i<NUM_AXIS; i++) {
-		Data.PositionData[i] = (i == E_AXIS) ?
-				current_position[i] : NATIVE_TO_LOGICAL(current_position[i], i);
+		Data.PositionData[i] = current_position[i];
 	}
 
 #if (BOARD_VER == BOARD_SNAPMAKER1)
@@ -430,11 +441,11 @@ void PowerPanic::Resume3DP() {
 	planner.set_e_position_mm(current_position[E_AXIS]);
 
 	// move to target X Y
-	do_blocking_move_to_logical_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
+	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
 	planner.synchronize();
 
 	// move to target Z
-	do_blocking_move_to_logical_z(pre_data_.PositionData[Z_AXIS], 30);
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 30);
 	planner.synchronize();
 }
 
@@ -454,7 +465,7 @@ void PowerPanic::ResumeCNC() {
 	RestoreWorkspace();
 
 	// move to target X Y
-	do_blocking_move_to_logical_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
+	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
 	planner.synchronize();
 
 	// enable CNC motor
@@ -462,8 +473,8 @@ void PowerPanic::ResumeCNC() {
 	LOG_I("Restore CNC power: %.2f\n", pre_data_.cnc_power);
 
 	// move to target Z
-	do_blocking_move_to_logical_z(pre_data_.PositionData[Z_AXIS] + 15, 30);
-	do_blocking_move_to_logical_z(pre_data_.PositionData[Z_AXIS], 10);
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS] + 15, 30);
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 10);
 	planner.synchronize();
 }
 
@@ -476,11 +487,11 @@ void PowerPanic::ResumeLaser() {
 	RestoreWorkspace();
 
 	// move to target X Y
-	do_blocking_move_to_logical_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
+	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
 	planner.synchronize();
 
 	// move to target Z
-	do_blocking_move_to_logical_z(pre_data_.PositionData[Z_AXIS], 30);
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 30);
 	planner.synchronize();
 
 	// Because we open laser when receive first command after resuming,
@@ -581,6 +592,9 @@ ErrCode PowerPanic::ResumeWork() {
 	// restore speed for G0 G1
 	saved_g1_feedrate_mm_s = pre_data_.PrintFeedRate;
 	saved_g0_feedrate_mm_s = pre_data_.TravelFeedRate;
+
+	LOOP_XYZE(idx) gcode.axis_relative_modes[idx] = pre_data_.axis_relative_modes[idx];
+	relative_mode = pre_data_.axes_relative_mode;
 
 	return E_SUCCESS;
 }

@@ -18,6 +18,8 @@
 #include "../feature/runout.h"
 #include "../snap_module/quickstop_service.h"
 #include "../snap_module/snap_dbg.h"
+#include "../snap_module/level_service.h"
+
 
 StatusControl SystemStatus;
 
@@ -53,6 +55,8 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
     break;
 
   case TRIGGER_SOURCE_DOOR_OPEN:
+    fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
+    SendException(FAULT_FLAG_DOOR_OPENED);
     break;
 
   case TRIGGER_SOURCE_SC:
@@ -87,7 +91,7 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
 ErrCode StatusControl::PreProcessStop() {
   // recover scaling
-  feedrate_scaling = 100;
+  feedrate_percentage = 100;
 
   // set temp to 0
   if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
@@ -140,6 +144,9 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
     break;
   }
 
+  // save live z offset
+  levelservice.SaveLiveZOffset();
+
   // if we already finish quick stop, just change system status
   // disable power-loss data, and exit with success
   if (cur_status_ == SYSTAT_PAUSE_FINISH) {
@@ -152,10 +159,9 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
     if (source == TRIGGER_SOURCE_SC)
       FinishSystemStatusChange(event_opc, 0);
 
-    LOG_I("Stop in pauseing, trigger source: %d\n", source);
+    LOG_I("Stop in PAUSE, trigger source: %d\n", source);
     return E_SUCCESS;
   }
-
 
   if (event_opc == SYSCTL_OPC_FINISH) {
     // if screen tell us Gcode is ended, wait for all movement output
@@ -177,7 +183,6 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
 }
 
 
-
 /*
  * follow functions are used to resume work
  */
@@ -188,22 +193,22 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
 #define RESUME_PROCESS_CMD_SIZE 40
 
 void inline StatusControl::RestoreXYZ(void) {
-  LOG_I("\nrestore ponit: X :%.2f, Y:%.2f, Z:%.2f, E:%.2f", powerpanic.Data.PositionData[X_AXIS],
-        powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
-        powerpanic.Data.PositionData[E_AXIS]);
+  LOG_I("restore ponit: X :%.3f, Y:%.3f, Z:%.3f, E:%.3f\n", powerpanic.Data.PositionData[X_AXIS],
+    powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS],
+    powerpanic.Data.PositionData[E_AXIS]);
 
   // the positions we recorded are logical positions, so cannot use native movement API
   // restore X, Y
-  do_blocking_move_to_logical_xy(powerpanic.Data.PositionData[X_AXIS], powerpanic.Data.PositionData[Y_AXIS], 60);
+  move_to_limited_xy(powerpanic.Data.PositionData[X_AXIS], powerpanic.Data.PositionData[Y_AXIS], 60);
   planner.synchronize();
 
   // restore Z
   if (MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS] + 15, 30);
-    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS], 10);
+    move_to_limited_z(powerpanic.Data.PositionData[Z_AXIS] + 15, 30);
+    move_to_limited_z(powerpanic.Data.PositionData[Z_AXIS], 10);
   }
   else {
-    do_blocking_move_to_logical_z(powerpanic.Data.PositionData[Z_AXIS], 30);
+    move_to_limited_z(powerpanic.Data.PositionData[Z_AXIS], 30);
   }
   planner.synchronize();
 }
@@ -332,14 +337,10 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
   // resume stopwatch
   if (print_job_timer.isPaused()) print_job_timer.start();
 
-
-  // tell screen we are ready  to work
-  if (resume_source_ = TRIGGER_SOURCE_SC) {
-    FinishSystemStatusChange(SYSCTL_OPC_RESUME, 0);
-  }
-
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
+
+  return E_SUCCESS;
 }
 
 
@@ -363,7 +364,6 @@ ErrCode StatusControl::ResumeOver() {
   case MACHINE_TYPE_3DPRINT:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
-      fault_flag_ |= FAULT_FLAG_FILAMENT;
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
       return E_NO_FILAMENT;
     }
@@ -373,7 +373,6 @@ ErrCode StatusControl::ResumeOver() {
   case MACHINE_TYPE_LASER:
     if (Periph.IsDoorOpened()) {
       LOG_E("Door is opened, please close the door!\n");
-      fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
       return E_DOOR_OPENED;
     }
@@ -389,7 +388,7 @@ ErrCode StatusControl::ResumeOver() {
     break;
   }
 
-  LOG_I("Receive first cmd after resume\n");
+  LOG_I("got 1rst cmd after resume\n");
   cur_status_ = SYSTAT_WORK;
   //lightbar.set_state(LB_STATE_WORKING);
 
@@ -556,8 +555,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
   // set state
   cur_status_ = SYSTAT_WORK;
 
-  //lightbar.set_state(LB_STATE_WORKING);
-
   return E_SUCCESS;
 }
 
@@ -669,7 +666,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
     if (fault_flag_ & FAULT_FLAG_FILAMENT)
       return E_INVALID_STATE;
     new_fault_flag = FAULT_FLAG_FILAMENT;
-    LOG_I("runout fault is cleared!\n");
+    LOG_I("filament has run out!\n");
     break;
 
   case ETYPE_LOST_CFG:
@@ -707,6 +704,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_HOTEND_HEATFAIL;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_HOTEND;
+      LOG_E("heating failed for hotend! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -714,6 +712,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_BED_HEATFAIL;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
+      LOG_E("heating failed for bed! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
     default:
@@ -732,6 +731,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_HOTEND_RUNWAWY;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
+      LOG_E("thermal run away of hotend! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -740,6 +740,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_BED_RUNAWAY;
       // action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
+      LOG_E("thermal run away of Bed! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
     default:
@@ -766,7 +767,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_BAD;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
-      LOG_E("Error happened in Thermistor of Hotend!\n");
+      LOG_E("Detected error in sensor of Hotend! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -777,7 +778,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       action_ban = ACTION_BAN_NO_HEATING_BED;
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
-        LOG_E("Error happened in Thermistor of Heated Bed!\n");
+        LOG_E("Detected error in sensor of Bed! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       }
       break;
 
@@ -840,7 +841,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING;
       }
-      LOG_E("current temp of hotend is more higher than MAXTEMP: %d!\n", HEATER_0_MAXTEMP + 10);
+      LOG_E("current temp [%.2f] of hotend is more higher than MAXTEMP: %d!\n", thermalManager.degHotend(0), HEATER_0_MAXTEMP + 10);
       break;
 
     case EHOST_BED:
@@ -854,7 +855,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("current temp of Bed is more higher than MAXTEMP: %d!\n", BED_MAXTEMP + 5);
+      LOG_E("current temp [%.2f] of Bed is more higher than MAXTEMP: %d!\n", thermalManager.degBed(), BED_MAXTEMP + 5);
       break;
 
     default:
@@ -876,7 +877,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("current temperature of hotend dropped abruptly!\n");
+      LOG_E("temperature of hotend dropped abruptly! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -888,7 +889,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("current temperature of bed dropped abruptly!\n");
+      LOG_E("current temperature of bed dropped abruptly! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
     default:
@@ -910,7 +911,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("Thermistor of hotend maybe is comed off!\n");
+      LOG_E("Thermistor of hotend maybe come off! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
     case EHOST_BED:
@@ -922,7 +923,7 @@ ErrCode StatusControl::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("Thermistor of bed maybe is comed off!\n");
+      LOG_E("Thermistor of bed maybe come off! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
     default:
@@ -1411,9 +1412,8 @@ ErrCode StatusControl::ClearExceptionByFaultFlag(uint32_t flag) {
 }
 
 void StatusControl::CallbackOpenDoor() {
-  if (cur_status_ == SYSTAT_WORK) {
+  if ((SYSTAT_WORK == cur_status_ ) ||(SYSTAT_RESUME_WAITING == cur_status_)) {
     PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
-    SendException(FAULT_FLAG_DOOR_OPENED);
   }
 
   fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
@@ -1558,7 +1558,7 @@ ErrCode StatusControl::SendStatus(Event_t &event) {
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // save last feedrate
-  tmp_f32 = last_feedrate * 60;
+  tmp_f32 = MMS_SCALED(feedrate_mm_s) * 60;
   tmp_i16 = (int16_t)tmp_f32;
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
@@ -1606,6 +1606,7 @@ ErrCode StatusControl::SendException(uint32_t fault) {
 
 ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   ErrCode err = E_SUCCESS;
+  bool need_ack = true;
 
   switch (event.op_code)
   {
@@ -1619,6 +1620,8 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   case SYSCTL_OPC_PAUSE:
     LOG_I("SC req PAUSE\n");
     err = SystemStatus.PauseTrigger(TRIGGER_SOURCE_SC);
+    if (err == E_SUCCESS)
+      need_ack = false;
     break;
 
   case SYSCTL_OPC_RESUME:
@@ -1638,6 +1641,8 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   case SYSCTL_OPC_FINISH:
     LOG_I("SC req %s\n", (event.op_code == SYSCTL_OPC_STOP)? "STOP" : "FINISH");
     err = SystemStatus.StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
+    if (err == E_SUCCESS)
+      need_ack = false;
     break;
 
   default:
@@ -1654,7 +1659,10 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
     LOG_I("SC req -> failed\n");
   }
 
-  return hmi.Send(event);
+  if (need_ack)
+    return hmi.Send(event);
+  else
+    return err;
 }
 
 
@@ -1824,6 +1832,7 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
   ErrCode ret = E_SUCCESS;
 
   float param;
+  float tmp_f32;
 
   PDU_TO_LOCAL_WORD(param, event.data + 1);
 
@@ -1831,12 +1840,13 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
 
   switch (event.data[0]) {
   case RENV_TYPE_FEEDRATE:
-    LOG_I("feedrate scaling: %.2f\n", param);
     if (param > 500 || param < 0) {
+      LOG_E("invalid feedrate scaling: %.2f\n", param);
       ret = E_PARAM;
       break;
     }
-    feedrate_scaling = param;
+    feedrate_percentage = (int16_t)param;
+    LOG_I("feedrate scaling: %d\n", feedrate_percentage);
     break;
 
   case RENV_TYPE_HOTEND_TEMP:
@@ -1883,26 +1893,41 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
     break;
 
   case RENV_TYPE_ZOFFSET:
-    LOG_I("adjust Z offset: %.2f\n", param);
-    if (param < -0.5) {
-      ret = E_PARAM;
+    if (levelservice.SetLiveZOffset(param))
       break;
-    }
+
+    tmp_f32 = levelservice.GetLiveZOffset();
+
     // waiting all block buffer are outputed by stepper
     planner.synchronize();
 
-    // for safety, we don't disable leveling here
+    tmp_f32 = current_position[Z_AXIS];
 
-    // Subtract the mean from all values
-    for (uint8_t x = GRID_MAX_POINTS_X; x--;)
-      for (uint8_t y = GRID_MAX_POINTS_Y; y--;)
-        Z_VALUES(x, y) += param;
-    #if ENABLED(ABL_BILINEAR_SUBDIVISION)
-      bed_level_virt_interpolate();
-    #endif
+    move_to_limited_z(current_position[Z_AXIS] + (param - tmp_f32), 5);
+    planner.synchronize();
 
-    move_to_limited_z(current_position[Z_AXIS] + param, 5);
+    current_position[Z_AXIS] = tmp_f32;
+    sync_plan_position();
+    break;
 
+  case RENV_TYPE_CNC_POWER:
+    if (MACHINE_TYPE_CNC != ExecuterHead.MachineType) {
+      ret = E_INVALID_STATE;
+      LOG_E("Not CNC toolhead!\n");
+      break;
+    }
+
+    if (param > 100 || param < 0) {
+      ret = E_PARAM;
+      LOG_E("out of range: %.2f\n", param);
+    }
+    else {
+      ExecuterHead.CNC.ChangePower(param);
+      // change current output when it was turned on
+      if (ExecuterHead.CNC.GetRPM() > 0)
+        ExecuterHead.CNC.On();
+      LOG_I("new CNC power: %.2f\n", param);
+    }
     break;
 
   default:
@@ -1914,6 +1939,43 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
   event.length = 1;
   event.data = &ret;
   return hmi.Send(event);
+}
+
+
+ErrCode StatusControl::GetRuntimeEnv(Event_t &event) {
+  int   tmp_i32;
+  uint8_t buff[5];
+
+  LOG_I("SC get env: %u\n", event.data[0]);
+
+  buff[0] = E_SUCCESS;
+
+  switch (event.data[0]) {
+  case RENV_TYPE_FEEDRATE:
+    tmp_i32 = (int)(feedrate_percentage * 1000.0f);
+    WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+    break;
+
+  case RENV_TYPE_ZOFFSET:
+    tmp_i32 = (int)(levelservice.GetLiveZOffset() * 1000);
+    WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    break;
+
+  case RENV_TYPE_CNC_POWER:
+    tmp_i32 = (int)(ExecuterHead.CNC.GetPower() * 1000);
+    WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    break;
+
+  default:
+    buff[0] = E_FAILURE;
+    LOG_I("cannot get this env: %u\n", event.data[0]);
+    break;
+  }
+
+  event.data = buff;
+  event.length = 5;
+
+  hmi.Send(event);
 }
 
 
@@ -2001,7 +2063,7 @@ ErrCode StatusControl::CallbackPostQS(QuickStopSource source) {
 
     pause_source_ = TRIGGER_SOURCE_NONE;
 
-    LOG_I("Finish pause\n");
+    LOG_I("Finish pause\n\n");
     cur_status_ = SYSTAT_PAUSE_FINISH;
     break;
 
@@ -2019,7 +2081,7 @@ ErrCode StatusControl::CallbackPostQS(QuickStopSource source) {
     stop_source_ = TRIGGER_SOURCE_NONE;
     cur_status_ = SYSTAT_IDLE;
 
-    LOG_I("Finish stop\n");
+    LOG_I("Finish stop\n\n");
     break;
 
   default:

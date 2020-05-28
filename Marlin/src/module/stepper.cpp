@@ -1294,8 +1294,10 @@ void Stepper::isr() {
     if (current_block) {
       axis_did_move = 0;
       current_block = NULL;
-      planner.discard_current_block();
     }
+
+    planner.block_buffer_nonbusy = planner.block_buffer_tail = \
+      planner.block_buffer_planned = planner.block_buffer_head;
 
     // interval = 1 ms
     HAL_timer_set_compare(STEP_TIMER_NUM,

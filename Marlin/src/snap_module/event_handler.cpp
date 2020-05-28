@@ -14,6 +14,7 @@
 
 #include "../module/StatusControl.h"
 #include "../module/PowerPanic.h"
+#include "../module/PeriphDevice.h"
 
 
 #define EVENT_ATTR_HAVE_MOTION  0x1
@@ -71,6 +72,7 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
   }
   else if (cur_sta == SYSTAT_RESUME_WAITING) {
     if (SystemStatus.ResumeOver() == E_SUCCESS) {
+      LOG_I("cmd: %s\n\n", (char *)(event_buff + 5));
       Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, EID_FILE_GCODE_ACK);
     }
     else {
@@ -173,11 +175,6 @@ static ErrCode ExitLeveling(Event_t &event) {
   return levelservice.ExitLeveling(event);
 }
 
-static ErrCode ResetLeveling(Event_t &event) {
-  return levelservice.ResetLeveling(event);
-}
-
-
 static ErrCode GetFocalLength(Event_t &event) {
   return ExecuterHead.Laser.GetFocalLength(event);
 }
@@ -199,6 +196,9 @@ static ErrCode ChangeRuntimeEnv(Event_t &event) {
   return SystemStatus.ChangeRuntimeEnv(event);
 }
 
+static ErrCode GetRuntimeEnv(Event_t &event) {
+  return SystemStatus.GetRuntimeEnv(event);
+}
 
 static ErrCode GetMachineSize(Event_t &event) {
   return SystemStatus.GetMachineSize(event);
@@ -220,8 +220,8 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_DO_MANUAL_FOCUSING]     =  */{EVENT_ATTR_HAVE_MOTION,  DoManualFocusing},
   /* [SETTINGS_OPC_DO_AUTO_FOCUSING]       =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoFocusing},
   /* [SETTINGS_OPC_DO_FAST_CALIBRATION]    =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoLeveling},
-  /* [SETTINGS_OPC_CHANGE_RUNTIME_ENV]     =  */{EVENT_ATTR_DEFAULT,      ChangeRuntimeEnv},
-  /* [SETTINGS_OPC_RESET_LEVELING]         =  */{EVENT_ATTR_HAVE_MOTION,  ResetLeveling},
+  /* [SETTINGS_OPC_SET_RUNTIME_ENV]        =  */{EVENT_ATTR_DEFAULT,      ChangeRuntimeEnv},
+  /* [SETTINGS_OPC_GET_RUNTIME_ENV]        =  */{EVENT_ATTR_HAVE_MOTION,  GetRuntimeEnv},
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
@@ -373,31 +373,31 @@ EventCallback_t camera_event_cb[CAMERA_OPC_MAX] = {
 
 
 // implement follow 4 function after rebase chamber branch
-static ErrCode GetChamerStatus(Event_t &event) {
-  return hmi.Send(event);
+static ErrCode ReportEnclosureStatus(Event_t &event) {
+  return Periph.ReportEnclosureStatus(event);
 }
 
 
-static ErrCode SetChamberLight(Event_t &event) {
-  return hmi.Send(event);
+static ErrCode SetEnclosureLight(Event_t &event) {
+  return Periph.SetEnclosureLight(event);
 }
 
 
-static ErrCode SetChamberFAN(Event_t &event) {
-  return hmi.Send(event);
+static ErrCode SetEnclosureFan(Event_t &event) {
+  return Periph.SetEnclosureFan(event);
 }
 
 
-static ErrCode SetChamberDetection(Event_t &event) {
-  return hmi.Send(event);
+static ErrCode SetEnclosureDetection(Event_t &event) {
+  return Periph.SetEnclosureDetection(event);
 }
 
 EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
   UNDEFINED_CALLBACK,
-  /* [ADDON_OPC_GET_CHAMBER_STATUS]    =  */{EVENT_ATTR_DEFAULT,  GetChamerStatus},
-  /* [ADDON_OPC_SET_CHAMBER_LIGHT]     =  */{EVENT_ATTR_DEFAULT,  SetChamberLight},
-  /* [ADDON_OPC_SET_CHAMBER_FAN]       =  */{EVENT_ATTR_DEFAULT,  SetChamberFAN},
-  /* [ADDON_OPC_SET_CHAMBER_DETECTION] =  */{EVENT_ATTR_DEFAULT,  SetChamberDetection}
+  /* [ADDON_OPC_GET_CHAMBER_STATUS]    =  */{EVENT_ATTR_DEFAULT,  ReportEnclosureStatus},
+  /* [ADDON_OPC_SET_CHAMBER_LIGHT]     =  */{EVENT_ATTR_DEFAULT,  SetEnclosureLight},
+  /* [ADDON_OPC_SET_CHAMBER_FAN]       =  */{EVENT_ATTR_DEFAULT,  SetEnclosureFan},
+  /* [ADDON_OPC_SET_CHAMBER_DETECTION] =  */{EVENT_ATTR_DEFAULT,  SetEnclosureDetection}
 };
 
 
@@ -592,6 +592,9 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
   uint8_t op_code_max = INVALID_OP_CODE;
 
   bool send_to_marlin = false;
+#if DEBUG_EVENT_HANDLER
+  bool heartbeat = false;
+#endif
 
   // if we are running in Marlin task, need to get command from the queue
   if (param->owner == TASK_OWN_MARLIN) {
@@ -628,6 +631,10 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 
   case EID_SYS_CTRL_REQ:
     callbacks = sysctl_event_cb;
+#if DEBUG_EVENT_HANDLER
+    if (param->event_buff[EVENT_IDX_OP_CODE] == 1)
+      heartbeat = true;
+#endif
     op_code_max = SYSCTL_OPC_MAX;
     break;
 
@@ -672,7 +679,8 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
     SERIAL_ECHOLNPAIR("new gcode, eid: ", event.id);
 #endif
     // blocked 100ms for max duration to wait
-    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    if (quickstop.isIdle())
+      xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 
@@ -709,17 +717,21 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
   }
 
   if ((callbacks[event.op_code].attr & EVENT_HANDLE_WITH_MARLIN) && (param->owner != TASK_OWN_MARLIN)) {
-    // arrive here, we know the event need to send to Marlin by check event id & op code
+    // arrive here, we know the event need to be sent to Marlin by check event id & op code
 #if DEBUG_EVENT_HANDLER
     SERIAL_ECHOLNPAIR("Marlin's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
 #endif
-    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    if (quickstop.isIdle())
+      xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
-
 #if DEBUG_EVENT_HANDLER
-  SERIAL_ECHOLNPAIR("HMI's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
+  else {
+  if (!heartbeat)
+    SERIAL_ECHOLNPAIR("HMI's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
+  }
 #endif
+
   event.length = param->size - 2;
   event.data = param->event_buff + 2;
   return callbacks[event.op_code].cb(event);

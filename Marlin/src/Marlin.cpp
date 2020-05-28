@@ -284,6 +284,22 @@ void reset_homeoffset() {
     m_home_offset[i] = m_home_offset_def[i];
     l_home_offset[i] = l_home_offset_def[i];
   }
+
+  LOOP_XYZ(i) {
+    switch (CanModules.GetMachineSizeType()) {
+      case MACHINE_SIZE_S:
+        home_offset[i] = s_home_offset[i];
+        break;
+      case MACHINE_SIZE_M:
+        home_offset[i] = m_home_offset[i];
+        break;
+      case MACHINE_SIZE_L:
+        home_offset[i] = l_home_offset[i];
+        break;
+      default:
+        break;
+    }
+  }
 }
 
 void setup_killpin() {
@@ -1006,6 +1022,19 @@ void setup() {
     HAL_init();
   #endif
 
+  #if PIN_EXISTS(POWER0_SUPPLY)
+    OUT_WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
+  #endif
+
+  #if PIN_EXISTS(POWER1_SUPPLY)
+    OUT_WRITE(POWER1_SUPPLY_PIN, POWER1_SUPPLY_OFF);
+  #endif
+
+  #if PIN_EXISTS(POWER2_SUPPLY)
+    OUT_WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
+  #endif
+
+
   #if HAS_DRIVER(L6470)
     L6470.init();         // setup SPI and then init chips
   #endif
@@ -1281,23 +1310,12 @@ void setup() {
     mmu2.init();
   #endif
 
-  #if PIN_EXISTS(POWER1_SUPPLY)
-    OUT_WRITE(POWER1_SUPPLY_PIN, LOW);
-  #endif
-
-  #if PIN_EXISTS(POWER2_SUPPLY)
-    OUT_WRITE(POWER2_SUPPLY_PIN, LOW);
-  #endif
-
-
   BreathLightInit();
 
-
-  // clear UART buffer
-  rb_reset(MYSERIAL0.c_dev()->rb);
-  rb_reset(HMISERIAL.c_dev()->rb);
-
   CheckAppValidFlag();
+
+  // to disable heartbeat if module need to be upgraded
+  upgrade.CheckIfUpgradeModule();
 
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
   reset_bed_level_if_upgraded();
@@ -1360,8 +1378,8 @@ void main_loop(void *param) {
 
   dispather_param.event_queue = task_param->event_queue;
 
-  cur_mills = millis() + 4000;
-  while(cur_mills > millis());
+  //cur_mills = millis() + 4000;
+  //while(cur_mills > millis());
   ExecuterHead.Init();
   CanModules.Init();
   CheckUpdateFlag();
@@ -1476,6 +1494,8 @@ void hmi_task(void *param) {
 
   ErrCode ret = E_FAILURE;
 
+  uint8_t count = 0;
+
   configASSERT(param);
   task_param = (SnapTasks_t)param;
 
@@ -1491,24 +1511,29 @@ void hmi_task(void *param) {
   SET_INPUT_PULLUP(SCREEN_DET_PIN);
   if(READ(SCREEN_DET_PIN)) {
     LOG_I("Screen Unplugged!\n");
-    vTaskSuspend(task_param->heartbeat);
   }
   else {
     LOG_I("Screen Plugged!\n");
   }
 
   for (;;) {
-
     if(READ(SCREEN_DET_PIN)) {
-      if (eTaskGetState(task_param->heartbeat) != eSuspended) {
-        xTaskNotifyStateClear(task_param->heartbeat);
-        vTaskSuspend(task_param->heartbeat);
+      xTaskNotifyStateClear(task_param->heartbeat);
+
+      if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK && count == 100) {
+        // if we lost screen in working for 10s, stop current work
+        SystemStatus.StopTrigger(TRIGGER_SOURCE_SC_LOST);
+        LOG_E("stop cur work because screen lost!\n");
       }
+
+      if (++count > 100)
+        count = 0;
+
+      vTaskDelay(portTICK_PERIOD_MS * 100);
+      continue;
     }
-    else {
-      if (eTaskGetState(task_param->heartbeat) == eSuspended)
-        vTaskResume(task_param->heartbeat);
-    }
+    else
+      count = 0;
 
     ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
     if (ret != E_SUCCESS) {
@@ -1520,7 +1545,7 @@ void hmi_task(void *param) {
     // execute or send out one command
     DispatchEvent(&dispather_param);
 
-    vTaskDelay(portTICK_PERIOD_MS);
+    vTaskDelay(portTICK_PERIOD_MS * 5);
   }
 }
 
@@ -1540,7 +1565,7 @@ void heartbeat_task(void *param) {
     SystemStatus.CheckException();
     ExecuterHead.CheckAlive();
 
-    Periph.Process();
+    Periph.CheckStatus();
 
     if (++counter > 100) {
       counter = 0;
@@ -1552,7 +1577,7 @@ void heartbeat_task(void *param) {
 
       notificaiton = ulTaskNotifyTake(false, 0);
 
-      if (notificaiton)
+      if (notificaiton && upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
         SystemStatus.SendStatus(event);
     }
 

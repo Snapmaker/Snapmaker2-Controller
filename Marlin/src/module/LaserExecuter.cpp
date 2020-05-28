@@ -96,34 +96,23 @@ void LaserExecuter::TryCloseFan() {
   }
 }
 
+void LaserExecuter::SetLaserPwm(uint16_t pwmvalue) {
+  CheckFan(pwmvalue);
+  TimSetPwm(pwmvalue);
+}
+
 /**
  * SetLaserLowPower:Set laser power
  * para percent:
  */
-void LaserExecuter::SetLaserPower(float Percent)
-{
-  int integer;
-  float decimal;
-  uint16_t pwmvalue;
-
+void LaserExecuter::SetLaserPower(float Percent) {
   SysStatus cur_stat = SystemStatus.GetCurrentStatus();
 
   if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG)
     return;
 
-  if (Percent > power_limit_)
-    Percent = power_limit_;
-
-  last_percent = Percent;
-  integer = Percent;
-  decimal = Percent - integer;
-  pwmvalue = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
-
-  last_pwm = pwmvalue;
-
-  CheckFan(pwmvalue);
-
-  TimSetPwm(pwmvalue);
+  ChangePower(Percent);
+  SetLaserPwm(last_pwm);
 }
 
 /**
@@ -131,25 +120,21 @@ void LaserExecuter::SetLaserPower(float Percent)
  */
 void LaserExecuter::Off()
 {
-  CheckFan(0);
-  TimSetPwm(0);
+  SetLaserPwm(0);
 }
 
 /**
  * On:Laser on and use the last power
  */
-void LaserExecuter::On()
-{
+void LaserExecuter::On() {
   SysStatus cur_stat = SystemStatus.GetCurrentStatus();
 
   if (cur_stat == SYSTAT_PAUSE_TRIG || cur_stat == SYSTAT_END_TRIG) {
     LOG_W("cannot open laser during pause/stop triggered!\n");
     return;
   }
-  CheckFan(last_pwm);
-  TimSetPwm(last_pwm);
+  SetLaserPower(last_percent);
 }
-
 
 /**
  * SetLaserLowPower:Set laser power
@@ -511,21 +496,18 @@ uint16_t LaserExecuter::GetTimPwm() {
  * change power limit, will be call when open / close chamber door
 */
 void LaserExecuter::ChangePowerLimit(float limit) {
+  float percent = last_percent;
   if (limit > LASER_POWER_NORMAL_LIMIT)
     limit = LASER_POWER_NORMAL_LIMIT;
-
-  // if previous limit is larger than now, need to check need to lower current output
-  if (last_percent > limit) {
-    ChangePower(limit);
-
-    if (GetTimPwm() > last_pwm) {
-      // lower current output
-      CheckFan(last_pwm);
-      TimSetPwm(last_pwm);
-    }
-  }
-
   power_limit_ = limit;
+  // if previous limit is larger than now, need to check need to lower current output
+  ChangePower(last_percent);
+  last_percent = percent;  // recover the value of the normal output
+  
+  if (GetTimPwm() > 0) {
+    // If there is current output, it is equal to the limit output
+    SetLaserPwm(last_pwm);
+  }
 }
 
 /**
@@ -534,15 +516,12 @@ void LaserExecuter::ChangePowerLimit(float limit) {
 void LaserExecuter::ChangePower(float percent) {
   int integer;
   float decimal;
-
+  last_percent = percent;
   if (percent > power_limit_)
     percent = power_limit_;
 
-  last_percent = percent;
   integer = percent;
   decimal = percent - integer;
-
-  last_percent = percent;
   last_pwm = LaserPowerTable[integer] + (LaserPowerTable[integer + 1] - LaserPowerTable[integer]) * decimal;
 }
 
@@ -551,7 +530,7 @@ ErrCode LaserExecuter::GetFocalLength(Event_t &event) {
   uint8_t buff[5];
   uint32_t focal_length;
 
-  LOG_I("SC get focal length\n");
+  LOG_I("SC get focal length: %.3f\n", FocusHeight);
 
   LoadFocusHeight();
 
@@ -574,8 +553,6 @@ ErrCode LaserExecuter::SetFocalLength(Event_t &event) {
   uint8_t buff[2];
   int     focal_length;
 
-  LOG_I("SC set focal length\n");
-
   if (event.length < 4) {
     LOG_E("Must specify focal length!\n");
     event.length = 1;
@@ -584,6 +561,8 @@ ErrCode LaserExecuter::SetFocalLength(Event_t &event) {
   }
 
   PDU_TO_LOCAL_WORD(focal_length, event.data);
+
+  LOG_I("SC set focal length: %d\n", focal_length);
 
   // length and data is picked up, can be changed
   event.length = 1;
@@ -613,7 +592,6 @@ ErrCode LaserExecuter::DoManualFocusing(Event_t &event) {
   float max_z_speed;
 
   LOG_I("SC req manual focusing\n");
-
 
   if (!all_axes_homed()) {
     LOG_E("Machine is not be homed!\n");
@@ -686,8 +664,8 @@ ErrCode LaserExecuter::DoAutoFocusing(Event_t &event) {
 
   if (event.length == 4) {
     PDU_TO_LOCAL_WORD(z_interval, event.data);
-    LOG_E("new Z interval: %.2f\n", z_interval);
     z_interval /= 1000;
+    LOG_I("SC specify Z interval: %.2f\n", z_interval);
   }
 
   planner.synchronize();
@@ -755,7 +733,7 @@ out:
 ErrCode LaserExecuter::SetCameraBtName(Event_t &event) {
   ErrCode err = E_FAILURE;
 
-  LOG_I("BlueTooth Name:", event.data);
+  LOG_I("SC set BT Name: %s\n", event.data);
 
   if(SetBluetoothName((char *)event.data) == 0)
     err = E_SUCCESS;
@@ -773,7 +751,7 @@ ErrCode LaserExecuter::GetCameraBtName(Event_t &event) {
 
   buffer[0] = ExecuterHead.Laser.ReadBluetoothName((char *)(buffer + 1));
 
-  LOG_I("Bluetooth Name:", buffer + 1);
+  LOG_I("SC req BT Name: %s\n", buffer + 1);
 
   event.data = buffer;
 
@@ -795,6 +773,8 @@ ErrCode LaserExecuter::GetCameraBtName(Event_t &event) {
 ErrCode LaserExecuter::GetCameraBtMAC(Event_t &event) {
   uint8_t buffer[8] = {0};
   int i;
+
+  LOG_I("SC get BT MAC\n");
 
   buffer[0] = ReadBluetoothMac(buffer+1);
 

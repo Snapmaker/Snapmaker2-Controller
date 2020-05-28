@@ -9,6 +9,14 @@ void GcodeSuite::M1005() {
   SERIAL_ECHOLNPGM(SHORT_BUILD_VERSION);
   SERIAL_ECHO_MSG("Compiled: " __DATE__ ", " __TIME__);
   
+    // screen show version
+  char Version[33] = {0};
+  memcpy(Version, (char*)(FLASH_BOOT_PARA + 2048), 30);
+  SERIAL_ECHOPGM(MSG_MARLIN_PACK);
+  SERIAL_CHAR(' ');
+  SERIAL_ECHOPGM(Version);
+  SERIAL_EOL();
+
   SERIAL_ECHO("Machine Size: ");
   switch (CanModules.GetMachineSizeType()) {
   case MACHINE_SIZE_S:

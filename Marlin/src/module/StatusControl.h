@@ -90,6 +90,7 @@ enum TriggerSource : uint8_t {
   TRIGGER_SOURCE_DOOR_CLOSE,      // trigger by door closed
   TRIGGER_SOURCE_STOP_BUTTON,     // trigger by emergency button
   TRIGGER_SOURCE_EXCEPTION,       // trigger by exception
+  TRIGGER_SOURCE_SC_LOST,         // lost screen when working with it
 
   TRIGGER_SOURCE_INVALID
 };
@@ -149,6 +150,7 @@ enum RuntimeEnvType : uint8_t {
   RENV_TYPE_BED_TEMP,
   RENV_TYPE_LASER_POWER,
   RENV_TYPE_ZOFFSET,
+  RENV_TYPE_CNC_POWER,
 
   RENV_TYPE_INVALID
 };
@@ -196,7 +198,7 @@ public:
   ErrCode ClearExceptionByFaultFlag(uint32_t flag);
 
   ErrCode PauseTrigger(TriggerSource type);
-  ErrCode StopTrigger(TriggerSource type, uint16_t event_opc);
+  ErrCode StopTrigger(TriggerSource type, uint16_t event_opc=INVALID_OP_CODE);
   ErrCode ResumeTrigger(TriggerSource s);
   ErrCode ResumeOver();
   ErrCode StartWork(TriggerSource s);
@@ -235,6 +237,7 @@ public:
 
   // event callback
   ErrCode ChangeRuntimeEnv(Event_t &event);
+  ErrCode GetRuntimeEnv(Event_t &event);
   ErrCode SendStatus(Event_t &event);
   ErrCode SendException(Event_t &event);
   ErrCode ChangeSystemStatus(Event_t &event);
