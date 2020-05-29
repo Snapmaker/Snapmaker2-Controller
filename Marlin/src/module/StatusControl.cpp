@@ -42,6 +42,8 @@ void StatusControl::Init() {
  */
 ErrCode StatusControl::PauseTrigger(TriggerSource type)
 {
+  uint32_t notification = 0;
+
   if (cur_status_ != SYSTAT_WORK && cur_status_!= SYSTAT_RESUME_WAITING) {
     LOG_W("cannot pause in current status: %d\n", cur_status_);
     return E_NO_SWITCHING_STA;
@@ -83,6 +85,19 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
   pause_source_ = type;
 
+  // get notification of current task
+  xTaskNotifyWait(0, 0, &notification, 0);
+  if (notification & HMI_NOTIFY_WAITFOR_HEATING) {
+    taskENTER_CRITICAL();
+
+    // if we are waiting for heatup, abort the waiting
+    wait_for_heatup = false;
+
+    powerpanic.SaveCmdLine(CommandLine[cmd_queue_index_r]);
+
+    taskEXIT_CRITICAL();
+  }
+
   quickstop.Trigger(QS_SOURCE_PAUSE);
 
   return E_SUCCESS;
@@ -118,6 +133,7 @@ ErrCode StatusControl::PreProcessStop() {
  * return: true if stop triggle success, or false
  */
 ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
+  uint32_t notification = 0;
 
   if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {
@@ -163,6 +179,8 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
     return E_SUCCESS;
   }
 
+  cur_status_ = SYSTAT_END_TRIG;
+
   if (event_opc == SYSCTL_OPC_FINISH) {
     // if screen tell us Gcode is ended, wait for all movement output
     // because planner.synchronize() will call HMI process nestedly,
@@ -174,7 +192,16 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
   else
     stop_type_ = STOP_TYPE_ABORTED;
 
-  cur_status_ = SYSTAT_END_TRIG;
+  // get notification of current task
+  xTaskNotifyWait(0, 0, &notification, 0);
+  if (notification & HMI_NOTIFY_WAITFOR_HEATING) {
+    taskENTER_CRITICAL();
+    // if we are waiting for heatup, abort the waiting
+    wait_for_heatup = false;
+
+    taskEXIT_CRITICAL();
+  }
+
   stop_source_ = source;
 
   quickstop.Trigger(QS_SOURCE_STOP);

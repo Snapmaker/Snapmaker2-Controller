@@ -3221,6 +3221,9 @@ void Temperature::isr() {
       bool wants_to_cool = false, first_loop = true;
       wait_for_heatup = true;
       millis_t now, next_temp_ms = 0, next_cool_check_ms = 0;
+
+      xTaskNotify(snap_tasks->hmi, HMI_NOTIFY_WAITFOR_HEATING, eSetBits);
+
       do {
         // Target temperature might be changed during the loop
         if (target_temp != degTargetHotend(target_extruder)) {
@@ -3298,6 +3301,8 @@ void Temperature::isr() {
 
       } while (wait_for_heatup && TEMP_CONDITIONS);
 
+      ulTaskNotifyValueClear(snap_tasks->hmi, HMI_NOTIFY_WAITFOR_HEATING);
+
       if (wait_for_heatup) {
         #if ENABLED(PRINTER_EVENT_LEDS)
           printerEventLEDs.onHeatingDone();
@@ -3350,6 +3355,8 @@ void Temperature::isr() {
         const float start_temp = degBed();
         printerEventLEDs.onBedHeatingStart();
       #endif
+
+      xTaskNotify(snap_tasks->hmi, HMI_NOTIFY_WAITFOR_HEATING, eSetBits);
 
       do {
         // Target temperature might be changed during the loop
@@ -3428,6 +3435,7 @@ void Temperature::isr() {
 
       } while (wait_for_heatup && TEMP_BED_CONDITIONS);
 
+      ulTaskNotifyValueClear(snap_tasks->hmi, HMI_NOTIFY_WAITFOR_HEATING);
 
       #if DISABLED(BUSY_WHILE_HEATING) && ENABLED(HOST_KEEPALIVE_FEATURE)
         gcode.busy_state = old_busy_state;
