@@ -60,8 +60,7 @@ const static char *excoption_str[32] {
 
 static SnapDebugLevel pc_msg_level = SNAP_DEBUG_LEVEL_INFO;
 static SnapDebugLevel sc_msg_level = SNAP_DEBUG_LEVEL_INFO;
-static char log_buf[SNAP_LOG_BUFFER_SIZE];
-static uint8_t log_head[12];
+static char log_buf[SNAP_LOG_BUFFER_SIZE + 2];
 
 const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
   SNAP_TRACE_STR,
@@ -75,19 +74,22 @@ const char *snap_debug_str[SNAP_DEBUG_LEVEL_MAX] = {
 void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
   Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_TRANS_LOG};
 
-  int size = strlen(log_buf);
+  int size = strlen(log_buf+2);
 
   if (size == 0)
     return;
   else if (size >= 255) {
     size = 255;
-    log_buf[255] = '\0';
+    log_buf[255 + 2] = '\0';
   }
 
   // to include the end '\0'
   size++;
 
-  event.length = size;
+  log_buf[0] = l;
+  log_buf[1] = size;
+
+  event.length = size + 2;
   event.data = (uint8_t *)log_buf;
 
   hmi.Send(event);
@@ -108,12 +110,12 @@ void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
 
   va_start(args, fmt);
 
-  vsnprintf(log_buf, SNAP_LOG_BUFFER_SIZE, fmt, args);
+  vsnprintf(log_buf + 2, SNAP_LOG_BUFFER_SIZE, fmt, args);
 
   va_end(args);
 
   if (level >= pc_msg_level)
-    CONSOLE_OUTPUT(log_buf);
+    CONSOLE_OUTPUT(log_buf + 2);
 
   if (level >= sc_msg_level)
     SendLog2Screen(level);
