@@ -2418,6 +2418,7 @@ void MarlinSettings::reset() {
 
   nozzle_height_probed = 0;
 
+  LEVEL_SERVICE_EEPROM_RESET();
 }
 
 #if DISABLED(DISABLE_M503)

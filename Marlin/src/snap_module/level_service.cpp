@@ -31,6 +31,7 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
   if (event.length > 0) {
     if (event.data[0] > 7 || event.data[0] < 2) {
       LOG_E("grid [%u] from SC is out of range [2:7], set to default: 3\n", event.data[0]);
+      goto OUT;
     }
     else {
       grid = event.data[0];
@@ -41,6 +42,9 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
   LOG_I("b temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
 
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+
+    // clear live z offset
+    live_z_offset_ = 0;
 
     process_cmd_imd("G28");
 
@@ -74,6 +78,7 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
     level_mode_ = LEVEL_MODE_AUTO;
   }
 
+OUT:
   event.data = &err;
   event.length = 1;
 
@@ -92,6 +97,7 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
   if (event.length > 0) {
     if (event.data[0] > 7 || event.data[0] < 2) {
       LOG_E("grid [%u] from SC is out of range [2:7], set to default: 3\n", event.data[0]);
+      goto OUT;
     }
     else {
       grid = event.data[0];
@@ -104,6 +110,9 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
   LOG_I("SC req manual level\n");
 
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+
+    // clear live z offset
+    live_z_offset_ = 0;
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
@@ -141,6 +150,7 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
     err = E_SUCCESS;
   }
 
+OUT:
   event.data = &err;
   event.length = 1;
 
@@ -327,8 +337,13 @@ ErrCode LevelService::SyncPointIndex(uint8_t index) {
 }
 
 
-ErrCode LevelService::SetLiveZOffset(float offset) {
-  if (offset < -0.5) {
+ErrCode LevelService::UpdateLiveZOffset(float offset) {
+  if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT) {
+    LOG_E("only enable z offset for 3DP!\n");
+    return E_FAILURE;
+  }
+
+  if (offset < LIVE_Z_OFFSET_MIN || offset > LIVE_Z_OFFSET_MAX) {
     LOG_E("offset is out of range: %.2f\n", offset);
     return E_PARAM;
   }
@@ -337,6 +352,14 @@ ErrCode LevelService::SetLiveZOffset(float offset) {
     LOG_W("offset is same with old\n");
     return E_PARAM;
   }
+
+  float cur_z = current_position[Z_AXIS];
+
+  move_to_limited_z(current_position[Z_AXIS] + (offset - live_z_offset_), 5);
+  planner.synchronize();
+
+  current_position[Z_AXIS] = cur_z;
+  sync_plan_position();
 
   live_z_offset_ = offset;
   live_z_offset_updated_ = true;
@@ -347,7 +370,43 @@ ErrCode LevelService::SetLiveZOffset(float offset) {
 }
 
 
-void  LevelService::SaveLiveZOffset() {
+void LevelService::ApplyLiveZOffset() {
+  float cur_z = current_position[Z_AXIS];
+
+  if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT) {
+    LOG_E("only enable z offset for 3DP!\n");
+    return;
+  }
+
+  move_to_limited_z(current_position[Z_AXIS] + live_z_offset_, 5);
+  planner.synchronize();
+
+  current_position[Z_AXIS] = cur_z;
+  sync_plan_position();
+
+  LOG_I("Apply Z offset: %.2f\n", live_z_offset_);
+}
+
+
+void LevelService::UnapplyLiveZOffset() {
+  float cur_z = current_position[Z_AXIS];
+
+  if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT) {
+    LOG_E("only enable z offset for 3DP!\n");
+    return;
+  }
+
+  move_to_limited_z(current_position[Z_AXIS] - live_z_offset_, 5);
+  planner.synchronize();
+
+  current_position[Z_AXIS] = cur_z;
+  sync_plan_position();
+
+  LOG_I("Unapply Z offset: %.2f\n", live_z_offset_);
+}
+
+
+void LevelService::SaveLiveZOffset() {
   if (live_z_offset_updated_) {
     live_z_offset_updated_ = false;
     settings.save();

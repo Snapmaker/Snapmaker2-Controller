@@ -1706,17 +1706,15 @@ ErrCode StatusControl::FinishSystemStatusChange(uint8_t op_code, uint8_t result)
 ErrCode StatusControl::SendLastLine(Event_t &event) {
   uint8_t buff[6];
 
-  LOG_I("SC req last line: ");
-
   if (GetCurrentStage() != SYSTAGE_PAUSE) {
-    LOG_I("%u\n", powerpanic.pre_data_.FilePosition);
+    LOG_I("SC req last line: %u\n", powerpanic.pre_data_.FilePosition);
 
     buff[0] = powerpanic.pre_data_.Valid;
     buff[1] = powerpanic.pre_data_.GCodeSource;
     WORD_TO_PDU_BYTES(buff + 2, powerpanic.pre_data_.FilePosition);
   }
   else {
-    LOG_I("%u\n", powerpanic.Data.FilePosition);
+    LOG_I("SC req last line: %u\n", powerpanic.Data.FilePosition);
 
     buff[0] = powerpanic.Data.Valid;
     buff[1] = powerpanic.Data.GCodeSource;
@@ -1920,21 +1918,7 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
     break;
 
   case RENV_TYPE_ZOFFSET:
-    if (levelservice.SetLiveZOffset(param))
-      break;
-
-    tmp_f32 = levelservice.GetLiveZOffset();
-
-    // waiting all block buffer are outputed by stepper
-    planner.synchronize();
-
-    tmp_f32 = current_position[Z_AXIS];
-
-    move_to_limited_z(current_position[Z_AXIS] + (param - tmp_f32), 5);
-    planner.synchronize();
-
-    current_position[Z_AXIS] = tmp_f32;
-    sync_plan_position();
+    ret = levelservice.UpdateLiveZOffset(param);
     break;
 
   case RENV_TYPE_CNC_POWER:
@@ -1979,18 +1963,27 @@ ErrCode StatusControl::GetRuntimeEnv(Event_t &event) {
 
   switch (event.data[0]) {
   case RENV_TYPE_FEEDRATE:
-    tmp_i32 = (int)(feedrate_percentage * 1000.0f);
+    tmp_i32 = (int)(powerpanic.pre_data_.feedrate_percentage * 1000.0f);
     WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+    LOG_I("feedrate_percentage: %d\n", powerpanic.pre_data_.feedrate_percentage);
+    break;
+
+  case RENV_TYPE_LASER_POWER:
+    tmp_i32 = (int)(powerpanic.pre_data_.laser_percent * 1000.0f);
+    WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+    LOG_I("laser power: %.2f\n", powerpanic.pre_data_.laser_percent);
     break;
 
   case RENV_TYPE_ZOFFSET:
-    tmp_i32 = (int)(levelservice.GetLiveZOffset() * 1000);
+    tmp_i32 = (int)(levelservice.live_z_offset() * 1000);
     WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    LOG_I("live z offset: %.3f\n", levelservice.live_z_offset());
     break;
 
   case RENV_TYPE_CNC_POWER:
-    tmp_i32 = (int)(ExecuterHead.CNC.GetPower() * 1000);
+    tmp_i32 = (int)(powerpanic.pre_data_.cnc_power * 1000);
     WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    LOG_I("laser power: %.2f\n", powerpanic.pre_data_.cnc_power);
     break;
 
   default:
