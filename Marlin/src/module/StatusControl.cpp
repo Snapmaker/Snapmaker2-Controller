@@ -275,6 +275,7 @@ void inline StatusControl::resume_laser(void) {
  * Resume Process
  */
 ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
+  uint8_t event[2] = {EID_SYS_CTRL_REQ, SYSCTL_OPC_RESUME};
 
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
@@ -330,6 +331,14 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
 
   default:
     break;
+  }
+
+  if (xTaskGetCurrentTaskHandle() == snap_tasks->hmi) {
+    // send event to marlin task to handle
+    if (xMessageBufferSend(snap_tasks->event_queue, event, 2, portTICK_PERIOD_MS * 100) > 0)
+      return E_SUCCESS;
+    else
+      return E_FAILURE;
   }
 
   cur_status_ = SYSTAT_RESUME_TRIG;
@@ -1639,21 +1648,27 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   {
   case SYSCTL_OPC_START_WORK:
     LOG_I("SC req START work\n");
-    err = SystemStatus.StartWork(TRIGGER_SOURCE_SC);
+    err = StartWork(TRIGGER_SOURCE_SC);
     if (err == E_SUCCESS)
       current_line_ = 0;
     break;
 
   case SYSCTL_OPC_PAUSE:
     LOG_I("SC req PAUSE\n");
-    err = SystemStatus.PauseTrigger(TRIGGER_SOURCE_SC);
+    err = PauseTrigger(TRIGGER_SOURCE_SC);
     if (err == E_SUCCESS)
       need_ack = false;
     break;
 
   case SYSCTL_OPC_RESUME:
+    if (xTaskGetCurrentTaskHandle() == snap_tasks->hmi) {
+
+    }
+    else {
+      
+    }
     LOG_I("SC req RESUME\n");
-    err = SystemStatus.ResumeTrigger(TRIGGER_SOURCE_SC);
+    err = ResumeTrigger(TRIGGER_SOURCE_SC);
     if (err == E_SUCCESS) {
       if (powerpanic.Data.FilePosition > 0)
         current_line_ =  powerpanic.Data.FilePosition - 1;
@@ -1667,7 +1682,7 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   case SYSCTL_OPC_STOP:
   case SYSCTL_OPC_FINISH:
     LOG_I("SC req %s\n", (event.op_code == SYSCTL_OPC_STOP)? "STOP" : "FINISH");
-    err = SystemStatus.StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
+    err = StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
     if (err == E_SUCCESS)
       need_ack = false;
     break;

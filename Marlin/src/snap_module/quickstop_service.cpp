@@ -92,7 +92,10 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     case QS_SOURCE_PAUSE:
       if (blk)
         powerpanic.SaveCmdLine(blk->filePos);
-      powerpanic.SaveEnv();
+
+      // if power-loss appear atfer finishing PAUSE, won't save env again
+      if (SystemStatus.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
+        powerpanic.SaveEnv();
 
       // write flash only power-loss appear
       if (source_ == QS_SOURCE_POWER_LOSS) {
