@@ -201,8 +201,8 @@ public:
   ErrCode StopTrigger(TriggerSource type, uint16_t event_opc=INVALID_OP_CODE);
   ErrCode ResumeTrigger(TriggerSource s);
   ErrCode ResumeOver();
+  ErrCode ResumeProcess();
   ErrCode StartWork(TriggerSource s);
-  void Process();
 
   uint8_t MapCurrentStatusForSC();
 

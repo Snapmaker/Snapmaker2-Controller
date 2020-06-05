@@ -333,16 +333,17 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
     break;
   }
 
-  if (xTaskGetCurrentTaskHandle() == snap_tasks->hmi) {
-    // send event to marlin task to handle
-    if (xMessageBufferSend(snap_tasks->event_queue, event, 2, portTICK_PERIOD_MS * 100) > 0)
-      return E_SUCCESS;
-    else
-      return E_FAILURE;
+  // send event to marlin task to handle
+  if (xMessageBufferSend(snap_tasks->event_queue, event, 2, portTICK_PERIOD_MS * 100)) {
+    cur_status_ = SYSTAT_RESUME_TRIG;
+    return E_SUCCESS;
   }
+  else
+    return E_FAILURE;
+}
 
-  cur_status_ = SYSTAT_RESUME_TRIG;
 
+ErrCode StatusControl::ResumeProcess() {
   switch(ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     set_bed_leveling_enabled(true);
@@ -376,7 +377,7 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
 
-  return E_SUCCESS;
+  return FinishSystemStatusChange(SYSCTL_OPC_RESUME, 0);
 }
 
 
@@ -594,11 +595,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
   return E_SUCCESS;
 }
 
-/**
- * process Pause / Resume / Stop event
- */
-void StatusControl::Process() {
-}
 
 /**
  * Check if exceptions happened, this should be called in idle()[Marlin.cpp]
@@ -1662,20 +1658,30 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
 
   case SYSCTL_OPC_RESUME:
     if (xTaskGetCurrentTaskHandle() == snap_tasks->hmi) {
-
+      LOG_I("SC req RESUME\n");
+      err = ResumeTrigger(TRIGGER_SOURCE_SC);
+      if (err == E_SUCCESS)
+        need_ack = false;
     }
     else {
-      
-    }
-    LOG_I("SC req RESUME\n");
-    err = ResumeTrigger(TRIGGER_SOURCE_SC);
-    if (err == E_SUCCESS) {
-      if (powerpanic.Data.FilePosition > 0)
-        current_line_ =  powerpanic.Data.FilePosition - 1;
-      else
-        current_line_ = 0;
-      SNAP_DEBUG_SET_GCODE_LINE(0);
-      powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
+      err = ResumeProcess();
+      if (err == E_SUCCESS) {
+        powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
+        if (powerpanic.Data.FilePosition > 0) {
+          current_line_ =  powerpanic.Data.FilePosition - 1;
+        }
+        else {
+          current_line_ = 0;
+        }
+
+        SNAP_DEBUG_SET_GCODE_LINE(current_line_);
+        LOG_I("RESUME over\n");
+        return E_SUCCESS;
+      }
+      else {
+        LOG_I("RESUME failed: %u\n", err);
+        return E_FAILURE;
+      }
     }
     break;
 
