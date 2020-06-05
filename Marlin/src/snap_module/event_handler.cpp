@@ -89,8 +89,12 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
 
 
 static ErrCode SendStatus(Event_t &event) {
-  if (snap_tasks && snap_tasks->heartbeat)
-    xTaskNotify(snap_tasks->heartbeat, HEART_BEAT_NITIFICATION, eSetBits);
+  // comment temporarily
+  // if (snap_tasks && snap_tasks->heartbeat)
+  //   xTaskNotify(snap_tasks->heartbeat, HEART_BEAT_NITIFICATION, eSetBits);
+
+  if (upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
+    SystemStatus.SendStatus(event);
   return E_SUCCESS;
 }
 
