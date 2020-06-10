@@ -165,18 +165,16 @@ ErrCode LevelService::SetManualLevelingPoint(Event_t &event) {
 
   if (!event.length) {
     LOG_E("Need to specify point index!\n");
-    event.length = 1;
-    event.data = &err;
-    return hmi.Send(event);
+    goto out;
   }
   else {
     index = event.data[0];
     LOG_I("SC req move to pont: %d\n", index);
   }
 
-  if ((index < 10) && (index > 0)) {
+  if ((index <= GRID_MAX_POINTS_INDEX) && (index > 0)) {
     // check point index
-    if (manual_level_index_ < 10) {
+    if (manual_level_index_ <= GRID_MAX_POINTS_INDEX) {
       // save point index
       MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
       LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", manual_level_index_, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
@@ -192,7 +190,10 @@ ErrCode LevelService::SetManualLevelingPoint(Event_t &event) {
                     _GET_MESH_Y(manual_level_index_ / GRID_MAX_POINTS_Y), speed_in_calibration[X_AXIS]);
   }
 
-  event.data[0] = E_SUCCESS;
+  err = E_SUCCESS;
+
+out:
+  event.data = &err;
   event.length = 1;
 
   return hmi.Send(event);
