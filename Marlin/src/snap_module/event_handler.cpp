@@ -606,7 +606,7 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
       return E_NO_RESRC;
 
     param->size = (uint16_t)xMessageBufferReceive(param->event_queue, param->event_buff,
-                              HMI_RECV_BUFFER_SIZE, configTICK_RATE_HZ/1000);
+                              HMI_RECV_BUFFER_SIZE, 0);
 
     if (!param->size) {
       LOG_E("No data read from event queue!\n");
@@ -683,8 +683,9 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
     SERIAL_ECHOLNPAIR("new gcode, eid: ", event.id);
 #endif
     // blocked 100ms for max duration to wait
-    if (quickstop.isIdle())
-      xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    if (quickstop.isTriggered())
+      LOG_I("Got G[%u] in QS\n", event.id);
+    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 
@@ -725,8 +726,9 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 #if DEBUG_EVENT_HANDLER
     SERIAL_ECHOLNPAIR("Marlin's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
 #endif
-    if (quickstop.isIdle())
-      xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    if (quickstop.isTriggered())
+      LOG_I("Got E[%x:%x] in QS\n", event.id, event.op_code);
+    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 #if DEBUG_EVENT_HANDLER

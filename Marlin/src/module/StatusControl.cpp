@@ -98,6 +98,9 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
     taskEXIT_CRITICAL();
   }
 
+  // clear event in queue to marlin
+  xMessageBufferReset(snap_tasks->event_queue);
+
   quickstop.Trigger(QS_SOURCE_PAUSE);
 
   return E_SUCCESS;
@@ -2080,6 +2083,13 @@ ErrCode StatusControl::CallbackPreQS(QuickStopSource source) {
 
     // reset the status of filament monitor
     runout.reset();
+
+    // make sure laser is off
+    // won't turn off laser in powerpanic.SaveEnv(), it's call by stepper ISR
+    // because it may call CAN transmisson function
+    if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
+      ExecuterHead.Laser.Off();
+    }
     break;
 
   case QS_SOURCE_STOP:
