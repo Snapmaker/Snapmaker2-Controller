@@ -270,7 +270,7 @@ void CanModule::PrepareLinearModules(void) {
     }
     else if(Z_MAX_POS < 400) {
       X_MAX_POS = 345;
-      Y_MAX_POS = 360;
+      Y_MAX_POS = 357;
       Z_MAX_POS = 334;
       X_HOME_DIR = -1;
       X_DIR = true;
@@ -282,7 +282,7 @@ void CanModule::PrepareLinearModules(void) {
       LOOP_XYZ(i) home_offset[i] = l_home_offset[i];
 
       X_DEF_SIZE = 320;
-      Y_DEF_SIZE = 350;
+      Y_DEF_SIZE = 340;
       Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
 
       MAGNET_X_SPAN = 274;
