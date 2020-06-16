@@ -4,8 +4,12 @@
 // Includes
 // --------------------------------------------------------------------------
 #include "std_library/inc/stm32f10x_conf.h"
-#include "Hal_can_STM32F1.h"
+#include "HAL_can_STM32F1.h"
 #include <libmaple/systick.h>
+
+#include "MapleFreeRTOS1030.h"
+
+static SemaphoreHandle_t can_lock = NULL;
 
 /**
  * Returns time (in milliseconds) since the beginning of program
@@ -26,6 +30,9 @@ void CanInitFilter() {
   uint32_t FilterMask;
   uint32_t FilterID;
   CAN_FilterInitTypeDef CAN_FilterInitStruct;
+
+  can_lock = xSemaphoreCreateMutex();
+  configASSERT(can_lock);
   
   CAN_SlaveStartBank(24);
 
@@ -151,7 +158,7 @@ void CanInit() {
   NVIC_InitStruct.NVIC_IRQChannel = CAN2_RX0_IRQn;
   NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 2;
-  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 2;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
   NVIC_Init(&NVIC_InitStruct);
 
   NVIC_InitStruct.NVIC_IRQChannel = CAN1_RX0_IRQn;
@@ -160,7 +167,7 @@ void CanInit() {
   NVIC_InitStruct.NVIC_IRQChannel = CAN2_RX1_IRQn;
   NVIC_InitStruct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_InitStruct.NVIC_IRQChannelPreemptionPriority = 3;
-  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 2;
+  NVIC_InitStruct.NVIC_IRQChannelSubPriority = 0;
   NVIC_Init(&NVIC_InitStruct);
 
   NVIC_InitStruct.NVIC_IRQChannel = CAN1_RX1_IRQn;
@@ -185,6 +192,8 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   uint8_t retry;
   uint32_t tmptick;
   uint32_t regtsr;
+
+  BaseType_t ret = pdFAIL;
 
   if(DataLen > 8)
     return false;
@@ -213,7 +222,15 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   retry = 1;
   if(PortNum == 1) {
     while(retry--) {
+
+      if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+        ret = xSemaphoreTake(can_lock, portMAX_DELAY);
+
       CAN_Transmit(CAN1, &TxMessage);
+
+      if (ret == pdPASS)
+        xSemaphoreGive(can_lock);
+
       tmptick = millis();
       //while pending
       do {
@@ -230,7 +247,14 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
   }
   else {
     while(retry--) {
+      if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+        ret = xSemaphoreTake(can_lock, portMAX_DELAY);
+
       CAN_Transmit(CAN2, &TxMessage);
+
+      if (ret == pdPASS)
+        xSemaphoreGive(can_lock);
+
       tmptick = millis();
       //while pending
       do {
@@ -263,6 +287,8 @@ bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t Dat
   uint32_t tmptick;
   uint32_t regtsr;
 
+  BaseType_t ret = pdFAIL;
+
   if(DataLen > 8)
     return false;
 
@@ -282,7 +308,15 @@ bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t Dat
   retry = 1;
   if(PortNum == 1) {
     while(retry--) {
+      /* must call this function at one task */
+      if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+        ret = xSemaphoreTake(can_lock, portMAX_DELAY);
+
       CAN_Transmit(CAN1, &TxMessage);
+
+      if (ret == pdPASS)
+        xSemaphoreGive(can_lock);
+
       tmptick = millis();
       //while pending
       do {
@@ -301,7 +335,15 @@ bool CanSendPacked2(uint32_t ID, uint8_t PortNum, uint8_t FrameType, uint8_t Dat
   }
   else {
     while(retry--) {
+
+      if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+        ret = xSemaphoreTake(can_lock, portMAX_DELAY);
+
       CAN_Transmit(CAN2, &TxMessage);
+
+      if (ret == pdPASS)
+        xSemaphoreGive(can_lock);
+
       tmptick = millis();
       //while pending
       do {

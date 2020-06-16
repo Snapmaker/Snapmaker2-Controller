@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include "../core/macros.h"
 
+#include "error.h"
+#include "event_handler.h"
+
 // 1 = enable API for snap debug
 #define SNAP_DEBUG 1
 
@@ -66,6 +69,8 @@ class SnapDebug {
     uint32_t GetSCGcodeLine() { return info.last_line_num_of_sc_gcode; }
 
     void ShowException();
+
+    ErrCode SetLogLevel(Event_t &event);
 
   private:
     void SendLog2Screen(SnapDebugLevel l);

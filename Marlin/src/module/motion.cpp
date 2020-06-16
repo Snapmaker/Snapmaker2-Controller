@@ -141,7 +141,6 @@ float destination[XYZE]; // = { 0 }
 // Set by the last G0 through G5 command's "F" parameter.
 // Functions that override this for custom moves *must always* restore it!
 float feedrate_mm_s = MMM_TO_MMS(1500.0f);
-float feedrate_scaling = 100;
 
 int16_t feedrate_percentage = 100;
 

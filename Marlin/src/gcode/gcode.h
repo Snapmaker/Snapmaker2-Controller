@@ -525,6 +525,7 @@ private:
   #if ENABLED(M100_FREE_MEMORY_WATCHER)
     static void M100();
   #endif
+  static void M101();
 
   static void M104();
   static void M105();

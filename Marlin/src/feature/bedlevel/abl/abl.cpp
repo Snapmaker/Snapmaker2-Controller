@@ -21,7 +21,6 @@
  */
 
 #include <src/module/probe.h>
-#include <src/SnapScreen/Screen.h>
 #include "../../../inc/MarlinConfig.h"
 
 #if ENABLED(AUTO_BED_LEVELING_BILINEAR)
@@ -34,6 +33,7 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../../core/debug_out.h"
 #include "../../../snap_module/snap_dbg.h"
+#include "../../../snap_module/level_service.h"
 
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
@@ -481,7 +481,7 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
     }
 
     if (reply_screen) {
-        HMI.SendHalfCalibratePoint(0x03, cur_y * GRID_MAX_POINTS_X + cur_x + 1);
+        levelservice.SyncPointIndex((uint8_t)(cur_y * GRID_MAX_POINTS_X + cur_x + 1));
     }
 
     int new_x = cur_x + direction[dir_idx][0];

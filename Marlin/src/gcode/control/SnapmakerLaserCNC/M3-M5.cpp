@@ -26,8 +26,8 @@
 
 #include "../../gcode.h"
 #include "../../../module/stepper.h"
-#include "../../../module/laserexecuter.h"
-#include "../../../module/executermanager.h"
+#include "../../../module/LaserExecuter.h"
+#include "../../../module/ExecuterManager.h"
 
 /**
  * M3: Spindle Clockwise

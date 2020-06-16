@@ -34,8 +34,6 @@
   #include "../../module/stepper.h"
 #endif
 
-#include "../../SnapScreen/Screen.h"
-
 extern float destination[XYZE];
 
 #if ENABLED(VARIABLE_G0_FEEDRATE)
@@ -56,7 +54,6 @@ void GcodeSuite::G0_G1(
       && !axis_unhomed_error(parser.seen('X'), parser.seen('Y'), parser.seen('Z'))
     #endif
   ) {
-    float saved_feedrate_before_scale;
 
     #ifdef G0_FEEDRATE
       float saved_feedrate_mm_s;
@@ -104,18 +101,12 @@ void GcodeSuite::G0_G1(
 
     #endif // FWRETRACT
 
-    saved_feedrate_before_scale = feedrate_mm_s;
-    feedrate_mm_s = feedrate_mm_s * feedrate_scaling / 100;
-
-    HMI.SetFeedrate(feedrate_mm_s);
 
     #if IS_SCARA
       fast_move ? prepare_uninterpolated_move_to_destination() : prepare_move_to_destination();
     #else
       prepare_move_to_destination();
     #endif
-
-    feedrate_mm_s = saved_feedrate_before_scale;
 
     #ifdef G0_FEEDRATE
       // Restore the motion mode feedrate

@@ -138,6 +138,7 @@
 
 // Common serial messages
 #define MSG_MARLIN "Marlin"
+#define MSG_MARLIN_PACK "PACKAGE"
 
 // Serial Console Messages (do not translate those!)
 

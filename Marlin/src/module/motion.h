@@ -80,7 +80,6 @@ FORCE_INLINE float homing_feedrate(const AxisEnum a) { return sm_homing_feedrate
 float get_homing_bump_feedrate(const AxisEnum axis);
 
 extern float feedrate_mm_s;
-extern float feedrate_scaling;
 /**
  * Feedrate scaling and conversion
  */

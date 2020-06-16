@@ -29,7 +29,7 @@
 
 #include "../Marlin.h"
 #include "temperature.h"
-#include "periphdevice.h"
+#include "PeriphDevice.h"
 
 #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
   #include HAL_PATH(../HAL, endstop_interrupts.h)

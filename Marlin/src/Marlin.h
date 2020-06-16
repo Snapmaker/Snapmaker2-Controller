@@ -23,6 +23,8 @@
 
 #include "inc/MarlinConfig.h"
 
+#include "MapleFreeRTOS1030.h"
+
 #ifdef DEBUG_GCODE_PARSER
   #include "gcode/parser.h"
 #endif
@@ -42,9 +44,8 @@ void stop();
 
 void idle(
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
-    bool no_stepper_sleep = false, // pass true to keep steppers from disabling on timeout
+    bool no_stepper_sleep = false // pass true to keep steppers from disabling on timeout
   #endif
-      bool nested = true
 );
 
 void manage_inactivity(const bool ignore_stepper_queue=false);
@@ -410,10 +411,6 @@ void protected_pin_err();
 #endif
 
 
-#if ENABLED(HMISUPPORT)
-  #include "SnapScreen/HMILongDefines.h"
-#endif
-
 // Software machine size
 #if ENABLED(SW_MACHINE_SIZE)
   extern bool X_DIR;
@@ -441,3 +438,28 @@ void protected_pin_err();
 #define UInt32ToBytes(u32V, pBuff) do{pBuff[0] = (uint8_t)(u32V >> 24); pBuff[1] = (uint8_t)(u32V >> 16); pBuff[2] = (uint8_t)(u32V >> 8); pBuff[3] = (uint8_t)(u32V); }while(0)
 #define UInt16ToBytes(u16V, pBuff) do{pBuff[0] = (uint8_t)(u16V >> 8); pBuff[1] = (uint8_t)(u16V);}while(0)
 
+struct SnapTasks{
+TaskHandle_t marlin;
+TaskHandle_t hmi;
+TaskHandle_t heartbeat;
+MessageBufferHandle_t event_queue;
+};
+typedef struct SnapTasks* SnapTasks_t;
+
+extern SnapTasks_t snap_tasks;
+
+#define MARLIN_LOOP_TASK_PRIO     (configMAX_PRIORITIES - 1)
+#define MARLIN_LOOP_STACK_DEPTH   1024
+
+#define HMI_TASK_PRIO             (configMAX_PRIORITIES - 1)
+#define HMI_TASK_STACK_DEPTH      512
+
+// task parameters for heartbeat task
+#define HB_TASK_PRIO             (configMAX_PRIORITIES - 1)
+#define HB_TASK_STACK_DEPTH      512
+
+#define HMI_SERIAL_IRQ_PRIORITY     8
+#define MARLIN_SERIAL_IRQ_PRIORITY  9
+
+
+#define AT_SNAP_SECTION   __attribute__((section(".snap")))

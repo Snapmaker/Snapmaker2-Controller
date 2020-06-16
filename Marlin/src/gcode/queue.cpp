@@ -29,10 +29,10 @@
 
 #include "../module/planner.h"
 #include "../module/temperature.h"
-#include "../SnapScreen/Screen.h"
 #include "../Marlin.h"
 #include "../module/StatusControl.h"
 #include "../snap_module/snap_dbg.h"
+#include "../snap_module/event_handler.h"
 
 #if ENABLED(PRINTER_EVENT_LEDS)
   #include "../feature/leds/printer_event_leds.h"
@@ -107,6 +107,7 @@ void queue_setup() {
  * Clear the Marlin command queue
  */
 void clear_command_queue() {
+  hmi_cmd_queue_index_r = hmi_cmd_queue_index_w = hmi_commands_in_queue = 0;
   cmd_queue_index_r = cmd_queue_index_w = commands_in_queue = 0;
 }
 
@@ -227,6 +228,7 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
  */
 #if ENABLED(HMI_SC20W)
 void enqueue_hmi_to_marlin() {
+
   // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
   // fetch as much command as possible
   while (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
@@ -284,6 +286,19 @@ bool ok_to_HMI() {
   return Screen_send_ok[cmd_queue_index_r];
 }
 
+
+void ack_gcode_event(uint8_t event_id, uint32_t line) {
+  Event_t event = {event_id, INVALID_OP_CODE};
+  uint8_t buffer[4];
+
+  event.length = 4;
+  event.data = buffer;
+
+  WORD_TO_PDU_BYTES(buffer, line);
+
+  hmi.Send(event);
+}
+
 /**
  * Send an "ok" message to the host, indicating
  * that a command was successfully processed.
@@ -318,14 +333,8 @@ void ok_to_send() {
   }
   if(Screen_send_ok[cmd_queue_index_r])
   {
-    uint32_t line = CommandLine[cmd_queue_index_r];
-    ok_to_sc[0] = (char)((line & 0xFF000000) >> 24);
-    ok_to_sc[1] = (char)((line & 0x00FF0000) >> 16);
-    ok_to_sc[2] = (char)((line & 0x0000FF00) >> 8);
-    ok_to_sc[3] = (char)(line & 0x000000FF);
-
-    HMI.SendEvent(Screen_send_ok_opcode[cmd_queue_index_r], ok_to_sc, 4);
-    SNAP_DEBUG_SET_GCODE_LINE(line);
+    ack_gcode_event(Screen_send_ok_opcode[cmd_queue_index_r], CommandLine[cmd_queue_index_r]);
+    SNAP_DEBUG_SET_GCODE_LINE(CommandLine[cmd_queue_index_r]);
   }
 }
 
@@ -823,11 +832,7 @@ void advance_command_queue() {
 
   if (!commands_in_queue) return;
 
-
-
   gcode.process_next_command();
-
-
 
   // The queue may be reset by a command handler or by code invoked by idle() within a handler
   if (commands_in_queue) {

@@ -39,15 +39,12 @@
 #include "module/configuration_store.h"
 #include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "feature/closedloop.h"
-#include "SnapScreen/Screen.h"
 #include "module/LaserExecuter.h"
-#include "module/statuscontrol.h"
-#include "module/periphdevice.h"
+#include "module/StatusControl.h"
+#include "module/PeriphDevice.h"
 #include "libs/GenerialFunctions.h"
 #include "module/PowerPanic.h"
-#include "snap_module/lightbar.h"
-#include "snap_module/quickstop.h"
-
+#include "snap_module/quickstop_service.h"
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
 
@@ -66,7 +63,10 @@
 #include "gcode/queue.h"
 #include "feature/bedlevel/bedlevel.h"
 
-#include "module/executermanager.h"
+#include "module/ExecuterManager.h"
+#include "snap_module/host.h"
+#include "snap_module/event_handler.h"
+#include "snap_module/upgrade_service.h"
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
@@ -128,9 +128,6 @@
 #if ENABLED(SDSUPPORT)
 #endif
 
-#if ENABLED(HMISUPPORT)
-  HMIScreen HMI;
-#endif
 
 #if ENABLED(G38_PROBE_TARGET)
   uint8_t G38_move; // = 0
@@ -190,6 +187,13 @@
 #if HAS_DRIVER(L6470)
   #include "libs/L6470/L6470_Marlin.h"
 #endif
+
+
+// mutex lock for gcode queue from HMI to marlin
+SemaphoreHandle_t gcode_queue_lock;
+
+//
+MessageBufferHandle_t hmi_queue;
 
 bool Running = true;
 
@@ -262,6 +266,8 @@ uint32_t ABL_GRID_POINTS_VIRT_Y;
 uint32_t ABL_TEMP_POINTS_X;
 uint32_t ABL_TEMP_POINTS_Y;
 
+SnapTasks_t snap_tasks;
+
 /**
  * ***************************************************************************
  * ******************************** FUNCTIONS ********************************
@@ -269,8 +275,6 @@ uint32_t ABL_TEMP_POINTS_Y;
  */
 
 void reset_homeoffset() {
-  int i;
-
   float s_home_offset_def[XYZ] = S_HOME_OFFSET_DEFAULT;
   float m_home_offset_def[XYZ] = M_HOME_OFFSET_DEFAULT;
   float l_home_offset_def[XYZ] = L_HOME_OFFSET_DEFAULT;
@@ -279,6 +283,22 @@ void reset_homeoffset() {
     s_home_offset[i] = s_home_offset_def[i];
     m_home_offset[i] = m_home_offset_def[i];
     l_home_offset[i] = l_home_offset_def[i];
+  }
+
+  LOOP_XYZ(i) {
+    switch (CanModules.GetMachineSizeType()) {
+      case MACHINE_SIZE_S:
+        home_offset[i] = s_home_offset[i];
+        break;
+      case MACHINE_SIZE_M:
+        home_offset[i] = m_home_offset[i];
+        break;
+      case MACHINE_SIZE_L:
+        home_offset[i] = l_home_offset[i];
+        break;
+      default:
+        break;
+    }
   }
 }
 
@@ -555,10 +575,6 @@ void disable_power_domain(uint8_t pd) {
 
 void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
 
-  #if HAS_FILAMENT_SENSOR
-    runout.run();
-  #endif
-
   if (commands_in_queue < BUFSIZE) get_available_commands();
 
   const millis_t ms = millis();
@@ -788,20 +804,12 @@ void manage_inactivity(const bool ignore_stepper_queue/*=false*/) {
  */
 void idle(
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
-    bool no_stepper_sleep/*=false*/,
+    bool no_stepper_sleep/*=false*/
   #endif
-      bool nested/*=true*/
 ) {
   #if ENABLED(MAX7219_DEBUG)
     max7219.idle_tasks();
   #endif
-
-  #if ENABLED(HMISUPPORT)
-    HMI.CommandProcess(nested);
-  #endif
-
-  SystemStatus.CheckException();
-  ExecuterHead.CheckAlive();
 
   #if ENABLED(HOST_KEEPALIVE_FEATURE)
     gcode.host_keepalive();
@@ -854,6 +862,9 @@ void idle(
   #if ENABLED(PRUSA_MMU2)
     mmu2.mmuLoop();
   #endif
+
+  if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
+    vTaskDelay(portTICK_PERIOD_MS);
 }
 
 /**
@@ -950,6 +961,43 @@ void stop() {
 }
 
 /**
+ * Check Update Flag
+ */
+void CheckUpdateFlag(void)
+{
+  uint32_t Address;
+  uint32_t Flag;
+  Address = FLASH_UPDATE_CONTENT_INFO;
+  Flag = *((uint32_t*)Address);
+  if(Flag != 0xffffffff)
+  {
+    FLASH_Unlock();
+    FLASH_ErasePage(Address);
+    FLASH_Lock();
+  }
+}
+
+/**
+ * Check App Valid Flag
+ */
+void CheckAppValidFlag(void)
+{
+  uint32_t Value;
+  uint32_t Address;
+  Address = FLASH_BOOT_PARA;
+  Value = *((uint32_t*)Address);
+  if(Value != 0xaa55ee11) {
+    FLASH_Unlock();
+    FLASH_ErasePage(Address);
+    FLASH_ProgramWord(Address, 0xaa55ee11);
+    FLASH_Lock();
+  }
+}
+
+void main_loop(void *param);
+void hmi_task(void *param);
+void heartbeat_task(void *param);
+/**
  * Marlin entry-point: Set up before the program loop
  *  - Set up the kill pin, filament runout, power hold
  *  - Start the serial port
@@ -973,6 +1021,19 @@ void setup() {
   #ifdef HAL_INIT
     HAL_init();
   #endif
+
+  #if PIN_EXISTS(POWER0_SUPPLY)
+    OUT_WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
+  #endif
+
+  #if PIN_EXISTS(POWER1_SUPPLY)
+    OUT_WRITE(POWER1_SUPPLY_PIN, POWER1_SUPPLY_OFF);
+  #endif
+
+  #if PIN_EXISTS(POWER2_SUPPLY)
+    OUT_WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
+  #endif
+
 
   #if HAS_DRIVER(L6470)
     L6470.init();         // setup SPI and then init chips
@@ -1016,15 +1077,13 @@ void setup() {
   #endif
 
   #if NUM_SERIAL > 0
+    nvic_irq_set_priority(MYSERIAL0.c_dev()->irq_num, MARLIN_SERIAL_IRQ_PRIORITY);
     MYSERIAL0.begin(BAUDRATE);
     #if NUM_SERIAL > 1
       MYSERIAL1.begin(BAUDRATE);
     #endif
   #endif
 
-  #if ENABLED(HMISUPPORT)
-    HMI.Init();
-  #endif
 
   #if NUM_SERIAL > 0
     uint32_t serial_connect_timeout = millis() + 1000UL;
@@ -1084,9 +1143,6 @@ void setup() {
   // Load data from EEPROM if available (or use defaults)
   // This also updates variables in the planner, elsewhere
   (void)settings.load();
-
-  // reset the status of quickstop
-  quickstop.Reset();
 
   #if HAS_M206_COMMAND
     // Initialize current position based on home_offset
@@ -1254,111 +1310,112 @@ void setup() {
     mmu2.init();
   #endif
 
-  #if PIN_EXISTS(POWER1_SUPPLY)
-    OUT_WRITE(POWER1_SUPPLY_PIN, LOW);
-  #endif
-
-  #if PIN_EXISTS(POWER2_SUPPLY)
-    OUT_WRITE(POWER2_SUPPLY_PIN, LOW);
-  #endif
-
-  #if PIN_EXISTS(SCREEN_DET)
-    SET_INPUT_PULLUP(SCREEN_DET_PIN);
-    if(READ(SCREEN_DET_PIN)) SERIAL_ECHOLN("Screen Unplugged!");
-    else SERIAL_ECHOLN("Screen Plugged!");
-  #endif
-
   BreathLightInit();
-}
-
-/**
- * Check Update Flag
- */
-void CheckUpdateFlag(void)
-{
-  uint32_t Address;
-  uint32_t Flag;
-  Address = FLASH_UPDATE_CONTENT_INFO;
-  Flag = *((uint32_t*)Address);
-  if(Flag != 0xffffffff)
-  {
-    FLASH_Unlock();
-    FLASH_ErasePage(Address);
-    FLASH_Lock();
-  }
-}
-
-/**
- * Check App Valid Flag
- */
-void CheckAppValidFlag(void)
-{
-  uint32_t Value;
-  uint32_t Address;
-  Address = FLASH_BOOT_PARA;
-  Value = *((uint32_t*)Address);
-  if(Value != 0xaa55ee11) {
-    FLASH_Unlock();
-    FLASH_ErasePage(Address);
-    FLASH_ProgramWord(Address, 0xaa55ee11);
-    FLASH_Lock();
-  }
-}
-
-/**
- * The main Marlin program loop
- *
- *  - Save or log commands to SD
- *  - Process available commands (if not saving)
- *  - Call endstop manager
- *  - Call inactivity manager
- */
-void loop() {
-  // clear UART buffer
-  rb_reset(MYSERIAL0.c_dev()->rb);
-  rb_reset(HMISERIAL.c_dev()->rb);
 
   CheckAppValidFlag();
+
+  // to disable heartbeat if module need to be upgraded
+  upgrade.CheckIfUpgradeModule();
 
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
   reset_bed_level_if_upgraded();
 
+  snap_tasks = (SnapTasks_t)pvPortMalloc(sizeof(struct SnapTasks));
+  snap_tasks->event_queue = xMessageBufferCreate(1024);
 
-  millis_t tmptick;
+  // create marlin task
+  BaseType_t ret;
+  ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH,
+        (void *)snap_tasks, MARLIN_LOOP_TASK_PRIO, &snap_tasks->marlin);
+  if (ret != pdPASS) {
+    LOG_E("failt to create marlin task!\n");
+    while(1);
+  }
+  else {
+    LOG_I("success to create marlin task!\n");
+  }
 
-  tmptick = millis() + 4000;
-  while(tmptick > millis());
+  ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH,
+        (void *)snap_tasks, HMI_TASK_PRIO, &snap_tasks->hmi);
+  if (ret != pdPASS) {
+    LOG_E("failt to create HMI task!\n");
+    while(1);
+  }
+  else {
+    LOG_I("success to create HMI task!\n");
+  }
+
+
+  ret = xTaskCreate((TaskFunction_t)heartbeat_task, "HB_task", HB_TASK_STACK_DEPTH,
+        (void *)snap_tasks, HB_TASK_STACK_DEPTH, &snap_tasks->heartbeat);
+  if (ret != pdPASS) {
+    LOG_E("failt to create heartbeat task!\n");
+    while(1);
+  }
+  else {
+    LOG_I("success to create heartbeat task!\n");
+  }
+
+  vTaskStartScheduler();
+}
+
+/**
+ * main task
+ */
+void main_loop(void *param) {
+  SnapTasks_t task_param;
+  struct DispatcherParam dispather_param;
+
+  millis_t cur_mills;
+
+  configASSERT(param);
+  task_param = (SnapTasks_t)param;
+
+  dispather_param.owner = TASK_OWN_MARLIN;
+
+  dispather_param.event_buff = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(dispather_param.event_buff);
+
+  dispather_param.event_queue = task_param->event_queue;
+
+  //cur_mills = millis() + 4000;
+  //while(cur_mills > millis());
   ExecuterHead.Init();
   CanModules.Init();
   CheckUpdateFlag();
   if (CanModules.LinearModuleCount == 0) {
     SystemStatus.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
   }
+
   #if ENABLED(SW_MACHINE_SIZE)
     UpdateMachineDefines();
     endstops.reinit_hit_status();
   #endif
 
-  lightbar.init();
   // init power panic handler and load data from flash
   powerpanic.Init();
 
-  if(MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
-    SERIAL_ECHOLNPGM("Laser Module\r\n");
+  switch (ExecuterHead.MachineType) {
+  case MACHINE_TYPE_LASER:
+    SERIAL_ECHOLNPGM("Laser Module");
     ExecuterHead.Laser.Init();
-  }
-  else if(MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-    SERIAL_ECHOLNPGM("CNC Module\r\n");
+    break;
+
+  case MACHINE_TYPE_CNC:
+    SERIAL_ECHOLNPGM("CNC Module");
     ExecuterHead.CNC.Init();
-  }
-  else if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
-    SERIAL_ECHOLNPGM("3DPRINT Module\r\n");
+    break;
+
+  case MACHINE_TYPE_3DPRINT:
+    SERIAL_ECHOLNPGM("3DPRINT Module");
     ExecuterHead.Print3D.Init();
     runout.enabled = true;
-  }
-  else {
+    break;
+
+  default:
     SERIAL_ECHOLNPGM("No Executor detected!");
     SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_NO_HOST);
+    break;
   }
 
   if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
@@ -1371,7 +1428,9 @@ void loop() {
 
   SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
 
-  SERIAL_ECHOLN("Finish init");
+  SERIAL_ECHOLN("Finish init\n");
+
+  cur_mills = millis() - 3000;
 
   for (;;) {
 
@@ -1405,25 +1464,138 @@ void loop() {
         SERIAL_ECHO(" ");
       }
     }
+
+    // receive and execute one command, or push Gcode into Marlin queue
+    DispatchEvent(&dispather_param);
+
     if (commands_in_queue < BUFSIZE) get_available_commands();
+
     advance_command_queue();
     quickstop.Process();
     endstops.event_handler();
-    SystemStatus.Process();
-    Periph.Process();
-    ExecuterHead.Process();
-    idle(false);
+    idle();
 
     // avoid module proactive reply failure, loop query
     // case 1: unexpected faliment runout trigger if we startup withou toolhead loaded.
     // case 2: Z axis hit boundary when we run G28.
     // case 3: Z_MIN_Probe error, when we do z probe, the triggered message didn't arrive main controller
 
-    static int cur_mills = millis() - 3000;
     if (cur_mills + 2500 <  millis()) {
       cur_mills = millis();
       CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
     }
   }
+}
+
+
+void hmi_task(void *param) {
+  SnapTasks_t    task_param;
+  struct DispatcherParam dispather_param;
+
+  ErrCode ret = E_FAILURE;
+
+  uint8_t count = 0;
+
+  configASSERT(param);
+  task_param = (SnapTasks_t)param;
+
+  dispather_param.owner = TASK_OWN_HMI;
+
+  dispather_param.event_buff = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
+  configASSERT(dispather_param.event_buff);
+
+  dispather_param.event_queue = task_param->event_queue;
+
+  hmi.Init();
+
+  SET_INPUT_PULLUP(SCREEN_DET_PIN);
+  if(READ(SCREEN_DET_PIN)) {
+    LOG_I("Screen Unplugged!\n");
+  }
+  else {
+    LOG_I("Screen Plugged!\n");
+  }
+
+  for (;;) {
+    if(READ(SCREEN_DET_PIN)) {
+      xTaskNotifyStateClear(task_param->heartbeat);
+
+      if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK && count == 100) {
+        // if we lost screen in working for 10s, stop current work
+        SystemStatus.StopTrigger(TRIGGER_SOURCE_SC_LOST);
+        LOG_E("stop cur work because screen lost!\n");
+      }
+
+      if (++count > 100)
+        count = 0;
+
+      vTaskDelay(portTICK_PERIOD_MS * 100);
+      continue;
+    }
+    else
+      count = 0;
+
+    ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
+    if (ret != E_SUCCESS) {
+      // no command, sleep 10ms for next command
+      vTaskDelay(portTICK_PERIOD_MS * 10);
+      continue;
+    }
+
+    // execute or send out one command
+    DispatchEvent(&dispather_param);
+
+    vTaskDelay(portTICK_PERIOD_MS * 5);
+  }
+}
+
+
+void heartbeat_task(void *param) {
+  uint32_t  notificaiton = 0;
+  Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
+
+  int counter = 0;
+
+  for (;;) {
+    // do following every 10ms without being blocked
+    #if HAS_FILAMENT_SENSOR
+      runout.run();
+    #endif
+
+    SystemStatus.CheckException();
+    ExecuterHead.CheckAlive();
+
+    Periph.CheckStatus();
+
+    if (++counter > 100) {
+      counter = 0;
+
+      // do following every 1s
+      upgrade.Check();
+
+      ExecuterHead.Process();
+
+      notificaiton = ulTaskNotifyTake(false, 0);
+
+      if (notificaiton && upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
+        SystemStatus.SendStatus(event);
+    }
+
+    // sleep for 10ms
+    vTaskDelay(portTICK_PERIOD_MS * 10);
+  }
+}
+
+
+void vApplicationMallocFailedHook( void ) {
+  LOG_E("RTOS malloc failed");
+}
+
+/**
+ * do not place any code here
+ * this function won't be executed!
+ */
+void loop() {
+  return;
 }
 

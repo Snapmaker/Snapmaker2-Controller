@@ -55,8 +55,8 @@
 #include "../gcode/gcode.h"
 #include "../Marlin.h"
 #include "LaserExecuter.h"
-#include "CNCexecuter.h"
-#include "../snap_module/lightbar.h"
+#include "CNCExecuter.h"
+#include "../snap_module/level_service.h"
 #include "StatusControl.h"
 
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
@@ -304,10 +304,13 @@ typedef struct SettingsDataStruct {
   //
   // brightness for lightbar
   //
-  uint32_t  lb_brightness;
+  //uint32_t  lb_brightness;
 
   // nozzle height when probed bed
   float nozzle_height_probed;
+
+
+  LEVEL_SERVICE_EEPROM_PARAM;
 } SettingsData;
 
 MarlinSettings settings;
@@ -1141,12 +1144,14 @@ void MarlinSettings::postprocess() {
     #endif //ENABLED(SW_MACHINE_SIZE)
 
     // save brightness of light bar
-    uint32_t lb_brightness = (uint32_t)lightbar.get_brightness();
-    _FIELD_TEST(lb_brightness);
-    EEPROM_WRITE(lb_brightness);
+    //uint32_t lb_brightness = (uint32_t)lightbar.get_brightness();
+    //_FIELD_TEST(lb_brightness);
+    //EEPROM_WRITE(lb_brightness);
 
     _FIELD_TEST(nozzle_height_probed);
     EEPROM_WRITE(nozzle_height_probed);
+
+    LEVEL_SERVICE_EEPROM_WRITE();
 
     //
     // Validate CRC and Data Size
@@ -1889,14 +1894,16 @@ void MarlinSettings::postprocess() {
       //
       // load brightness for light bar
       //
-      {
-        uint32_t lb_brightness;
-        EEPROM_READ(lb_brightness);
-        lightbar.set_brightness(lb_brightness);
-      }
+      // {
+      //   uint32_t lb_brightness;
+      //   EEPROM_READ(lb_brightness);
+      //   lightbar.set_brightness(lb_brightness);
+      // }
 
       _FIELD_TEST(nozzle_height_probed);
       EEPROM_READ(nozzle_height_probed);
+
+      LEVEL_SERVICE_EEPROM_READ();
 
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {
@@ -2402,7 +2409,7 @@ void MarlinSettings::reset() {
   ABL_TEMP_POINTS_X = (GRID_MAX_POINTS_X + 2);
   ABL_TEMP_POINTS_Y = (GRID_MAX_POINTS_Y + 2);
 
-  lightbar.set_brightness(MAX_BRIGHTNESS);
+  //lightbar.set_brightness(MAX_BRIGHTNESS);
 
   postprocess();
 

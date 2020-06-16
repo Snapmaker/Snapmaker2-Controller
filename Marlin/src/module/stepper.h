@@ -345,17 +345,17 @@ class Stepper {
     // Interrupt Service Routines
 
     // The ISR scheduler
-    static void isr();
+    static void isr() AT_SNAP_SECTION;
 
     // The stepper pulse phase ISR
-    static void stepper_pulse_phase_isr();
+    static void stepper_pulse_phase_isr() AT_SNAP_SECTION;
 
     // The stepper block processing phase ISR
-    static uint32_t stepper_block_phase_isr();
+    static uint32_t stepper_block_phase_isr() AT_SNAP_SECTION;
 
     #if ENABLED(LIN_ADVANCE)
       // The Linear advance stepper ISR
-      static uint32_t advance_isr();
+      static uint32_t advance_isr() AT_SNAP_SECTION;
     #endif
 
     // Check if the given block is busy or not - Must not be called from ISR contexts
@@ -392,7 +392,7 @@ class Stepper {
     }
 
     // Handle a triggered endstop
-    static void endstop_triggered(const AxisEnum axis);
+    static void endstop_triggered(const AxisEnum axis) AT_SNAP_SECTION;
 
     // Triggered position of an axis in steps
     static int32_t triggered_position(const AxisEnum axis);
@@ -463,12 +463,12 @@ class Stepper {
     }
 
     // Set direction bits for all steppers
-    static void set_directions();
+    static void set_directions() AT_SNAP_SECTION;
 
   private:
 
     // Set the current position in steps
-    static void _set_position(const int32_t &a, const int32_t &b, const int32_t &c, const int32_t &e);
+    static void _set_position(const int32_t &a, const int32_t &b, const int32_t &c, const int32_t &e) AT_SNAP_SECTION;
 
     FORCE_INLINE static uint32_t calc_timer_interval(uint32_t step_rate, uint8_t scale, uint8_t* loops) {
       uint32_t timer;

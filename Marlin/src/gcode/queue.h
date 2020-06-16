@@ -117,9 +117,8 @@ bool enqueue_and_echo_command(const char* cmd);
   #endif
 #endif
 
-#if ENABLED(HMI_SC20W)
-  void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opcode);
-#endif
+void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opcode);
+void ack_gcode_event(uint8_t event_id, uint32_t line);
 
 /**
  * Add to the circular command queue the next command from:

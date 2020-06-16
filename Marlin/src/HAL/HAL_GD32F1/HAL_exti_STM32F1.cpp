@@ -7,7 +7,7 @@
 #include "std_library/inc/stm32f10x_rcc.h"
 #include "std_library/inc/stm32f10x_exti.h"
 #include "std_library/inc/misc.h"
-#include "Hal_exti_STM32F1.h"
+#include "HAL_exti_STM32F1.h"
 
 EXTITrigger_TypeDef Edge[] = {EXTI_Trigger_Falling, EXTI_Trigger_Rising, EXTI_Trigger_Rising_Falling};
 
