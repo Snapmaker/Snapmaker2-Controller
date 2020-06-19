@@ -58,6 +58,7 @@
 #if ENABLED(EXECUTER_MANAGER_SUPPORT)
   #include "../../module/ExecuterManager.h"
 #endif
+  #include "../../snap_module/level_service.h"
 
 #if ENABLED(QUICK_HOME)
 
@@ -439,8 +440,10 @@ void GcodeSuite::G28(const bool always_home_all) {
     //Always set bed leveling active after home all axis when in 3dprint mode
   #endif
 
-  if((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (all_axes_homed()))
+  if((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (all_axes_homed())) {
     set_bed_leveling_enabled(true);
+    levelservice.ApplyLiveZOffset();
+  }
 
   clean_up_after_endstop_or_probe_move();
 

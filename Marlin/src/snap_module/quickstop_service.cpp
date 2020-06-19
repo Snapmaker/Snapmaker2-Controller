@@ -92,7 +92,10 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     case QS_SOURCE_PAUSE:
       if (blk)
         powerpanic.SaveCmdLine(blk->filePos);
-      powerpanic.SaveEnv();
+
+      // if power-loss appear atfer finishing PAUSE, won't save env again
+      if (SystemStatus.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
+        powerpanic.SaveEnv();
 
       // write flash only power-loss appear
       if (source_ == QS_SOURCE_POWER_LOSS) {
@@ -199,9 +202,9 @@ void QuickStopService::Park() {
     // move X to max position of home dir
     // move Y to max position
     if (X_HOME_DIR > 0)
-      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 30);
+      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 50);
     else
-      move_to_limited_xy(0, Y_MAX_POS, 35);
+      move_to_limited_xy(0, Y_MAX_POS, 50);
     break;
 
   case MACHINE_TYPE_LASER:
@@ -243,14 +246,14 @@ void QuickStopService::Process() {
   if (state_ == QS_STA_IDLE)
     return;
 
-  // tell system manager we start to handle QS in Non-ISR
-  SystemStatus.CallbackPreQS(source_);
-
   // Waiting state_ to run over QS_STA_CLEAN_MOVES to make sure
   // env has been saved and current_block in stepper was clean
   while (state_ <= QS_STA_CLEAN_MOVES) {
     idle();
   }
+
+  // tell system manager we start to handle QS in Non-ISR
+  SystemStatus.CallbackPreQS(source_);
 
   // clean the counter to recover planner
   // tmeperature ISR maybe subtract the counter
@@ -283,9 +286,6 @@ void QuickStopService::Process() {
   if (source_ == QS_SOURCE_POWER_LOSS) {
     while (1);
   }
-
-  // clean HMI message exist in message buffer
-  xMessageBufferReset(snap_tasks->event_queue);
 
   // idle() will get new command during parking, clean again
   clear_command_queue();

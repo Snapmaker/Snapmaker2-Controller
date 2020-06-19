@@ -1575,10 +1575,10 @@ void heartbeat_task(void *param) {
 
       ExecuterHead.Process();
 
-      notificaiton = ulTaskNotifyTake(false, 0);
-
-      if (notificaiton && upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
-        SystemStatus.SendStatus(event);
+      // comment temporarily
+      // notificaiton = ulTaskNotifyTake(false, 0);
+      // if (notificaiton && upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
+      //   SystemStatus.SendStatus(event);
     }
 
     // sleep for 10ms

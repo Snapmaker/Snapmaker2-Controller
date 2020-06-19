@@ -89,8 +89,12 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
 
 
 static ErrCode SendStatus(Event_t &event) {
-  if (snap_tasks && snap_tasks->heartbeat)
-    xTaskNotify(snap_tasks->heartbeat, HEART_BEAT_NITIFICATION, eSetBits);
+  // comment temporarily
+  // if (snap_tasks && snap_tasks->heartbeat)
+  //   xTaskNotify(snap_tasks->heartbeat, HEART_BEAT_NITIFICATION, eSetBits);
+
+  if (upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
+    SystemStatus.SendStatus(event);
   return E_SUCCESS;
 }
 
@@ -135,13 +139,13 @@ EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   /* [SYSCTL_OPC_GET_EXCEPTION]      =  */{EVENT_ATTR_DEFAULT,      SendException},
   /* [SYSCTL_OPC_START_WORK]         =  */{EVENT_ATTR_DEFAULT,      ChangeSystemStatus},
   /* [SYSCTL_OPC_PAUSE]              =  */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
-  /* [SYSCTL_OPC_RESUME]             =  */{EVENT_ATTR_HAVE_MOTION,  ChangeSystemStatus},
+  /* [SYSCTL_OPC_RESUME]             =  */{EVENT_ATTR_DEFAULT,      ChangeSystemStatus},
   /* [SYSCTL_OPC_STOP]               =  */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
   /* [SYSCTL_OPC_FINISH]             =  */{EVENT_ATTR_HAVE_MOTION,  ChangeSystemStatus},
   /* [SYSCTL_OPC_GET_LAST_LINE]      =  */{EVENT_ATTR_DEFAULT,      SendLastLine},
   UNDEFINED_CALLBACK,
   /* [SYSCTL_OPC_CLEAR_FAULT]        =  */{EVENT_ATTR_DEFAULT,      ClearException},
-  /* [SYSCTL_OPC_RECOVER_POWER_LOSS] =  */{EVENT_ATTR_DEFAULT,      RecoverFromPowerLoss},
+  /* [SYSCTL_OPC_RECOVER_POWER_LOSS] =  */{EVENT_ATTR_HAVE_MOTION,  RecoverFromPowerLoss},
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
   /* [SYSCTL_OPC_GET_HOME_STATUS]    =  */{EVENT_ATTR_DEFAULT,      SendHomeAndCoordinateStatus},
@@ -220,8 +224,8 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_DO_MANUAL_FOCUSING]     =  */{EVENT_ATTR_HAVE_MOTION,  DoManualFocusing},
   /* [SETTINGS_OPC_DO_AUTO_FOCUSING]       =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoFocusing},
   /* [SETTINGS_OPC_DO_FAST_CALIBRATION]    =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoLeveling},
-  /* [SETTINGS_OPC_SET_RUNTIME_ENV]        =  */{EVENT_ATTR_DEFAULT,      ChangeRuntimeEnv},
-  /* [SETTINGS_OPC_GET_RUNTIME_ENV]        =  */{EVENT_ATTR_HAVE_MOTION,  GetRuntimeEnv},
+  /* [SETTINGS_OPC_SET_RUNTIME_ENV]        =  */{EVENT_ATTR_HAVE_MOTION,  ChangeRuntimeEnv},
+  /* [SETTINGS_OPC_GET_RUNTIME_ENV]        =  */{EVENT_ATTR_DEFAULT,      GetRuntimeEnv},
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
@@ -602,7 +606,7 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
       return E_NO_RESRC;
 
     param->size = (uint16_t)xMessageBufferReceive(param->event_queue, param->event_buff,
-                              HMI_RECV_BUFFER_SIZE, configTICK_RATE_HZ/1000);
+                              HMI_RECV_BUFFER_SIZE, 0);
 
     if (!param->size) {
       LOG_E("No data read from event queue!\n");
@@ -679,8 +683,9 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
     SERIAL_ECHOLNPAIR("new gcode, eid: ", event.id);
 #endif
     // blocked 100ms for max duration to wait
-    if (quickstop.isIdle())
-      xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    if (quickstop.isTriggered())
+      LOG_I("Got G[%u] in QS\n", event.id);
+    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 
@@ -721,8 +726,9 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 #if DEBUG_EVENT_HANDLER
     SERIAL_ECHOLNPAIR("Marlin's event, id: ", hex_byte((uint8_t)event.id), ", opc: ", hex_byte((uint8_t)event.op_code));
 #endif
-    if (quickstop.isIdle())
-      xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
+    if (quickstop.isTriggered())
+      LOG_I("Got E[%x:%x] in QS\n", event.id, event.op_code);
+    xMessageBufferSend(param->event_queue, param->event_buff, param->size, configTICK_RATE_HZ/10);
     return E_SUCCESS;
   }
 #if DEBUG_EVENT_HANDLER

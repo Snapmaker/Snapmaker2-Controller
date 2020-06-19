@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V65"
+#define EEPROM_VERSION "V66"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -2418,6 +2418,7 @@ void MarlinSettings::reset() {
 
   nozzle_height_probed = 0;
 
+  LEVEL_SERVICE_EEPROM_RESET();
 }
 
 #if DISABLED(DISABLE_M503)

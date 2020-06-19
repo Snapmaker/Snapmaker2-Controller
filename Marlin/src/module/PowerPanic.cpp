@@ -51,6 +51,12 @@ void PowerPanic::Init(void) {
     // got power panic data
 		if (ExecuterHead.MachineType == pre_data_.MachineType) {
 			SystemStatus.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
+
+			if (pre_data_.live_z_offset > 0) {
+				levelservice.live_z_offset(pre_data_.live_z_offset);
+				settings.save();
+			}
+
 			SERIAL_ECHOLNPGM("PL: Got available data!");
 		}
 		else {
@@ -327,8 +333,8 @@ int PowerPanic::SaveEnv(void) {
 	Data.feedrate_percentage = feedrate_percentage;
 
 	// if live z offset was changed when working, record it
-	if (levelservice.IfLiveZOffsetUpdated())
-		Data.live_z_offset = levelservice.GetLiveZOffset();
+	if (levelservice.live_z_offset_updated())
+		Data.live_z_offset = levelservice.live_z_offset();
 	else
 		Data.live_z_offset = 0;
 
@@ -371,7 +377,6 @@ int PowerPanic::SaveEnv(void) {
 	case MACHINE_TYPE_LASER:
 		Data.laser_percent = ExecuterHead.Laser.GetPowerPercent();
 		Data.laser_pwm = ExecuterHead.Laser.GetTimPwm();
-		ExecuterHead.Laser.Off();
 	break;
 
 	default:
@@ -505,6 +510,8 @@ void PowerPanic::ResumeLaser() {
 
 
 void PowerPanic::RestoreWorkspace() {
+	feedrate_percentage = pre_data_.feedrate_percentage;
+
 	// home first
 	process_cmd_imd("G28");
 

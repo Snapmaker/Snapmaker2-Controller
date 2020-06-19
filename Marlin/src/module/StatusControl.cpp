@@ -42,6 +42,8 @@ void StatusControl::Init() {
  */
 ErrCode StatusControl::PauseTrigger(TriggerSource type)
 {
+  uint32_t notification = 0;
+
   if (cur_status_ != SYSTAT_WORK && cur_status_!= SYSTAT_RESUME_WAITING) {
     LOG_W("cannot pause in current status: %d\n", cur_status_);
     return E_NO_SWITCHING_STA;
@@ -83,6 +85,22 @@ ErrCode StatusControl::PauseTrigger(TriggerSource type)
 
   pause_source_ = type;
 
+  // get notification of current task
+  xTaskNotifyWait(0, 0, &notification, 0);
+  if (notification & HMI_NOTIFY_WAITFOR_HEATING) {
+    taskENTER_CRITICAL();
+
+    // if we are waiting for heatup, abort the waiting
+    wait_for_heatup = false;
+
+    powerpanic.SaveCmdLine(CommandLine[cmd_queue_index_r]);
+
+    taskEXIT_CRITICAL();
+  }
+
+  // clear event in queue to marlin
+  xMessageBufferReset(snap_tasks->event_queue);
+
   quickstop.Trigger(QS_SOURCE_PAUSE);
 
   return E_SUCCESS;
@@ -118,6 +136,7 @@ ErrCode StatusControl::PreProcessStop() {
  * return: true if stop triggle success, or false
  */
 ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
+  uint32_t notification = 0;
 
   if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {
@@ -163,6 +182,8 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
     return E_SUCCESS;
   }
 
+  cur_status_ = SYSTAT_END_TRIG;
+
   if (event_opc == SYSCTL_OPC_FINISH) {
     // if screen tell us Gcode is ended, wait for all movement output
     // because planner.synchronize() will call HMI process nestedly,
@@ -174,7 +195,16 @@ ErrCode StatusControl::StopTrigger(TriggerSource source, uint16_t event_opc) {
   else
     stop_type_ = STOP_TYPE_ABORTED;
 
-  cur_status_ = SYSTAT_END_TRIG;
+  // get notification of current task
+  xTaskNotifyWait(0, 0, &notification, 0);
+  if (notification & HMI_NOTIFY_WAITFOR_HEATING) {
+    taskENTER_CRITICAL();
+    // if we are waiting for heatup, abort the waiting
+    wait_for_heatup = false;
+
+    taskEXIT_CRITICAL();
+  }
+
   stop_source_ = source;
 
   quickstop.Trigger(QS_SOURCE_STOP);
@@ -248,6 +278,7 @@ void inline StatusControl::resume_laser(void) {
  * Resume Process
  */
 ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
+  uint8_t event[2] = {EID_SYS_CTRL_REQ, SYSCTL_OPC_RESUME};
 
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
@@ -305,8 +336,17 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
     break;
   }
 
-  cur_status_ = SYSTAT_RESUME_TRIG;
+  // send event to marlin task to handle
+  if (xMessageBufferSend(snap_tasks->event_queue, event, 2, portTICK_PERIOD_MS * 100)) {
+    cur_status_ = SYSTAT_RESUME_TRIG;
+    return E_SUCCESS;
+  }
+  else
+    return E_FAILURE;
+}
 
+
+ErrCode StatusControl::ResumeProcess() {
   switch(ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     set_bed_leveling_enabled(true);
@@ -340,7 +380,7 @@ ErrCode StatusControl::ResumeTrigger(TriggerSource source) {
   pause_source_ = TRIGGER_SOURCE_NONE;
   cur_status_ = SYSTAT_RESUME_WAITING;
 
-  return E_SUCCESS;
+  return FinishSystemStatusChange(SYSCTL_OPC_RESUME, 0);
 }
 
 
@@ -558,11 +598,6 @@ ErrCode StatusControl::StartWork(TriggerSource s) {
   return E_SUCCESS;
 }
 
-/**
- * process Pause / Resume / Stop event
- */
-void StatusControl::Process() {
-}
 
 /**
  * Check if exceptions happened, this should be called in idle()[Marlin.cpp]
@@ -1612,35 +1647,51 @@ ErrCode StatusControl::ChangeSystemStatus(Event_t &event) {
   {
   case SYSCTL_OPC_START_WORK:
     LOG_I("SC req START work\n");
-    err = SystemStatus.StartWork(TRIGGER_SOURCE_SC);
+    err = StartWork(TRIGGER_SOURCE_SC);
     if (err == E_SUCCESS)
       current_line_ = 0;
     break;
 
   case SYSCTL_OPC_PAUSE:
     LOG_I("SC req PAUSE\n");
-    err = SystemStatus.PauseTrigger(TRIGGER_SOURCE_SC);
+    err = PauseTrigger(TRIGGER_SOURCE_SC);
     if (err == E_SUCCESS)
       need_ack = false;
     break;
 
   case SYSCTL_OPC_RESUME:
-    LOG_I("SC req RESUME\n");
-    err = SystemStatus.ResumeTrigger(TRIGGER_SOURCE_SC);
-    if (err == E_SUCCESS) {
-      if (powerpanic.Data.FilePosition > 0)
-        current_line_ =  powerpanic.Data.FilePosition - 1;
-      else
-        current_line_ = 0;
-      SNAP_DEBUG_SET_GCODE_LINE(0);
-      powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
+    if (xTaskGetCurrentTaskHandle() == snap_tasks->hmi) {
+      LOG_I("SC req RESUME\n");
+      err = ResumeTrigger(TRIGGER_SOURCE_SC);
+      if (err == E_SUCCESS)
+        need_ack = false;
+    }
+    else {
+      err = ResumeProcess();
+      if (err == E_SUCCESS) {
+        powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
+        if (powerpanic.Data.FilePosition > 0) {
+          current_line_ =  powerpanic.Data.FilePosition - 1;
+        }
+        else {
+          current_line_ = 0;
+        }
+
+        SNAP_DEBUG_SET_GCODE_LINE(current_line_);
+        LOG_I("RESUME over\n");
+        return E_SUCCESS;
+      }
+      else {
+        LOG_I("RESUME failed: %u\n", err);
+        return E_FAILURE;
+      }
     }
     break;
 
   case SYSCTL_OPC_STOP:
   case SYSCTL_OPC_FINISH:
     LOG_I("SC req %s\n", (event.op_code == SYSCTL_OPC_STOP)? "STOP" : "FINISH");
-    err = SystemStatus.StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
+    err = StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
     if (err == E_SUCCESS)
       need_ack = false;
     break;
@@ -1679,17 +1730,15 @@ ErrCode StatusControl::FinishSystemStatusChange(uint8_t op_code, uint8_t result)
 ErrCode StatusControl::SendLastLine(Event_t &event) {
   uint8_t buff[6];
 
-  LOG_I("SC req last line: ");
-
   if (GetCurrentStage() != SYSTAGE_PAUSE) {
-    LOG_I("%u\n", powerpanic.pre_data_.FilePosition);
+    LOG_I("SC req last line: %u\n", powerpanic.pre_data_.FilePosition);
 
     buff[0] = powerpanic.pre_data_.Valid;
     buff[1] = powerpanic.pre_data_.GCodeSource;
     WORD_TO_PDU_BYTES(buff + 2, powerpanic.pre_data_.FilePosition);
   }
   else {
-    LOG_I("%u\n", powerpanic.Data.FilePosition);
+    LOG_I("SC req last line: %u\n", powerpanic.Data.FilePosition);
 
     buff[0] = powerpanic.Data.Valid;
     buff[1] = powerpanic.Data.GCodeSource;
@@ -1893,21 +1942,7 @@ ErrCode StatusControl::ChangeRuntimeEnv(Event_t &event) {
     break;
 
   case RENV_TYPE_ZOFFSET:
-    if (levelservice.SetLiveZOffset(param))
-      break;
-
-    tmp_f32 = levelservice.GetLiveZOffset();
-
-    // waiting all block buffer are outputed by stepper
-    planner.synchronize();
-
-    tmp_f32 = current_position[Z_AXIS];
-
-    move_to_limited_z(current_position[Z_AXIS] + (param - tmp_f32), 5);
-    planner.synchronize();
-
-    current_position[Z_AXIS] = tmp_f32;
-    sync_plan_position();
+    ret = levelservice.UpdateLiveZOffset(param);
     break;
 
   case RENV_TYPE_CNC_POWER:
@@ -1952,18 +1987,27 @@ ErrCode StatusControl::GetRuntimeEnv(Event_t &event) {
 
   switch (event.data[0]) {
   case RENV_TYPE_FEEDRATE:
-    tmp_i32 = (int)(feedrate_percentage * 1000.0f);
+    tmp_i32 = (int)(powerpanic.pre_data_.feedrate_percentage * 1000.0f);
     WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+    LOG_I("feedrate_percentage: %d\n", powerpanic.pre_data_.feedrate_percentage);
+    break;
+
+  case RENV_TYPE_LASER_POWER:
+    tmp_i32 = (int)(powerpanic.pre_data_.laser_percent * 1000.0f);
+    WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+    LOG_I("laser power: %.2f\n", powerpanic.pre_data_.laser_percent);
     break;
 
   case RENV_TYPE_ZOFFSET:
-    tmp_i32 = (int)(levelservice.GetLiveZOffset() * 1000);
+    tmp_i32 = (int)(levelservice.live_z_offset() * 1000);
     WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    LOG_I("live z offset: %.3f\n", levelservice.live_z_offset());
     break;
 
   case RENV_TYPE_CNC_POWER:
-    tmp_i32 = (int)(ExecuterHead.CNC.GetPower() * 1000);
+    tmp_i32 = (int)(powerpanic.pre_data_.cnc_power * 1000);
     WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    LOG_I("laser power: %.2f\n", powerpanic.pre_data_.cnc_power);
     break;
 
   default:
@@ -2039,6 +2083,13 @@ ErrCode StatusControl::CallbackPreQS(QuickStopSource source) {
 
     // reset the status of filament monitor
     runout.reset();
+
+    // make sure laser is off
+    // won't turn off laser in powerpanic.SaveEnv(), it's call by stepper ISR
+    // because it may call CAN transmisson function
+    if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
+      ExecuterHead.Laser.Off();
+    }
     break;
 
   case QS_SOURCE_STOP:

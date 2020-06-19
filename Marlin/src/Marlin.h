@@ -448,6 +448,9 @@ typedef struct SnapTasks* SnapTasks_t;
 
 extern SnapTasks_t snap_tasks;
 
+#define HMI_NOTIFY_WAITFOR_HEATING  0X00000001
+
+
 #define MARLIN_LOOP_TASK_PRIO     (configMAX_PRIORITIES - 1)
 #define MARLIN_LOOP_STACK_DEPTH   1024
 
