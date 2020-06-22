@@ -242,7 +242,7 @@ ErrCode LevelService::SaveAndExitLeveling(Event_t &event) {
 
   planner.synchronize();
 
-  if (level_mode_ == LEVEL_MODE_MANUAL && manual_level_index_ < 10) {
+  if (level_mode_ == LEVEL_MODE_MANUAL && manual_level_index_ <= GRID_MAX_POINTS_INDEX) {
     // save the last point
     MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
     LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", manual_level_index_,
