@@ -43,7 +43,8 @@ ErrCode LevelService::DoAutoLeveling(Event_t &event) {
 
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
 
-    // clear live z offset
+    // MUST clear live z offset before G28
+    // otherwise will apply live z after homing
     live_z_offset_ = 0;
 
     process_cmd_imd("G28");
@@ -111,7 +112,8 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
 
   if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
 
-    // clear live z offset
+    // MUST clear live z offset before G28
+    // otherwise will apply live z after homing
     live_z_offset_ = 0;
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
@@ -354,32 +356,34 @@ ErrCode LevelService::UpdateLiveZOffset(float offset) {
     return E_PARAM;
   }
 
+  planner.synchronize();
+
   float cur_z = current_position[Z_AXIS];
 
-  move_to_limited_z(current_position[Z_AXIS] + (offset - live_z_offset_), 5);
+  do_blocking_move_to_z(current_position[Z_AXIS] + (offset - live_z_offset_), 5);
   planner.synchronize();
 
   current_position[Z_AXIS] = cur_z;
   sync_plan_position();
 
+  LOG_I("new live Z: %.3f, delta: %.3f\n", offset, (offset - live_z_offset_));
+
   live_z_offset_ = offset;
   live_z_offset_updated_ = true;
-
-  LOG_I("new live Z offset: %.2f\n", live_z_offset_);
-
   return E_SUCCESS;
 }
 
 
 void LevelService::ApplyLiveZOffset() {
-  float cur_z = current_position[Z_AXIS];
-
   if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT) {
     LOG_E("only enable z offset for 3DP!\n");
     return;
   }
 
-  move_to_limited_z(current_position[Z_AXIS] + live_z_offset_, 5);
+  planner.synchronize();
+  float cur_z = current_position[Z_AXIS];
+
+  do_blocking_move_to_z(current_position[Z_AXIS] + live_z_offset_, 5);
   planner.synchronize();
 
   current_position[Z_AXIS] = cur_z;
@@ -390,14 +394,14 @@ void LevelService::ApplyLiveZOffset() {
 
 
 void LevelService::UnapplyLiveZOffset() {
-  float cur_z = current_position[Z_AXIS];
-
   if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT) {
     LOG_E("only enable z offset for 3DP!\n");
     return;
   }
+  planner.synchronize();
+  float cur_z = current_position[Z_AXIS];
 
-  move_to_limited_z(current_position[Z_AXIS] - live_z_offset_, 5);
+  do_blocking_move_to_z(current_position[Z_AXIS] - live_z_offset_, 5);
   planner.synchronize();
 
   current_position[Z_AXIS] = cur_z;
