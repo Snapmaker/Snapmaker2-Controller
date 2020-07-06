@@ -1041,7 +1041,7 @@
   extern float m_home_offset[XYZ];
   extern float l_home_offset[XYZ];
 
-  #define S_HOME_OFFSET_DEFAULT {-6, -7.5, 0}
+  #define S_HOME_OFFSET_DEFAULT {-7, -5, 0}
   #define M_HOME_OFFSET_DEFAULT {-15.5, -7, 0}
   #define L_HOME_OFFSET_DEFAULT {-19, -10, 0}
 #endif //DISABLE(SW_MACHINE_SIZE)

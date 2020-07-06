@@ -224,7 +224,7 @@ void CanModule::PrepareLinearModules(void) {
   if((X_MAX_POS == Y_MAX_POS) && (X_MAX_POS == Z_MAX_POS) && (X_MAX_POS > 0)) {
     if(X_MAX_POS < 200) {
       X_MAX_POS = 167;
-      Y_MAX_POS = 169;
+      Y_MAX_POS = 165;
       Z_MAX_POS = 150;
       X_HOME_DIR = 1;
       X_DIR = false;
