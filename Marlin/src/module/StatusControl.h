@@ -253,6 +253,9 @@ public:
   ErrCode CallbackPreQS(QuickStopSource source);
   ErrCode CallbackPostQS(QuickStopSource source);
 
+  uint32_t current_line() { return current_line_; }
+  void     current_line(uint32_t line) { current_line_ = line; }
+
 private:
   void inline resume_3dp(void);
   void inline resume_cnc(void);

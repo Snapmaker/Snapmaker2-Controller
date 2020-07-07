@@ -67,22 +67,35 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
   // add EOF to end of string
   event_buff[size] = 0;
 
-  if (cur_sta == SYSTAT_WORK) {
-    Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, EID_FILE_GCODE_ACK);
-  }
-  else if (cur_sta == SYSTAT_RESUME_WAITING) {
-    if (SystemStatus.ResumeOver() == E_SUCCESS) {
-      LOG_I("cmd: %s\n\n", (char *)(event_buff + 5));
-      Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, EID_FILE_GCODE_ACK);
-    }
-    else {
-      ack_gcode_event(EID_FILE_GCODE_ACK, line);
-    }
-  }
-  else {
+  if (cur_sta != SYSTAT_WORK && cur_sta != SYSTAT_RESUME_WAITING) {
     LOG_E("not handle file Gcode in this status: %u\n", cur_sta);
     return E_INVALID_STATE;
   }
+
+  if (line > SystemStatus.current_line() || SystemStatus.current_line() == 0) {
+    SystemStatus.current_line(line);
+
+    if (cur_sta == SYSTAT_RESUME_WAITING) {
+      if (SystemStatus.ResumeOver() == E_SUCCESS) {
+        LOG_I("cmd: %s\n\n", (char *)(event_buff + 5));
+        Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, EID_FILE_GCODE_ACK);
+      }
+      else {
+        ack_gcode_event(EID_FILE_GCODE_ACK, line);
+      }
+    }
+    else {
+      Screen_enqueue_and_echo_commands((char *)(event_buff + 5), line, EID_FILE_GCODE_ACK);
+    }
+  }
+  else if (line == SystemStatus.current_line()) {
+    if (line == debug.GetSCGcodeLine())
+      ack_gcode_event(EID_FILE_GCODE_ACK, line);
+  }
+  else {
+    LOG_E("recv line[%u] less than cur line[%u]\n", line, SystemStatus.current_line());
+  }
+
 
   return E_SUCCESS;
 }

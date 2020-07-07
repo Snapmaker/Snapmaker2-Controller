@@ -52,12 +52,13 @@ void PowerPanic::Init(void) {
 		if (ExecuterHead.MachineType == pre_data_.MachineType) {
 			SystemStatus.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
 
-			if (pre_data_.live_z_offset > 0) {
+			if (pre_data_.live_z_offset != 0) {
+				LOG_I("PL: changed live z: %.3f\n", pre_data_.live_z_offset);
 				levelservice.live_z_offset(pre_data_.live_z_offset);
 				settings.save();
 			}
 
-			SERIAL_ECHOLNPGM("PL: Got available data!");
+			SERIAL_ECHOLN("PL: Got available data!");
 		}
 		else {
 			MaskPowerPanicData();

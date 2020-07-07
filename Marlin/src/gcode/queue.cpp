@@ -296,6 +296,8 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
 
   WORD_TO_PDU_BYTES(buffer, line);
 
+  SNAP_DEBUG_SET_GCODE_LINE(line);
+
   hmi.Send(event);
 }
 
