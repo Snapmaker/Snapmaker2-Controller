@@ -1473,6 +1473,7 @@ ErrCode StatusControl::CheckIfSendWaitEvent() {
         event.id = EID_SYS_CTRL_ACK;
         event.op_code = SYSCTL_OPC_WAIT_EVENT;
         event.data = &err;
+        event.length = 1;
         err = E_FAILURE;
 
         return hmi.Send(event);
@@ -1813,7 +1814,7 @@ ErrCode StatusControl::RecoverFromPowerLoss(Event_t &event) {
         current_line_ =  powerpanic.Data.FilePosition - 1;
       else
         current_line_ = 0;
-      SNAP_DEBUG_SET_GCODE_LINE(0);
+      SNAP_DEBUG_SET_GCODE_LINE(current_line_);
       powerpanic.SaveCmdLine(powerpanic.Data.FilePosition);
       LOG_I("trigger RESTORE: ok\n");
     }
