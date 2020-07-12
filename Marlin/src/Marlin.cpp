@@ -1491,6 +1491,7 @@ void main_loop(void *param) {
 }
 
 
+Host hmi;
 void hmi_task(void *param) {
   SnapTasks_t    task_param;
   struct DispatcherParam dispather_param;
@@ -1509,7 +1510,10 @@ void hmi_task(void *param) {
 
   dispather_param.event_queue = task_param->event_queue;
 
-  hmi.Init();
+  // init serial of hmi
+  HMISERIAL.begin(115200);
+  nvic_irq_set_priority(HMISERIAL.c_dev()->irq_num, HMI_SERIAL_IRQ_PRIORITY);
+  hmi.Init(&HMISERIAL);
 
   SET_INPUT_PULLUP(SCREEN_DET_PIN);
   if(READ(SCREEN_DET_PIN)) {

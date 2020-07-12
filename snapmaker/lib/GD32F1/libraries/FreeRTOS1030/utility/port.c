@@ -287,6 +287,7 @@ static void prvPortStartFirstTask( void )
 /*
  * See header file for description.
  */
+extern void systick_attach_callback(void (*callback)(void));
 BaseType_t xPortStartScheduler( void )
 {
 	/* configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to 0.

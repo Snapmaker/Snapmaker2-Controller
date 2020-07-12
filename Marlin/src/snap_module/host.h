@@ -99,11 +99,12 @@ typedef struct {
   uint8_t *data;
 } Event_t;
 
+class HardwareSerial;
 
 class Host {
 
 public:
-  void Init();
+  void Init(HardwareSerial *serial);
   ErrCode CheckoutCmd(uint8_t *cmd, uint16_t *size);
 
   ErrCode Send(Event_t &e);
@@ -132,7 +133,7 @@ private:
   uint16_t CalcChecksum(uint8_t *buffer, uint16_t size);
 
 private:
-  bool task_started_ = false;
+  HardwareSerial *serial_;
 
   // buffer for checkout command
   uint8_t   pdu_header_[PDU_HEADER_SIZE];
@@ -141,7 +142,5 @@ private:
   SemaphoreHandle_t mlock_uart_ = NULL;
 
 };
-
-extern Host hmi;
 
 #endif  //#ifndef HMI_HOST_H_
