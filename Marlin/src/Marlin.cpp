@@ -1094,6 +1094,9 @@ void setup() {
     #endif
   #endif
 
+  // init serial for HMI
+  hmi.Init(&HMISERIAL, HMI_SERIAL_IRQ_PRIORITY);
+
   SERIAL_ECHOLNPGM("start");
   SERIAL_ECHO_START();
 
@@ -1509,11 +1512,6 @@ void hmi_task(void *param) {
   configASSERT(dispather_param.event_buff);
 
   dispather_param.event_queue = task_param->event_queue;
-
-  // init serial of hmi
-  HMISERIAL.begin(115200);
-  nvic_irq_set_priority(HMISERIAL.c_dev()->irq_num, HMI_SERIAL_IRQ_PRIORITY);
-  hmi.Init(&HMISERIAL);
 
   SET_INPUT_PULLUP(SCREEN_DET_PIN);
   if(READ(SCREEN_DET_PIN)) {

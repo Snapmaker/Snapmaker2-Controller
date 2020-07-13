@@ -10,10 +10,14 @@
 
 #define LOG_HEAD  "HOST: "
 
-void Host::Init(HardwareSerial *serial) {
-  serial_ = serial;
-  mlock_uart_ = xSemaphoreCreateMutex();
+void Host::Init(HardwareSerial *serial, uint8_t prio) {
+  serial->begin(115200);
 
+  nvic_irq_set_priority(serial->c_dev()->irq_num, prio);
+
+  serial_ = serial;
+
+  mlock_uart_ = xSemaphoreCreateMutex();
   configASSERT(mlock_uart_);
 }
 
@@ -289,3 +293,7 @@ ErrCode Host::Send(Event_t &event) {
   return E_SUCCESS;
 }
 
+
+void Host::Flush() {
+  serial_->flush();
+}

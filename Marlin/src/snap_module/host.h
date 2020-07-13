@@ -104,10 +104,12 @@ class HardwareSerial;
 class Host {
 
 public:
-  void Init(HardwareSerial *serial);
+  void Init(HardwareSerial *serial, uint8_t prio);
   ErrCode CheckoutCmd(uint8_t *cmd, uint16_t *size);
 
   ErrCode Send(Event_t &e);
+
+  void Flush();
 
   /* local host is little ending, but big ending in PDU(protocol data unit)
    * so need to swap the bytes sequence when read / write PDU.

@@ -38,9 +38,7 @@ void LaserExecuter::Init()
   Tim1PwmInit();
   LoadFocusHeight();
 
-  LASERSerial.begin(115200);
-  nvic_irq_set_priority(LASERSerial.c_dev()->irq_num, EXECUTOR_SERIAL_IRQ_PRIORITY);
-  serial_.Init(&LASERSerial);
+  serial_.Init(&LASERSerial, EXECUTOR_SERIAL_IRQ_PRIORITY);
 
   power_limit_ = LASER_POWER_NORMAL_LIMIT;
 
@@ -194,8 +192,8 @@ bool LaserExecuter::LoadFocusHeight()
   Data[0] = 0;
   CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_LASER_FOCUS, Data, 1);
   // Delay for update
-  tmptick = millis() + 50;
-  while(tmptick > millis());
+  vTaskDelay(50 * portTICK_PERIOD_MS);
+
   return 0;
 }
 #endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
@@ -219,6 +217,7 @@ char LaserExecuter::SetBluetoothName(char *name)
   Event_t  event = {M_SET_BT_NAME, 0};
   uint8_t  buffer[72];
   uint16_t size;
+  ErrCode  ret;
 
   for(size = 0; size < 32; size++) {
     if(name[size] == 0)
@@ -232,16 +231,19 @@ char LaserExecuter::SetBluetoothName(char *name)
   event.data = buffer;
 
   serial_.Send(event);
-  vTaskDelay(10);
+  serial_.Flush();
+  vTaskDelay(200);
 
-  if (serial_.CheckoutCmd(buffer, &size) != E_SUCCESS) {
-    LOG_E("failed to set BT name!\n");
-    return (char)-1;
+  ret = serial_.CheckoutCmd(buffer, &size);
+  if (ret != E_SUCCESS) {
+    LOG_E("failed to set BT name: %u!\n", ret);
+    return -1;
   }
 
-  if((buffer[0] == S_SET_BT_NAME_ACK) && (buffer[1] == 0)) return 0;
+  if((buffer[0] == S_SET_BT_NAME_ACK) && (buffer[1] == 0))
+    return 0;
 
-  return (char)-1;
+  return -1;
 }
 
 /**
@@ -254,21 +256,26 @@ char LaserExecuter::ReadBluetoothName(char *name) {
   uint8_t  buff[72];
   uint16_t size;
   uint16_t i;
+  ErrCode ret = E_SUCCESS;
 
   serial_.Send(event);
-  if (serial_.CheckoutCmd(buff, &size) != E_SUCCESS) {
-    LOG_E("failed to read BT name - %u!\n", 1);
-    return (char)2;
+  serial_.Flush();
+  vTaskDelay(200);
+
+  ret = serial_.CheckoutCmd(buff, &size);
+  if (ret != E_SUCCESS) {
+    LOG_E("failed to read BT name - %u!\n", ret);
+    return 2;
   }
 
   if (size < 2) {
-    LOG_E("failed to read BT name - %u!\n", 2);
-    return (char)2;
+    LOG_E("failed to read BT name - %u!\n", 112);
+    return 2;
   }
 
   if (buff[0] != S_REPORT_BT_NAME_ACK || buff[1] != 0) {
-    LOG_E("failed to read BT name - %u!\n", 3);
-    return (char)1;
+    LOG_E("failed to read BT name - %u!\n", 113);
+    return 1;
   }
 
   for (i = 2; i < size; i++) {
@@ -292,24 +299,31 @@ char LaserExecuter::ReadBluetoothName(char *name) {
 char LaserExecuter::ReadBluetoothMac(uint8_t *mac) {
   Event_t  event = {M_REPORT_BT_MAC, 0, 0, NULL};
   uint16_t size;
-  uint16_t i;
+  uint16_t i = 0;
   uint8_t buff[32];
+  ErrCode ret = E_SUCCESS;
 
-  serial_.Send(event);
+  do {
+    serial_.Send(event);
+    serial_.Flush();
+    vTaskDelay(200);
 
-  if (serial_.CheckoutCmd(buff, &size) != E_SUCCESS) {
-    LOG_E("failed to read BT mac - %u!\n", 1);
-    return (char)2;
+    ret = serial_.CheckoutCmd(buff, &size);
+  } while (ret != E_SUCCESS && ++i < 3);
+
+  if (ret != E_SUCCESS) {
+    LOG_E("failed to read BT mac - %u!\n", ret);
+    return 2;
   }
 
   if (size < 8) {
-    LOG_E("failed to read BT mac - %u!\n", 2);
-    return (char)2;
+    LOG_E("failed to read BT mac - %u!\n", 112);
+    return 2;
   }
 
   if (buff[0] != S_REPORT_BT_MAC_ACK || buff[1] != 0) {
-    LOG_E("failed to read BT mac - %u!\n", 3);
-    return (char)2;
+    LOG_E("failed to read BT mac - %u!\n", 113);
+    return 2;
   }
 
   for (i = 0; i < 6; i++) {
@@ -362,9 +376,9 @@ ErrCode LaserExecuter::GetFocalLength(Event_t &event) {
   uint8_t buff[5];
   uint32_t focal_length;
 
-  LOG_I("SC get focal length: %.3f\n", FocusHeight);
-
   LoadFocusHeight();
+
+  LOG_I("SC get focal length: %.3f\n", FocusHeight);
 
   buff[0] = 0;
 
@@ -558,7 +572,7 @@ ErrCode LaserExecuter::DoAutoFocusing(Event_t &event) {
 out:
   event.data = &err;
   event.length = 1;
-  hmi.Send(event);
+  return hmi.Send(event);
 }
 
 
@@ -589,13 +603,14 @@ ErrCode LaserExecuter::GetCameraBtName(Event_t &event) {
 
   if (buffer[0] != 0) {
     event.length = 1;
+    event.data = buffer;
   }
   else {
     for (i = 1; i < 34; i++)
-      if (buffer[i] == 0)
+      if (buffer[i] == 0) {
+        event.length = i + 1;
         break;
-
-    event.length = i;
+      }
   }
 
   return hmi.Send(event);
@@ -604,14 +619,18 @@ ErrCode LaserExecuter::GetCameraBtName(Event_t &event) {
 
 ErrCode LaserExecuter::GetCameraBtMAC(Event_t &event) {
   uint8_t buffer[8] = {0};
-  int i;
 
   LOG_I("SC get BT MAC\n");
 
   buffer[0] = ReadBluetoothMac(buffer+1);
-
   event.data = buffer;
-  event.length = 7;
+
+  if (buffer[0] != 0) {
+    event.length = 1;
+  }
+  else {
+    event.length = 7;
+  }
 
   return hmi.Send(event);
 }
