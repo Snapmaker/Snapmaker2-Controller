@@ -1359,6 +1359,8 @@ void setup() {
   vTaskStartScheduler();
 }
 
+
+extern void enqueue_hmi_to_marlin();
 /**
  * main task
  */
@@ -1468,6 +1470,7 @@ void main_loop(void *param) {
     // receive and execute one command, or push Gcode into Marlin queue
     DispatchEvent(&dispather_param);
 
+    enqueue_hmi_to_marlin();
     if (commands_in_queue < BUFSIZE) get_available_commands();
 
     advance_command_queue();
