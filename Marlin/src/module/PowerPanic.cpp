@@ -422,15 +422,21 @@ void PowerPanic::Resume3DP() {
 		pre_data_.HeaterTamp[0] = HEATER_0_MAXTEMP - 15;
 	}
 
+	if (pre_data_.HeaterTamp[0] < 180)
+		pre_data_.HeaterTamp[0] = 180;
+
+	thermalManager.setTargetBed(pre_data_.BedTamp);
+	thermalManager.setTargetHotend(150, 0);
+	thermalManager.wait_for_hotend(0, true);
+
 	RestoreWorkspace();
 
 	// for now, just care 1 hotend
 	thermalManager.setTargetHotend(pre_data_.HeaterTamp[0], 0);
-	thermalManager.setTargetBed(pre_data_.BedTamp);
 
 	// waiting temperature reach target
 	thermalManager.wait_for_bed(true);
-	thermalManager.wait_for_hotend(true);
+	thermalManager.wait_for_hotend(0, true);
 
 	// pre-extrude
 	relative_mode = true;
