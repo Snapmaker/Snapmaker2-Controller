@@ -30,6 +30,7 @@
 #define FAULT_FLAG_BED_SENSOR_COMEOFF     (1<<19)
 #define FAULT_FLAG_UNKNOW_MODEL       (1<<20)
 #define FAULT_FLAG_DOOR_OPENED        (1<<21)
+#define FAULT_FLAG_POWER_DETECT_ERR   (1<<22)
 #define FAULT_FLAG_UNKNOW             (1<<31)
 
 // this macro mask the bits which are allow to be cleared by screen

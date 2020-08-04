@@ -102,8 +102,10 @@ public:
 
 private:
   uint32_t WriteIndex;
-	uint32_t last_line_;
+  uint32_t last_line_;
 	millis_t last_powerloss_;
+
+  bool enabled_;
 
   int Load(void);
 

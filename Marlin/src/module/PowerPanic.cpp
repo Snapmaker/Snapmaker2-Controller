@@ -42,6 +42,15 @@ void PowerPanic::Init(void) {
 
 	SET_INPUT(POWER_DETECT_PIN);
 
+  if (READ(POWER_DETECT_PIN) == POWER_LOSS_STATE) {
+    LOG_E("PL: power-loss signal triggerred!\n");
+    enabled_ = false;
+    SystemStatus.SetSystemFaultBit(FAULT_FLAG_POWER_DETECT_ERR);
+  }
+  else {
+    enabled_ = true;
+  }
+
   ret = Load();
 
   // if data is invalid, tell others
@@ -611,10 +620,6 @@ ErrCode PowerPanic::ResumeWork() {
  * disable other unused peripherals in ISR
  */
 void PowerPanic::TurnOffPower(QuickStopState sta) {
-  // these 2 statement will disable power supply for
-  // HMI, BED, and all addones except steppers
-	disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
-
 	if (sta  > QS_STA_TRIGGERED) {
 		BreathLightClose();
 
@@ -643,6 +648,11 @@ void PowerPanic::TurnOffPower(QuickStopState sta) {
 		// }
 	#endif
 	}
+  else {
+    // these 2 statement will disable power supply for
+    // HMI, BED, and all addones except steppers
+    disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+  }
 }
 
 
@@ -662,16 +672,17 @@ void PowerPanic::Reset() {
 void PowerPanic::Check(void) {
   uint8_t powerstat = READ(POWER_DETECT_PIN);
 
+  if (!enabled_)
+    return;
+
   // debounce for power loss, will delay 10ms for responce
-  if (powerstat != POWER_LOSS_STATE)
+  if (powerstat != POWER_LOSS_STATE) {
     last_powerloss_ = millis();
-  else {
-    if ((millis() - last_powerloss_) < POWERPANIC_DEBOUNCE) {
-      powerstat = POWER_NORMAL_STATE;
-		}
-		else {
-			quickstop.Trigger(QS_SOURCE_POWER_LOSS, true);
-		}
+    return;
+  }
+
+  if ((millis() - last_powerloss_) >= POWERPANIC_DEBOUNCE) {
+    quickstop.Trigger(QS_SOURCE_POWER_LOSS, true);
   }
 }
 
