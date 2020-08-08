@@ -271,10 +271,6 @@ void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opco
   hmi_send_opcode_queue[hmi_cmd_queue_index_w] = Opcode;
   hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
   hmi_commands_in_queue++;
-
-  // to avoid jumping directly, we check the condition before call it
-  if (commands_in_queue < BUFSIZE)
-    enqueue_hmi_to_marlin();
 }
 #endif
 
