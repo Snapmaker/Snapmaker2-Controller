@@ -40,11 +40,7 @@ struct EventCallback_t {
 
 
 static ErrCode HandleGcode(uint8_t *event_buff, uint16_t size) {
-  uint32_t line;
-
-  // add EOF to end of string
   event_buff[size] = 0;
-
   Screen_enqueue_and_echo_commands((char *)(event_buff + 5), INVALID_CMD_LINE, EID_GCODE_ACK);
 
   return E_SUCCESS;
@@ -61,16 +57,15 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
     return E_INVALID_STATE;
   }
 
-  // checkout the line number
-  PDU_TO_LOCAL_WORD(line, event_buff+1);
-
-  // add EOF to end of string
-  event_buff[size] = 0;
-
   if (cur_sta != SYSTAT_WORK && cur_sta != SYSTAT_RESUME_WAITING) {
     LOG_E("not handle file Gcode in this status: %u\n", cur_sta);
     return E_INVALID_STATE;
   }
+
+  // checkout the line number
+  PDU_TO_LOCAL_WORD(line, event_buff+1);
+
+  event_buff[size] = 0;
 
   if (line > SystemStatus.current_line() || SystemStatus.current_line() == 0) {
     SystemStatus.current_line(line);
@@ -95,7 +90,6 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
   else {
     LOG_E("recv line[%u] less than cur line[%u]\n", line, SystemStatus.current_line());
   }
-
 
   return E_SUCCESS;
 }
