@@ -5,7 +5,7 @@
 #include "../module/printcounter.h"
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/StatusControl.h"
-
+#include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
 
 #define CNC_SAFE_HIGH_DIFF 30  // Bed to CNC head height. mm
 
@@ -233,8 +233,7 @@ void QuickStopService::Park() {
   }
 
   while (planner.has_blocks_queued()) {
-    if (source_ != QS_SOURCE_POWER_LOSS)
-      idle();
+    idle();
   }
 
   if (leveling_active)
@@ -273,17 +272,22 @@ void QuickStopService::Process() {
 
   if (source_ != QS_SOURCE_POWER_LOSS) {
     // logical position
-    LOG_I("QS at machine pos X: %.3f, Y: %.3f, Z: %.3f, E: %.3f\n", powerpanic.Data.PositionData[X_AXIS],
+    LOG_I("QS recorded pos X: %.3f, Y: %.3f, Z: %.3f, E: %.3f\n", powerpanic.Data.PositionData[X_AXIS],
         powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS], powerpanic.Data.PositionData[E_AXIS]);
     LOG_I("QS at logical pos: X: %.3f, Y: %.3f, Z: %.3f\n", LOGICAL_X_POSITION(current_position[X_AXIS]),
         LOGICAL_Y_POSITION(current_position[Y_AXIS]), LOGICAL_Z_POSITION(current_position[Z_AXIS]));
-    LOG_I("work offset: X: %.3f, Y: %.3f, Z: %.3f\n", workspace_offset[X_AXIS], workspace_offset[Y_AXIS], workspace_offset[Z_AXIS]);
   }
 
   // parking
   Park();
 
   if (source_ == QS_SOURCE_POWER_LOSS) {
+    // for normal power-loss, CPU cannot arrive here
+    // but for exception, this may be performed, so we output log
+    // and reboot the machine to make it be able to recover from power-loss
+    LOG_I("saved power-loss!\n");
+    // reboot machine
+    WatchDogInit();
     while (1);
   }
 
