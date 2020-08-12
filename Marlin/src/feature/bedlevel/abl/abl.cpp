@@ -463,14 +463,18 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
 
   int cur_x = 0;
   int cur_y = 0;
+  float z;
 
   int dir_idx = 0;
-  do_blocking_move_to_logical_z(15, 10);
+  do_blocking_move_to_z(15, 10);
 
   for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
     LOG_I("Probing No. %d\n", k);
 
-    float z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE); // raw position
+    if (k < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y - 1))
+      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE); // raw position
+    else
+      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_NONE); // raw position
     z_values[cur_x][cur_y] = z;
     visited[cur_x][cur_y] = true;
     if (isnan(z)) {
@@ -501,7 +505,8 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   
   // if fast_leveling is true, over directly. Otherwise move nozzle to current position of probe
   if (!fast_leveling)
-    do_blocking_move_to_logical_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
+    do_blocking_move_to_z(current_position[Z_AXIS] + 1, speed_in_calibration[Z_AXIS]);
+    do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
 
   return ret;
 }
