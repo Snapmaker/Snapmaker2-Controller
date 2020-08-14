@@ -427,9 +427,6 @@ void PowerPanic::Resume3DP() {
 
 	RestoreWorkspace();
 
-	// for now, just care 1 hotend
-	thermalManager.setTargetHotend(pre_data_.HeaterTamp[0], 0);
-
 	// waiting temperature reach target
 	thermalManager.wait_for_bed(true);
 	thermalManager.wait_for_hotend(0, true);
@@ -439,25 +436,21 @@ void PowerPanic::Resume3DP() {
 		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
 	}
 
-	current_position[E_AXIS] += 30;
-	line_to_current_position(10);
+	current_position[E_AXIS] += 20;
+	line_to_current_position(5);
 	planner.synchronize();
 
 	// try to cut out filament
 	current_position[E_AXIS] -= 6;
-	line_to_current_position(30);
-
-	// pre-extrude
-	current_position[E_AXIS] += 6;
-	line_to_current_position(10);
+	line_to_current_position(50);
 	planner.synchronize();
 
 	// absolute mode
 	relative_mode = false;
 
-	// set E to previous position
-	current_position[E_AXIS] = pre_data_.PositionData[E_AXIS];
-	planner.set_e_position_mm(current_position[E_AXIS]);
+	// E axis will be recovered in ResumeOver() using  Data.PositionData[]
+	// So put it in Data.PositionData[] in advance
+	Data.PositionData[E_AXIS] = pre_data_.PositionData[E_AXIS];
 
 	// move to target X Y
 	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);

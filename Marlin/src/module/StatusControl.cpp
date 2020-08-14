@@ -244,23 +244,14 @@ void inline StatusControl::RestoreXYZ(void) {
 }
 
 void inline StatusControl::resume_3dp(void) {
-  enable_all_steppers();
+	current_position[E_AXIS] += 20;
+	line_to_current_position(5);
+	planner.synchronize();
 
-  process_cmd_imd("G92 E0");
-
-  relative_mode = true;
-  process_cmd_imd("G0 E30 F400");
-  // retract filament to try to cut it out
-  process_cmd_imd("G0 E-6 F3600");
-  planner.synchronize();
-
-  process_cmd_imd("G0 E6 F400");
-  planner.synchronize();
-  relative_mode = false;
-
-  // restore E position
-  current_position[E_AXIS] = powerpanic.Data.PositionData[E_AXIS];
-  sync_plan_position_e();
+	// try to cut out filament
+	current_position[E_AXIS] -= 6;
+	line_to_current_position(50);
+	planner.synchronize();
 }
 
 
@@ -407,6 +398,13 @@ ErrCode StatusControl::ResumeOver() {
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
       return E_NO_FILAMENT;
     }
+    // filament has been retracted for 6mm in resume process
+    // we pre-extruder 6.5 to get better print quality
+    current_position[E_AXIS] += 6.5;
+    line_to_current_position(5);
+    planner.synchronize();
+    current_position[E_AXIS] = powerpanic.Data.PositionData[E_AXIS];
+    sync_plan_position_e();
     break;
 
   case MACHINE_TYPE_CNC:

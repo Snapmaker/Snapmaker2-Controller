@@ -1935,6 +1935,9 @@ uint32_t Stepper::stepper_block_phase_isr() {
 
     const hal_timer_t added_step_ticks = hal_timer_t(ADDED_STEP_TICKS);
 
+    // recored E stepper position when enable linear advance
+    count_position[E_AXIS] += LA_steps;
+
     // Step E stepper if we have steps
     while (LA_steps) {
 

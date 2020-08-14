@@ -75,6 +75,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
   case QS_STA_TRIGGERED:
     // need sync count position from stepper to planner
     // otherwise, it may park in unexpected position
+    current_position[E_AXIS] = planner.get_axis_position_mm(E_AXIS);
     set_current_from_steppers_for_axis(ALL_AXES);
 
     switch (source_) {
@@ -274,8 +275,8 @@ void QuickStopService::Process() {
     // logical position
     LOG_I("QS recorded pos X: %.3f, Y: %.3f, Z: %.3f, E: %.3f\n", powerpanic.Data.PositionData[X_AXIS],
         powerpanic.Data.PositionData[Y_AXIS], powerpanic.Data.PositionData[Z_AXIS], powerpanic.Data.PositionData[E_AXIS]);
-    LOG_I("QS at logical pos: X: %.3f, Y: %.3f, Z: %.3f\n", LOGICAL_X_POSITION(current_position[X_AXIS]),
-        LOGICAL_Y_POSITION(current_position[Y_AXIS]), LOGICAL_Z_POSITION(current_position[Z_AXIS]));
+    LOG_I("QS at logical pos: X: %.3f, Y: %.3f, Z: %.3f, E: %.3f\n", LOGICAL_X_POSITION(current_position[X_AXIS]),
+        LOGICAL_Y_POSITION(current_position[Y_AXIS]), LOGICAL_Z_POSITION(current_position[Z_AXIS]), current_position[E_AXIS]);
   }
 
   // parking
