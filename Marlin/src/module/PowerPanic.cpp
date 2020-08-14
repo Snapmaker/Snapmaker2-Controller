@@ -404,11 +404,6 @@ int PowerPanic::SaveEnv(void) {
 }
 
 void PowerPanic::Resume3DP() {
-
-	for (int i = 0; i < PP_FAN_COUNT; i++) {
-		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
-	}
-
 	// enable hotend
 	if(pre_data_.BedTamp > BED_MAXTEMP - 15) {
 		LOG_W("recorded bed temp [%f] is larger than %f, limited it.\n",
@@ -438,8 +433,10 @@ void PowerPanic::Resume3DP() {
 	thermalManager.wait_for_bed(true);
 	thermalManager.wait_for_hotend(0, true);
 
-	// pre-extrude
-	relative_mode = true;
+  // recover FAN speed after heating to save time
+	for (int i = 0; i < PP_FAN_COUNT; i++) {
+		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
+	}
 
 	current_position[E_AXIS] += 30;
 	line_to_current_position(10);
