@@ -421,8 +421,9 @@ void PowerPanic::Resume3DP() {
 		pre_data_.HeaterTamp[0] = 180;
 
 	thermalManager.setTargetBed(pre_data_.BedTamp);
-	thermalManager.setTargetHotend(150, 0);
-	thermalManager.wait_for_hotend(0, true);
+	thermalManager.setTargetHotend(pre_data_.HeaterTamp[0], 0);
+
+  while (thermalManager.degHotend(0) < 150) idle();
 
 	RestoreWorkspace();
 
