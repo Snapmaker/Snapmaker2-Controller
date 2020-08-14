@@ -184,7 +184,7 @@ void QuickStopService::Park() {
   switch (ExecuterHead.MachineType) {
   case MACHINE_TYPE_3DPRINT:
     if(thermalManager.temp_hotend[0].current > 180)
-      retract = 3;
+      retract = 6;
 
     // for power loss, we don't have enough time
     if (source_ == QS_SOURCE_POWER_LOSS) {
@@ -202,29 +202,29 @@ void QuickStopService::Park() {
     // move X to max position of home dir
     // move Y to max position
     if (X_HOME_DIR > 0)
-      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 50);
+      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 60);
     else
-      move_to_limited_xy(0, Y_MAX_POS, 50);
+      move_to_limited_xy(0, Y_MAX_POS, 60);
     break;
 
   case MACHINE_TYPE_LASER:
     // In the case of laser, we don't raise Z.
     if (source_ == QS_SOURCE_STOP) {
-      move_to_limited_z(Z_MAX_POS, 20);
+      move_to_limited_z(Z_MAX_POS, 30);
     }
     break;
 
   case MACHINE_TYPE_CNC:
     if (current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF > Z_MAX_POS) {
-      move_to_limited_z(Z_MAX_POS, 20);
+      move_to_limited_z(Z_MAX_POS, 30);
     } else {
-      move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 20);
+      move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 30);
       while (planner.has_blocks_queued()) {
         if (source_ != QS_SOURCE_POWER_LOSS)
           idle();
       }
       ExecuterHead.CNC.SetPower(0);
-      move_to_limited_z(Z_MAX_POS, 20);
+      move_to_limited_z(Z_MAX_POS, 30);
     }
     break;
 
