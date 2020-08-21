@@ -625,9 +625,12 @@ ErrCode LaserExecuter::GetCameraBtMAC(Event_t &event) {
   buffer[0] = ReadBluetoothMac(buffer+1);
   event.data = buffer;
 
+  // if buffer[0] is not 0, it indicates errors happened in ReadBluetoothMac()
+  // just need to send the return code to screen
   if (buffer[0] != 0) {
     event.length = 1;
   }
+  // otherwise send all data to screen 
   else {
     event.length = 7;
   }

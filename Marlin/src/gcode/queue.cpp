@@ -267,8 +267,10 @@ void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t line, uint8_t opcod
   }
 
   // ignore comment
-  if (pgcode[0] == ';')
+  if (pgcode[0] == ';') {
+    ack_gcode_event(opcode, line);
     return;
+  }
 
   // won't put comment part to queue, and limit cmd size to MAX_CMD_SIZE
   for (i = 0; i < MAX_CMD_SIZE; i++) {
@@ -282,6 +284,7 @@ void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t line, uint8_t opcod
   if (i >= MAX_CMD_SIZE) {
     hmi_command_queue[hmi_cmd_queue_index_w][MAX_CMD_SIZE - 1] = 0;
     LOG_E("line[%u] too long: %s\n", line, hmi_command_queue[hmi_cmd_queue_index_w]);
+    ack_gcode_event(opcode, line);
     return;
   }
 

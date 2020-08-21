@@ -323,7 +323,7 @@ int PowerPanic::SaveEnv(void) {
   uint8_t *pBuff;
 
   // extruders' temperature
-	HOTEND_LOOP() Data.HeaterTamp[e] = thermalManager.temp_hotend[e].target;
+	HOTEND_LOOP() Data.HeaterTemp[e] = thermalManager.temp_hotend[e].target;
 
 	LOOP_XYZ(idx) Data.position_shift[idx] = position_shift[idx];
 
@@ -411,19 +411,24 @@ void PowerPanic::Resume3DP() {
 		pre_data_.BedTamp = BED_MAXTEMP - 15;
 	}
 
-	if (pre_data_.HeaterTamp[0] > HEATER_0_MAXTEMP - 15) {
+	if (pre_data_.HeaterTemp[0] > HEATER_0_MAXTEMP - 15) {
 		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
 						pre_data_.BedTamp, HEATER_0_MAXTEMP - 15);
-		pre_data_.HeaterTamp[0] = HEATER_0_MAXTEMP - 15;
+		pre_data_.HeaterTemp[0] = HEATER_0_MAXTEMP - 15;
 	}
 
-	if (pre_data_.HeaterTamp[0] < 180)
-		pre_data_.HeaterTamp[0] = 180;
+	if (pre_data_.HeaterTemp[0] < 180)
+		pre_data_.HeaterTemp[0] = 180;
 
+	/* when recover 3DP from power-loss, maybe the filament is freezing because
+	 * nozzle has been cooling. If we raise Z in this condition, the model will
+	 * be pulled up, sometimes it will break the model.
+	 * So we heating the hotend to 150 celsius degree before raising Z
+	 */
 	thermalManager.setTargetBed(pre_data_.BedTamp);
-	thermalManager.setTargetHotend(pre_data_.HeaterTamp[0], 0);
+	thermalManager.setTargetHotend(pre_data_.HeaterTemp[0], 0);
 
-  while (thermalManager.degHotend(0) < 150) idle();
+  	while (thermalManager.degHotend(0) < 150) idle();
 
 	RestoreWorkspace();
 
@@ -431,7 +436,7 @@ void PowerPanic::Resume3DP() {
 	thermalManager.wait_for_bed(true);
 	thermalManager.wait_for_hotend(0, true);
 
-  // recover FAN speed after heating to save time
+  	// recover FAN speed after heating to save time
 	for (int i = 0; i < PP_FAN_COUNT; i++) {
 		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
 	}
@@ -444,9 +449,6 @@ void PowerPanic::Resume3DP() {
 	current_position[E_AXIS] -= 6;
 	line_to_current_position(50);
 	planner.synchronize();
-
-	// absolute mode
-	relative_mode = false;
 
 	// E axis will be recovered in ResumeOver() using  Data.PositionData[]
 	// So put it in Data.PositionData[] in advance
@@ -561,7 +563,7 @@ ErrCode PowerPanic::ResumeWork() {
 			return E_NO_FILAMENT;
 		}
 
-		LOG_I("previous target temp: hotend: %d, bed: %d\n", pre_data_.HeaterTamp[0], pre_data_.BedTamp);
+		LOG_I("previous target temp: hotend: %d, bed: %d\n", pre_data_.HeaterTemp[0], pre_data_.BedTamp);
 
 		Resume3DP();
 		break;

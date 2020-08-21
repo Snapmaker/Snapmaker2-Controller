@@ -5,7 +5,7 @@
 #include "../module/printcounter.h"
 #include "../feature/bedlevel/bedlevel.h"
 #include "../module/StatusControl.h"
-#include "../../HAL/HAL_GD32F1/HAL_watchdog_STM32F1.h"
+#include HAL_PATH(../HAL, HAL_watchdog_STM32F1.h)
 
 #define CNC_SAFE_HIGH_DIFF 30  // Bed to CNC head height. mm
 
