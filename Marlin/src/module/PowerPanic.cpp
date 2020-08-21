@@ -42,6 +42,15 @@ void PowerPanic::Init(void) {
 
 	SET_INPUT(POWER_DETECT_PIN);
 
+  if (READ(POWER_DETECT_PIN) == POWER_LOSS_STATE) {
+    LOG_E("PL: power-loss signal triggerred!\n");
+    enabled_ = false;
+    SystemStatus.SetSystemFaultBit(FAULT_FLAG_POWER_DETECT_ERR);
+  }
+  else {
+    enabled_ = true;
+  }
+
   ret = Load();
 
   // if data is invalid, tell others
@@ -314,7 +323,7 @@ int PowerPanic::SaveEnv(void) {
   uint8_t *pBuff;
 
   // extruders' temperature
-	HOTEND_LOOP() Data.HeaterTamp[e] = thermalManager.temp_hotend[e].target;
+	HOTEND_LOOP() Data.HeaterTemp[e] = thermalManager.temp_hotend[e].target;
 
 	LOOP_XYZ(idx) Data.position_shift[idx] = position_shift[idx];
 
@@ -395,11 +404,6 @@ int PowerPanic::SaveEnv(void) {
 }
 
 void PowerPanic::Resume3DP() {
-
-	for (int i = 0; i < PP_FAN_COUNT; i++) {
-		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
-	}
-
 	// enable hotend
 	if(pre_data_.BedTamp > BED_MAXTEMP - 15) {
 		LOG_W("recorded bed temp [%f] is larger than %f, limited it.\n",
@@ -407,44 +411,48 @@ void PowerPanic::Resume3DP() {
 		pre_data_.BedTamp = BED_MAXTEMP - 15;
 	}
 
-	if (pre_data_.HeaterTamp[0] > HEATER_0_MAXTEMP - 15) {
+	if (pre_data_.HeaterTemp[0] > HEATER_0_MAXTEMP - 15) {
 		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
 						pre_data_.BedTamp, HEATER_0_MAXTEMP - 15);
-		pre_data_.HeaterTamp[0] = HEATER_0_MAXTEMP - 15;
+		pre_data_.HeaterTemp[0] = HEATER_0_MAXTEMP - 15;
 	}
+
+	if (pre_data_.HeaterTemp[0] < 180)
+		pre_data_.HeaterTemp[0] = 180;
+
+	/* when recover 3DP from power-loss, maybe the filament is freezing because
+	 * nozzle has been cooling. If we raise Z in this condition, the model will
+	 * be pulled up, sometimes it will break the model.
+	 * So we heating the hotend to 150 celsius degree before raising Z
+	 */
+	thermalManager.setTargetBed(pre_data_.BedTamp);
+	thermalManager.setTargetHotend(pre_data_.HeaterTemp[0], 0);
+
+  	while (thermalManager.degHotend(0) < 150) idle();
 
 	RestoreWorkspace();
 
-	// for now, just care 1 hotend
-	thermalManager.setTargetHotend(pre_data_.HeaterTamp[0], 0);
-	thermalManager.setTargetBed(pre_data_.BedTamp);
-
 	// waiting temperature reach target
 	thermalManager.wait_for_bed(true);
-	thermalManager.wait_for_hotend(true);
+	thermalManager.wait_for_hotend(0, true);
 
-	// pre-extrude
-	relative_mode = true;
+  	// recover FAN speed after heating to save time
+	for (int i = 0; i < PP_FAN_COUNT; i++) {
+		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
+	}
 
-	current_position[E_AXIS] += 30;
-	line_to_current_position(10);
+	current_position[E_AXIS] += 20;
+	line_to_current_position(5);
 	planner.synchronize();
 
 	// try to cut out filament
 	current_position[E_AXIS] -= 6;
-	line_to_current_position(30);
-
-	// pre-extrude
-	current_position[E_AXIS] += 6;
-	line_to_current_position(10);
+	line_to_current_position(50);
 	planner.synchronize();
 
-	// absolute mode
-	relative_mode = false;
-
-	// set E to previous position
-	current_position[E_AXIS] = pre_data_.PositionData[E_AXIS];
-	planner.set_e_position_mm(current_position[E_AXIS]);
+	// E axis will be recovered in ResumeOver() using  Data.PositionData[]
+	// So put it in Data.PositionData[] in advance
+	Data.PositionData[E_AXIS] = pre_data_.PositionData[E_AXIS];
 
 	// move to target X Y
 	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
@@ -555,7 +563,7 @@ ErrCode PowerPanic::ResumeWork() {
 			return E_NO_FILAMENT;
 		}
 
-		LOG_I("previous target temp: hotend: %d, bed: %d\n", pre_data_.HeaterTamp[0], pre_data_.BedTamp);
+		LOG_I("previous target temp: hotend: %d, bed: %d\n", pre_data_.HeaterTemp[0], pre_data_.BedTamp);
 
 		Resume3DP();
 		break;
@@ -611,10 +619,6 @@ ErrCode PowerPanic::ResumeWork() {
  * disable other unused peripherals in ISR
  */
 void PowerPanic::TurnOffPower(QuickStopState sta) {
-  // these 2 statement will disable power supply for
-  // HMI, BED, and all addones except steppers
-	disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
-
 	if (sta  > QS_STA_TRIGGERED) {
 		BreathLightClose();
 
@@ -643,6 +647,11 @@ void PowerPanic::TurnOffPower(QuickStopState sta) {
 		// }
 	#endif
 	}
+  else {
+    // these 2 statement will disable power supply for
+    // HMI, BED, and all addones except steppers
+    disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+  }
 }
 
 
@@ -662,16 +671,17 @@ void PowerPanic::Reset() {
 void PowerPanic::Check(void) {
   uint8_t powerstat = READ(POWER_DETECT_PIN);
 
+  if (!enabled_)
+    return;
+
   // debounce for power loss, will delay 10ms for responce
-  if (powerstat != POWER_LOSS_STATE)
+  if (powerstat != POWER_LOSS_STATE) {
     last_powerloss_ = millis();
-  else {
-    if ((millis() - last_powerloss_) < POWERPANIC_DEBOUNCE) {
-      powerstat = POWER_NORMAL_STATE;
-		}
-		else {
-			quickstop.Trigger(QS_SOURCE_POWER_LOSS, true);
-		}
+    return;
+  }
+
+  if ((millis() - last_powerloss_) >= POWERPANIC_DEBOUNCE) {
+    quickstop.Trigger(QS_SOURCE_POWER_LOSS, true);
   }
 }
 

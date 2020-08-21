@@ -100,7 +100,11 @@ static PGM_P injected_commands_P = NULL;
 
 void queue_setup() {
   // Send "ok" after commands by default
-  for (uint8_t i = 0; i < COUNT(send_ok); i++) send_ok[i] = Screen_send_ok[i] = true;
+  for (uint8_t i = 0; i < COUNT(send_ok); i++) {
+    send_ok[i] = true;
+    // for HMI commands, won't send ok by default until receive it's command
+    Screen_send_ok[i] = false;
+  }
 }
 
 /**
@@ -237,44 +241,57 @@ void enqueue_hmi_to_marlin() {
     strcpy(command_queue[cmd_queue_index_w], hmi_command_queue[hmi_cmd_queue_index_r]);
     Screen_send_ok[cmd_queue_index_w] = true;
     Screen_send_ok_opcode[cmd_queue_index_w] = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
-    // if is not file printing, then use previous line number.
-    if(Screen_send_ok_opcode[cmd_queue_index_w] == 0x02)
-        CommandLine[cmd_queue_index_w] = INVALID_CMD_LINE;
-    else
-        CommandLine[cmd_queue_index_w] = hmi_commandline_queue[hmi_cmd_queue_index_r];
+    CommandLine[cmd_queue_index_w] = hmi_commandline_queue[hmi_cmd_queue_index_r];
     send_ok[cmd_queue_index_w] = false;
     cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
 
     hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
     hmi_commands_in_queue--;
-
     commands_in_queue++;
   }
 }
 
 
-void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t Lines, uint8_t Opcode)
+void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t line, uint8_t opcode)
 {
+  int i;
+
   // we put HMI command to Marlin queue firstly
   // to avoid jumping directly, we check the condition before call it
   if (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
     enqueue_hmi_to_marlin();
 
-  if (hmi_commands_in_queue == HMI_BUFSIZE) {
-    LOG_E("HMI gcode buffer is full, losing line: %u\n", Lines);
+  if (hmi_commands_in_queue >= HMI_BUFSIZE) {
+    LOG_E("HMI gcode buffer is full, losing line: %u\n", line);
     return;
   }
 
-  // enter buffer queue
-  strcpy(hmi_command_queue[hmi_cmd_queue_index_w], pgcode);
-  hmi_commandline_queue[hmi_cmd_queue_index_w] = Lines;
-  hmi_send_opcode_queue[hmi_cmd_queue_index_w] = Opcode;
+  // ignore comment
+  if (pgcode[0] == ';') {
+    ack_gcode_event(opcode, line);
+    return;
+  }
+
+  // won't put comment part to queue, and limit cmd size to MAX_CMD_SIZE
+  for (i = 0; i < MAX_CMD_SIZE; i++) {
+    if (pgcode[i] == '\n' || pgcode[i] == '\r' || pgcode[i] == 0 || pgcode[i] == ';') {
+      hmi_command_queue[hmi_cmd_queue_index_w][i] = 0;
+      break;
+    }
+    hmi_command_queue[hmi_cmd_queue_index_w][i] = pgcode[i];
+  }
+
+  if (i >= MAX_CMD_SIZE) {
+    hmi_command_queue[hmi_cmd_queue_index_w][MAX_CMD_SIZE - 1] = 0;
+    LOG_E("line[%u] too long: %s\n", line, hmi_command_queue[hmi_cmd_queue_index_w]);
+    ack_gcode_event(opcode, line);
+    return;
+  }
+
+  hmi_commandline_queue[hmi_cmd_queue_index_w] = line;
+  hmi_send_opcode_queue[hmi_cmd_queue_index_w] = opcode;
   hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
   hmi_commands_in_queue++;
-
-  // to avoid jumping directly, we check the condition before call it
-  if (commands_in_queue < BUFSIZE)
-    enqueue_hmi_to_marlin();
 }
 #endif
 

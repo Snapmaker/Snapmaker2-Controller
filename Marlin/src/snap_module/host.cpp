@@ -6,22 +6,19 @@
 
 #include "../libs/hex_print_routines.h"
 
-Host hmi;
-
 #define HOST_DEBUG  0
 
 #define LOG_HEAD  "HOST: "
 
-void Host::Init() {
-  nvic_irq_set_priority(HMISERIAL.c_dev()->irq_num, HMI_SERIAL_IRQ_PRIORITY);
+void Host::Init(HardwareSerial *serial, uint8_t prio) {
+  serial->begin(115200);
 
-  HMISERIAL.begin(115200);
+  nvic_irq_set_priority(serial->c_dev()->irq_num, prio);
+
+  serial_ = serial;
 
   mlock_uart_ = xSemaphoreCreateMutex();
-
   configASSERT(mlock_uart_);
-
-  task_started_ = true;
 }
 
 
@@ -39,15 +36,15 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   ErrCode   ret = E_FAILURE;
 
   // no enough bytes for one command
-  if (HMISERIAL.available() < COMMAND_PACKET_MIN_SIZE)
+  if (serial_->available() < COMMAND_PACKET_MIN_SIZE)
     return E_NO_RESRC;
 
   // ok, we have enough bytes, now find SOF
   // if no SOF in all available bytes, return with same state
   do {
-    c = HMISERIAL.read();
+    c = serial_->read();
       if (c == SOF_H) {
-        if (HMISERIAL.read() == SOF_L) {
+        if (serial_->read() == SOF_L) {
           break;
         }
         else {
@@ -62,7 +59,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   }
 
   // if it doesn't have enough bytes in UART buffer for header, just return
-  while (HMISERIAL.available() < (COMMAND_PACKET_MIN_SIZE - COMMAND_SOF_SIZE)) {
+  while (serial_->available() < (COMMAND_PACKET_MIN_SIZE - COMMAND_SOF_SIZE)) {
     vTaskDelay(portTICK_PERIOD_MS);
     if (++timeout > TIMEOUT_FOR_HEADER) {
       SERIAL_ECHOLN(LOG_HEAD "timeout to wait for PDU header");
@@ -76,7 +73,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   for (i = 2; i < (PDU_HEADER_SIZE); i++) {
     timeout = 0;
     do {
-      c = HMISERIAL.read();
+      c = serial_->read();
       if (c != -1)
         break;
       else {
@@ -109,7 +106,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   recv_chk = (uint16_t)(pdu_header_[PDU_IDX_CHKSUM_H]<<8 | pdu_header_[PDU_IDX_CHKSUM_L]);
 
   timeout = 0;
-  while (HMISERIAL.available() < length) {
+  while (serial_->available() < length) {
     vTaskDelay(DELAY_FOR_DATA);
     if (++timeout > TIMEOUT_FOR_DATA) {
       SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for data: ", length);
@@ -121,7 +118,7 @@ ErrCode Host::CheckoutCmd(uint8_t *cmd, uint16_t *size) {
   for (int i = 0; i < length; i++) {
     timeout = 0;
     do {
-      c = HMISERIAL.read();
+      c = serial_->read();
       if (c != -1)
         break;
       else {
@@ -285,10 +282,10 @@ ErrCode Host::Send(Event_t &event) {
   }
 
   for (j = 0; j < i; j++)
-    HMISERIAL.write(pdu_header[j]);
+    serial_->write(pdu_header[j]);
 
   for (int j = 0; j < event.length; j++)
-    HMISERIAL.write(event.data[j]);
+    serial_->write(event.data[j]);
 
   if (ret == pdPASS)
     xSemaphoreGive(mlock_uart_);
@@ -296,3 +293,7 @@ ErrCode Host::Send(Event_t &event) {
   return E_SUCCESS;
 }
 
+
+void Host::Flush() {
+  serial_->flush();
+}

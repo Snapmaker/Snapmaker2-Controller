@@ -1006,8 +1006,8 @@ void Temperature::manage_heater() {
         // Make sure temperature is increasing
         if (watch_hotend[e].elapsed(ms)) { // Time to check this extruder?
           if (degHotend(e) < watch_hotend[e].target) {                             // Failed to increase enough?
-            _temp_error(e, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, e));
-            //SystemStatus.ThrowException((ExceptionHost)e, ETYPE_HEAT_FAIL);
+            //_temp_error(e, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, e));
+            SystemStatus.ThrowException((ExceptionHost)e, ETYPE_HEAT_FAIL);
           }
           else                                                                 // Start again if the target is still far off
             start_watching_heater(e);

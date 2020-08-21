@@ -99,14 +99,17 @@ typedef struct {
   uint8_t *data;
 } Event_t;
 
+class HardwareSerial;
 
 class Host {
 
 public:
-  void Init();
+  void Init(HardwareSerial *serial, uint8_t prio);
   ErrCode CheckoutCmd(uint8_t *cmd, uint16_t *size);
 
   ErrCode Send(Event_t &e);
+
+  void Flush();
 
   /* local host is little ending, but big ending in PDU(protocol data unit)
    * so need to swap the bytes sequence when read / write PDU.
@@ -132,7 +135,7 @@ private:
   uint16_t CalcChecksum(uint8_t *buffer, uint16_t size);
 
 private:
-  bool task_started_ = false;
+  HardwareSerial *serial_;
 
   // buffer for checkout command
   uint8_t   pdu_header_[PDU_HEADER_SIZE];
@@ -141,7 +144,5 @@ private:
   SemaphoreHandle_t mlock_uart_ = NULL;
 
 };
-
-extern Host hmi;
 
 #endif  //#ifndef HMI_HOST_H_

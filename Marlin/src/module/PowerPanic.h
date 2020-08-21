@@ -25,7 +25,7 @@ typedef struct __attribute__((aligned (4)))
 	// checksum of this section
 	uint32_t CheckSum;
 	// temperature of extrucders
-	int16_t HeaterTamp[PP_HEATER];
+	int16_t HeaterTemp[PP_HEATER];
 	// speed of work
 	float PrintFeedRate;
 	// speed of travel
@@ -102,8 +102,10 @@ public:
 
 private:
   uint32_t WriteIndex;
-	uint32_t last_line_;
+  uint32_t last_line_;
 	millis_t last_powerloss_;
+
+  bool enabled_;
 
   int Load(void);
 

@@ -2,8 +2,13 @@
 #include "../module/ExecuterManager.h"
 #include "../module/CanModule.h"
 #include "../module/motion.h"
+#include "../snap_module/upgrade_service.h"
+#include "../libs/hex_print_routines.h"
 
 void GcodeSuite::M1005() {
+  char buffer[VERSION_STRING_SIZE];
+  int i;
+
   SERIAL_ECHOPGM(MSG_MARLIN);
   SERIAL_CHAR(' ');
   SERIAL_ECHOLNPGM(SHORT_BUILD_VERSION);
@@ -16,6 +21,16 @@ void GcodeSuite::M1005() {
   SERIAL_CHAR(' ');
   SERIAL_ECHOPGM(Version);
   SERIAL_EOL();
+
+  SERIAL_ECHOLN("Module Ver:");
+  for (int i = 0; i < CanBusControlor.ModuleCount; i++) {
+    if (CanModules.GetFirmwareVersion(BASIC_CAN_NUM, CanBusControlor.ModuleMacList[i], (char *)buffer)) {
+      SERIAL_ECHO("0x");
+      print_hex_word(CanBusControlor.ModuleMacList[i]>>16);
+      print_hex_word(CanBusControlor.ModuleMacList[i]);
+      SERIAL_ECHOLNPAIR(": ", buffer);
+    }
+  }
 
   SERIAL_ECHO("Machine Size: ");
   switch (CanModules.GetMachineSizeType()) {

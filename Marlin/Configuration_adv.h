@@ -75,7 +75,7 @@
  */
 #if ENABLED(THERMAL_PROTECTION_HOTENDS)
   #define THERMAL_PROTECTION_PERIOD 40        // Seconds
-  #define THERMAL_PROTECTION_HYSTERESIS 4     // Degrees Celsius
+  #define THERMAL_PROTECTION_HYSTERESIS 10     // Degrees Celsius
 
   //#define ADAPTIVE_FAN_SLOWING              // Slow part cooling fan if temperature drops
   #if BOTH(ADAPTIVE_FAN_SLOWING, PIDTEMP)
@@ -94,14 +94,14 @@
    * and/or decrease WATCH_TEMP_INCREASE. WATCH_TEMP_INCREASE should not be set
    * below 2.
    */
-  #define WATCH_TEMP_PERIOD 20                // Seconds
-  #define WATCH_TEMP_INCREASE 2               // Degrees Celsius
+  #define WATCH_TEMP_PERIOD   10                // Seconds
+  #define WATCH_TEMP_INCREASE 1               // Degrees Celsius
 
   #define WATCH_TEMP_TARGET_START   100
 
   #define WATCH_TEMP_DROP_DEBOUNCE  3
   #define WATCH_TEMP_DROP_PERIOD    2
-  #define WATCH_TEMP_DROP_LIMIT     10
+  #define WATCH_TEMP_DROP_LIMIT     20
   #define WATCH_TEMP_DROP_DELTA     2
 
   #define WATCH_TEMP_NOTHEATED_DEBOUNCE 4
