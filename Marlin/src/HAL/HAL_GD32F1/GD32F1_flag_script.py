@@ -20,8 +20,6 @@ if __name__ == "__main__":
                     "--specs=nosys.specs",
 
                     "-IMarlin/src/HAL/HAL_GD32F1",
-                    "-Isnapmaker/lib/GD32F1/libraries/FreeRTOS1030",
-                    "-Isnapmaker/lib/GD32F1/libraries/FreeRTOS1030/utility/include",
 
                     "-MMD",
                     "-MP",

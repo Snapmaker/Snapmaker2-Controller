@@ -32,7 +32,7 @@
 
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../../core/debug_out.h"
-#include "../../../snap_module/snap_dbg.h"
+#include "../../../snap_module/debug.h"
 #include "../../../snap_module/level_service.h"
 
 int bilinear_grid_spacing[2], bilinear_start[2];

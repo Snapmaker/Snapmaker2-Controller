@@ -1,0 +1,4 @@
+#ifndef SNAPMAKER_AIR_PURIFIER_H_
+#define SNAPMAKER_AIR_PURIFIER_H_
+
+#endif

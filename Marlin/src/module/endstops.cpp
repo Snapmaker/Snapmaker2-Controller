@@ -29,7 +29,9 @@
 
 #include "../Marlin.h"
 #include "temperature.h"
-#include "PeriphDevice.h"
+
+#include "../snapmaker/src/module/toolhead_3dp.h"
+#include "../snapmaker/src/module/linear.h"
 
 #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
   #include HAL_PATH(../HAL, endstop_interrupts.h)
@@ -78,7 +80,7 @@ volatile uint32_t Endstops::statefromcan = 0;
  */
 
 void Endstops::init() {
-  #if DISABLED(CAN_ENDSTOP_X_MIN)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_X_MIN
       #if ENABLED(ENDSTOPPULLUP_XMIN)
         SET_INPUT_PULLUP(X_MIN_PIN);
@@ -92,7 +94,7 @@ void Endstops::init() {
    statefromcan |= (1<<X_MIN);
   #endif
 
-  #if DISABLED(CAN_ENDSTOP_X2_MIN)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_X2_MIN
       #if ENABLED(ENDSTOPPULLUP_XMIN)
         SET_INPUT_PULLUP(X2_MIN_PIN);
@@ -106,7 +108,7 @@ void Endstops::init() {
    statefromcan |= (1<<X2_MIN);
   #endif
 
-  #if DISABLED(CAN_ENDSTOP_Y_MIN)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_Y_MIN
       #if ENABLED(ENDSTOPPULLUP_YMIN)
         SET_INPUT_PULLUP(Y_MIN_PIN);
@@ -120,7 +122,7 @@ void Endstops::init() {
    statefromcan |= (1<<Y_MIN);
   #endif
 
-  #if DISABLED(CAN_ENDSTOP_Y2_MIN)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_Y2_MIN
       #if ENABLED(ENDSTOPPULLUP_YMIN)
         SET_INPUT_PULLUP(Y2_MIN_PIN);
@@ -134,7 +136,7 @@ void Endstops::init() {
    statefromcan |= (1<<Y2_MIN);
   #endif
 
-  #if DISABLED(CAN_ENDSTOP_Z_MIN)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_Z_MIN
       #if ENABLED(ENDSTOPPULLUP_ZMIN)
         SET_INPUT_PULLUP(Z_MIN_PIN);
@@ -176,7 +178,7 @@ void Endstops::init() {
    statefromcan |= (1<<Z3_MIN);
   #endif
 
-  #if DISABLED(CAN_ENDSTOP_X_MAX)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_X_MAX
       #if ENABLED(ENDSTOPPULLUP_XMAX)
         SET_INPUT_PULLUP(X_MAX_PIN);
@@ -204,7 +206,7 @@ void Endstops::init() {
    statefromcan |= (1<<X2_MAX);
   #endif
 
-  #if DISABLED(CAN_ENDSTOP_Y_MAX)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_Y_MAX
       #if ENABLED(ENDSTOPPULLUP_YMAX)
         SET_INPUT_PULLUP(Y_MAX_PIN);
@@ -218,7 +220,7 @@ void Endstops::init() {
    statefromcan |= (1<<Y_MAX);
   #endif
 
-  #if DISABLED(CAN_ENDSTOP_Y2_MAX)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_Y2_MAX
       #if ENABLED(ENDSTOPPULLUP_YMAX)
         SET_INPUT_PULLUP(Y2_MAX_PIN);
@@ -442,6 +444,21 @@ static void print_es_state(const bool is_hit, PGM_P const label=NULL) {
 
 void _O2 Endstops::M119() {
   SERIAL_ECHOLNPGM(MSG_M119_REPORT);
+
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+    #define ES_REPORT_LINEAR(S) print_es_state(linear.endstop(S) == S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
+
+    ES_REPORT_LINEAR(X_MIN);
+    ES_REPORT_LINEAR(X_MAX);
+    ES_REPORT_LINEAR(Y_MIN);
+    ES_REPORT_LINEAR(Y_MAX);
+    ES_REPORT_LINEAR(Z_MIN);
+    ES_REPORT_LINEAR(Z_MAX);
+    print_es_state(READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
+    print_es_state(printer.filament_state() != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
+  #else
+
+
   #define ES_REPORT(S) print_es_state(READ(S##_PIN) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
   #define ES_REPORT_CAN(S) print_es_state(((CanModules.Endstop & _BV(S)) == 0) == S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
   #if defined(CAN_ENDSTOP_X_MIN)
@@ -517,18 +534,18 @@ void _O2 Endstops::M119() {
     ES_REPORT(Z3_MAX);
   #endif
   #if USES_Z_MIN_PROBE_ENDSTOP
-    #if defined(CAN_ZMIN_PROBE)
-      print_es_state(((CanModules.Endstop & _BV(Z_MIN_PROBE)) == 0) == Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      print_es_state(printer.probe_state() == Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
     #else
       print_es_state(READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
     #endif
   #endif
   #if HAS_FILAMENT_SENSOR
     #if NUM_RUNOUT_SENSORS == 1
-      #if DISABLED(CAN_FILAMENT1_RUNOUT)
-      print_es_state(READ(FIL_RUNOUT_PIN) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
+      #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+        print_es_state(printer.filament_state() != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
       #else
-      print_es_state(TEST(CanModules.Endstop, FILAMENT1) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
+        print_es_state(READ(FIL_RUNOUT_PIN) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
       #endif
     #else
       for (uint8_t i = 1; i <= NUM_RUNOUT_SENSORS; i++) {
@@ -559,6 +576,8 @@ void _O2 Endstops::M119() {
         #endif
       }
     #endif
+  #endif
+
   #endif
 } // Endstops::M119
 
@@ -887,8 +906,8 @@ void _O2 Endstops::M119() {
       if (!abort_enabled()) return;
     #endif
 
-    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
-    //#define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
+    //#define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
+    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear.endstop(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
     #define COPY_LIVE_STATE(SRC_BIT, DST_BIT) SET_BIT_TO(live_state, DST_BIT, TEST(live_state, SRC_BIT))
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
@@ -1326,58 +1345,6 @@ void Endstops::reinit_hit_status() {
   hit_state = 0;
   live_state = 0;
   prev_hit_state = 0;
-  // Set to untriggle temporary
-  CanModules.Endstop = 0xffffffff;
   update();
 }
 
-#if ENABLED(EXECUTER_CANBUS_SUPPORT)
-  void Endstops::CanSendAxisIndex(EndstopEnum Axis) {
-    /*
-    uint8_t Data[2];
-    char Reg[16];
-    uint32_t RegErr;
-
-    Data[0] = 0;
-    Data[1] = Axis;
-    CanBusControlor.SendData(2, CAN_IDS_SWTICH, Data, 2, &RegErr);
-    sprintf(Reg, "%08X", (unsigned int)RegErr);
-    SERIAL_ECHOLN(Reg);
-    */
-  }
-
-  void Endstops::CanPrepareAxis() {
-    millis_t tmptick;
-    
-    WRITE(X_DIR_PIN, LOW);
-    WRITE(Y_DIR_PIN, LOW);
-    WRITE(Z_DIR_PIN, LOW);
-
-    tmptick = millis() + 2000;
-    while(tmptick > millis());
-    
-    //X AXIS
-    WRITE(X_DIR_PIN, HIGH);
-    CanSendAxisIndex(X_MAX);
-    WRITE(X_DIR_PIN, LOW);
-    tmptick = millis() + 100;
-    while(tmptick > millis());
-    
-    //Y AXIS
-    WRITE(Y_DIR_PIN, HIGH);
-    CanSendAxisIndex(Y_MAX);
-    WRITE(Y_DIR_PIN, LOW);
-    tmptick = millis() + 100;
-    while(tmptick > millis());
-      
-    //Z AXIS
-    
-    WRITE(Z_DIR_PIN, HIGH);
-    CanSendAxisIndex(Z_MAX);
-    WRITE(Z_DIR_PIN, LOW);
-    tmptick = millis() + 100;
-    while(tmptick > millis());
-    //SERIAL_ECHOLN("Axis Sent!\r\n");
-    
-  }
-#endif //ENABLED(EXECUTER_CANBUS_SUPPORT)

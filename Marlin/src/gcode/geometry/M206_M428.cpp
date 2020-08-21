@@ -27,7 +27,9 @@
 #include "../gcode.h"
 #include "../../module/motion.h"
 #include "../../libs/buzzer.h"
-#include "../../module/CanModule.h"
+
+#include "../snapmaker/src/module/linear.h"
+
 /**
  * M206: Set Additional Homing Offset (X Y Z). SCARA aliases T=X, P=Y
  *
@@ -39,16 +41,16 @@ void GcodeSuite::M206() {
   LOOP_XYZ(i)
     if (parser.seen(axis_codes[i])) {
       set_home_offset((AxisEnum)i, parser.value_linear_units());
-      switch (CanModules.GetMachineSizeType()) {
-        case MACHINE_SIZE_S:
+      switch (linear.machine_size()) {
+        case MACHINE_SIZE_A150:
           s_home_offset[i] = home_offset[i];
           break;
 
-        case MACHINE_SIZE_M:
+        case MACHINE_SIZE_A250:
           m_home_offset[i] = home_offset[i];
           break;
 
-        case MACHINE_SIZE_L:
+        case MACHINE_SIZE_A350:
           l_home_offset[i] = home_offset[i];
           break;
 

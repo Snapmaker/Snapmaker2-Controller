@@ -25,22 +25,12 @@
  * 21017 Victor Perez Marlin for stm32f1 test
  */
 
-#define DEFAULT_MACHINE_NAME "GD32F105RCT6"
-#define BOARD_NAME "Marlin for GD32"
+#define DEFAULT_MACHINE_NAME "GD32F305VGT6"
+#define BOARD_NAME "Snapmaker V2.0"
 
 // Ignore temp readings during develpment.
 #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 
-
-enum BoardVer {
-  BOARD_SNAPMAKER1 = 0,
-  BOARD_SNAPMAKER2_V1,
-  BOARD_SNAPMAKER2_V2,
-
-  BOARD_INVALID
-};
-
-#define BOARD_VER     BOARD_SNAPMAKER2_V2
 
 //
 // Limit Switches

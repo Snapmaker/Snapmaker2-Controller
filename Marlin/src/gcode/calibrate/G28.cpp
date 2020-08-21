@@ -55,10 +55,11 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
-#if ENABLED(EXECUTER_MANAGER_SUPPORT)
-  #include "../../module/ExecuterManager.h"
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #include "../snapmaker/src/module/toolhead_3dp.h"
+  #include "../snapmaker/src/service/bed_level.h"
+  #include "../snapmaker/src/module/linear.h"
 #endif
-  #include "../../snap_module/level_service.h"
 
 #if ENABLED(QUICK_HOME)
 
@@ -224,9 +225,11 @@ void GcodeSuite::G28(const bool always_home_all) {
   // Wait for planner moves to finish!
   planner.synchronize();
 
-  // External Module only reply when switch status changed.
-  // Force sync status here to avoid hitting boundary because of the limit switch out of sync. 
-  CanModules.UpdateEndstops();
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+    // External Module only reply when switch status changed.
+    // Force sync status here to avoid hitting boundary because of the limit switch out of sync. 
+    linear.PollEndstop(LINEAR_AXIS_ALL);
+  #endif
 
   // Disable the leveling matrix before homing
   #if HAS_LEVELING
@@ -440,10 +443,12 @@ void GcodeSuite::G28(const bool always_home_all) {
     //Always set bed leveling active after home all axis when in 3dprint mode
   #endif
 
-  if((MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) && (all_axes_homed())) {
-    set_bed_leveling_enabled(true);
-    levelservice.ApplyLiveZOffset();
-  }
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+    if(printer.IsOnline() && (all_axes_homed())) {
+      set_bed_leveling_enabled(true);
+      levelservice.ApplyLiveZOffset();
+    }
+  #endif
 
   clean_up_after_endstop_or_probe_move();
 

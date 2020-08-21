@@ -28,7 +28,7 @@
 #include <src/module/endstops.h>
 #include <src/module/configuration_store.h>
 
-#include "../../snap_module/snap_dbg.h"
+#include "../../snap_module/debug.h"
 
 /**
  * G29.cpp - Auto Bed Leveling

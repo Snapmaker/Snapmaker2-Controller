@@ -48,3 +48,5 @@
 #include "../core/utility.h"
 #include "../core/serial.h"
 #include "../core/minmax.h"
+
+#include "../../../snapmaker/src/snapmaker.h"

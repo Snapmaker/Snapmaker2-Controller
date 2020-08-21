@@ -418,7 +418,7 @@
   #include "pins_MORPHEUS.h"          // STM32F1                                    env:STM32F1
 #elif MB(MKS_ROBIN)
   #include "pins_MKS_ROBIN.h"         // STM32F1                                    env:STM32F1
-#elif MB(GD32F1R)
+#elif MB(SNAPMAKER_2_0)
   #include "pins_GD32F1.h"
 
 //

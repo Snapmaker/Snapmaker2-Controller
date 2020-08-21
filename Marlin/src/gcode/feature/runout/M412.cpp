@@ -45,7 +45,7 @@ void GcodeSuite::M412() {
     if (seenS) {
       if (!parser.value_bool()) {
         if (runout.enabled) {
-          SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_FILAMENT);
+          systemservice.ClearExceptionByFaultFlag(FAULT_FLAG_FILAMENT);
           runout.enabled = false;
         }
       }

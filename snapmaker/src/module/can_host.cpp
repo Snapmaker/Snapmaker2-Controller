@@ -1,0 +1,730 @@
+#include "can_host.h"
+#include "../common/debug.h"
+
+#define CAN_CHANNEL_MASK      (0x3)
+#define CAN_CHANNEL_SHIFT     (10)
+#define CAN_CHANNEL(val)  ((val&CAN_CHANNEL_MASK)>>CAN_CHANNEL_SHIFT);
+
+#define CAN_MESSAGE_ID_MASK   (0x1FF)
+#define CAN_MESSAGE_ID_SHIFT  (0)
+#define CAN_MESSAGE_ID(val)   ((val&CAN_MESSAGE_ID_MASK)>>CAN_MESSAGE_ID_SHIFT)
+
+
+#define CAN_HIGHEST_PRIO_MASSAGE_SIZE (10)
+#define CAN_HIGH_PRIO_MASSAGE_SIZE    (15)
+#define CAN_MEDIUM_PRIO_MASSAGE_SIZE  (25)
+#define CAN_LOW_PRIO_MASSAGE_SIZE     (35)
+
+// parameters for creating task
+#define CAN_EVENT_HANDLER_PRIORITY    (2)
+#define CAN_EVENT_HANDLER_STACK_DEPTH (256)
+
+#define CAN_RECEIVE_HANDLER_PRIORITY    (1)
+#define CAN_RECEIVE_HANDLER_STACK_DEPTH (100)
+
+CanHost canhost;
+
+/**
+ * IRQ callback for can channel, to handle emergent message,
+ * such as endstop state from linear module
+ * Parameter:
+ *  message_id  - message id from CAN ID field
+ *  cmd         - command buffer
+ *  length      - command length
+ * Return:
+ *  true        - message is handled
+ *  false       - message is not handled
+ */
+static bool CANIrqCallback(CanStdDataFrame_t &frame) {
+  if (frame.id.bits.msg_id >= CAN_HIGHEST_PRIO_MASSAGE_SIZE)
+    return false;
+
+  return canhost.IrqCallback(frame);
+}
+
+
+bool CanHost::IrqCallback(CanStdDataFrame_t &frame) {
+  if (!map_message_function_[frame.id.bits.msg_id].cb)
+    return false;
+
+  map_message_function_[frame.id.bits.msg_id].cb(frame.data, frame.id.bits.length);
+
+  return true;
+}
+
+
+static void TaskEventHandler(void *p) {
+  canhost.EventHandler(p);
+}
+
+
+static void TaskReceiveHandler(void *p) {
+  canhost.ReceiveHandler(p);
+}
+
+
+ErrCode CanHost::Init() {
+  int i;
+  BaseType_t ret;
+
+  for (i = 0; i < MODULE_SUPPORT_MESSAGE_ID_MAX; i++) {
+    map_message_function_[i].cb       = 0;
+    map_message_function_[i].function.id = MODULE_FUNCTION_ID_INVALID;
+  }
+  total_message_id_ = 0;
+
+  for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
+    mac_[i].val = 0;
+  }
+  total_mac_ = 0;
+
+  // init parameters for standard command
+  std_cmd_q_ = xMessageBufferCreate(CAN_STD_CMD_QUEUE_SIZE * CAN_STD_CMD_ELEMENT_SIZE);
+  configASSERT(std_cmd_q_);
+
+  for (i = 0; i < CAN_STD_WAIT_QUEUE_MAX; i++) {
+    std_wait_q_[i].message = MODULE_MESSAGE_ID_INVALID;
+    std_wait_q_[i].queue  = xMessageBufferCreate(CAN_STD_CMD_ELEMENT_SIZE);
+    configASSERT(std_wait_q_[i].queue);
+  }
+  std_wait_lock_ = xSemaphoreCreateMutex();
+
+
+  ext_cmd_q_ = xMessageBufferCreate(CAN_EXT_CMD_QUEUE_SIZE);
+  configASSERT(ext_cmd_q_);
+
+  // alloc continuous memory for the temp buffer of parser
+  parser_buffer_  = (uint8_t *)pvPortMalloc(520);
+  configASSERT(parser_buffer_);
+
+  package_buffer_ = (uint8_t *)pvPortMalloc(1024);
+  configASSERT(package_buffer_);
+
+  ext_wait_q_.cmd     = 0;
+  ext_wait_q_.mac.val = MODULE_MAC_ID_INVALID;
+  ext_wait_q_.queue  = xMessageBufferCreate(CAN_EXT_CMD_QUEUE_SIZE);
+  ext_wait_lock_      = xSemaphoreCreateMutex();
+
+  can.Init(CANIrqCallback);
+
+  CanPacket_t pkt = {CAN_CH_2, CAN_FRAME_EXT_REMOTE, 0x01, 0, 0};
+  can.Write(pkt);
+  // delay 1s, to get all mac form CAN2
+
+  pkt.ch = CAN_CH_1;
+  can.Write(pkt);
+
+  ret = xTaskCreate(TaskReceiveHandler, "can_recv_handler", CAN_RECEIVE_HANDLER_PRIORITY,
+        NULL, CAN_RECEIVE_HANDLER_STACK_DEPTH, NULL);
+  if (ret != pdPASS) {
+    LOG_E("failt to create can event handler!\n");
+    while(1);
+  }
+  else {
+    LOG_I("success to create marlin task!\n");
+  }
+
+  ret = xTaskCreate(TaskEventHandler, "can_event_handler", CAN_EVENT_HANDLER_STACK_DEPTH,
+        NULL, CAN_EVENT_HANDLER_PRIORITY, NULL);
+  if (ret != pdPASS) {
+    LOG_E("failt to create can event handler!\n");
+    while(1);
+  }
+  else {
+    LOG_I("success to create marlin task!\n");
+  }
+}
+
+
+message_id_t CanHost::GetMessageID(func_id_t function_id, uint8_t sub_index) {
+  // search redblack tree by function_id
+  for (int i = 0; i < MODULE_SUPPORT_MESSAGE_ID_MAX; i++) {
+    if (map_message_function_[i].function.id == function_id &&
+        map_message_function_[i].function.sub_index == sub_index)
+      return i;
+  }
+
+  return MODULE_MESSAGE_ID_INVALID;
+}
+
+
+ErrCode CanHost::SendStdCmd(CanStdMesgCmd_t &message) {
+  CanPacket_t  packet;
+
+  if (message.id > MODULE_SUPPORT_CONNECTED_MAX)
+    return E_PARAM;
+
+  if (map_message_function_[message.id].function.id == MODULE_FUNCTION_ID_INVALID)
+    return E_NO_RESRC;
+
+  packet.ch = (CanChannelNumber)map_message_function_[message.id].function.channel;
+  packet.id = message.id;
+
+  packet.ft     = CAN_FRAME_STD_DATA;
+  packet.data   = message.data;
+  packet.length = message.length;
+
+  return can.Write(packet);
+}
+
+
+ErrCode CanHost::SendStdCmd(CanStdFuncCmd_t &function, uint8_t sub_index) {
+  CanPacket_t  packet;
+  message_id_t msg_id;
+
+  if ((msg_id = GetMessageID(function.id, sub_index)) == MODULE_MESSAGE_ID_INVALID)
+    return E_PARAM;
+
+  packet.ch = (CanChannelNumber)map_message_function_[msg_id].function.channel;
+  packet.id = msg_id;
+
+  packet.ft     = CAN_FRAME_STD_DATA;
+  packet.data   = function.data;
+  packet.length = function.length;
+
+  return can.Write(packet);
+}
+
+
+ErrCode CanHost::SendStdCmdSync(CanStdFuncCmd_t &cmd, uint32_t timeout_ms, uint8_t retry, uint8_t sub_index) {
+  ErrCode  ret;
+  uint16_t tmp_u16;
+  int      i;
+
+  if ((tmp_u16 = GetMessageID(cmd.id, sub_index)) == MODULE_MESSAGE_ID_INVALID)
+    return E_PARAM;
+
+  xSemaphoreTake(std_wait_lock_, 0);
+  for (i = 0; i < CAN_STD_WAIT_QUEUE_MAX; i++) {
+    // check if we have free node in wait queue
+    if (std_wait_q_[i].message == MODULE_MESSAGE_ID_INVALID) {
+      // got free node, for std message, give it unified MAC
+      std_wait_q_[i].message = tmp_u16;
+      break;
+    }
+  }
+  xSemaphoreGive(std_wait_lock_);
+
+  ret = SendStdCmd(cmd, sub_index);
+  if (ret != E_SUCCESS) {
+    goto out;
+  }
+
+  tmp_u16 = xMessageBufferReceive(std_wait_q_[i].queue, cmd.data, CAN_STD_CMD_ELEMENT_SIZE - 2, timeout_ms *portTICK_PERIOD_MS);
+
+  if (!tmp_u16) {
+    ret = E_TIMEOUT;
+    goto out;
+  }
+
+  cmd.length = tmp_u16;
+
+out:
+  // release node of wait queue
+  xSemaphoreTake(std_wait_lock_, 0);
+
+  std_wait_q_[i].message = MODULE_MESSAGE_ID_INVALID;
+
+  xSemaphoreGive(std_wait_lock_);
+
+  return ret;
+}
+
+
+ErrCode CanHost::SendExtCmd(CanExtCmd_t &cmd) {
+  CanPacket_t packet;
+
+  packet.data = package_buffer_;
+
+  if (proto_sstp_.Package(cmd.data, packet.data, cmd.length) != E_SUCCESS)
+    return E_FAILURE;
+
+  packet.length = cmd.length;
+  packet.id     = cmd.mac.bits.id;
+  packet.ch     = (CanChannelNumber)cmd.mac.bits.channel;
+  packet.ft     = CAN_FRAME_EXT_DATA;
+
+  return can.Write(packet);
+}
+
+
+ErrCode CanHost::SendExtCmdSync(CanExtCmd_t &cmd, uint32_t timeout_ms, uint8_t retry) {
+  ErrCode   ret = E_SUCCESS;
+  uint16_t tmp_u16;
+
+  xSemaphoreTake(ext_wait_lock_, 0);
+    // check if we have free node in wait queue
+    if (ext_wait_q_.mac.val == MODULE_MAC_ID_INVALID) {
+      // got free node, set the mac to make it be used
+      ext_wait_q_.mac.bits.id = cmd.mac.bits.id;
+      // ack = req + 1
+      ext_wait_q_.cmd = cmd.data[MODULE_EXT_CMD_INDEX_ID] + 1;
+    }
+    else {
+      xSemaphoreGive(ext_wait_lock_);
+      return E_NO_RESRC;
+    }
+  xSemaphoreGive(ext_wait_lock_);
+
+  // no free node in wait queue
+  for (;;) {
+    ret = SendExtCmd(cmd);
+    if (ret != E_SUCCESS && !(--retry))
+      goto out;
+    else
+      break;
+  }
+
+  // just receive data field
+  tmp_u16 = xMessageBufferReceive(ext_wait_q_.queue, cmd.data, CAN_EXT_CMD_QUEUE_SIZE, timeout_ms * portTICK_PERIOD_MS);
+
+  if (!tmp_u16) {
+    ret = E_TIMEOUT;
+    goto out;
+  }
+
+  cmd.length = tmp_u16;
+
+out:
+  // release node of wait queue
+  xSemaphoreTake(ext_wait_lock_, 0);
+  ext_wait_q_.mac.val = MODULE_MAC_ID_INVALID;
+  xSemaphoreGive(ext_wait_lock_);
+
+  return ret;
+}
+
+
+ErrCode CanHost::WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms) {
+  uint16_t tmp_u16;
+  ErrCode  ret;
+  MAC_t    mac;
+  uint8_t  cmd_id;
+  
+  if (!cmd.data)
+    return E_PARAM;
+
+  cmd_id = cmd.data[MODULE_EXT_CMD_INDEX_DATA];
+
+  for (;;) {
+    // handle extended command secondly
+    tmp_u16 = xMessageBufferReceive(ext_cmd_q_, cmd.data, CAN_EXT_CMD_QUEUE_SIZE, timeout_ms * portTICK_PERIOD_MS);
+    if (!tmp_u16)
+      break;
+    
+    tmp_u16 = xMessageBufferReceive(ext_cmd_q_, &mac, 4, timeout_ms * portTICK_PERIOD_MS);
+    if (tmp_u16 != 4)
+      continue;
+
+    if (cmd.mac.bits.id != mac.bits.id || cmd.data[MODULE_EXT_CMD_INDEX_DATA] != cmd_id)
+      continue;
+    
+    return E_SUCCESS;
+  }
+
+  return E_TIMEOUT;
+}
+
+
+/* To check if we got new event form CAN ISR
+ * This function should be put in a independent task
+ *
+ */
+ErrCode CanHost::ReceiveHandler(void *parameter) {
+  uint8_t std_message[CAN_STD_CMD_ELEMENT_SIZE];
+  MAC_t   mac;
+
+  uint16_t tmp_u16;
+
+  MessageBufferHandle_t tmp_q;
+
+  int i;
+
+  // read all mac
+  while (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {
+    InitModules(mac);
+  }
+
+
+  for (;;) {
+    // 1. check MAC if we have new module plugged
+    if (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {
+      InitModules(mac);
+    }
+
+    // 2. check Std command
+    if (can.Read(CAN_FRAME_STD_DATA, std_message, CAN_STD_CMD_ELEMENT_SIZE) == CAN_STD_CMD_ELEMENT_SIZE) {
+      // check if there is some one is wait for this message
+      tmp_u16 = std_message[0]<<8 | std_message[1];
+
+      xSemaphoreTake(std_wait_lock_, 0);
+      for (i = 0; i < CAN_STD_WAIT_QUEUE_MAX; i++) {
+        if (std_wait_q_[i].message == tmp_u16) {
+          tmp_q = std_wait_q_[i].queue;
+          break;
+        }
+      }
+      xSemaphoreGive(std_wait_lock_);
+
+      if (i >= CAN_STD_WAIT_QUEUE_MAX) {
+        // send message to EventHandler()
+        xMessageBufferSend(std_cmd_q_, std_message, CAN_STD_CMD_ELEMENT_SIZE, 100 * portTICK_PERIOD_MS);
+      }
+      else {
+        // send message to SendStdMessageSync(), skip message id, which is the 2 bytes in begining
+        xMessageBufferSend(tmp_q, std_message+2, CAN_STD_CMD_ELEMENT_SIZE - 2, 100 * portTICK_PERIOD_MS);
+      }
+    }
+
+    // 3. check extended command
+    if (proto_sstp_.Parse(can.ext_cmd(), parser_buffer_, tmp_u16) == E_SUCCESS) {
+      // if we got a complete command in the ring buffer, one MAC id will be in the following 4 bytes
+      // need to check it out, then we know who send us the command
+      can.ext_cmd().RemoveMulti((uint8_t *)&mac, 4);
+      tmp_q = NULL;
+      xSemaphoreTake(ext_wait_lock_, 0);
+      // check if there is some one is wait for this ack
+      if (ext_wait_q_.mac.val != MODULE_MAC_ID_INVALID) {
+        // got free node, set the mac to make it be used
+        if (ext_wait_q_.mac.bits.id == mac.bits.id &&
+            ext_wait_q_.cmd == parser_buffer_[MODULE_EXT_CMD_INDEX_ID])
+          tmp_q = ext_wait_q_.queue;
+      }
+      xSemaphoreGive(ext_wait_lock_);
+
+      if (!tmp_q) {
+        // send message to EventHandler()
+        xMessageBufferSend(ext_cmd_q_, parser_buffer_, tmp_u16, 100 * portTICK_PERIOD_MS);
+        xMessageBufferSend(ext_cmd_q_, &mac, 4, 100 * portTICK_PERIOD_MS);
+      }
+      else {
+        // send message to SendExtMessageSync(), just send data field, because it knows the event id and opcode
+        xMessageBufferSend(tmp_q, parser_buffer_, tmp_u16, 100 * portTICK_PERIOD_MS);
+      }
+    }
+  }
+}
+
+
+/* To handle async event from ReceiveHandler()
+ * This function should be perfromed in a independent task
+ * */
+ErrCode CanHost::EventHandler(void *parameter) {
+  uint8_t  std_buffer[CAN_STD_CMD_ELEMENT_SIZE];
+  uint16_t length = 0;
+  MAC_t    mac;
+
+  for (;;) {
+    for (;;) {
+      // check if we got standard command from modules
+      length = xMessageBufferReceive(std_cmd_q_, std_buffer, CAN_STD_CMD_ELEMENT_SIZE, 0);
+      if (!length)
+        break;
+
+      // check if someone register callback for this message
+      uint16_t message_id = std_buffer[0]<<8 |std_buffer[1];
+      if (map_message_function_[message_id].cb) {
+        map_message_function_[message_id].cb(std_buffer, length);
+      }
+
+      // if no callback, maybe need to send it to screen?
+    }
+
+    // for (;;) {
+    //   // handle extended command secondly
+    //   length = xMessageBufferReceive(ext_cmd_q_, ext_cmd, CAN_EXT_CMD_QUEUE_SIZE, 0);
+    //   if (!length)
+    //     break;
+    //   xMessageBufferReceive(ext_cmd_q_, &mac, 4, 0);
+
+
+    // }
+
+    for (int i = 0; static_modules[i] != NULL; i++)
+      static_modules[i]->Process();
+
+    vTaskDelay(portTICK_PERIOD_MS);
+  }
+}
+
+
+ErrCode CanHost::AssignMessageRegion() {
+  uint8_t prio_of_function;
+  uint8_t total_of_same_function;
+
+  uint16_t total_message;
+
+  for (int i = 0; i < MODULE_FUNC_MAX; i++) {
+    prio_of_function       = module_prio_table[i][0];
+    total_of_same_function = module_prio_table[i][1];
+
+    message_region_[prio_of_function][0] += total_of_same_function;
+  }
+
+  message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0] += MODULE_SPARE_MESSAGE_ID_EMERGENT;
+  message_region_[MODULE_FUNC_PRIORITY_HIGH][0]     += MODULE_SPARE_MESSAGE_ID_HIGH;
+  message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0]   += MODULE_SPARE_MESSAGE_ID_MEDIUM;
+
+  for (int i = 0; i < MODULE_FUNC_PRIORITY_MAX; i++) {
+    total_message += message_region_[i][0];
+  }
+
+  if (total_message >= MODULE_SUPPORT_MESSAGE_ID_MAX)
+    return E_NO_RESRC;
+  else
+    return E_SUCCESS;
+}
+
+
+ErrCode CanHost::InitModules(MAC_t &mac) {
+  int      i;
+  ErrCode  ret;
+  uint16_t device_id = MODULE_GET_DEVICE_ID(mac.val);
+
+  if (total_mac_ >= MODULE_SUPPORT_CONNECTED_MAX)
+    return E_NO_RESRC;
+
+  // check if we have two same mac in system
+  // this situation is not supported
+  for (i = 0; i < total_mac_; i++) {
+    if (mac.bits.id == mac_[i].bits.id) {
+      if (mac_[i].bits.configured == 0)
+        return E_HARDWARE;
+      else
+        return BindMessageID(mac, i);
+    }
+  }
+
+  // check if it is static modules then init it
+  for (i = 0; static_modules[i] != NULL; i++) {
+    if (static_modules[i]->device_id() == device_id) {
+      ret = static_modules[i]->Init(mac, total_mac_);
+      if (ret != E_SUCCESS)
+        return ret;
+
+      mac.bits.type = MODULE_TYPE_STATIC;
+      goto out;
+    }
+  }
+
+  // it is dynamic modules
+  ret = InitDynamicModule(mac, total_mac_);
+  if (ret != E_SUCCESS)
+    return ret;
+
+out:
+  mac.bits.configured = 1;
+
+  // record this mac
+  mac_[total_mac_++] = mac;
+
+  return E_SUCCESS;
+}
+
+
+// void CanHost::ConfigModules() {
+//   int i;
+
+//   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
+//     if (mac_[i].val == MODULE_MAC_ID_INVALID)
+//       break;
+
+//     Config(mac_[i], i);
+
+//     // module is online only it get relative meesage id(s)
+//     mac_[i].bits.online = 1;
+//   }
+// }
+
+
+// ErrCode CanHost::ConfigModule(MAC_t &mac, uint8_t mac_index) {
+//   int      i;
+//   uint16_t device_id = MODULE_GET_DEVICE_ID(mac.val);
+
+//   if (mac.bits.type == MODULE_TYPE_STATIC) {
+//     for (i = 0; static_modules[i] != NULL; i++) {
+//       if (static_modules[i]->device_id == device_id) {
+//         return static_modules[i]->Config(mac, mac_index);
+//       }
+//     }
+//   }
+
+//   return ConfigDynamicModule(mac);
+// }
+
+
+ErrCode CanHost::InitDynamicModule(MAC_t &mac, uint8_t mac_index) {
+  CanExtCmd_t cmd;
+  uint8_t     func_buffer[32];
+
+  Function_t   function;
+  message_id_t message_id[12];
+
+  int i;
+
+  cmd.mac    = mac;
+  cmd.data   = func_buffer;
+  cmd.length = 1;
+
+  cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_GET_FUNCID_REQ;
+
+  // try to get function ids from module
+  if (SendExtCmdSync(cmd, 500, 2) != E_SUCCESS)
+    return E_FAILURE;
+
+  function.channel   = cmd.mac.bits.channel;
+  function.sub_index = 0;
+  function.mac_index = mac_index;
+
+  // register function ids to can host, it will assign message id
+  for (i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
+    function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
+    // for other functions in linear module, no callback for them
+    message_id[i] = RegisterFunction(function, NULL);
+  }
+
+  return BindMessageID(func_buffer, message_id);
+}
+
+
+/* bind message id to modules's function
+ *
+ */
+ErrCode CanHost::BindMessageID(uint8_t *func_buffer, message_id_t *msg_buffer) {
+  CanExtCmd_t cmd;
+  uint8_t     map_buffer[MODULE_FUNCTION_MAX_IN_ONE*4 + 2];
+
+  int i;
+
+  // set message id for functions in linear modules
+  map_buffer[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_SET_MESG_ID_REQ;
+  map_buffer[MODULE_EXT_CMD_INDEX_DATA] = func_buffer[MODULE_EXT_CMD_INDEX_DATA];
+
+  for (i = 0; i < func_buffer[MODULE_EXT_CMD_INDEX_DATA]; i++) {
+    map_buffer[4*i + 2] = msg_buffer[i]>>8;
+    map_buffer[4*i + 3] = msg_buffer[i] & 0x00FF;
+    map_buffer[4*i + 4] = func_buffer[2*i + 2];
+    map_buffer[4*i + 5] = func_buffer[2*i + 3];
+  }
+
+  cmd.data = map_buffer;
+  cmd.length = 4*i + 2;
+
+  return SendExtCmd(cmd);
+}
+
+
+ErrCode CanHost::BindMessageID(MAC_t &mac, uint8_t mac_index) {
+  CanExtCmd_t cmd;
+  uint8_t     func_buffer[MODULE_FUNCTION_MAX_IN_ONE*2 + 2];
+
+  func_id_t    function_id;
+  message_id_t message_id[MODULE_FUNCTION_MAX_IN_ONE] = { MODULE_MESSAGE_ID_INVALID };
+
+  int i;
+
+  cmd.mac    = mac;
+  cmd.data   = func_buffer;
+  cmd.length = 1;
+
+  cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_GET_FUNCID_REQ;
+
+  // try to get function ids from module
+  if (SendExtCmdSync(cmd, 500, 2) != E_SUCCESS)
+    return E_FAILURE;
+
+
+  if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] > MODULE_FUNCTION_MAX_IN_ONE)
+    cmd.data[MODULE_EXT_CMD_INDEX_DATA] = MODULE_FUNCTION_MAX_IN_ONE;
+
+  // register function ids to can host, it will assign message id
+  for (i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
+    function_id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
+
+    // search by function_id and mac_index
+    for (int msg_id = 0; msg_id < MODULE_SUPPORT_MESSAGE_ID_MAX; msg_id++) {
+      if (map_message_function_[msg_id].function.id == function_id &&
+          map_message_function_[msg_id].function.mac_index == mac_index)
+        message_id[i] = msg_id;
+    }
+  }
+
+  return BindMessageID(func_buffer, message_id);
+}
+
+
+message_id_t CanHost::RegisterFunction(Function_t &function, CanStdCmdCallback_t callback) {
+  int start, end;
+
+  if (function.priority == MODULE_FUNC_PRIORITY_DEFAULT) {
+    if (function.id < MODULE_FUNC_MAX)
+      function.priority = module_prio_table[function.id][0];
+    else
+      function.priority = MODULE_FUNC_PRIORITY_LOW;
+  }
+
+  switch (function.priority) {
+  case MODULE_FUNC_PRIORITY_EMERGENT:
+    start = 0;
+    end   = message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0];
+    break;
+
+  case MODULE_FUNC_PRIORITY_HIGH:
+    start = message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0];
+    end   = message_region_[MODULE_FUNC_PRIORITY_HIGH][0];
+    break;
+
+  case MODULE_FUNC_PRIORITY_MEDIUM:
+    start = message_region_[MODULE_FUNC_PRIORITY_HIGH][0];
+    end   = message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0];
+    break;
+
+  case MODULE_FUNC_PRIORITY_LOW:
+    start = message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0];
+    end   = MODULE_SUPPORT_MESSAGE_ID_MAX;
+    break;
+
+  default:
+    return MODULE_MESSAGE_ID_INVALID;
+    break;
+  }
+
+  for (; start < end; start++) {
+    if (map_message_function_[start].function.id == MODULE_FUNCTION_ID_INVALID) {
+      goto assign_message_id;
+    }
+  }
+
+  return MODULE_MESSAGE_ID_INVALID;
+
+assign_message_id:
+  map_message_function_[start].function = function;
+  map_message_function_[start].cb = callback;
+
+  message_region_[function.priority][1]++;
+
+  return (message_id_t)start;
+}
+
+
+ErrCode CanHost::UpgradeModules(uint32_t fw_addr, uint32_t length) {
+  int   i;
+
+  // upgrade dynamic modules
+  for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
+
+    // to the end of mac
+    if (mac_[i].val == MODULE_MAC_ID_INVALID)
+      break;
+
+    if (!mac_[i].bits.configured)
+      continue;
+    
+    if (MODULE_GET_DEVICE_ID(mac_[i].val) >= MODULE_DEVICE_ID_INVALID)
+      continue;
+
+    ModuleBase::Upgrade(mac_[i], fw_addr, length);
+  }
+
+  return E_SUCCESS;
+}

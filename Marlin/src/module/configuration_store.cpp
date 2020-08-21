@@ -1980,7 +1980,7 @@ void MarlinSettings::postprocess() {
       return _load();
     }
     else {
-      SystemStatus.ThrowException(EHOST_MC, ETYPE_LOST_CFG);
+      system.ThrowException(EHOST_MC, ETYPE_LOST_CFG);
       reset();
       save();
       return true;

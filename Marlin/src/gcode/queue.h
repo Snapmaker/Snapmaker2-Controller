@@ -73,12 +73,6 @@ void clear_command_queue();
 void flush_and_request_resend();
 
 /**
- * Check if the command came from HMI
- * return: true or false
- */
-bool ok_to_HMI();
-
-/**
  * Send an "ok" message to the host, indicating
  * that a command was successfully processed.
  *

@@ -29,11 +29,11 @@
 #include "../module/printcounter.h"
 #include "../module/stepper.h"
 #include "../gcode/queue.h"
-#include "../module/PeriphDevice.h"
 #include "../module/endstops.h"
-#include "../module/CanModule.h"
 #include "../inc/MarlinConfig.h"
-#include "../module/StatusControl.h"
+
+#include "../snapmaker/src/module/toolhead_3dp.h"
+#include "../snapmaker/src/service/system.h"
 
 #if ENABLED(EXTENSIBLE_UI)
   #include "../lcd/extensible_ui/ui_api.h"
@@ -96,8 +96,8 @@ class TFilamentMonitor : public FilamentMonitorBase {
 
     // Give the response a chance to update its counter.
     static inline void run() {
-      uint32_t fault = SystemStatus.GetFaultFlag();
-      if (enabled && !filament_ran_out && SystemStatus.GetCurrentStage() == SYSTAGE_WORK) {
+      uint32_t fault = systemservice.GetFaultFlag();
+      if (enabled && !filament_ran_out && systemservice.GetCurrentStage() == SYSTAGE_WORK) {
         #if FILAMENT_RUNOUT_DISTANCE_MM > 0
           cli(); // Prevent RunoutResponseDelayed::block_completed from accumulating here
         #endif
@@ -119,7 +119,7 @@ class TFilamentMonitor : public FilamentMonitorBase {
           // delay 1s to clear
           if (millis() - ranout_timer > 0) {
             filament_ran_out = false;
-            SystemStatus.ClearExceptionByFaultFlag(FAULT_FLAG_FILAMENT);
+            systemservice.ClearExceptionByFaultFlag(FAULT_FLAG_FILAMENT);
           }
         }
       }
@@ -152,7 +152,7 @@ class FilamentSensorBase {
         #define INIT_RUNOUT_PIN(P) SET_INPUT(P)
       #endif
 
-      #if DISABLED(CAN_FILAMENT1_RUNOUT)
+      #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
         INIT_RUNOUT_PIN(FIL_RUNOUT_PIN);
       #endif
 
@@ -186,10 +186,10 @@ class FilamentSensorBase {
     // Return a bitmask of runout pin states
     static inline uint8_t poll_runout_pins() {
       return (
-        #if DISABLED(CAN_FILAMENT1_RUNOUT)
+        #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
           (READ(FIL_RUNOUT_PIN ) ? _BV(0) : 0)
         #else
-          (TEST(CanModules.Endstop, FILAMENT1)? _BV(0):0)
+          (printer.filament_state()? _BV(0):0)
         #endif
         #if NUM_RUNOUT_SENSORS > 1
           #if DISABLED(CAN_FILAMENT2_RUNOUT)

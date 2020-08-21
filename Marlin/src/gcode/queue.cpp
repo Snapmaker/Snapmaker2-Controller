@@ -31,7 +31,7 @@
 #include "../module/temperature.h"
 #include "../Marlin.h"
 #include "../module/StatusControl.h"
-#include "../snap_module/snap_dbg.h"
+#include "../snap_module/debug.h"
 #include "../snap_module/event_handler.h"
 
 #if ENABLED(PRINTER_EVENT_LEDS)
@@ -64,13 +64,6 @@ uint8_t commands_in_queue = 0, // Count of commands in the queue
         cmd_queue_index_w = 0; // Ring buffer write position
 
 char command_queue[BUFSIZE][MAX_CMD_SIZE];
-
-uint8_t hmi_commands_in_queue = 0,
-        hmi_cmd_queue_index_r = 0,
-        hmi_cmd_queue_index_w = 0;
-char hmi_command_queue[HMI_BUFSIZE][MAX_CMD_SIZE];
-uint8_t hmi_send_opcode_queue[HMI_BUFSIZE];
-uint32_t hmi_commandline_queue[HMI_BUFSIZE];
 
 /*
  * The port that the command was received on
@@ -224,101 +217,6 @@ void enqueue_and_echo_commands_P(PGM_P const pgcode) {
 #endif
 
 /**
- *SC20 queue the gcdoe
- *para pgcode:the pointer to the gcode
- *para Lines:the line position of the gcode in the file
- *para Opcode:operation code
- * execution guaranteed
- */
-#if ENABLED(HMI_SC20W)
-void enqueue_hmi_to_marlin() {
-
-  // guaranteed buffer available, shouldn't be missed, or screen status won't sync.
-  // fetch as much command as possible
-  while (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
-  {
-    // fetch from buffer queue
-    strcpy(command_queue[cmd_queue_index_w], hmi_command_queue[hmi_cmd_queue_index_r]);
-    Screen_send_ok[cmd_queue_index_w] = true;
-    Screen_send_ok_opcode[cmd_queue_index_w] = hmi_send_opcode_queue[hmi_cmd_queue_index_r];
-    CommandLine[cmd_queue_index_w] = hmi_commandline_queue[hmi_cmd_queue_index_r];
-    send_ok[cmd_queue_index_w] = false;
-    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
-
-    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
-    hmi_commands_in_queue--;
-    commands_in_queue++;
-  }
-}
-
-
-void Screen_enqueue_and_echo_commands(char* pgcode, uint32_t line, uint8_t opcode)
-{
-  int i;
-
-  // we put HMI command to Marlin queue firstly
-  // to avoid jumping directly, we check the condition before call it
-  if (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
-    enqueue_hmi_to_marlin();
-
-  if (hmi_commands_in_queue >= HMI_BUFSIZE) {
-    LOG_E("HMI gcode buffer is full, losing line: %u\n", line);
-    return;
-  }
-
-  // ignore comment
-  if (pgcode[0] == ';') {
-    ack_gcode_event(opcode, line);
-    return;
-  }
-
-  // won't put comment part to queue, and limit cmd size to MAX_CMD_SIZE
-  for (i = 0; i < MAX_CMD_SIZE; i++) {
-    if (pgcode[i] == '\n' || pgcode[i] == '\r' || pgcode[i] == 0 || pgcode[i] == ';') {
-      hmi_command_queue[hmi_cmd_queue_index_w][i] = 0;
-      break;
-    }
-    hmi_command_queue[hmi_cmd_queue_index_w][i] = pgcode[i];
-  }
-
-  if (i >= MAX_CMD_SIZE) {
-    hmi_command_queue[hmi_cmd_queue_index_w][MAX_CMD_SIZE - 1] = 0;
-    LOG_E("line[%u] too long: %s\n", line, hmi_command_queue[hmi_cmd_queue_index_w]);
-    ack_gcode_event(opcode, line);
-    return;
-  }
-
-  hmi_commandline_queue[hmi_cmd_queue_index_w] = line;
-  hmi_send_opcode_queue[hmi_cmd_queue_index_w] = opcode;
-  hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
-  hmi_commands_in_queue++;
-}
-#endif
-
-/**
- * Check if the command came from HMI
- * return: true or false
- */
-bool ok_to_HMI() {
-  return Screen_send_ok[cmd_queue_index_r];
-}
-
-
-void ack_gcode_event(uint8_t event_id, uint32_t line) {
-  Event_t event = {event_id, INVALID_OP_CODE};
-  uint8_t buffer[4];
-
-  event.length = 4;
-  event.data = buffer;
-
-  WORD_TO_PDU_BYTES(buffer, line);
-
-  SNAP_DEBUG_SET_GCODE_LINE(line);
-
-  hmi.Send(event);
-}
-
-/**
  * Send an "ok" message to the host, indicating
  * that a command was successfully processed.
  *
@@ -328,14 +226,12 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
  *   B<int>  Block queue space remaining
  */
 void ok_to_send() {
-  char ok_to_sc[4] = {0};
   #if NUM_SERIAL > 1
     const int16_t port = command_queue_port[cmd_queue_index_r];
     if (port < 0) return;
     PORT_REDIRECT(port);
   #endif
-  if (send_ok[cmd_queue_index_r])
-  {
+  if (send_ok[cmd_queue_index_r]) {
     SERIAL_ECHOPGM(MSG_OK);
     #if ENABLED(ADVANCED_OK)
       char* p = command_queue[cmd_queue_index_r];
@@ -350,8 +246,8 @@ void ok_to_send() {
     #endif
     SERIAL_EOL();
   }
-  if(Screen_send_ok[cmd_queue_index_r])
-  {
+
+  if(Screen_send_ok[cmd_queue_index_r]) {
     ack_gcode_event(Screen_send_ok_opcode[cmd_queue_index_r], CommandLine[cmd_queue_index_r]);
     SNAP_DEBUG_SET_GCODE_LINE(CommandLine[cmd_queue_index_r]);
     Screen_send_ok[cmd_queue_index_r] = false;
@@ -836,7 +732,7 @@ void get_available_commands() {
   // if any immediate commands remain, don't get other commands yet
   if (drain_injected_commands_P()) return;
 
-  //if (SystemStatus.GetWorkingPort() != WORKING_PORT_SC)
+  //if (systemservice.GetWorkingPort() != WORKING_PORT_SC)
   get_serial_commands();
   //else {
   // clear buffer of UART to PC

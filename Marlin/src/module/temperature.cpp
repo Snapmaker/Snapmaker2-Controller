@@ -31,9 +31,7 @@
 #include "planner.h"
 #include "../core/language.h"
 #include "../HAL/shared/Delay.h"
-#include "ExecuterManager.h"
-#include "StatusControl.h"
-#include "PowerPanic.h"
+
 
 #define MAX6675_SEPARATE_SPI EITHER(HEATER_0_USES_MAX6675, HEATER_1_USES_MAX6675) && PIN_EXISTS(MAX6675_SCK, MAX6675_DO)
 
@@ -518,12 +516,12 @@ temp_range_t Temperature::temp_range[HOTENDS] = ARRAY_BY_HOTENDS(sensor_heater_0
               }
               else if (ELAPSED(ms, temp_change_ms)) {                 // Watch timer expired
                 _temp_error(heater, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, heater));
-                SystemStatus.ThrowException((ExceptionHost)heater, ETYPE_TEMP_RUNAWAY);
+                systemservice.ThrowException((ExceptionHost)heater, ETYPE_TEMP_RUNAWAY);
               }
             }
             else if (current < target - (MAX_OVERSHOOT_PID_AUTOTUNE)) { // Heated, then temperature fell too far?
               _temp_error(heater, PSTR(MSG_T_THERMAL_RUNAWAY), TEMP_ERR_PSTR(MSG_THERMAL_RUNAWAY, heater));
-              SystemStatus.ThrowException((ExceptionHost)heater, ETYPE_TEMP_RUNAWAY);
+              systemservice.ThrowException((ExceptionHost)heater, ETYPE_TEMP_RUNAWAY);
             }
           }
         #endif
@@ -739,12 +737,12 @@ void Temperature::_temp_error(const int8_t heater, PGM_P const serial_msg, PGM_P
 
 void Temperature::max_temp_error(const int8_t heater) {
   _temp_error(heater, PSTR(MSG_T_MAXTEMP), TEMP_ERR_PSTR(MSG_ERR_MAXTEMP, heater));
-  SystemStatus.ThrowException((ExceptionHost)heater,ETYPE_OVERRUN_MAXTEMP_AGAIN);
+  systemservice.ThrowException((ExceptionHost)heater,ETYPE_OVERRUN_MAXTEMP_AGAIN);
 }
 
 void Temperature::min_temp_error(const int8_t heater) {
   _temp_error(heater, PSTR(MSG_T_MINTEMP), TEMP_ERR_PSTR(MSG_ERR_MINTEMP, heater));
-  SystemStatus.ThrowException((ExceptionHost)heater,ETYPE_BELOW_MINTEMP);
+  systemservice.ThrowException((ExceptionHost)heater,ETYPE_BELOW_MINTEMP);
 }
 
 float Temperature::get_pid_output(const int8_t e) {
@@ -966,7 +964,7 @@ void Temperature::manage_heater() {
       // check if thermistor is bad
       if (temp_hotend[e].current < 0 || temp_hotend[e].current > 500) {
         if (++hotend_sensor_bad == 3)
-          SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_SENSOR_BAD);
+          systemservice.ThrowException((ExceptionHost)(e), ETYPE_SENSOR_BAD);
         else if (hotend_sensor_bad > 3) {
           // arive here, hotend_sensor_bad should be 4, we make it become 3,
           // if exception is still exist, hotend_sensor_bad become 4 again last loop.
@@ -981,7 +979,7 @@ void Temperature::manage_heater() {
           // then clear exception and clear hotend_sensor_bad and
           // CPU will not come in last loop
           if (++hotend_sensor_bad > 6) {
-            SystemStatus.ClearException((ExceptionHost)(e), ETYPE_SENSOR_BAD);
+            systemservice.ClearException((ExceptionHost)(e), ETYPE_SENSOR_BAD);
             hotend_sensor_bad = 0;
           }
         }
@@ -991,9 +989,9 @@ void Temperature::manage_heater() {
       }
 
       if (temp_hotend[e].current > (HEATER_0_MAXTEMP + 10))
-        SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP_AGAIN);
+        systemservice.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP_AGAIN);
       else if (temp_hotend[e].current > HEATER_0_MAXTEMP)
-        SystemStatus.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP);
+        systemservice.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP);
 
       #if ENABLED(THERMAL_PROTECTION_HOTENDS)
         // Check for thermal runaway
@@ -1007,7 +1005,7 @@ void Temperature::manage_heater() {
         if (watch_hotend[e].elapsed(ms)) { // Time to check this extruder?
           if (degHotend(e) < watch_hotend[e].target) {                             // Failed to increase enough?
             //_temp_error(e, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, e));
-            SystemStatus.ThrowException((ExceptionHost)e, ETYPE_HEAT_FAIL);
+            systemservice.ThrowException((ExceptionHost)e, ETYPE_HEAT_FAIL);
           }
           else                                                                 // Start again if the target is still far off
             start_watching_heater(e);
@@ -1017,7 +1015,7 @@ void Temperature::manage_heater() {
         // watch_hotend_tempdrop[e].target is temperature last second
         if (degHotend(e) < (watch_hotend_tempdrop[e].target)) {
           if (watch_hotend_tempdrop[e].debounce(true)) {
-            SystemStatus.ThrowException((ExceptionHost)e, ETYPE_ABRUPT_TEMP_DROP);
+            systemservice.ThrowException((ExceptionHost)e, ETYPE_ABRUPT_TEMP_DROP);
           }
         }
         else
@@ -1030,7 +1028,7 @@ void Temperature::manage_heater() {
       if (watch_hotend_notheated[e].elapsed(ms)) {
         if (degHotend(e) < watch_hotend_notheated[e].target) {
           if (watch_hotend_notheated[e].debounce(true))
-            SystemStatus.ThrowException((ExceptionHost)e, ETYPE_SENSOR_COME_OFF);
+            systemservice.ThrowException((ExceptionHost)e, ETYPE_SENSOR_COME_OFF);
         }
         else
           watch_hotend_notheated[e].debounce(false);
@@ -1042,21 +1040,21 @@ void Temperature::manage_heater() {
         // Make sure measured temperatures are close together
         if (ABS(temp_hotend[0].current - redundant_temperature) > MAX_REDUNDANT_TEMP_SENSOR_DIFF) {
           _temp_error(0, PSTR(MSG_REDUNDANCY), PSTR(MSG_ERR_REDUNDANT_TEMP));
-          SystemStatus.ThrowException(0,ETYPE_TEMP_REDUNDANCY);
+          systemservice.ThrowException(0,ETYPE_TEMP_REDUNDANCY);
         }
       #endif
 
     } // HOTEND_LOOP
   }
 
-  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_AUTO_FAN
       if (ELAPSED(ms, next_auto_fan_check_ms)) { // only need to check fan state very infrequently
         checkExtruderAutoFans();
         next_auto_fan_check_ms = ms + 2500UL;
       }
     #endif
-  #endif // DISABLED(EXECUTER_CANBUS_SUPPORT)
+  #endif // (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
 
   #if ENABLED(FILAMENT_WIDTH_SENSOR)
     /**
@@ -1078,7 +1076,7 @@ void Temperature::manage_heater() {
       if (watch_bed.elapsed(ms)) {        // Time to check the bed?
         if (degBed() < watch_bed.target) {                                // Failed to increase enough?
           _temp_error(-1, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, -1));
-          SystemStatus.ThrowException(EHOST_BED, ETYPE_HEAT_FAIL);
+          systemservice.ThrowException(EHOST_BED, ETYPE_HEAT_FAIL);
         }
         else                                                            // Start again if the target is still far off
           start_watching_bed();
@@ -1088,7 +1086,7 @@ void Temperature::manage_heater() {
     if (watch_bed_tempdrop.elapsed(ms)) {
       if (degBed() < watch_bed_tempdrop.target) {
         if (watch_bed_tempdrop.debounce(true))
-          SystemStatus.ThrowException(EHOST_BED, ETYPE_ABRUPT_TEMP_DROP);
+          systemservice.ThrowException(EHOST_BED, ETYPE_ABRUPT_TEMP_DROP);
       }
       else
         watch_bed_tempdrop.debounce(false);
@@ -1102,7 +1100,7 @@ void Temperature::manage_heater() {
     if (watch_bed_notheated.elapsed(ms)) {
       if (degBed() < watch_bed_notheated.target) {
         if (watch_bed_notheated.debounce(true))
-          //SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_COME_OFF);
+          //systemservice.ThrowException(EHOST_BED, ETYPE_SENSOR_COME_OFF);
           SERIAL_ECHOLN("Not heated BED!");
       }
       else
@@ -1115,7 +1113,7 @@ void Temperature::manage_heater() {
     if (ELAPSED(ms, next_check_bed_sensor)) {
       if (temp_bed.current < 0) {
         if (++bed_sensor_bad == 3)
-          SystemStatus.ThrowException(EHOST_BED, ETYPE_SENSOR_BAD);
+          systemservice.ThrowException(EHOST_BED, ETYPE_SENSOR_BAD);
         else if (bed_sensor_bad > 3)
           bed_sensor_bad = 3;
       }
@@ -1126,7 +1124,7 @@ void Temperature::manage_heater() {
           // then clear exception and clear hotend_sensor_bad and
           // CPU will not come in last loop
           if (++bed_sensor_bad > 6) {
-            SystemStatus.ClearException(EHOST_BED, ETYPE_SENSOR_BAD);
+            systemservice.ClearException(EHOST_BED, ETYPE_SENSOR_BAD);
             bed_sensor_bad = 0;
           }
         }
@@ -1139,9 +1137,9 @@ void Temperature::manage_heater() {
 
     // check if heating is out of control
     if (temp_bed.current > (BED_MAXTEMP + 5))
-      SystemStatus.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP_AGAIN);
+      systemservice.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP_AGAIN);
     else if (temp_bed.current > BED_MAXTEMP)
-      SystemStatus.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP);
+      systemservice.ThrowException(EHOST_BED, ETYPE_OVERRUN_MAXTEMP);
 
     #if DISABLED(PIDTEMPBED)
       if (PENDING(ms, next_bed_check_ms)
@@ -1208,7 +1206,7 @@ void Temperature::manage_heater() {
         if (watch_chamber.elapsed(ms)) {                  // Time to check the chamber?
           if (degChamber() < watch_chamber.target) {   // Failed to increase enough?
             _temp_error(-2, PSTR(MSG_T_HEATING_FAILED), TEMP_ERR_PSTR(MSG_HEATING_FAILED_LCD, -2));
-            SystemStatus.ThrowException((ExceptionHost)-2,ETYPE_HEAT_FAIL);;
+            systemservice.ThrowException((ExceptionHost)-2,ETYPE_HEAT_FAIL);;
           }
           else
             start_watching_chamber();                     // Start again if the target is still far off
@@ -1396,12 +1394,9 @@ void Temperature::updateTemperaturesFromRawValues() {
     temp_hotend[1].raw = READ_MAX6675(1);
   #endif
 
-  #if ENABLED(EXECUTER_CANBUS_SUPPORT)
-    if(ExecuterHead.CanTempMeasReady == true) {
-      for(int i=0;i<HOTENDS;i++)
-        temp_hotend[i].current = ExecuterHead.GetTemp(i);
-      ExecuterHead.CanTempMeasReady = false;
-    }
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+    for(int i = 0; i < HOTENDS; i++)
+      temp_hotend[i].current = printer.cur_temp(i);
   #else
     HOTEND_LOOP() temp_hotend[e].current = analog_to_celsius_hotend(temp_hotend[e].raw, e);
   #endif
@@ -1524,7 +1519,7 @@ void Temperature::init() {
 
   HAL_adc_init();
 
-  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_TEMP_ADC_0
       HAL_ANALOG_SELECT(TEMP_0_PIN);
     #endif
@@ -1543,7 +1538,7 @@ void Temperature::init() {
     #if HAS_TEMP_ADC_5
       HAL_ANALOG_SELECT(TEMP_5_PIN);
     #endif
-  #endif // DISABLED(EXECUTER_CANBUS_SUPPORT)
+  #endif // (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
 
   #if HAS_HEATED_BED
     HAL_ANALOG_SELECT(TEMP_BED_PIN);
@@ -1558,7 +1553,7 @@ void Temperature::init() {
   HAL_timer_start(TEMP_TIMER_NUM, TEMP_TIMER_FREQUENCY);
   ENABLE_TEMPERATURE_INTERRUPT();
 
-  #if DISABLED(EXECUTER_CANBUS_SUPPORT)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_AUTO_FAN_0
       INIT_AUTO_FAN_PIN(E0_AUTO_FAN_PIN);
     #endif
@@ -1580,7 +1575,7 @@ void Temperature::init() {
     #if HAS_AUTO_CHAMBER_FAN && !(AUTO_CHAMBER_IS_0 || AUTO_CHAMBER_IS_1 || AUTO_CHAMBER_IS_2 || AUTO_CHAMBER_IS_3 || AUTO_CHAMBER_IS_4 || AUTO_CHAMBER_IS_5)
       INIT_AUTO_FAN_PIN(CHAMBER_AUTO_FAN_PIN);
     #endif
-  #endif // DISABLED(EXECUTER_CANBUS_SUPPORT)
+  #endif // (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
 
   // Wait for temperature measurement to settle
   delay(250);
@@ -2132,7 +2127,7 @@ void Temperature::init() {
 
       case TRRunaway:
         _temp_error(heater_id, PSTR(MSG_T_THERMAL_RUNAWAY), TEMP_ERR_PSTR(MSG_THERMAL_RUNAWAY, heater_id));
-        SystemStatus.ThrowException((ExceptionHost)heater_id,ETYPE_TEMP_RUNAWAY);
+        systemservice.ThrowException((ExceptionHost)heater_id,ETYPE_TEMP_RUNAWAY);
         break;
     }
   }
@@ -2668,7 +2663,7 @@ void Temperature::isr() {
 
         // Check the NMOS of the heated bed is shortcut
         if(READ(HEATEDBED_ON_PIN) == LOW)
-          SystemStatus.ThrowExceptionISR(EHOST_MC, ETYPE_PORT_BAD);
+          systemservice.ThrowExceptionISR(EHOST_MC, ETYPE_PORT_BAD);
       }
     } // 3D printer
     else {
@@ -2989,7 +2984,7 @@ void Temperature::isr() {
     #endif
   #endif
 
-  powerpanic.Check();
+  pl_recovery.Check();
 
   // Poll endstops state, if required
   endstops.poll();

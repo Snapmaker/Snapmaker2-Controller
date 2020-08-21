@@ -62,7 +62,7 @@
  * was designed, written and tested by Eduardo José Tagle on April/2018
  */
 
-#include <src/snap_module/snap_dbg.h>
+#include <src/snap_module/debug.h>
 #include "planner.h"
 #include "stepper.h"
 #include "motion.h"

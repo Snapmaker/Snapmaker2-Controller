@@ -39,18 +39,12 @@
 #include "module/configuration_store.h"
 #include "module/printcounter.h" // PrintCounter or Stopwatch
 #include "feature/closedloop.h"
-#include "module/LaserExecuter.h"
-#include "module/StatusControl.h"
-#include "module/PeriphDevice.h"
-#include "libs/GenerialFunctions.h"
-#include "module/PowerPanic.h"
-#include "snap_module/quickstop_service.h"
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
 
 #include "module/stepper_indirection.h"
 
-#include "HAL/HAL_GD32F1/HAL_breathlight_STM32F1.h"
+#include HAL(HAL_breathlight_STM32F1.h)
 
 #ifdef ARDUINO
   #include <pins_arduino.h>
@@ -63,10 +57,9 @@
 #include "gcode/queue.h"
 #include "feature/bedlevel/bedlevel.h"
 
-#include "module/ExecuterManager.h"
-#include "snap_module/host.h"
-#include "snap_module/event_handler.h"
-#include "snap_module/upgrade_service.h"
+
+#include SNAPMAKER_SRC(snapmaker.h)
+#include SNAPMAKER_SRC(module/linear.h)
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
@@ -286,14 +279,14 @@ void reset_homeoffset() {
   }
 
   LOOP_XYZ(i) {
-    switch (CanModules.GetMachineSizeType()) {
-      case MACHINE_SIZE_S:
+    switch (linear.machine_size()) {
+      case MACHINE_SIZE_A150:
         home_offset[i] = s_home_offset[i];
         break;
-      case MACHINE_SIZE_M:
+      case MACHINE_SIZE_A250:
         home_offset[i] = m_home_offset[i];
         break;
-      case MACHINE_SIZE_L:
+      case MACHINE_SIZE_A350:
         home_offset[i] = l_home_offset[i];
         break;
       default:
@@ -522,7 +515,7 @@ void disable_power_domain(uint8_t pd) {
       if (run_runout_script)
         enqueue_and_echo_commands_P(PSTR(FILAMENT_RUNOUT_SCRIPT));
     #else
-      SystemStatus.PauseTrigger(TRIGGER_SOURCE_RUNOUT);
+      systemservice.PauseTrigger(TRIGGER_SOURCE_RUNOUT);
     #endif
   }
 
@@ -1016,11 +1009,12 @@ void heartbeat_task(void *param);
  *    • status LEDs
  */
 void setup() {
-  SystemStatus.Init();
 
   #ifdef HAL_INIT
     HAL_init();
   #endif
+
+  SnapmakerSetupEarly();
 
   #if PIN_EXISTS(POWER0_SUPPLY)
     OUT_WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
@@ -1094,8 +1088,6 @@ void setup() {
     #endif
   #endif
 
-  // init serial for HMI
-  hmi.Init(&HMISERIAL, HMI_SERIAL_IRQ_PRIORITY);
 
   SERIAL_ECHOLNPGM("start");
   SERIAL_ECHO_START();
@@ -1313,287 +1305,10 @@ void setup() {
     mmu2.init();
   #endif
 
-  BreathLightInit();
-
-  CheckAppValidFlag();
-
-  // to disable heartbeat if module need to be upgraded
-  upgrade.CheckIfUpgradeModule();
-
   // reset bed leveling data to avoid toolhead hit heatbed without Calibration.
   reset_bed_level_if_upgraded();
 
-  snap_tasks = (SnapTasks_t)pvPortMalloc(sizeof(struct SnapTasks));
-  snap_tasks->event_queue = xMessageBufferCreate(1024);
-
-  // create marlin task
-  BaseType_t ret;
-  ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH,
-        (void *)snap_tasks, MARLIN_LOOP_TASK_PRIO, &snap_tasks->marlin);
-  if (ret != pdPASS) {
-    LOG_E("failt to create marlin task!\n");
-    while(1);
-  }
-  else {
-    LOG_I("success to create marlin task!\n");
-  }
-
-  ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH,
-        (void *)snap_tasks, HMI_TASK_PRIO, &snap_tasks->hmi);
-  if (ret != pdPASS) {
-    LOG_E("failt to create HMI task!\n");
-    while(1);
-  }
-  else {
-    LOG_I("success to create HMI task!\n");
-  }
-
-
-  ret = xTaskCreate((TaskFunction_t)heartbeat_task, "HB_task", HB_TASK_STACK_DEPTH,
-        (void *)snap_tasks, HB_TASK_STACK_DEPTH, &snap_tasks->heartbeat);
-  if (ret != pdPASS) {
-    LOG_E("failt to create heartbeat task!\n");
-    while(1);
-  }
-  else {
-    LOG_I("success to create heartbeat task!\n");
-  }
-
-  vTaskStartScheduler();
-}
-
-
-extern void enqueue_hmi_to_marlin();
-/**
- * main task
- */
-void main_loop(void *param) {
-  SnapTasks_t task_param;
-  struct DispatcherParam dispather_param;
-
-  millis_t cur_mills;
-
-  configASSERT(param);
-  task_param = (SnapTasks_t)param;
-
-  dispather_param.owner = TASK_OWN_MARLIN;
-
-  dispather_param.event_buff = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
-  configASSERT(dispather_param.event_buff);
-
-  dispather_param.event_queue = task_param->event_queue;
-
-  //cur_mills = millis() + 4000;
-  //while(cur_mills > millis());
-  ExecuterHead.Init();
-  CanModules.Init();
-  CheckUpdateFlag();
-  if (CanModules.LinearModuleCount == 0) {
-    SystemStatus.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
-  }
-
-  #if ENABLED(SW_MACHINE_SIZE)
-    UpdateMachineDefines();
-    endstops.reinit_hit_status();
-  #endif
-
-  // init power panic handler and load data from flash
-  powerpanic.Init();
-
-  switch (ExecuterHead.MachineType) {
-  case MACHINE_TYPE_LASER:
-    SERIAL_ECHOLNPGM("Laser Module");
-    ExecuterHead.Laser.Init();
-    break;
-
-  case MACHINE_TYPE_CNC:
-    SERIAL_ECHOLNPGM("CNC Module");
-    ExecuterHead.CNC.Init();
-    break;
-
-  case MACHINE_TYPE_3DPRINT:
-    SERIAL_ECHOLNPGM("3DPRINT Module");
-    ExecuterHead.Print3D.Init();
-    runout.enabled = true;
-    break;
-
-  default:
-    SERIAL_ECHOLNPGM("No Executor detected!");
-    SystemStatus.ThrowException(EHOST_EXECUTOR, ETYPE_NO_HOST);
-    break;
-  }
-
-  if (MACHINE_TYPE_UNDEFINE != ExecuterHead.MachineType) {
-    ExecuterHead.watch.Start();
-  }
-
-  ExecuterHead.Print3D.HeatedBedSelfCheck();
-
-  Periph.Init();
-
-  SystemStatus.SetCurrentStatus(SYSTAT_IDLE);
-
-  SERIAL_ECHOLN("Finish init\n");
-
-  cur_mills = millis() - 3000;
-
-  for (;;) {
-
-    #if(0)
-    #if ENABLED(SDSUPPORT)
-      card.checkautostart();
-
-      if (card.flag.abort_sd_printing) {
-        card.stopSDPrint(
-          #if SD_RESORT
-            true
-          #endif
-        );
-        clear_command_queue();
-        quickstop_stepper();
-        print_job_timer.stop();
-        thermalManager.disable_all_heaters();
-        thermalManager.zero_fan_speeds();
-        wait_for_heatup = false;
-        #if ENABLED(POWER_LOSS_RECOVERY)
-          card.removeJobRecoveryFile();
-        #endif
-      }
-    #endif // SDSUPPORT
-    #endif
-    if(CanDebugLen > 0) {
-      SERIAL_ECHOLN("");
-      for(int i=0;i<CanDebugLen;i++)
-      {
-        SERIAL_ECHO(Value8BitToString(CanDebugBuff[i]));
-        SERIAL_ECHO(" ");
-      }
-    }
-
-    // receive and execute one command, or push Gcode into Marlin queue
-    DispatchEvent(&dispather_param);
-
-    enqueue_hmi_to_marlin();
-    if (commands_in_queue < BUFSIZE) get_available_commands();
-
-    advance_command_queue();
-    quickstop.Process();
-    endstops.event_handler();
-    idle();
-
-    // avoid module proactive reply failure, loop query
-    // case 1: unexpected faliment runout trigger if we startup withou toolhead loaded.
-    // case 2: Z axis hit boundary when we run G28.
-    // case 3: Z_MIN_Probe error, when we do z probe, the triggered message didn't arrive main controller
-
-    if (cur_mills + 2500 <  millis()) {
-      cur_mills = millis();
-      CanModules.SetFunctionValue(BASIC_CAN_NUM, FUNC_REPORT_CUT, NULL, 0);
-    }
-  }
-}
-
-
-Host hmi;
-void hmi_task(void *param) {
-  SnapTasks_t    task_param;
-  struct DispatcherParam dispather_param;
-
-  ErrCode ret = E_FAILURE;
-
-  uint8_t count = 0;
-
-  configASSERT(param);
-  task_param = (SnapTasks_t)param;
-
-  dispather_param.owner = TASK_OWN_HMI;
-
-  dispather_param.event_buff = (uint8_t *)pvPortMalloc(HMI_RECV_BUFFER_SIZE);
-  configASSERT(dispather_param.event_buff);
-
-  dispather_param.event_queue = task_param->event_queue;
-
-  SET_INPUT_PULLUP(SCREEN_DET_PIN);
-  if(READ(SCREEN_DET_PIN)) {
-    LOG_I("Screen Unplugged!\n");
-  }
-  else {
-    LOG_I("Screen Plugged!\n");
-  }
-
-  for (;;) {
-    if(READ(SCREEN_DET_PIN)) {
-      xTaskNotifyStateClear(task_param->heartbeat);
-
-      if (SystemStatus.GetCurrentStatus() == SYSTAT_WORK && count == 100) {
-        // if we lost screen in working for 10s, stop current work
-        SystemStatus.StopTrigger(TRIGGER_SOURCE_SC_LOST);
-        LOG_E("stop cur work because screen lost!\n");
-      }
-
-      if (++count > 100)
-        count = 0;
-
-      vTaskDelay(portTICK_PERIOD_MS * 100);
-      continue;
-    }
-    else
-      count = 0;
-
-    ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
-    if (ret != E_SUCCESS) {
-      // no command, sleep 10ms for next command
-      vTaskDelay(portTICK_PERIOD_MS * 10);
-      continue;
-    }
-
-    // execute or send out one command
-    DispatchEvent(&dispather_param);
-
-    vTaskDelay(portTICK_PERIOD_MS * 5);
-  }
-}
-
-
-void heartbeat_task(void *param) {
-  uint32_t  notificaiton = 0;
-  Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
-
-  int counter = 0;
-
-  for (;;) {
-    // do following every 10ms without being blocked
-    #if HAS_FILAMENT_SENSOR
-      runout.run();
-    #endif
-
-    SystemStatus.CheckException();
-    ExecuterHead.CheckAlive();
-
-    Periph.CheckStatus();
-
-    if (++counter > 100) {
-      counter = 0;
-
-      // do following every 1s
-      upgrade.Check();
-
-      ExecuterHead.Process();
-
-      // comment temporarily
-      // notificaiton = ulTaskNotifyTake(false, 0);
-      // if (notificaiton && upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
-      //   SystemStatus.SendStatus(event);
-    }
-
-    // sleep for 10ms
-    vTaskDelay(portTICK_PERIOD_MS * 10);
-  }
-}
-
-
-void vApplicationMallocFailedHook( void ) {
-  LOG_E("RTOS malloc failed");
+  SnapmakerSetupPost();
 }
 
 /**

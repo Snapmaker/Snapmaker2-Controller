@@ -1577,7 +1577,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
       #endif
       axis_did_move = 0;
       // when a block is outputed, we record it position in file if it has
-      powerpanic.SaveCmdLine(current_block->filePos);
+      pl_recovery.SaveCmdLine(current_block->filePos);
       current_block = NULL;
       planner.discard_current_block();
     }

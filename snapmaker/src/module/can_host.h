@@ -1,0 +1,128 @@
+#ifndef SNAPMAKER_CAN_HOST_H_
+#define SNAPMAKER_CAN_HOST_H_
+
+#include "../common/error.h"
+#include "../common/protocol_sstp.h"
+
+#include "MapleFreeRTOS1030.h"
+
+#include "can_channel.h"
+#include "module_base.h"
+
+
+#define CAN_STD_WAIT_QUEUE_MAX    (4)
+
+typedef void (*CanStdCmdCallback_t)(uint8_t *cmd, uint8_t length);
+
+typedef void (*CanExtCmdCallback_t)(uint8_t *cmd, uint16_t length);
+
+typedef struct {
+  Function_t          function;
+  CanStdCmdCallback_t cb;
+} __packed MessageMap_t;
+
+
+typedef struct {
+  MAC_t     mac;
+  uint16_t  length;
+  uint8_t   *data;
+} CanExtCmd_t;
+
+
+typedef struct {
+  func_id_t id;
+  uint8_t   length;
+  uint8_t   *data;
+} CanStdFuncCmd_t;
+
+
+typedef struct {
+  message_id_t id;
+  uint8_t      length;
+  uint8_t      *data;
+} CanStdMesgCmd_t;
+
+typedef struct {
+  message_id_t          message;   /* command we are waiting for its ack */
+  MessageBufferHandle_t queue;
+} CanStdWaitNode_t;
+
+
+typedef struct {
+  MAC_t    mac;   /* MAC ID of module which we are waiting for */
+  uint8_t  cmd;   /* command we are waiting for its ack */
+  MessageBufferHandle_t queue;
+} CanExtWaitNode_t;
+
+
+class CanHost {
+  public:
+
+    ErrCode Init();
+
+    ErrCode SendStdCmd(CanStdMesgCmd_t &message);
+    ErrCode SendStdCmd(CanStdFuncCmd_t &function, uint8_t sub_index=0);
+    ErrCode SendStdCmdSync(CanStdFuncCmd_t &function, uint32_t timeout_ms=0, uint8_t retry=1, uint8_t sub_index=0);
+
+    ErrCode SendExtCmd(CanExtCmd_t &cmd);
+    ErrCode SendExtCmdSync(CanExtCmd_t &cmd, uint32_t timeout_ms=0, uint8_t retry=1);
+    ErrCode WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms=0);
+
+    ErrCode ReceiveHandler(void *parameter);
+    ErrCode EventHandler(void *parameter);
+
+    ErrCode UpgradeModules(uint32_t fw_addr, uint32_t length);
+
+    message_id_t RegisterFunction(Function_t &function, CanStdCmdCallback_t callback);
+
+    bool IrqCallback(CanStdDataFrame_t &frame);
+
+    ErrCode BindMessageID(uint8_t *func_buffer, message_id_t *msg_buffer);
+
+    uint32_t mac(uint8_t index) {
+      if (index < MODULE_SUPPORT_CONNECTED_MAX)
+        return (uint32_t)mac_[index].val;
+      else
+        return MODULE_MAC_ID_INVALID;
+    }
+
+  private:
+    message_id_t GetMessageID(func_id_t function_id, uint8_t sub_index = 0);
+    ErrCode BindMessageID(MAC_t &mac, uint8_t mac_index);
+
+    ErrCode InitModules(MAC_t &mac);
+    ErrCode InitDynamicModule(MAC_t &mac, uint8_t mac_index);
+
+    ErrCode AssignMessageRegion();
+
+    ErrCode HandleExtCmd(uint8_t *cmd, uint16_t length);
+
+
+  private:
+    // command queue from ReceiveHandler() to EventHandler for standard command
+    MessageBufferHandle_t std_cmd_q_;
+    CanStdWaitNode_t      std_wait_q_[CAN_STD_WAIT_QUEUE_MAX];
+    xSemaphoreHandle      std_wait_lock_;
+
+    // parameters for extended command
+    ProtocolSSTP proto_sstp_;           // SSTP protocol instance
+    uint8_t      *parser_buffer_;       // buffer for parser of SSTP protocol
+    uint8_t      *package_buffer_;      // buffer for packager of SSTP protocol
+    MessageBufferHandle_t ext_cmd_q_;   // command queue from ReceiveHandler() to EventHandler for extend command
+    CanExtWaitNode_t      ext_wait_q_;
+    xSemaphoreHandle      ext_wait_lock_;
+
+    // map for message id and function id
+    MessageMap_t  map_message_function_[MODULE_SUPPORT_MESSAGE_ID_MAX];
+    uint16_t      total_message_id_;
+    // in the second dimension, first element indicates counts we prepare for this priority
+    // second element indicates counts which has been used of this priority
+    uint16_t      message_region_[MODULE_FUNC_PRIORITY_MAX][2];
+
+    MAC_t   mac_[MODULE_SUPPORT_CONNECTED_MAX];
+    uint8_t total_mac_;
+};
+
+extern CanHost canhost;
+
+#endif  // #ifndef CAN_HOST_H_

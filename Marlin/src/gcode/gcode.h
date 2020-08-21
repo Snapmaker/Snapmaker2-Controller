@@ -447,7 +447,7 @@ private:
     static void M0_M1();
   #endif
 
-  #if ENABLED(SPINDLE_LASER_ENABLE) || ENABLED(SPAPMAKER_LASER_CNC)
+  #if ENABLED(SPINDLE_LASER_ENABLE) || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     static void M3_M4(const bool is_M4);
     static void M5();
   #endif

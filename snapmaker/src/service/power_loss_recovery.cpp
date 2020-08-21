@@ -1,0 +1,686 @@
+#include <EEPROM.h>
+
+#include "../common/debug.h"
+
+#include "power_loss_recovery.h"
+#include "quick_stop.h"
+#include "bed_level.h"
+#include "system.h"
+
+#include MARLIN_SRC(Marlin.h)
+#include MARLIN_SRC(gcode/gcode.h)
+#include MARLIN_SRC(gcode/parser.h)
+#include MARLIN_SRC(module/configuration_store.h)
+#include MARLIN_SRC(module/PeriphDevice.h)
+#include MARLIN_SRC(module/printcounter.h)
+#include MARLIN_SRC(module/stepper.h)
+#include MARLIN_SRC(module/temperature.h)
+#include MARLIN_SRC(module/planner.h)
+#include MARLIN_SRC(module/ExecuterManager.h)
+#include MARLIN_SRC(module/motion.h)
+#include MARLIN_SRC(feature/runout.h)
+#include MARLIN_SRC(feature/bedlevel/bedlevel.h)
+
+#include MARLIN_HAL(HAL.h)
+
+
+#define FLASH_PAGE_SIZE				2048
+#define FLASH_RECORD_PAGES		(MARLIN_POWERPANIC_SIZE / 2048)
+#define RECORD_COUNT_PER_PAGE	(FLASH_PAGE_SIZE / (sizeof(PowerLossRecoveryData_t) + 8))
+
+PowerLossRecovery pl_recovery;
+
+#if ENABLED(VARIABLE_G0_FEEDRATE)
+  extern float saved_g0_feedrate_mm_s;
+  extern float saved_g1_feedrate_mm_s;
+#endif
+
+ /**
+ * need to initialize the power detect pin
+ */
+void PowerLossRecovery::Init(void) {
+  int ret;
+
+	SET_INPUT(POWER_DETECT_PIN);
+
+  if (READ(POWER_DETECT_PIN) == POWER_LOSS_STATE) {
+    LOG_E("PL: power-loss signal triggerred!\n");
+    enabled_ = false;
+    systemservice.SetSystemFaultBit(FAULT_FLAG_POWER_DETECT_ERR);
+  }
+  else {
+    enabled_ = true;
+  }
+
+  ret = Load();
+
+  // if data is invalid, tell others
+  switch (ret)
+  {
+  case 0:
+    // got power panic data
+		if (ExecuterHead.MachineType == pre_data_.MachineType) {
+			systemservice.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
+
+			if (pre_data_.live_z_offset != 0) {
+				LOG_I("PL: changed live z: %.3f\n", pre_data_.live_z_offset);
+				levelservice.live_z_offset(pre_data_.live_z_offset);
+				settings.save();
+			}
+
+			SERIAL_ECHOLN("PL: Got available data!");
+		}
+		else {
+			MaskPowerPanicData();
+		}
+    break;
+  case 1:
+    // data read from flash is invalid
+    SERIAL_ECHOLNPGM("PL: Unavailable data!");
+    break;
+
+  default:
+    // do nothing for other results such as 2 = no power panic data
+    SERIAL_ECHOLNPGM("PL: No data!");
+    break;
+  }
+}
+
+
+ /**
+ *Load power panic data from flash
+ *return:
+ * 0 = success to get data
+ * 1 = check failed
+ * 2 = no data
+ */
+int PowerLossRecovery::Load(void)
+{
+  uint8_t *pSrcBuff, *pDstBuff;
+	uint32_t i;
+	uint32_t tmpIndex;
+	uint32_t addr;
+	uint32_t RecordSize;
+	uint32_t TotalCount;
+	uint32_t Flag;
+  int ret = 0;
+
+	// size of one record, prefix 8 bytes
+	RecordSize = (sizeof(PowerLossRecoveryData_t) + 8);
+
+	// total records which can be saved
+	TotalCount = RECORD_COUNT_PER_PAGE * FLASH_RECORD_PAGES;
+  tmpIndex = 0;
+
+	// find the first free block
+	for (i = 0; i < TotalCount; i++) {
+		// start addr for every record
+		addr = (i / RECORD_COUNT_PER_PAGE) * 2048 + (i % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+
+		// read the start flag
+		Flag = *((uint32_t*)addr);
+
+		if (Flag == 0xffffffff) {
+			// tmpIndex point to a possible Non-free block, if i==0, it will ponit to the last block
+			tmpIndex = (i + TotalCount - 1) % TotalCount;
+			break;
+		}
+	}
+
+	LOG_I("PL: first free block index: %d\n", tmpIndex);
+
+	// try to find a non-free block
+	for (i = 0; i < TotalCount; i++)
+	{
+		// start address of one block
+		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+		Flag = *((uint32_t*)addr);
+
+		// if its start flag is not 0xffffffff, it is a non-free block
+		if (Flag != 0xffffffff)
+			break;
+
+		// index tmpIndex forward until finding a non-free block or i reach TotalCount
+		// if i reach TotalCount, it indicates all block is free
+		tmpIndex = (tmpIndex + TotalCount - 1) % TotalCount;
+	}
+
+	LOG_I("PL: first non-free block index: %d\n", tmpIndex);
+
+	// check the last value of flag
+	if(Flag == 0xffffffff) {
+		// arrive here we know the flash area is empty, never recording any power-loss data
+		// make index to be 0
+		WriteIndex = 0;
+		// make flag to be invalid
+		pre_data_.Valid = 0;
+		// return value
+		ret = 2;
+
+		LOG_I("PL: no any data\n");
+	}
+	else {
+		// arrive here we may have avalible power-loss data
+
+		// check firstly whether this block is masked
+		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 4 + FLASH_MARLIN_POWERPANIC;
+		Flag = *((uint32_t*)addr);
+		if(Flag != 0x5555) {
+			// alright, this block has been masked by Screen
+			LOG_I("PL: data has been masked\n");
+			// make data to be invalid
+			pre_data_.Valid = 0;
+			ret = 1;
+		}
+		else {
+			// Good, it seems we have new power-loss data, have a look at whether it is available
+			// read the data to buffer
+			addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 8 + FLASH_MARLIN_POWERPANIC;
+			pSrcBuff = (uint8_t*)addr;
+			pDstBuff = (uint8_t*)&pre_data_;
+			for (i = 0; i < sizeof(PowerLossRecoveryData_t); i++)
+				*pDstBuff++ = *pSrcBuff++;
+
+			// calculate checksum
+			uint32_t Checksum;
+			uint32_t tmpChecksum;
+			tmpChecksum = pre_data_.CheckSum;
+			pre_data_.CheckSum = 0;
+			Checksum = 0;
+			pSrcBuff = (uint8_t*)&pre_data_;
+			for (i = 0; i < sizeof(PowerLossRecoveryData_t); i++)
+				Checksum += pSrcBuff[i];
+			//Checksum = Checksum - (uint8_t)(cur_data_.CheckSum >> 24) - (uint8_t)(cur_data_.CheckSum >> 16) - (uint8_t)(cur_data_.CheckSum >> 8) -
+			// (uint8_t)(cur_data_.CheckSum);
+
+			if (Checksum != tmpChecksum) {
+				// shit! uncorrent checksum, flash was damaged?
+				LOG_E("PL: Error checksum[0x%08x] for power-loss data, should be [0x%08x]\n", tmpChecksum, Checksum);
+
+				// anyway, we mask this block
+				FLASH_Unlock();
+				addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 4 + FLASH_MARLIN_POWERPANIC;
+				FLASH_ProgramWord(addr, 0);
+				FLASH_Lock();
+				// make data to be invalid
+				pre_data_.Valid = 0;
+				ret = 1;
+			}
+			else {
+				// correct checksum
+				pre_data_.Valid = 1;
+			}
+		}
+
+		// make write index to point next block
+		WriteIndex = (tmpIndex + 1) % TotalCount;
+		LOG_I("PL: next write index: %u\n", WriteIndex);
+
+		// check if need to erase flash page
+		if ((WriteIndex % RECORD_COUNT_PER_PAGE) == 0)
+		{
+			// NOTE that: when WriteIndex point to the 2nd or 3rd pages firstly, this will be executed at every power-on.
+			// Because its previous block is not free, that is to say, the start flag is not 0xffffffff
+			// Though this may be executed many times, the flash is only erased when it is not empty.
+			// So it's no need to check if we need to erase flash at every power-on. Just do it.
+			FLASH_Unlock();
+			addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+			FLASH_ErasePage(addr);
+			FLASH_Lock();
+
+			LOG_I("PL: erased next page, addr: 0x%X\n", addr);
+		}
+	}
+
+  return ret;
+}
+
+ /**
+ * save the power panic data to flash
+ */
+void PowerLossRecovery::WriteFlash(void)
+{
+  uint32_t addr;
+	uint32_t RecordSize;
+	uint32_t u32data;
+	uint8_t *pBuff;
+
+  //记录大小
+  RecordSize = (sizeof(PowerLossRecoveryData_t) + 8);
+  pBuff = (uint8_t *)&cur_data_;
+
+	//写一半标识
+	addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+	u32data = 0x5555;
+	FLASH_Unlock();
+	FLASH_ProgramWord(addr, u32data);
+
+	//地址
+	addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 8 + FLASH_MARLIN_POWERPANIC;
+
+	for(uint32_t i=0;i<sizeof(PowerLossRecoveryData_t);i=i+4)
+	{
+		u32data = (pBuff[i + 3] << 24) | (pBuff[i + 2] << 16) | (pBuff[i + 1] << 8) | pBuff[i];
+		FLASH_ProgramWord(addr, u32data);
+		addr = addr + 4;
+	}
+
+	//写完整标识
+	addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC + 4;
+	u32data = 0x5555;
+	FLASH_ProgramWord(addr, u32data);
+	FLASH_Lock();
+}
+
+ /**
+ *Clear all power panic data
+ */
+void PowerLossRecovery::ClearPowerPanicData(void)
+{
+  uint32_t addr;
+
+	addr = FLASH_MARLIN_POWERPANIC;
+	FLASH_Unlock();
+	for(int i=0; i<FLASH_RECORD_PAGES; i++)
+	{
+		FLASH_ErasePage(addr);
+		addr += 2048;
+	}
+	FLASH_Lock();
+}
+
+ /**
+ *discard power panic data
+ */
+void PowerLossRecovery::MaskPowerPanicData(void)
+{
+	uint32_t RecordSize;
+	uint32_t TotalCount;
+	uint32_t addr;
+	uint16_t preIndex;
+
+	//记录大小
+	RecordSize = (sizeof(PowerLossRecoveryData_t) + 8);
+	//记录总空间
+	TotalCount = RECORD_COUNT_PER_PAGE * FLASH_RECORD_PAGES;
+
+	preIndex = (WriteIndex + TotalCount - 1) % TotalCount;
+
+	//计算地址
+	addr = (preIndex / RECORD_COUNT_PER_PAGE) * 2048 + (preIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC + 4;
+	FLASH_Unlock();
+	FLASH_ProgramWord(addr, 0);
+	FLASH_Lock();
+}
+
+/*
+ * save current working status to power panic data
+ * return:
+ *    0  - sucess
+ *    -1 - failed
+ */
+int PowerLossRecovery::SaveEnv(void) {
+  int     i = 0;
+  uint8_t *pBuff;
+
+  // extruders' temperature
+	HOTEND_LOOP() cur_data_.HeaterTemp[e] = thermalManager.temp_hotend[e].target;
+
+	LOOP_XYZ(idx) cur_data_.position_shift[idx] = position_shift[idx];
+
+	cur_data_.FilePosition = last_line_;
+
+	cur_data_.axes_relative_mode = relative_mode;
+
+	LOOP_XYZE(idx) cur_data_.axis_relative_modes[idx] = gcode.axis_relative_modes[idx];
+
+  // heated bed
+  cur_data_.BedTamp = thermalManager.temp_bed.target;
+
+  cur_data_.MachineType = ExecuterHead.MachineType;
+
+  cur_data_.PrintFeedRate = saved_g1_feedrate_mm_s;
+  cur_data_.TravelFeedRate = saved_g0_feedrate_mm_s;
+	cur_data_.feedrate_percentage = feedrate_percentage;
+
+	// if live z offset was changed when working, record it
+	if (levelservice.live_z_offset_updated())
+		cur_data_.live_z_offset = levelservice.live_z_offset();
+	else
+		cur_data_.live_z_offset = 0;
+
+  cur_data_.accumulator = print_job_timer.duration();
+
+  for (i = 0; i < PP_FAN_COUNT; i++)
+    cur_data_.FanSpeed[i] = ExecuterHead.GetFanSpeed(i);
+
+  // if power loss, we have record the position to cur_data_.PositionData[]
+	// NOTE that we save logical position for XYZ
+	for (i=0; i<NUM_AXIS; i++) {
+		cur_data_.PositionData[i] = current_position[i];
+	}
+
+#if (MOTHERBOARD == BOARD_SNAPMAKER1)
+  if (cur_data_.GCodeSource == GCODE_SOURCE_UDISK) {
+  }
+  else {
+    // 0xff will reduce the write times for the flash
+    memset((void *)cur_data_.FileName, 0xFF, PP_FILE_NAME_LEN);
+    cur_data_.FileName[0] = 0;
+	}
+#elif (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+	if (systemservice.GetWorkingPort() == WORKING_PORT_SC) {
+		cur_data_.GCodeSource = GCODE_SOURCE_SCREEN;
+	}
+	else {
+		cur_data_.GCodeSource = GCODE_SOURCE_PC;
+	}
+#endif
+
+  cur_data_.Valid = 1;
+
+	switch (ExecuterHead.MachineType)
+	{
+	case MACHINE_TYPE_CNC:
+		cur_data_.cnc_power = ExecuterHead.CNC.GetPower();
+		break;
+
+	case MACHINE_TYPE_LASER:
+		cur_data_.laser_percent = ExecuterHead.Laser.GetPowerPercent();
+		cur_data_.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+	break;
+
+	default:
+		break;
+	}
+  cur_data_.active_coordinate_system = gcode.active_coordinate_system;
+	// checksum need to be calculate at the end,
+	// when all data will not be changed again
+	pBuff = (uint8_t*)&cur_data_;
+	cur_data_.CheckSum = 0;
+	for(i = 0; i < sizeof(PowerLossRecoveryData_t); i++)
+		cur_data_.CheckSum += pBuff[i];
+
+  return 0;
+}
+
+void PowerLossRecovery::Resume3DP() {
+	// enable hotend
+	if(pre_data_.BedTamp > BED_MAXTEMP - 15) {
+		LOG_W("recorded bed temp [%f] is larger than %f, limited it.\n",
+						pre_data_.BedTamp, BED_MAXTEMP - 15);
+		pre_data_.BedTamp = BED_MAXTEMP - 15;
+	}
+
+	if (pre_data_.HeaterTemp[0] > HEATER_0_MAXTEMP - 15) {
+		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
+						pre_data_.BedTamp, HEATER_0_MAXTEMP - 15);
+		pre_data_.HeaterTemp[0] = HEATER_0_MAXTEMP - 15;
+	}
+
+	if (pre_data_.HeaterTemp[0] < 180)
+		pre_data_.HeaterTemp[0] = 180;
+
+	/* when recover 3DP from power-loss, maybe the filament is freezing because
+	 * nozzle has been cooling. If we raise Z in this condition, the model will
+	 * be pulled up, sometimes it will break the model.
+	 * So we heating the hotend to 150 celsius degree before raising Z
+	 */
+	thermalManager.setTargetBed(pre_data_.BedTamp);
+	thermalManager.setTargetHotend(pre_data_.HeaterTemp[0], 0);
+
+  	while (thermalManager.degHotend(0) < 150) idle();
+
+	RestoreWorkspace();
+
+	// waiting temperature reach target
+	thermalManager.wait_for_bed(true);
+	thermalManager.wait_for_hotend(0, true);
+
+  	// recover FAN speed after heating to save time
+	for (int i = 0; i < PP_FAN_COUNT; i++) {
+		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
+	}
+
+	current_position[E_AXIS] += 20;
+	line_to_current_position(5);
+	planner.synchronize();
+
+	// try to cut out filament
+	current_position[E_AXIS] -= 6;
+	line_to_current_position(50);
+	planner.synchronize();
+
+	// E axis will be recovered in ResumeOver() using  cur_data_.PositionData[]
+	// So put it in cur_data_.PositionData[] in advance
+	cur_data_.PositionData[E_AXIS] = pre_data_.PositionData[E_AXIS];
+
+	// move to target X Y
+	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
+	planner.synchronize();
+
+	// move to target Z
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 30);
+	planner.synchronize();
+}
+
+void PowerLossRecovery::ResumeCNC() {
+	// for CNC recover form power-loss, we need to raise Z firstly.
+	// because the drill bit maybe is in the workpiece
+	// and we need to keep CNC motor running when raising Z
+	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
+
+	relative_mode = true;
+	process_cmd_imd("G28 Z");
+	relative_mode = false;
+
+	ExecuterHead.CNC.SetPower(0);
+
+	// homing and restore workspace
+	RestoreWorkspace();
+
+	// move to target X Y
+	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
+	planner.synchronize();
+
+	// enable CNC motor
+	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
+	LOG_I("Restore CNC power: %.2f\n", pre_data_.cnc_power);
+
+	// move to target Z
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS] + 15, 30);
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 10);
+	planner.synchronize();
+}
+
+
+void PowerLossRecovery::ResumeLaser() {
+	// make sure laser is disable
+	ExecuterHead.Laser.Off();
+
+	// homing and restore workspace
+	RestoreWorkspace();
+
+	// move to target X Y
+	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
+	planner.synchronize();
+
+	// move to target Z
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 30);
+	planner.synchronize();
+
+	// Because we open laser when receive first command after resuming,
+	// and there will check if cur_data_.laser_pwm is larger than 0
+	// So we recover the value to them
+	cur_data_.laser_pwm = pre_data_.laser_pwm;
+
+	// just change laser power but not enable output
+	ExecuterHead.Laser.ChangePower(pre_data_.laser_percent);
+}
+
+
+void PowerLossRecovery::RestoreWorkspace() {
+	feedrate_percentage = pre_data_.feedrate_percentage;
+
+	// home first
+	process_cmd_imd("G28");
+
+	planner.synchronize();
+
+	LOG_I("position shift:\n");
+	LOG_I("X: %.2f, Y: %.2f, Z: %.2f\n", pre_data_.position_shift[0],
+						pre_data_.position_shift[1], pre_data_.position_shift[2]);
+
+	LOOP_XYZ(i) {
+		position_shift[i] = pre_data_.position_shift[i];
+		update_workspace_offset((AxisEnum)i);
+	}
+  gcode.active_coordinate_system = pre_data_.active_coordinate_system;
+}
+/**
+ *Resume work after power panic if exist valid power panic data
+ *return :true is resume success, or else false
+ */
+ErrCode PowerLossRecovery::ResumeWork() {
+	if (action_ban & ACTION_BAN_NO_WORKING) {
+    LOG_E("System Fault! Now cannot start working!\n");
+    return E_NO_WORKING;
+	}
+
+	if (pre_data_.Valid == 0) {
+		LOG_E("previous power-loss data is invalid!\n");
+		return E_NO_RESRC;
+	}
+
+	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
+			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
+
+	switch (pre_data_.MachineType) {
+	case MACHINE_TYPE_3DPRINT:
+		if (runout.is_filament_runout()) {
+			LOG_E("trigger RESTORE: failed, filament runout\n");
+			systemservice.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+			process_cmd_imd("G28 Z");
+			return E_NO_FILAMENT;
+		}
+
+		LOG_I("previous target temp: hotend: %d, bed: %d\n", pre_data_.HeaterTemp[0], pre_data_.BedTamp);
+
+		Resume3DP();
+		break;
+
+	case MACHINE_TYPE_CNC:
+		if (Periph.IsDoorOpened()) {
+			LOG_E("trigger RESTORE: failed, door is open\n");
+			return E_DOOR_OPENED;
+		}
+
+		LOG_I("previous CNC power is %.2f\n", pre_data_.cnc_power);
+		if (pre_data_.cnc_power < 50) {
+			LOG_I("previous power is less than 50%, set to 50%");
+			pre_data_.cnc_power = 50;
+		}
+
+		ResumeCNC();
+		break;
+
+	case MACHINE_TYPE_LASER:
+		if (Periph.IsDoorOpened()) {
+			LOG_E("trigger RESTORE: failed, door is open\n");
+			return E_DOOR_OPENED;
+		}
+
+		LOG_I("previous recorded target Laser power is %.2f\n", pre_data_.laser_percent);
+		LOG_I("previous recorded target laser PWM is 0x%x\n", pre_data_.laser_pwm);
+
+		ResumeLaser();
+		break;
+
+	default:
+		LOG_W("invalid machine type saved in power-loss: %d\n", pre_data_.MachineType);
+		return E_FAILURE;
+		break;
+	}
+
+	// resume stopwatch
+	print_job_timer.start();
+	Stopwatch::resume(pre_data_.accumulator);
+
+	// restore speed for G0 G1
+	saved_g1_feedrate_mm_s = pre_data_.PrintFeedRate;
+	saved_g0_feedrate_mm_s = pre_data_.TravelFeedRate;
+
+	LOOP_XYZE(idx) gcode.axis_relative_modes[idx] = pre_data_.axis_relative_modes[idx];
+	relative_mode = pre_data_.axes_relative_mode;
+
+	return E_SUCCESS;
+}
+
+/*
+ * disable other unused peripherals in ISR
+ */
+void PowerLossRecovery::TurnOffPower(QuickStopState sta) {
+	if (sta  > QS_STA_TRIGGERED) {
+		BreathLightClose();
+
+		// disble timer except the stepper's
+		rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
+		rcc_clk_disable(TIMER7->clk_id);
+
+		// disalbe ADC
+		rcc_clk_disable(ADC1->clk_id);
+		rcc_clk_disable(ADC2->clk_id);
+
+		//disble DMA
+		rcc_clk_disable(DMA1->clk_id);
+		rcc_clk_disable(DMA2->clk_id);
+
+		// disable other unnecessary soc peripherals
+		// disable usart
+		//rcc_clk_disable(MSerial1.c_dev()->clk_id);
+		//rcc_clk_disable(MSerial2.c_dev()->clk_id);
+		//rcc_clk_disable(MSerial3.c_dev()->clk_id);
+
+		// turn off hot end and FAN
+		// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+		// 	ExecuterHead.SetTemperature(0, 0);
+		// }
+	}
+  else {
+    // these 2 statement will disable power supply for
+    // HMI, BED, and all addones except steppers
+    disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+  }
+}
+
+
+/*
+ * reset the power-loss data, generally called in starting work
+ */
+void PowerLossRecovery::Reset() {
+	int i;
+	int size = sizeof(PowerLossRecoveryData_t);
+	char *ptr = (char *)&cur_data_;
+
+	for (i=0; i<size; i++) {
+		*ptr++ = 0;
+	}
+}
+
+void PowerLossRecovery::Check(void) {
+  uint8_t powerstat = READ(POWER_DETECT_PIN);
+
+  if (!enabled_)
+    return;
+
+  // debounce for power loss, will delay 10ms for responce
+  if (powerstat != POWER_LOSS_STATE) {
+    last_powerloss_ = millis();
+    return;
+  }
+
+  if ((millis() - last_powerloss_) >= POWERPANIC_DEBOUNCE) {
+    quickstop.Trigger(QS_SOURCE_POWER_LOSS, true);
+  }
+}
+

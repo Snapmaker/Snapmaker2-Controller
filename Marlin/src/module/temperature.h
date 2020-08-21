@@ -32,10 +32,11 @@
   #include "../feature/power.h"
 #endif
 
-#include "ExecuterManager.h"
-#include "StatusControl.h"
-#include "../snap_module/snap_dbg.h"
 #include "../Marlin.h"
+
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #include "../snapmaker/src/module/toolhead_3dp.h"
+#endif
 
 #ifndef SOFT_PWM_SCALE
   #define SOFT_PWM_SCALE 0
@@ -589,7 +590,7 @@ class Temperature {
 
       if (action_ban & ACTION_BAN_NO_HEATING_HOTEND) {
         if (celsius > 0) {
-          LOG_E("ERROR: System Fault[0x%X]! NOW cannot heat hotend!\n", SystemStatus.GetFaultFlag());
+          LOG_E("ERROR: System Fault[0x%X]! NOW cannot heat hotend!\n", systemservice.GetFaultFlag());
           return;
         }
       }
@@ -606,8 +607,8 @@ class Temperature {
       start_watching_heater(HOTEND_INDEX);
       start_watching_heater_tempdrop(HOTEND_INDEX);
       start_watching_heater_notheated(true, HOTEND_INDEX);
-      #if ENABLED(EXECUTER_CANBUS_SUPPORT)
-        ExecuterHead.SetTemperature(HOTEND_INDEX, temp_hotend[HOTEND_INDEX].target);
+      #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+        printer.SetHeater(celsius, e);
       #endif
     }
 
@@ -675,7 +676,7 @@ class Temperature {
 
         if (action_ban & ACTION_BAN_NO_HEATING_BED) {
           if (celsius > 0) {
-            LOG_E("ERROR: System Fault[0x%X]! now cannot heat Bed!\n", SystemStatus.GetFaultFlag());
+            LOG_E("ERROR: System Fault[0x%X]! now cannot heat Bed!\n", systemservice.GetFaultFlag());
             return;
           }
         }

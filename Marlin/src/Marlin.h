@@ -438,34 +438,4 @@ void protected_pin_err();
 #define UInt32ToBytes(u32V, pBuff) do{pBuff[0] = (uint8_t)(u32V >> 24); pBuff[1] = (uint8_t)(u32V >> 16); pBuff[2] = (uint8_t)(u32V >> 8); pBuff[3] = (uint8_t)(u32V); }while(0)
 #define UInt16ToBytes(u16V, pBuff) do{pBuff[0] = (uint8_t)(u16V >> 8); pBuff[1] = (uint8_t)(u16V);}while(0)
 
-struct SnapTasks{
-TaskHandle_t marlin;
-TaskHandle_t hmi;
-TaskHandle_t heartbeat;
-MessageBufferHandle_t event_queue;
-};
-typedef struct SnapTasks* SnapTasks_t;
-
-extern SnapTasks_t snap_tasks;
-
-class Host;
-extern Host hmi;
-
-#define HMI_NOTIFY_WAITFOR_HEATING  0X00000001
-
-
-#define MARLIN_LOOP_TASK_PRIO     (configMAX_PRIORITIES - 1)
-#define MARLIN_LOOP_STACK_DEPTH   1024
-
-#define HMI_TASK_PRIO             (configMAX_PRIORITIES - 1)
-#define HMI_TASK_STACK_DEPTH      512
-
-// task parameters for heartbeat task
-#define HB_TASK_PRIO             (configMAX_PRIORITIES - 1)
-#define HB_TASK_STACK_DEPTH      512
-
-#define EXECUTOR_SERIAL_IRQ_PRIORITY  7
-#define HMI_SERIAL_IRQ_PRIORITY       8
-#define MARLIN_SERIAL_IRQ_PRIORITY    9
-
 #define AT_SNAP_SECTION   __attribute__((section(".snap")))

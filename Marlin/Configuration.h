@@ -132,7 +132,7 @@
 // The following define selects which electronics board you have.
 // Please choose the name from boards.h that matches your setup
 #ifndef MOTHERBOARD
-  #define MOTHERBOARD BOARD_GD32F1R
+  #define MOTHERBOARD BOARD_SNAPMAKER_2_0
 #endif
 
 // Optional custom name for your RepStrap or other custom machine
@@ -2166,42 +2166,7 @@
 // Allow servo angle to be edited and saved to EEPROM
 //#define EDITABLE_SERVO_ANGLES
 
-/**
- * HMI Screen
- *
- */
-#define HMISUPPORT
 
-
-#if ENABLED(HMISUPPORT)
-
-  //Select HMI screen
-  //#define HMI_LONG
-  #define HMI_SC20W
-
-  //Select Serial Port，Port:1-5 for Snapmaker
-  #define HMI_SERIAL_PORT 2
-
-  #if BOTH(HMI_LONG, HMI_SC20W)
-    #error "You have select more than one type screen"
-  #elif NONE(HMI_LONG, HMI_SC20W)
-    #error "You have HMISUPPORT, please select one type screen"
-  #endif
-
-  #if (HMI_SERIAL_PORT == SERIAL_PORT)
-    #error "HMI Screen use the same port with Serial"
-  #elif (HMI_SERIAL_PORT > 5)
-    #error "HMI Screen serial port must be from 1 to 5"
-  #endif
-
-#endif //defined ENABLE HMISUPPORT
-
-
-/**
- * Special Executer
- * Support 3 tool head, so need executer manager
- */
-#define EXECUTER_MANAGER_SUPPORT
 
 /**
  * Executer Can 
