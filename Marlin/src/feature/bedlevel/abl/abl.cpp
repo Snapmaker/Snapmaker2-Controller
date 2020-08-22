@@ -506,7 +506,8 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   // if fast_leveling is true, over directly. Otherwise move nozzle to current position of probe
   if (!fast_leveling) {
     do_blocking_move_to_z(current_position[Z_AXIS] + 1, speed_in_calibration[Z_AXIS]);
-    do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
+    // position recorded in leveling grid is logical coordinate, so need to use relative API
+    do_blocking_move_to_logical_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
   }
 
   return ret;
