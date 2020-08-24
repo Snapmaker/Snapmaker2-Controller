@@ -134,7 +134,9 @@ ErrCode LevelService::DoManualLeveling(Event_t &event) {
     // Move Z to 20mm height
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
 
-    do_blocking_move_to_z(9, 10);
+    // increase 3mm for first leveling point
+    // to avoid nozzle gouging the surface when user place glass on the steel sheet
+    do_blocking_move_to_z(12, 10);
 
     for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
       for (i = 0; i < GRID_MAX_POINTS_X; i++) {
