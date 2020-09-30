@@ -62,7 +62,6 @@
  * was designed, written and tested by Eduardo José Tagle on April/2018
  */
 
-#include <src/snap_module/debug.h>
 #include "planner.h"
 #include "stepper.h"
 #include "motion.h"
@@ -71,6 +70,8 @@
 #include "../gcode/parser.h"
 
 #include "../Marlin.h"
+
+#include "../../../snapmaker/src/snapmaker.h"
 
 #if HAS_LEVELING
   #include "../feature/bedlevel/bedlevel.h"
@@ -1705,7 +1706,7 @@ bool Planner::_buffer_steps(const int32_t (&target)[XYZE]
     // As there are no queued movements, the Stepper ISR will not touch this
     // variable, so there is no risk setting this here (but it MUST be done
     // before the following line!!)
-    if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    if (MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) {
       // Laser greyscale is special case that queue only have one item is normal.
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;
@@ -2647,7 +2648,7 @@ void Planner::buffer_sync_block() {
     // As there are no queued movements, the Stepper ISR will not touch this
     // variable, so there is no risk setting this here (but it MUST be done
     // before the following line!!)
-    if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    if (MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) {
       // Laser greyscale is special case that queue only have one item is normal.
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;

@@ -32,8 +32,7 @@
 
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../../core/debug_out.h"
-#include "../../../snap_module/debug.h"
-#include "../../../snap_module/level_service.h"
+#include "../../../../snapmaker/src/snapmaker.h"
 
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
@@ -451,8 +450,7 @@ void bilinear_grid_manual()
   SERIAL_ECHOLNPAIR("Y:", bilinear_start[Y_AXIS], " - ", bilinear_grid_spacing[Y_AXIS]);
 }
 
-#include "../../../snap_module/M1028.h"
-#include "../../../snap_module/error.h"
+
 bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
 uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   uint8_t ret = E_SUCCESS;

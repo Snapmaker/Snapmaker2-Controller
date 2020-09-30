@@ -2,6 +2,8 @@
 #include "can_host.h"
 
 #include "../service/upgrade.h"
+#include "../common/protocol_sstp.h"
+#include "../hmi/event_handler.h"
 
 #include "linear.h"
 #include "toolhead_3dp.h"
@@ -14,23 +16,8 @@ ModuleBase base(MODULE_DEVICE_ID_INVALID);
 
 ModuleBase *static_modules[] = {&base, &linear, &printer, &laser, &cnc, NULL};
 
-ModuleBase::lock_marlin_uart_ = false;
-
-ErrCode ModuleBase::Upgrade(uint32_t fw_addr, uint32_t length) {
-  int   i;
-  MAC_t my_mac;
-
-  for (i = 0; i < MODULE_SUPPORT_SAME_DEVICE_MAX; i++) {
-    my_mac.val = mac(i);
-    if (my_mac.val == MODULE_MAC_ID_INVALID)
-      goto out;
-
-    ModuleBase::Upgrade(my_mac, fw_addr, length);
-  }
-
-out:
-  return E_SUCCESS;
-}
+bool ModuleBase::lock_marlin_uart_ = false;
+ModuleToolHeadType ModuleBase::toolhead_ = MODULE_TOOLHEAD_UNKNOW;
 
 
 ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
@@ -183,4 +170,61 @@ void ModuleBase::ReportMarlinUart() {
     return;
 
   SERIAL_ECHOLN(";Locked UART");
+}
+
+
+ErrCode ModuleBase::SetMAC(SSTP_Event_t &event) {
+  CanExtCmd_t cmd;
+  uint8_t     buffer[8];
+
+  int      i;
+  uint32_t old_mac;
+
+  PDU_TO_LOCAL_WORD(old_mac, event.data);
+
+  cmd.data    = buffer;
+  cmd.data[0] = MODULE_EXT_CMD_SSID_REQ;
+  cmd.data[1] = 1;
+  cmd.data[2] = event.data[4];
+  cmd.data[3] = event.data[5];
+  cmd.data[4] = event.data[6];
+  cmd.data[5] = event.data[7];
+
+  // error code to HMI
+  event.data[0] = E_FAILURE;
+  event.length = 1;
+
+  old_mac &= MODULE_MAC_ID_MASK;
+  for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
+    if (old_mac == (canhost.mac(i) & MODULE_MAC_ID_MASK))
+      goto out;
+  }
+
+  goto error;
+
+out:
+  cmd.mac.val = canhost.mac(i);
+  event.data[0] = canhost.SendExtCmdSync(cmd, 500);
+
+error:
+  return hmi.Send(event);
+}
+
+
+ErrCode ModuleBase::GetMAC(SSTP_Event_t &event) {
+  int i, j = 0;
+  uint32_t tmp;
+  uint8_t buffer[4 * MODULE_SUPPORT_CONNECTED_MAX];
+
+  for(i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
+    if ((tmp = canhost.mac(i)) == MODULE_MAC_ID_INVALID)
+      break;
+
+    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp, j);
+  }
+
+  event.data = buffer;
+  event.length = (uint16_t)j;
+
+  return hmi.Send(event);
 }

@@ -5,7 +5,7 @@
 #include "../module/can_host.h"
 
 #include "upgrade.h"
-#include "systemservice.h"
+#include "system.h"
 #include <EEPROM.h>
 
 #include MARLIN_SRC(Marlin.h)

@@ -44,7 +44,7 @@
 
 #include "module/stepper_indirection.h"
 
-#include HAL(HAL_breathlight_STM32F1.h)
+#include HAL_PATH(HAL, HAL_breathlight_STM32F1.h)
 
 #ifdef ARDUINO
   #include <pins_arduino.h>
@@ -953,43 +953,7 @@ void stop() {
   }
 }
 
-/**
- * Check Update Flag
- */
-void CheckUpdateFlag(void)
-{
-  uint32_t Address;
-  uint32_t Flag;
-  Address = FLASH_UPDATE_CONTENT_INFO;
-  Flag = *((uint32_t*)Address);
-  if(Flag != 0xffffffff)
-  {
-    FLASH_Unlock();
-    FLASH_ErasePage(Address);
-    FLASH_Lock();
-  }
-}
 
-/**
- * Check App Valid Flag
- */
-void CheckAppValidFlag(void)
-{
-  uint32_t Value;
-  uint32_t Address;
-  Address = FLASH_BOOT_PARA;
-  Value = *((uint32_t*)Address);
-  if(Value != 0xaa55ee11) {
-    FLASH_Unlock();
-    FLASH_ErasePage(Address);
-    FLASH_ProgramWord(Address, 0xaa55ee11);
-    FLASH_Lock();
-  }
-}
-
-void main_loop(void *param);
-void hmi_task(void *param);
-void heartbeat_task(void *param);
 /**
  * Marlin entry-point: Set up before the program loop
  *  - Set up the kill pin, filament runout, power hold

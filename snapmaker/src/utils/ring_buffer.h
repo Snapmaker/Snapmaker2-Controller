@@ -14,7 +14,6 @@ template <typename T>
 class RingBuffer {
  public:
   RingBuffer();
-  ~RingBuffer();
 
   void Init(int32_t size, T *buffer);
 

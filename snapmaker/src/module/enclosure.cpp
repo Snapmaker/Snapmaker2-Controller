@@ -139,7 +139,7 @@ void Enclosure::HandleDoorOpened() {
   LOG_I("door opened!\n");
   systemservice.PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
   if (laser.IsOnline())
-    laser.ChangePowerLimit(TOOLHEAD_LASER_POWER_SAFE_LIMIT);
+    laser.SetPowerLimit(TOOLHEAD_LASER_POWER_SAFE_LIMIT);
 
   event_state_ = ENCLOSURE_EVENT_STATE_OPENED;
 }
@@ -149,7 +149,7 @@ void Enclosure::HandleDoorClosed() {
   systemservice.ClearSystemFaultBit(FAULT_FLAG_DOOR_OPENED);
 
   if (laser.IsOnline())
-    laser.ChangePowerLimit(TOOLHEAD_LASER_POWER_NORMAL_LIMIT);
+    laser.SetPowerLimit(TOOLHEAD_LASER_POWER_NORMAL_LIMIT);
 }
 
 void Enclosure::Process() {
@@ -188,3 +188,89 @@ void Enclosure::Process() {
 }
 
 
+ErrCode Enclosure::ReportStatus(SSTP_Event_t &event) {
+  uint8_t buff[4];
+
+  LOG_I("SC req enclosure sta\n");
+
+  if (IsOnline()) {
+    buff[0] = E_SUCCESS;
+  }
+  else {
+    buff[0] = E_FAILURE;
+  }
+
+  buff[1] = brightness_;
+  buff[2] = fan_speed_;
+  buff[3] = enabled_;
+
+  event.length = 4;
+  event.data = buff;
+
+  return hmi.Send(event);
+}
+
+ErrCode Enclosure::SetLightBar(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  if (event.length < 1) {
+    LOG_E("must specify light power!\n");
+    err = E_FAILURE;
+    goto OUT;
+  }
+
+  SetLightBar(event.data[0]);
+
+OUT:
+  event.data = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+
+ErrCode Enclosure::SetFan(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  if (event.length < 1) {
+    LOG_E("must specify Fan speed!\n");
+    err = E_FAILURE;
+    goto OUT;
+  }
+
+  SetFanSpeed(event.data[0]);
+
+OUT:
+  event.data = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+
+ErrCode Enclosure::SetDetection(SSTP_Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  if (event.length < 1) {
+    LOG_E("must tell me what to do for enclosure detection!\n");
+    err = E_FAILURE;
+    goto OUT;
+  }
+
+  if (!IsOnline()) {
+    LOG_E("Enclosure is offline!\n");
+    err = E_HARDWARE;
+    goto OUT;
+  }
+
+  if (event.data[0])
+    Enable();
+  else
+    Disable();
+
+  err = E_SUCCESS;
+
+OUT:
+  event.data = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}

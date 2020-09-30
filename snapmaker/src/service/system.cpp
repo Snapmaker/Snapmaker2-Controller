@@ -2,6 +2,12 @@
 #include "../common/debug.h"
 
 #include "../module/linear.h"
+#include "../module/enclosure.h"
+#include "../module/toolhead_3dp.h"
+#include "../module/toolhead_cnc.h"
+#include "../module/toolhead_laser.h"
+
+#include "../snapmaker.h"
 
 #include "system.h"
 #include "bed_level.h"
@@ -9,14 +15,11 @@
 #include "power_loss_recovery.h"
 
 #include MARLIN_SRC(Marlin.h)
-
-#include MARLIN_SRC(module/PeriphDevice.h)
 #include MARLIN_SRC(module/printcounter.h)
 #include MARLIN_SRC(module/stepper.h)
 #include MARLIN_SRC(module/configuration_store.h)
 #include MARLIN_SRC(module/temperature.h)
 #include MARLIN_SRC(module/planner.h)
-#include MARLIN_SRC(module/ExecuterManager.h)
 #include MARLIN_SRC(module/motion.h)
 #include MARLIN_SRC(gcode/gcode.h)
 #include MARLIN_SRC(gcode/parser.h)
@@ -115,13 +118,13 @@ ErrCode SystemService::PreProcessStop() {
   feedrate_percentage = 100;
 
   // set temp to 0
-  if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
     thermalManager.setTargetBed(0);
     HOTEND_LOOP() { thermalManager.setTargetHotend(0, e); }
 
     // if user abort the work, FAN0 will not be closed
     // set target temp to 0 only make FAN1 be closed
-    ExecuterHead.SetFan(0, 0);
+    printer.SetFan(0, 0);
   }
 
   // diable power panic data
@@ -129,8 +132,8 @@ ErrCode SystemService::PreProcessStop() {
 
   print_job_timer.stop();
 
-  if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
-    ExecuterHead.Laser.Off();
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+    laser.TurnOff();
   }
 }
 
@@ -236,7 +239,7 @@ void inline SystemService::RestoreXYZ(void) {
   planner.synchronize();
 
   // restore Z
-  if (MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
+  if (MODULE_TOOLHEAD_CNC == ModuleBase::toolhead()) {
     move_to_limited_z(pl_recovery.cur_data_.PositionData[Z_AXIS] + 15, 30);
     move_to_limited_z(pl_recovery.cur_data_.PositionData[Z_AXIS], 10);
   }
@@ -261,7 +264,7 @@ void inline SystemService::resume_3dp(void) {
 void inline SystemService::resume_cnc(void) {
   // enable CNC motor
   LOG_I("restore CNC power: %f\n", pl_recovery.cur_data_.cnc_power);
-  ExecuterHead.CNC.SetPower(pl_recovery.cur_data_.cnc_power);
+  cnc.SetOutput(pl_recovery.cur_data_.cnc_power);
 }
 
 void inline SystemService::resume_laser(void) {
@@ -308,8 +311,8 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
     break;
   }
 
-  switch (ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
+  switch (ModuleBase::toolhead()) {
+  case MODULE_TOOLHEAD_3DP:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant!\n");
       fault_flag_ |= FAULT_FLAG_FILAMENT;
@@ -317,9 +320,9 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
     }
     break;
 
-  case MACHINE_TYPE_CNC:
-  case MACHINE_TYPE_LASER:
-    if (Periph.IsDoorOpened()) {
+  case MODULE_TOOLHEAD_CNC:
+  case MODULE_TOOLHEAD_LASER:
+    if (enclosure.DoorOpened()) {
       LOG_E("Door is opened!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       return E_DOOR_OPENED;
@@ -341,17 +344,17 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
 
 
 ErrCode SystemService::ResumeProcess() {
-  switch(ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
+  switch(ModuleBase::toolhead()) {
+  case MODULE_TOOLHEAD_3DP:
     set_bed_leveling_enabled(true);
     resume_3dp();
     break;
 
-  case MACHINE_TYPE_CNC:
+  case MODULE_TOOLHEAD_CNC:
     resume_cnc();
     break;
 
-  case MACHINE_TYPE_LASER:
+  case MODULE_TOOLHEAD_LASER:
     resume_laser();
     break;
 
@@ -367,6 +370,7 @@ ErrCode SystemService::ResumeProcess() {
 
   // clear command queue
   clear_command_queue();
+  clear_hmi_gcode_queue();
 
   // resume stopwatch
   if (print_job_timer.isPaused()) print_job_timer.start();
@@ -387,15 +391,15 @@ ErrCode SystemService::ResumeOver() {
   // give a opportunity to stop working
   if (action_ban & ACTION_BAN_NO_WORKING) {
     LOG_E("System Fault! Now cannot start working!\n");
-    StopTrigger(TRIGGER_SOURCE_EXCEPTION, INVALID_OP_CODE);
+    StopTrigger(TRIGGER_SOURCE_EXCEPTION, SSTP_INVALID_OP_CODE);
     return E_NO_WORKING;
   }
 
   if (cur_status_ != SYSTAT_RESUME_WAITING)
     return E_NO_SWITCHING_STA;
 
-  switch (ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
+  switch (ModuleBase::toolhead()) {
+  case MODULE_TOOLHEAD_3DP:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
@@ -410,22 +414,22 @@ ErrCode SystemService::ResumeOver() {
     sync_plan_position_e();
     break;
 
-  case MACHINE_TYPE_CNC:
-  case MACHINE_TYPE_LASER:
-    if (Periph.IsDoorOpened()) {
+  case MODULE_TOOLHEAD_CNC:
+  case MODULE_TOOLHEAD_LASER:
+    if (enclosure.DoorOpened()) {
       LOG_E("Door is opened, please close the door!\n");
       PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
       return E_DOOR_OPENED;
     }
 
-    if (MACHINE_TYPE_LASER == ExecuterHead.MachineType) {
+    if (MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) {
       if (pl_recovery.cur_data_.laser_pwm > 0)
-        ExecuterHead.Laser.On();
+        laser.TurnOn();
     }
     break;
 
   default:
-    LOG_E("invalid machine type: %d\n", ExecuterHead.MachineType);
+    LOG_E("invalid machine type: %d\n", ModuleBase::toolhead());
     break;
   }
 
@@ -551,8 +555,8 @@ ErrCode SystemService::StartWork(TriggerSource s) {
     return E_NO_SWITCHING_STA;
   }
 
-  switch (ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
+  switch (ModuleBase::toolhead()) {
+  case MODULE_TOOLHEAD_3DP:
     if (runout.is_filament_runout()) {
       fault_flag_ |= FAULT_FLAG_FILAMENT;
       LOG_E("No filemant!\n");
@@ -560,9 +564,9 @@ ErrCode SystemService::StartWork(TriggerSource s) {
     }
     break;
 
-  case MACHINE_TYPE_LASER:
-  case MACHINE_TYPE_CNC:
-    if (Periph.IsDoorOpened()) {
+  case MODULE_TOOLHEAD_LASER:
+  case MODULE_TOOLHEAD_CNC:
+    if (enclosure.DoorOpened()) {
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       LOG_E("Door is opened!\n");
       return E_DOOR_OPENED;
@@ -571,8 +575,8 @@ ErrCode SystemService::StartWork(TriggerSource s) {
       process_cmd_imd("G28 Z");
 
     // set to defualt power, but not turn on Motor
-    if (MACHINE_TYPE_CNC == ExecuterHead.MachineType) {
-      ExecuterHead.CNC.ChangePower(100);
+    if (MODULE_TOOLHEAD_CNC == ModuleBase::toolhead()) {
+      cnc.power(100);
     }
     break;
 
@@ -716,7 +720,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     if (fault_flag_ & FAULT_FLAG_BED_PORT)
       return E_SAME_STATE;
     new_fault_flag = FAULT_FLAG_BED_PORT;
-    if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT)
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP)
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
     action_ban |= ACTION_BAN_NO_HEATING_BED;
     power_ban = POWER_DOMAIN_BED;
@@ -732,7 +736,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_HEAT_FAIL:
-    if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT)
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
       return E_SUCCESS;
     switch (h) {
     case EHOST_HOTEND0:
@@ -761,7 +765,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_TEMP_RUNAWAY:
-    if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT)
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
       return E_SUCCESS;
     switch (h) {
     case EHOST_HOTEND0:
@@ -789,7 +793,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_TEMP_REDUNDANCY:
-    if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT)
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
       return E_SUCCESS;
     LOG_E("Not handle exception: TEMP_REDUNDANCY\n");
     return E_FAILURE;
@@ -798,7 +802,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
   case ETYPE_SENSOR_BAD:
     switch (h) {
     case EHOST_HOTEND0:
-      if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT)
+      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
         return E_SUCCESS;
       if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_BAD)
         return E_SAME_STATE;
@@ -814,7 +818,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_BED_SENSOR_BAD;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
         LOG_E("Detected error in sensor of Bed! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       }
@@ -828,7 +832,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_BELOW_MINTEMP:
-    if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT)
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
       return E_SUCCESS;
     LOG_E("Not handle exception: BELOW_MINTEMP\n");
     return E_FAILURE;
@@ -841,7 +845,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_HOTEND_MAXTEMP;
       action = EACTION_STOP_HEATING_HOTEND;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("current temp of hotend is higher than MAXTEMP: %d!\n", HEATER_0_MAXTEMP);
@@ -852,7 +856,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_BED_MAXTEMP;
       action = EACTION_STOP_HEATING_BED;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("current temp of Bed is higher than MAXTEMP: %d!\n", BED_MAXTEMP);
@@ -875,7 +879,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       power_disable = POWER_DOMAIN_HOTEND;
       power_ban = POWER_DOMAIN_HOTEND;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING;
       }
@@ -890,7 +894,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       action_ban = ACTION_BAN_NO_HEATING_BED;
       power_disable = POWER_DOMAIN_BED;
       power_ban = POWER_DOMAIN_BED;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("current temp [%.2f] of Bed is more higher than MAXTEMP: %d!\n", thermalManager.degBed(), BED_MAXTEMP + 5);
@@ -911,7 +915,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_HOTEND;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
@@ -924,7 +928,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_BED_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("current temperature of bed dropped abruptly! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
@@ -945,7 +949,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_HOTEND;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
@@ -958,7 +962,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_BED_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("Thermistor of bed maybe come off! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
@@ -994,7 +998,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     thermalManager.setTargetBed(0);
 
   if (action & EACTION_STOP_WORKING) {
-    StopTrigger(TRIGGER_SOURCE_EXCEPTION, INVALID_OP_CODE);
+    StopTrigger(TRIGGER_SOURCE_EXCEPTION, SSTP_INVALID_OP_CODE);
   }
   else if (action & EACTION_PAUSE_WORKING) {
     PauseTrigger(TRIGGER_SOURCE_EXCEPTION);
@@ -1223,7 +1227,7 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SHORTCIRCUIT;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       power_ban = POWER_DOMAIN_HOTEND;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action_ban |= ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING;
       }
       LOG_I("current temp of hotend is now lower than MAX TEMP: %d!\n", HEATER_0_MAXTEMP);
@@ -1252,7 +1256,7 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action_ban |= ACTION_BAN_NO_WORKING;
       }
       LOG_I("abrupt temperature drop in hotend recover.\n");
@@ -1280,7 +1284,7 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
-      if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
         action_ban |= ACTION_BAN_NO_WORKING;
       }
       LOG_I("fault of HOTEND SENSOR COME OFF is cleared!\n");
@@ -1534,11 +1538,11 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   hmi.ToPDUBytes((uint8_t *)&sta.feedrate, (uint8_t *)&tmp_i16, 2);
 
   // laser power
-  tmp_u32 = ExecuterHead.Laser.GetPower();
+  tmp_u32 = laser.power();
   hmi.ToPDUBytes((uint8_t *)&sta.laser_power, (uint8_t *)&tmp_u32, 2);
 
   // RPM of CNC
-  tmp_u32 = ExecuterHead.CNC.GetRPM();
+  tmp_u32 = cnc.rpm();
   hmi.ToPDUBytes((uint8_t *)&sta.cnc_rpm, (uint8_t *)&tmp_u32, 2);
 
   // system status
@@ -1548,7 +1552,7 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   sta.addon_state = (uint8_t)systemservice.GetPeriphDeviceStatus();
 
   // executor type
-  sta.executor_type = ExecuterHead.MachineType;
+  sta.executor_type = ModuleBase::toolhead();
 
   return hmi.Send(event);
 }
@@ -1602,11 +1606,11 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // laser power
-  tmp_u32 = ExecuterHead.Laser.GetPower();
+  tmp_u32 = laser.power();
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
 
   // RPM of CNC
-  tmp_u32 = ExecuterHead.CNC.GetRPM();
+  tmp_u32 = cnc.rpm();
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
 
   // system status
@@ -1616,7 +1620,7 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   sta.addon_state = (uint8_t)systemservice.GetPeriphDeviceStatus();
 
   // executor type
-  sta.executor_type = ExecuterHead.MachineType;
+  sta.executor_type = ModuleBase::toolhead();
 
   return hmi.Send(event);
 }
@@ -1904,7 +1908,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 
   case RENV_TYPE_HOTEND_TEMP:
     LOG_I("new hotend temp: %.2f\n", param);
-    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
+    if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
       ret = E_INVALID_STATE;
       break;
     }
@@ -1917,7 +1921,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 
   case RENV_TYPE_BED_TEMP:
     LOG_I("new bed temp: %.2f\n", param);
-    if (MACHINE_TYPE_3DPRINT != ExecuterHead.MachineType) {
+    if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
       ret = E_INVALID_STATE;
       break;
     }
@@ -1930,7 +1934,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 
   case RENV_TYPE_LASER_POWER:
     LOG_I("new laser power: %.2f\n", param);
-    if (MACHINE_TYPE_LASER != ExecuterHead.MachineType) {
+    if (MODULE_TOOLHEAD_LASER != ModuleBase::toolhead()) {
       ret = E_INVALID_STATE;
       break;
     }
@@ -1938,10 +1942,10 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     if (param > 100 || param < 0)
       ret = E_PARAM;
     else {
-      ExecuterHead.Laser.ChangePower(param);
-      // change current output when it was turned on
-      if (ExecuterHead.Laser.GetTimPwm() > 0)
-        ExecuterHead.Laser.On();
+      if (laser.power_pwm() > 0)
+        laser.SetOutput(param);
+      else
+        laser.SetPower(param);
     }
     break;
 
@@ -1950,7 +1954,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     break;
 
   case RENV_TYPE_CNC_POWER:
-    if (MACHINE_TYPE_CNC != ExecuterHead.MachineType) {
+    if (MODULE_TOOLHEAD_CNC != ModuleBase::toolhead()) {
       ret = E_INVALID_STATE;
       LOG_E("Not CNC toolhead!\n");
       break;
@@ -1961,10 +1965,10 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
       LOG_E("out of range: %.2f\n", param);
     }
     else {
-      ExecuterHead.CNC.ChangePower(param);
+      cnc.power(param);
       // change current output when it was turned on
-      if (ExecuterHead.CNC.GetRPM() > 0)
-        ExecuterHead.CNC.On();
+      if (cnc.rpm() > 0)
+        cnc.TurnOn();
       LOG_I("new CNC power: %.2f\n", param);
     }
     break;
@@ -2091,8 +2095,8 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
     // make sure laser is off
     // won't turn off laser in pl_recovery.SaveEnv(), it's call by stepper ISR
     // because it may call CAN transmisson function
-    if (ExecuterHead.MachineType == MACHINE_TYPE_LASER) {
-      ExecuterHead.Laser.Off();
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+      laser.TurnOff();
     }
     break;
 

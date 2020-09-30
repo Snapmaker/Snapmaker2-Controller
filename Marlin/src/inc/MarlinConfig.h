@@ -49,4 +49,3 @@
 #include "../core/serial.h"
 #include "../core/minmax.h"
 
-#include "../../../snapmaker/src/snapmaker.h"

@@ -106,7 +106,6 @@ int32_t CanChannel::Available(CanFrameType ft) {
 
 int32_t CanChannel::Read(CanFrameType ft, uint8_t *buffer, int32_t l) {
   int32_t i = 0;
-  int32_t ret;
 
   uint8_t *tmp_pu8;
 
@@ -145,8 +144,6 @@ int32_t CanChannel::Read(CanFrameType ft, uint8_t *buffer, int32_t l) {
 
 
 int32_t CanChannel::Peek(CanFrameType ft, uint8_t *buffer, int32_t l) {
-  int32_t i = 0;
-  int32_t ret;
 
   if (!buffer) {
     return -E_PARAM;
@@ -169,7 +166,7 @@ int32_t CanChannel::Peek(CanFrameType ft, uint8_t *buffer, int32_t l) {
 
 void CanChannel::Irq(CanChannelNumber ch,  uint8_t fifo_index) {
   int32_t i = 0;
-  bool is_remote_frame;
+  bool is_remote_frame = false;
 
   uint32_t  can_id;
   uint8_t   id_type;

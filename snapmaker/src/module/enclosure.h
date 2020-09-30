@@ -34,10 +34,11 @@ class Enclosure: public ModuleBase {
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
-    bool    IsOnline(uint8_t sub_index = 0) { return (mac_index_ != MODULE_MAC_INDEX_INVALID); }
-
     ErrCode SetLightBar(uint8_t brightness);
     ErrCode SetFanSpeed(uint8_t speed);
+
+    bool IsOnline(uint8_t sub_index = 0) { return (mac_index_ != MODULE_MAC_INDEX_INVALID); }
+    bool DoorOpened() { return door_state_ == ENCLOSURE_DOOR_STATE_OPEN; }
 
     void Disable();
     void Enable();
@@ -45,6 +46,12 @@ class Enclosure: public ModuleBase {
     void Process();
 
     void PollDoorState();
+
+    // callback for HMI events
+    ErrCode ReportStatus(SSTP_Event_t &event);
+    ErrCode SetFan(SSTP_Event_t &event);
+    ErrCode SetLightBar(SSTP_Event_t &event);
+    ErrCode SetDetection(SSTP_Event_t &event);
 
     uint32_t mac(uint8_t sub_index = 0) { return canhost.mac(mac_index_); }
 

@@ -3,10 +3,13 @@
 #include "power_loss_recovery.h"
 #include "system.h"
 
-#include MARLIN_SRC(module/stepper.h）
-#include MARLIN_SRC(module/temperature.h）
-#include MARLIN_SRC(module/printcounter.h）
-#include MARLIN_SRC(feature/bedlevel/bedlevel.h）
+#include "../module/toolhead_cnc.h"
+#include "../module/toolhead_3dp.h"
+
+#include MARLIN_SRC(module/stepper.h)
+#include MARLIN_SRC(module/temperature.h)
+#include MARLIN_SRC(module/printcounter.h)
+#include MARLIN_SRC(feature/bedlevel/bedlevel.h)
 #include MARLIN_HAL(HAL_watchdog_STM32F1.h)
 
 #define CNC_SAFE_HIGH_DIFF 30  // Bed to CNC head height. mm
@@ -87,7 +90,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     * next case to save env and write flash
     */
     case QS_SOURCE_POWER_LOSS:
-      pl_recovery.TurnOffPower(state_);
+      TurnOffPower(state_);
 
     /*
     * triggered by PAUSE, just save env and switch to next state
@@ -160,7 +163,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
    */
   case QS_STA_PARKING:
     if ((source_ == QS_SOURCE_POWER_LOSS) && (pre_source_ == QS_SOURCE_PAUSE) && !wrote_flash_) {
-      pl_recovery.TurnOffPower(state_);
+      TurnOffPower(state_);
       pl_recovery.WriteFlash();
       wrote_flash_ = true;
     }
@@ -184,8 +187,8 @@ void QuickStopService::Park() {
   if (leveling_active)
     set_bed_leveling_enabled(false);
 
-  switch (ExecuterHead.MachineType) {
-  case MACHINE_TYPE_3DPRINT:
+  switch (ModuleBase::toolhead()) {
+  case MODULE_TOOLHEAD_3DP:
     if(thermalManager.temp_hotend[0].current > 180)
       retract = 6;
 
@@ -210,14 +213,14 @@ void QuickStopService::Park() {
       move_to_limited_xy(0, Y_MAX_POS, 60);
     break;
 
-  case MACHINE_TYPE_LASER:
+  case MODULE_TOOLHEAD_LASER:
     // In the case of laser, we don't raise Z.
     if (source_ == QS_SOURCE_STOP) {
       move_to_limited_z(Z_MAX_POS, 30);
     }
     break;
 
-  case MACHINE_TYPE_CNC:
+  case MODULE_TOOLHEAD_CNC:
     if (current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF > Z_MAX_POS) {
       move_to_limited_z(Z_MAX_POS, 30);
     } else {
@@ -226,7 +229,7 @@ void QuickStopService::Park() {
         if (source_ != QS_SOURCE_POWER_LOSS)
           idle();
       }
-      ExecuterHead.CNC.SetPower(0);
+      cnc.SetOutput(0);
       move_to_limited_z(Z_MAX_POS, 30);
     }
     break;
@@ -241,6 +244,34 @@ void QuickStopService::Park() {
 
   if (leveling_active)
     set_bed_leveling_enabled(true);
+}
+
+
+/*
+ * disable other unused peripherals in ISR
+ */
+void QuickStopService::TurnOffPower(QuickStopState sta) {
+	if (sta  > QS_STA_TRIGGERED) {
+		BreathLightClose();
+
+		// disble timer except the stepper's
+		rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
+		rcc_clk_disable(TIMER7->clk_id);
+
+		// disalbe ADC
+		rcc_clk_disable(ADC1->clk_id);
+		rcc_clk_disable(ADC2->clk_id);
+
+		// turn off hot end and FAN
+		if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+			printer.SetHeater(0, 0);
+		}
+	}
+  else {
+    // these 2 statement will disable power supply for
+    // HMI, BED, and all addones except steppers
+    disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+  }
 }
 
 
@@ -296,6 +327,7 @@ void QuickStopService::Process() {
 
   // idle() will get new command during parking, clean again
   clear_command_queue();
+  clear_hmi_gcode_queue();
 
   // tell system controller we have parked
   systemservice.CallbackPostQS(source_);

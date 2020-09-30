@@ -73,7 +73,7 @@ void GcodeSuite::M3_M4(const bool is_M4) {
  
   if(laser.IsOnline()) {
     if(parser.seen('P')) {
-      laser.ChangePowerImmediately(parser.value_float());
+      laser.SetOutput(parser.value_float());
     }
     else {
       laser.TurnOn();
@@ -81,7 +81,7 @@ void GcodeSuite::M3_M4(const bool is_M4) {
   }
   else if(cnc.IsOnline()) {
     if(parser.seen('P'))
-      cnc.ChangePowerImmediately(parser.value_float());
+      cnc.SetOutput(parser.value_float());
     else
       cnc.TurnOn();
   }

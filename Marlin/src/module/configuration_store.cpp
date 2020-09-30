@@ -54,10 +54,8 @@
 #include "../libs/vector_3.h"
 #include "../gcode/gcode.h"
 #include "../Marlin.h"
-#include "LaserExecuter.h"
-#include "CNCExecuter.h"
-#include "../snap_module/level_service.h"
-#include "StatusControl.h"
+
+#include "../../../snapmaker/src/snapmaker.h"
 
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
   #include "../HAL/shared/persistent_store_api.h"
@@ -285,11 +283,6 @@ typedef struct SettingsDataStruct {
   #if EXTRUDERS > 1
     toolchange_settings_t toolchange_settings;          // M217 S P R
   #endif
-
-  //
-  // Laser
-  //
-  float LaserPower;
 
   //
   // Software machine resize
@@ -1120,13 +1113,6 @@ void MarlinSettings::postprocess() {
     #endif
 
     //
-    // Laser
-    //
-    uint32_t LaserPower = ExecuterHead.Laser.GetPower();
-    _FIELD_TEST(LaserPower);
-    EEPROM_WRITE(LaserPower);
-
-    //
     // Software machine size
     //
     #if ENABLED(SW_MACHINE_SIZE)
@@ -1867,14 +1853,6 @@ void MarlinSettings::postprocess() {
       #endif
 
       //
-      // Laser power
-      //
-      uint32_t LaserPower;
-      _FIELD_TEST(LaserPower);
-      EEPROM_READ(LaserPower);
-      ExecuterHead.Laser.UpdateLaserPower((float)LaserPower / 1000.0f);
-
-      //
       // Software machine size
       //
       #if ENABLED(SW_MACHINE_SIZE)
@@ -1980,7 +1958,7 @@ void MarlinSettings::postprocess() {
       return _load();
     }
     else {
-      system.ThrowException(EHOST_MC, ETYPE_LOST_CFG);
+      systemservice.ThrowException(EHOST_MC, ETYPE_LOST_CFG);
       reset();
       save();
       return true;
@@ -2388,11 +2366,6 @@ void MarlinSettings::reset() {
       fc_settings[e].load_length = FILAMENT_CHANGE_FAST_LOAD_LENGTH;
     }
   #endif
-
-  //
-  // Laser
-  //
-  ExecuterHead.Laser.UpdateLaserPower(80.0f);
 
   //
   // Software machine size

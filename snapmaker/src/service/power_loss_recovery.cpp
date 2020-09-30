@@ -2,6 +2,12 @@
 
 #include "../common/debug.h"
 
+#include "../module/linear.h"
+#include "../module/enclosure.h"
+#include "../module/toolhead_3dp.h"
+#include "../module/toolhead_cnc.h"
+#include "../module/toolhead_laser.h"
+
 #include "power_loss_recovery.h"
 #include "quick_stop.h"
 #include "bed_level.h"
@@ -11,12 +17,10 @@
 #include MARLIN_SRC(gcode/gcode.h)
 #include MARLIN_SRC(gcode/parser.h)
 #include MARLIN_SRC(module/configuration_store.h)
-#include MARLIN_SRC(module/PeriphDevice.h)
 #include MARLIN_SRC(module/printcounter.h)
 #include MARLIN_SRC(module/stepper.h)
 #include MARLIN_SRC(module/temperature.h)
 #include MARLIN_SRC(module/planner.h)
-#include MARLIN_SRC(module/ExecuterManager.h)
 #include MARLIN_SRC(module/motion.h)
 #include MARLIN_SRC(feature/runout.h)
 #include MARLIN_SRC(feature/bedlevel/bedlevel.h)
@@ -59,7 +63,7 @@ void PowerLossRecovery::Init(void) {
   {
   case 0:
     // got power panic data
-		if (ExecuterHead.MachineType == pre_data_.MachineType) {
+		if (ModuleBase::toolhead() == pre_data_.toolhead) {
 			systemservice.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
 
 			if (pre_data_.live_z_offset != 0) {
@@ -337,7 +341,7 @@ int PowerLossRecovery::SaveEnv(void) {
   // heated bed
   cur_data_.BedTamp = thermalManager.temp_bed.target;
 
-  cur_data_.MachineType = ExecuterHead.MachineType;
+  cur_data_.toolhead = ModuleBase::toolhead();
 
   cur_data_.PrintFeedRate = saved_g1_feedrate_mm_s;
   cur_data_.TravelFeedRate = saved_g0_feedrate_mm_s;
@@ -352,7 +356,7 @@ int PowerLossRecovery::SaveEnv(void) {
   cur_data_.accumulator = print_job_timer.duration();
 
   for (i = 0; i < PP_FAN_COUNT; i++)
-    cur_data_.FanSpeed[i] = ExecuterHead.GetFanSpeed(i);
+    cur_data_.FanSpeed[i] = printer.fan_speed(i);
 
   // if power loss, we have record the position to cur_data_.PositionData[]
 	// NOTE that we save logical position for XYZ
@@ -379,15 +383,15 @@ int PowerLossRecovery::SaveEnv(void) {
 
   cur_data_.Valid = 1;
 
-	switch (ExecuterHead.MachineType)
+	switch (ModuleBase::toolhead())
 	{
-	case MACHINE_TYPE_CNC:
-		cur_data_.cnc_power = ExecuterHead.CNC.GetPower();
+	case MODULE_TOOLHEAD_CNC:
+		cur_data_.cnc_power = cnc.power();
 		break;
 
-	case MACHINE_TYPE_LASER:
-		cur_data_.laser_percent = ExecuterHead.Laser.GetPowerPercent();
-		cur_data_.laser_pwm = ExecuterHead.Laser.GetTimPwm();
+	case MODULE_TOOLHEAD_LASER:
+		cur_data_.laser_percent = laser.power();
+		cur_data_.laser_pwm = laser.power_pwm();
 	break;
 
 	default:
@@ -439,7 +443,7 @@ void PowerLossRecovery::Resume3DP() {
 
   	// recover FAN speed after heating to save time
 	for (int i = 0; i < PP_FAN_COUNT; i++) {
-		ExecuterHead.SetFan(i, pre_data_.FanSpeed[i]);
+		printer.SetFan(i, pre_data_.FanSpeed[i]);
 	}
 
 	current_position[E_AXIS] += 20;
@@ -468,13 +472,13 @@ void PowerLossRecovery::ResumeCNC() {
 	// for CNC recover form power-loss, we need to raise Z firstly.
 	// because the drill bit maybe is in the workpiece
 	// and we need to keep CNC motor running when raising Z
-	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
+	cnc.SetOutput(pre_data_.cnc_power);
 
 	relative_mode = true;
 	process_cmd_imd("G28 Z");
 	relative_mode = false;
 
-	ExecuterHead.CNC.SetPower(0);
+	cnc.SetOutput(0);
 
 	// homing and restore workspace
 	RestoreWorkspace();
@@ -484,7 +488,7 @@ void PowerLossRecovery::ResumeCNC() {
 	planner.synchronize();
 
 	// enable CNC motor
-	ExecuterHead.CNC.SetPower(pre_data_.cnc_power);
+	cnc.SetOutput(pre_data_.cnc_power);
 	LOG_I("Restore CNC power: %.2f\n", pre_data_.cnc_power);
 
 	// move to target Z
@@ -496,7 +500,7 @@ void PowerLossRecovery::ResumeCNC() {
 
 void PowerLossRecovery::ResumeLaser() {
 	// make sure laser is disable
-	ExecuterHead.Laser.Off();
+	laser.TurnOff();
 
 	// homing and restore workspace
 	RestoreWorkspace();
@@ -515,7 +519,7 @@ void PowerLossRecovery::ResumeLaser() {
 	cur_data_.laser_pwm = pre_data_.laser_pwm;
 
 	// just change laser power but not enable output
-	ExecuterHead.Laser.ChangePower(pre_data_.laser_percent);
+	laser.SetPower(pre_data_.laser_percent);
 }
 
 
@@ -555,8 +559,8 @@ ErrCode PowerLossRecovery::ResumeWork() {
 	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
 			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
 
-	switch (pre_data_.MachineType) {
-	case MACHINE_TYPE_3DPRINT:
+	switch (pre_data_.toolhead) {
+	case MODULE_TOOLHEAD_3DP:
 		if (runout.is_filament_runout()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			systemservice.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
@@ -569,8 +573,8 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		Resume3DP();
 		break;
 
-	case MACHINE_TYPE_CNC:
-		if (Periph.IsDoorOpened()) {
+	case MODULE_TOOLHEAD_CNC:
+		if (enclosure.DoorOpened()) {
 			LOG_E("trigger RESTORE: failed, door is open\n");
 			return E_DOOR_OPENED;
 		}
@@ -584,8 +588,8 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		ResumeCNC();
 		break;
 
-	case MACHINE_TYPE_LASER:
-		if (Periph.IsDoorOpened()) {
+	case MODULE_TOOLHEAD_LASER:
+		if (enclosure.DoorOpened()) {
 			LOG_E("trigger RESTORE: failed, door is open\n");
 			return E_DOOR_OPENED;
 		}
@@ -597,7 +601,7 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		break;
 
 	default:
-		LOG_W("invalid machine type saved in power-loss: %d\n", pre_data_.MachineType);
+		LOG_W("invalid machine type saved in power-loss: %d\n", pre_data_.toolhead);
 		return E_FAILURE;
 		break;
 	}
@@ -614,43 +618,6 @@ ErrCode PowerLossRecovery::ResumeWork() {
 	relative_mode = pre_data_.axes_relative_mode;
 
 	return E_SUCCESS;
-}
-
-/*
- * disable other unused peripherals in ISR
- */
-void PowerLossRecovery::TurnOffPower(QuickStopState sta) {
-	if (sta  > QS_STA_TRIGGERED) {
-		BreathLightClose();
-
-		// disble timer except the stepper's
-		rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
-		rcc_clk_disable(TIMER7->clk_id);
-
-		// disalbe ADC
-		rcc_clk_disable(ADC1->clk_id);
-		rcc_clk_disable(ADC2->clk_id);
-
-		//disble DMA
-		rcc_clk_disable(DMA1->clk_id);
-		rcc_clk_disable(DMA2->clk_id);
-
-		// disable other unnecessary soc peripherals
-		// disable usart
-		//rcc_clk_disable(MSerial1.c_dev()->clk_id);
-		//rcc_clk_disable(MSerial2.c_dev()->clk_id);
-		//rcc_clk_disable(MSerial3.c_dev()->clk_id);
-
-		// turn off hot end and FAN
-		// if (ExecuterHead.MachineType == MACHINE_TYPE_3DPRINT) {
-		// 	ExecuterHead.SetTemperature(0, 0);
-		// }
-	}
-  else {
-    // these 2 statement will disable power supply for
-    // HMI, BED, and all addones except steppers
-    disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
-  }
 }
 
 

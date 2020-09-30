@@ -102,7 +102,6 @@ void SnapDebug::SendLog2Screen(SnapDebugLevel l) {
 //    fmt - format of messages
 //    ... - args
 void SnapDebug::Log(SnapDebugLevel level, const char *fmt, ...) {
-  int len;
   va_list args;
 
   if (level < pc_msg_level && level < sc_msg_level)

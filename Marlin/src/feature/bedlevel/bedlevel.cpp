@@ -42,7 +42,7 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
-#include "../../snap_module/debug.h"
+#include "../../../../snapmaker/src/snapmaker.h"
 
 #if ENABLED(G26_MESH_VALIDATION)
   bool g26_debug_flag; // = false

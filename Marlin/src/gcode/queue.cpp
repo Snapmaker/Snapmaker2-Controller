@@ -30,9 +30,8 @@
 #include "../module/planner.h"
 #include "../module/temperature.h"
 #include "../Marlin.h"
-#include "../module/StatusControl.h"
-#include "../snap_module/debug.h"
-#include "../snap_module/event_handler.h"
+
+#include "../../../snapmaker/src/snapmaker.h"
 
 #if ENABLED(PRINTER_EVENT_LEDS)
   #include "../feature/leds/printer_event_leds.h"
@@ -80,9 +79,10 @@ char command_queue[BUFSIZE][MAX_CMD_SIZE];
 static int serial_count[NUM_SERIAL] = { 0 };
 
 bool send_ok[BUFSIZE];
-bool Screen_send_ok[BUFSIZE];
-uint8_t Screen_send_ok_opcode[BUFSIZE];
-uint32_t CommandLine[BUFSIZE] = { INVALID_CMD_LINE };
+extern bool Screen_send_ok[BUFSIZE];
+extern uint8_t Screen_send_ok_opcode[BUFSIZE];
+extern uint32_t CommandLine[BUFSIZE];
+
 
 /**
  * Next Injected Command pointer. NULL if no commands are being injected.
@@ -104,7 +104,6 @@ void queue_setup() {
  * Clear the Marlin command queue
  */
 void clear_command_queue() {
-  hmi_cmd_queue_index_r = hmi_cmd_queue_index_w = hmi_commands_in_queue = 0;
   cmd_queue_index_r = cmd_queue_index_w = commands_in_queue = 0;
 }
 

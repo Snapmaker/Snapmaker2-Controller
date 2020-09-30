@@ -35,7 +35,9 @@
 #include "../Marlin.h"
 
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-  #include "../snapmaker/src/module/toolhead_3dp.h"
+  #include "../../../snapmaker/src/module/toolhead_3dp.h"
+  #include "../../../snapmaker/src/service/system.h"
+  #include "../../../snapmaker/src/common/debug.h"
 #endif
 
 #ifndef SOFT_PWM_SCALE

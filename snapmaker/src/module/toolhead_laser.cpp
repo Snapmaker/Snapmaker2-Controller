@@ -1,12 +1,17 @@
 #include "toolhead_laser.h"
 
 #include "../common/config.h"
+#include "../common/debug.h"
+#include "../gcode/M1028.h"
 
+#include "../snapmaker.h"
 
 #include MARLIN_SRC(pins/pins.h)
+#include MARLIN_SRC(module/motion.h)
+#include MARLIN_SRC(module/planner.h)
+
 
 #define LASER_CLOSE_FAN_DELAY     (120)
-
 
 #define TimSetPwm(n)  Tim1SetCCR4(n)
 
@@ -23,7 +28,7 @@ static const uint8_t power_table[]= {
 
 
 static void CallbackAckLaserFocus(uint8_t *cmd, uint8_t length) {
-  laser.f
+  laser.focus(cmd[0]<<8 | cmd[1]);
 }
 
 
@@ -62,7 +67,7 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   // register function ids to can host, it will assign message id
   for (int i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
-    if (function.id == MODULE_FUNC_CURRENT_LASER_FOCUS)
+    if (function.id == MODULE_FUNC_GET_LASER_FOCUS)
       message_id[i] = canhost.RegisterFunction(function, CallbackAckLaserFocus);
     else
       message_id[i] = canhost.RegisterFunction(function, NULL);
@@ -99,13 +104,13 @@ void ToolHeadLaser::TurnOff() {
 }
 
 
-void ToolHeadLaser::ChangePowerImmediately(float power) {
-  ChangePower(power);
+void ToolHeadLaser::SetOutput(float power) {
+  SetPower(power);
   TurnOn();
 }
 
 
-void ToolHeadLaser::ChangePower(float power) {
+void ToolHeadLaser::SetPower(float power) {
   int   integer;
   float decimal;
 
@@ -124,7 +129,7 @@ void ToolHeadLaser::ChangePower(float power) {
 }
 
 
-void ToolHeadLaser::ChangePowerLimit(float limit) {
+void ToolHeadLaser::SetPowerLimit(float limit) {
   float cur_power = power_val_;
 
   if (limit > TOOLHEAD_LASER_POWER_NORMAL_LIMIT)
@@ -132,7 +137,7 @@ void ToolHeadLaser::ChangePowerLimit(float limit) {
 
   power_limit_ = limit;
 
-  ChangePower(power_val_);
+  SetPower(power_val_);
   power_val_ = cur_power;
 
   // check if we need to change current output
@@ -163,12 +168,13 @@ void ToolHeadLaser::CheckFan(uint16_t pwm) {
   case TOOLHEAD_LASER_FAN_STATE_CLOSED:
     if (pwm > 0) {
       fan_state_ = TOOLHEAD_LASER_FAN_STATE_OPEN;
-
       buffer[0]  = 0;
       buffer[1]  = 255;
+
       cmd.id     = msg_id_set_fan_;
       cmd.data   = buffer;
       cmd.length = 2;
+
       canhost.SendStdCmd(cmd);
     }
     break;
@@ -199,7 +205,365 @@ void ToolHeadLaser::TryCloseFan() {
 }
 
 
-
 ErrCode ToolHeadLaser::LoadFocus() {
+  CanStdMesgCmd_t cmd;
 
+  cmd.id     = msg_id_get_focus_;
+  cmd.length = 0;
+
+  return canhost.SendStdCmd(cmd);
+}
+
+
+ErrCode ToolHeadLaser::GetFocus(SSTP_Event_t &event) {
+  uint8_t  buff[5];
+
+  LoadFocus();
+
+  LOG_I("SC get Focus: %.3f\n", focus_);
+
+  buff[0] = 0;
+
+  buff[1] = 0;
+  buff[2] = 0;
+  buff[3] = focus_>>8;
+  buff[4] = (uint8_t)focus_;
+
+  event.length = 5;
+  event.data   = buff;
+
+  return hmi.Send(event);
+}
+
+
+ErrCode ToolHeadLaser::SetFocus(SSTP_Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  CanStdFuncCmd_t cmd;
+  uint8_t buff[2];
+  int     focus;
+
+  if (event.length < 4) {
+    LOG_E("Must specify Focus!\n");
+    event.length = 1;
+    event.data = &err;
+    return hmi.Send(event);
+  }
+
+  PDU_TO_LOCAL_WORD(focus, event.data);
+
+  LOG_I("SC set Focus: %d\n", focus);
+
+  // length and data is picked up, can be changed
+  event.length = 1;
+  event.data = &err;
+
+  if (focus > TOOLHEAD_LASER_CAMERA_FOCUS_MAX) {
+    LOG_E("new focus[%d] is out of range!\n", focus);
+    return hmi.Send(event);
+  }
+
+  buff[0] = (uint8_t)(focus >> 8);
+  buff[1] = (uint8_t)(focus);
+
+  cmd.id     = MODULE_FUNC_SET_LASER_FOCUS;
+  cmd.data   = buff;
+  cmd.length = 2;
+
+  err = canhost.SendStdCmd(cmd, 0);
+
+  if (err == E_SUCCESS)
+    LoadFocus();
+
+  return hmi.Send(event);
+}
+
+
+ErrCode ToolHeadLaser::DoManualFocusing(SSTP_Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  float pos[XYZ];
+
+  float max_z_speed;
+
+  LOG_I("SC req manual focusing\n");
+
+  if (!all_axes_homed()) {
+    LOG_E("Machine is not be homed!\n");
+    goto out;
+  }
+
+  if (!IsOnline()) {
+    LOG_E("Laser is offline!\n");
+    goto out;
+  }
+
+  if (event.length < 12) {
+    LOG_E("need to specify position!\n");
+    goto out;
+  }
+
+  planner.synchronize();
+
+  max_z_speed = planner.settings.max_feedrate_mm_s[Z_AXIS];
+
+  PDU_TO_LOCAL_WORD(pos[X_AXIS], event.data);
+  PDU_TO_LOCAL_WORD(pos[Y_AXIS], event.data+4);
+  PDU_TO_LOCAL_WORD(pos[Z_AXIS], event.data+8);
+  LOG_I("Laser will move to (%.2f, %.2f, %.2f)\n", pos[X_AXIS], pos[Y_AXIS], pos[Z_AXIS]);
+
+  planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
+
+  // Move to the Certain point
+  do_blocking_move_to_logical_xy(pos[X_AXIS], pos[Y_AXIS], speed_in_calibration[X_AXIS]);
+
+  // Move to the Z
+  do_blocking_move_to_logical_z( pos[Z_AXIS], speed_in_calibration[Z_AXIS]);
+
+  planner.synchronize();
+
+  planner.settings.max_feedrate_mm_s[Z_AXIS] = max_z_speed;
+
+out:
+  event.length = 1;
+  event.data   = &err;
+  return hmi.Send(event);
+}
+
+
+ErrCode ToolHeadLaser::DoAutoFocusing(SSTP_Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  uint8_t Count = 21;
+  float z_interval = 0.5;
+
+  float start_pos[XYZ];
+
+  int   i = 0;
+  float next_x, next_y, next_z;
+  float line_space = 2;
+  float line_len_short = 5;
+  float line_len_long = 10;
+
+  LOG_I("SC req auto focusing\n");
+
+  if (!all_axes_homed()) {
+    LOG_E("Machine is not be homed!\n");
+    goto out;
+  }
+
+  if (!IsOnline()) {
+    LOG_E("Laser is offline!\n");
+    goto out;
+  }
+
+  if (event.length == 4) {
+    PDU_TO_LOCAL_WORD(z_interval, event.data);
+    z_interval /= 1000;
+    LOG_I("SC specify Z interval: %.2f\n", z_interval);
+  }
+
+  planner.synchronize();
+
+  LOOP_XYZ(i) {
+    start_pos[i] = current_position[i];
+  }
+
+  next_x = start_pos[X_AXIS] - (int)(Count / 2) * 2;
+  next_y = start_pos[Y_AXIS];
+  next_z = start_pos[Z_AXIS] - ((float)(Count - 1) / 2.0 * z_interval);
+
+  // too low
+  if(next_z <= 5) {
+    LOG_W("start Z height is too low: %.2f\n", next_z);
+  }
+
+  // Move to next Z
+  move_to_limited_z(next_z, 20.0f);
+
+  // Draw 10 Line
+  do {
+    // Move to the start point
+    move_to_limited_xy(next_x, next_y, speed_in_calibration[X_AXIS]);
+    planner.synchronize();
+
+    // Laser on
+    SetOutput(laser_pwr_in_cali);
+
+    // Draw Line
+    if((i % 5) == 0)
+      move_to_limited_xy(next_x, next_y + line_len_long, speed_in_draw_ruler);
+    else
+      move_to_limited_xy(next_x, next_y + line_len_short, speed_in_draw_ruler);
+
+    planner.synchronize();
+
+    // Laser off
+    SetOutput(laser_pwr_in_cali);
+
+    // Move up Z increase
+    if(i != (Count - 1))
+      move_to_limited_z(current_position[Z_AXIS] + z_interval, 20.0f);
+
+    next_x = next_x + line_space;
+    i++;
+  } while(i < Count);
+
+  planner.synchronize();
+
+  // Move to beginning
+  move_to_limited_z(start_pos[Z_AXIS], 20.0f);
+  move_to_limited_xy(start_pos[X_AXIS], start_pos[Y_AXIS], 20.0f);
+  planner.synchronize();
+
+  err = E_SUCCESS;
+
+out:
+  event.data   = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
+
+
+
+/**
+ * ReadBlueToothName:Read BT Name
+ * para Name:The pointer to the Name buffer
+ * return:0 for read success, 1 for unname, 2 for timeout
+ */
+ErrCode ToolHeadLaser::ReadBluetoothInfo(LaserCameraCommand cmd, uint8_t *out, uint16_t &length) {
+  SSTP_Event_t  event = {cmd, SSTP_INVALID_OP_CODE, 0, NULL};
+
+  ErrCode  ret = E_SUCCESS;
+  int      i;
+
+  esp32_.Send(event);
+  esp32_.Flush();
+  vTaskDelay(200);
+
+  ret = esp32_.CheckoutCmd(out, length);
+  if (ret != E_SUCCESS) {
+    LOG_E("failed to read BT content - %u!\n", ret);
+    return ret;
+  }
+
+  if (length < 2) {
+    LOG_E("failed to read BT content - %u!\n", 112);
+    return E_NO_RESRC;
+  }
+
+  if (out[0] != (cmd + 1) || out[1] != 0) {
+    LOG_E("failed to read BT content - %u!\n", 113);
+    return E_INVALID_DATA;
+  }
+
+  for (i = 2; i < length; i++) {
+    if (!out[i]) {
+      break;
+    }
+  }
+
+  length = i;
+
+  return E_SUCCESS;
+}
+
+
+/**
+ * SetBluetoothName:Set BT name
+ * para Name:The name of the BT
+ * ret  None
+ */
+ErrCode ToolHeadLaser::SetBluetoothInfo(LaserCameraCommand cmd, uint8_t *info, uint16_t length) {
+  SSTP_Event_t  event = {cmd, SSTP_INVALID_OP_CODE};
+
+  uint8_t  buffer[72];
+  ErrCode  ret;
+
+  event.length = length;
+  event.data   = info;
+
+  esp32_.Send(event);
+  esp32_.Flush();
+  vTaskDelay(200);
+
+  ret = esp32_.CheckoutCmd(buffer, length);
+  if (ret != E_SUCCESS) {
+    LOG_E("failed to set BT info: %u!\n", ret);
+    return ret;
+  }
+
+  if((buffer[0] != (cmd + 1)) || (buffer[1] != 0))
+    return E_INVALID_DATA;
+
+  return E_SUCCESS;
+}
+
+
+ErrCode ToolHeadLaser::SetCameraBtName(SSTP_Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  LOG_I("SC set BT Name: %s\n", event.data);
+
+  err = SetBluetoothInfo(M_SET_BT_NAME, event.data, event.length);
+
+  event.data   = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+
+
+ErrCode ToolHeadLaser::GetCameraBtName(SSTP_Event_t &event) {
+  uint8_t buffer[40] = {0};
+  ErrCode ret;
+
+  ret = ReadBluetoothInfo(M_REPORT_BT_NAME, buffer, event.length);
+
+  LOG_I("SC req BT Name: %s\n", buffer + 2);
+
+
+  if (ret != E_SUCCESS) {
+    event.length = 1;
+    event.data   = &ret;
+  }
+  else {
+    /* when ReadBluetoothInfo() save content to buffer[],
+     * buffer[0] is ACK command id, buffer[1] is ACK code from module,
+     * buffer[2: end] is actual information we need.
+     * Because we also need to return ACK to to HMI, so
+     * event.data = buffer + 1; and length increase one
+     */
+    event.data   = buffer + 1;
+    event.length += 1;
+  }
+
+  return hmi.Send(event);
+}
+
+
+ErrCode ToolHeadLaser::GetCameraBtMAC(SSTP_Event_t &event) {
+  uint8_t buffer[16] = {0};
+  ErrCode ret;
+
+  LOG_I("SC get BT MAC\n");
+
+  ret = ReadBluetoothInfo(M_REPORT_BT_MAC, buffer, event.length);
+
+  if (ret != E_SUCCESS) {
+    event.data   = &ret;
+    event.length = 1;
+  }
+  else {
+    /* when ReadBluetoothInfo() save content to buffer[],
+     * buffer[0] is ACK command id, buffer[1] is ACK code from module,
+     * buffer[2: 2+length] is actual information we need.
+     * Because we also need to return ACK to to HMI, so
+     * event.data = buffer + 1; and length increase one
+     */
+    event.data   = buffer + 1;
+    event.length += 1;
+  }
+
+  return hmi.Send(event);
 }

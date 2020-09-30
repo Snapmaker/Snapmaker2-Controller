@@ -138,7 +138,7 @@ void RBTree<K, E>::CorrectInsertion(RBTree<K, E> **root) {
   RBTree<K, E> *node = this;
 
 
-  while ((parent = node->parent())) && parent->color() == RB_TREE_COLOR_RED) {
+  while (((parent = node->parent())) && parent->color() == RB_TREE_COLOR_RED) {
     gparent = parent->parent();
 
     if (parent == gparent->left()) {

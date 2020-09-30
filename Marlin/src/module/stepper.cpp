@@ -97,8 +97,8 @@ Stepper stepper; // Singleton
 #include "../core/language.h"
 #include "../gcode/queue.h"
 #include "../HAL/shared/Delay.h"
-#include "PowerPanic.h"
-#include "../snap_module/quickstop_service.h"
+
+#include "../../../snapmaker/src/snapmaker.h"
 
 #if MB(ALLIGATOR)
   #include "../feature/dac/dac_dac084s085.h"

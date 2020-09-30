@@ -63,13 +63,13 @@ class ToolHead3DP: public ModuleBase {
       return filament_state_[extrude_index];
     }
 
-    void cur_temp(uint16_t temp, uint8_t extrude_index=0) {
+    void SetTemp(uint16_t temp, uint8_t extrude_index=0) {
       if (extrude_index >= EXTRUDERS)
         return;
 
       cur_temp_[extrude_index] = temp;
     }
-    uint16_t cur_temp(uint8_t extrude_index=0) {
+    uint16_t GetTemp(uint8_t extrude_index=0) {
       if (extrude_index >= EXTRUDERS)
         return 0;
 

@@ -5,6 +5,8 @@
 #include "../module/module_base.h"
 #include "../module/can_host.h"
 #include "../module/linear.h"
+#include "../module/enclosure.h"
+#include "../module/toolhead_laser.h"
 
 #include "../service/bed_level.h"
 #include "../service/upgrade.h"
@@ -17,6 +19,7 @@
 #include MARLIN_SRC(libs/hex_print_routines.h)
 
 #include MARLIN_SRC(gcode/gcode.h)
+#include MARLIN_SRC(gcode/queue.h)
 
 
 #define EVENT_ATTR_HAVE_MOTION  0x1
@@ -49,6 +52,14 @@ char hmi_command_queue[HMI_BUFSIZE][MAX_CMD_SIZE];
 uint8_t hmi_send_opcode_queue[HMI_BUFSIZE];
 uint32_t hmi_commandline_queue[HMI_BUFSIZE];
 
+extern bool send_ok[BUFSIZE];
+bool   Screen_send_ok[BUFSIZE];
+uint8_t Screen_send_ok_opcode[BUFSIZE];
+uint32_t CommandLine[BUFSIZE] = { INVALID_CMD_LINE };
+
+extern uint8_t cmd_queue_index_w; // Ring buffer write position
+
+
 /**
  *SC20 queue the gcdoe
  *para pgcode:the pointer to the gcode
@@ -76,6 +87,7 @@ void enqueue_hmi_to_marlin() {
     commands_in_queue++;
   }
 }
+
 
 void Screen_enqueue_and_echo_commands(char *pgcode, uint32_t line,
                                       uint8_t opcode) {
@@ -130,8 +142,17 @@ bool ok_to_HMI() {
   return Screen_send_ok[cmd_queue_index_r];
 }
 
+
+/**
+ * Clear the Marlin command queue
+ */
+void clear_hmi_gcode_queue() {
+  hmi_cmd_queue_index_r = hmi_cmd_queue_index_w = hmi_commands_in_queue = 0;
+}
+
+
 void ack_gcode_event(uint8_t event_id, uint32_t line) {
-  SSTP_Event_t event = {event_id, INVALID_OP_CODE};
+  SSTP_Event_t event = {event_id, SSTP_INVALID_OP_CODE};
   uint8_t buffer[4];
 
   event.length = 4;
@@ -144,12 +165,14 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
   hmi.Send(event);
 }
 
+
 static ErrCode HandleGcode(uint8_t *event_buff, uint16_t size) {
   event_buff[size] = 0;
   Screen_enqueue_and_echo_commands((char *)(event_buff + 5), INVALID_CMD_LINE, EID_GCODE_ACK);
 
   return E_SUCCESS;
 }
+
 
 static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
   uint32_t line;
@@ -292,19 +315,19 @@ static ErrCode ExitLeveling(SSTP_Event_t &event) {
 }
 
 static ErrCode GetFocalLength(SSTP_Event_t &event) {
-  return ExecuterHead.Laser.GetFocalLength(event);
+  return laser.GetFocus(event);
 }
 
 static ErrCode SetFocalLength(SSTP_Event_t &event) {
-  return ExecuterHead.Laser.SetFocalLength(event);
+  return laser.SetFocus(event);
 }
 
 static ErrCode DoManualFocusing(SSTP_Event_t &event) {
-  return ExecuterHead.Laser.DoManualFocusing(event);
+  return laser.DoManualFocusing(event);
 }
 
 static ErrCode DoAutoFocusing(SSTP_Event_t &event) {
-  return ExecuterHead.Laser.DoAutoFocusing(event);
+  return laser.DoAutoFocusing(event);
 }
 
 
@@ -464,15 +487,15 @@ EventCallback_t motion_event_cb[MOTION_OPC_MAX] = {
 
 
 static ErrCode SetCameraBtName(SSTP_Event_t &event) {
-  return ExecuterHead.Laser.SetCameraBtName(event);
+  return laser.SetCameraBtName(event);
 }
 
 static ErrCode GetCameraBtName(SSTP_Event_t &event) {
-  return ExecuterHead.Laser.GetCameraBtName(event);
+  return laser.GetCameraBtName(event);
 }
 
 static ErrCode GetCameraBtMAC(SSTP_Event_t &event) {
-  return ExecuterHead.Laser.GetCameraBtMAC(event);
+  return laser.GetCameraBtMAC(event);
 }
 
 EventCallback_t camera_event_cb[CAMERA_OPC_MAX] = {
@@ -490,22 +513,22 @@ EventCallback_t camera_event_cb[CAMERA_OPC_MAX] = {
 
 // implement follow 4 function after rebase chamber branch
 static ErrCode ReportEnclosureStatus(SSTP_Event_t &event) {
-  return Periph.ReportEnclosureStatus(event);
+  return enclosure.ReportStatus(event);
 }
 
 
 static ErrCode SetEnclosureLight(SSTP_Event_t &event) {
-  return Periph.SetEnclosureLight(event);
+  return enclosure.SetLightBar(event);
 }
 
 
 static ErrCode SetEnclosureFan(SSTP_Event_t &event) {
-  return Periph.SetEnclosureFan(event);
+  return enclosure.SetFan(event);
 }
 
 
 static ErrCode SetEnclosureDetection(SSTP_Event_t &event) {
-  return Periph.SetEnclosureDetection(event);
+  return enclosure.SetDetection(event);
 }
 
 EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
@@ -518,59 +541,12 @@ EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
 
 
 static ErrCode SetModuleMAC(SSTP_Event_t &event) {
-  CanExtCmd_t cmd;
-  uint8_t     buffer[8];
-
-  int      i;
-  uint32_t old_mac;
-
-  PDU_TO_LOCAL_WORD(old_mac, event.data);
-
-  cmd.data    = buffer;
-  cmd.data[0] = MODULE_EXT_CMD_SSID_REQ;
-  cmd.data[1] = 1;
-  cmd.data[2] = event.data[4];
-  cmd.data[3] = event.data[5];
-  cmd.data[4] = event.data[6];
-  cmd.data[5] = event.data[7];
-
-  // error code to HMI
-  event.data[0] = E_FAILURE;
-  event.length = 1;
-
-  old_mac &= MODULE_MAC_ID_MASK;
-  for (i = 0; i < LINEAR_AXIS_MAX; i++) {
-    if  (old_mac == (canhost.mac(mac_index_[i]) & MODULE_MAC_ID_MASK))
-      goto out;
-  }
-
-  goto error;
-
-out:
-  cmd.mac.val = canhost.mac(mac_index_[i]);
-  event.data[0] = canhost.SendExtCmdSync(cmd, 500);
-
-error:
-  return hmi.Send(event);
+  return ModuleBase::SetMAC(event);
 }
 
 
 static ErrCode GetModuleMAC(SSTP_Event_t &event) {
-  int i, j = 0;
-  uint32_t tmp;
-  uint8_t buffer[4 * SUPPORT_MODULE_MAX];
-
-  for(i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
-    if ((tmp = canhost.mac(i)) == MODULE_MAC_ID_INVALID)
-      break;
-
-    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp, j);
-  }
-
-  event.data = buffer;
-  event.length = (uint16_t)j;
-
-  return hmi.Send(event);
+  return ModuleBase::GetMAC(event);
 }
 
 static ErrCode SetLinearModuleLength(SSTP_Event_t &event) {
@@ -643,11 +619,11 @@ EventCallback_t upgrade_event_cb[UPGRADE_OPC_MAX] = {
 // need to known which task we running with
 // then we won't send out event again
 ErrCode DispatchEvent(DispatcherParam_t param) {
-  ErrCode err = E_INVALID_CMD;
-  SSTP_Event_t event = {INVALID_EVENT_ID, INVALID_OP_CODE};
+  ErrCode      err   = E_INVALID_CMD;
+  SSTP_Event_t event = {SSTP_INVALID_EVENT_ID, SSTP_INVALID_OP_CODE};
 
-  EventCallback_t *callbacks = NULL;
-  uint8_t op_code_max = INVALID_OP_CODE;
+  EventCallback_t *callbacks  = NULL;
+  uint16_t        op_code_max = SSTP_INVALID_OP_CODE;
 
   bool send_to_marlin = false;
 #if DEBUG_EVENT_HANDLER
@@ -753,7 +729,7 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
   }
 
   // if no callback or invalid op code for this event, should ack error to Screen
-  if (!callbacks || (op_code_max == INVALID_OP_CODE)) {
+  if (!callbacks || (op_code_max == SSTP_INVALID_OP_CODE)) {
     LOG_E("didn't found callback for event [0x%X : 0x%X], size: [%u]\n",
       param->event_buff[EVENT_IDX_EVENT_ID], param->event_buff[EVENT_IDX_OP_CODE], param->size);
     goto out_err;

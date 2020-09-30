@@ -10,7 +10,7 @@ class ToolHeadCNC: public ModuleBase {
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
 
-    ErrCode ChangePowerImmediately(uint8_t power);
+    ErrCode SetOutput(uint8_t power);
 
     ErrCode TurnOn();
     ErrCode TurnOff();
@@ -27,8 +27,8 @@ class ToolHeadCNC: public ModuleBase {
     uint16_t rpm() { return rpm_; }
     void rpm(uint16_t rpm) { rpm_ = rpm; }
 
-    float power() { return power_; }
-    void power(float power) { power_ = power; }
+    uint8_t power() { return power_; }
+    void power(uint8_t power) { power_ = power; }
 
   private:
     uint8_t  mac_index_;

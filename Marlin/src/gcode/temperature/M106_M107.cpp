@@ -27,8 +27,9 @@
 #include "../gcode.h"
 #include "../../module/motion.h"
 #include "../../module/temperature.h"
-#if ENABLED(CAN_FAN)
-  #include "../../module/PeriphDevice.h"
+
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #include "../../../../snapmaker/src/module/toolhead_3dp.h"
 #endif
 
 #if ENABLED(SINGLENOZZLE)
@@ -53,14 +54,14 @@
  *           3-255 = Set the speed for use with T2
  */
 void GcodeSuite::M106() {
-  #if ENABLED(CAN_FAN)
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     uint8_t p = parser.byteval('P', 0);
     //uint16_t d = parser.seen('A') ? thermalManager.fan_speed[active_extruder] : 255;
     uint16_t s = parser.ushortval('S', 255);
     NOMORE(s, 255U);
     NOMORE(p, 4);
     if(p < 4)
-      ExecuterHead.SetFan(p, s);
+      printer.SetFan(p, s);
 
   #else
     const uint8_t p = parser.byteval('P', _ALT_P);
@@ -84,11 +85,11 @@ void GcodeSuite::M106() {
  * M107: Fan Off
  */
 void GcodeSuite::M107() {
-  #if ENABLED(CAN_FAN)
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     uint8_t p = parser.byteval('P', 0);
     NOMORE(p, 4);
     if(p < 4)
-      ExecuterHead.SetFan(p, 0);
+      printer.SetFan(p, 0);
 
   #else
     const uint8_t p = parser.byteval('P', _ALT_P);

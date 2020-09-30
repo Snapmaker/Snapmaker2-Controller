@@ -43,7 +43,7 @@ ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
   LOG_I("e temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
   LOG_I("b temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
 
-  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+  if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
 
     // MUST clear live z offset before G28
     // otherwise will apply live z after homing
@@ -112,7 +112,7 @@ ErrCode BedLevelService::DoManualLeveling(SSTP_Event_t &event) {
 
   LOG_I("SC req manual level\n");
 
-  if (MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+  if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
 
     // MUST clear live z offset before G28
     // otherwise will apply live z after homing
@@ -345,7 +345,7 @@ ErrCode BedLevelService::SyncPointIndex(uint8_t index) {
 
 
 ErrCode BedLevelService::UpdateLiveZOffset(float offset) {
-  if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT) {
+  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
     LOG_E("only enable z offset for 3DP!\n");
     return E_FAILURE;
   }
@@ -379,7 +379,7 @@ ErrCode BedLevelService::UpdateLiveZOffset(float offset) {
 
 
 void BedLevelService::ApplyLiveZOffset() {
-  if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT) {
+  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
     LOG_E("only enable z offset for 3DP!\n");
     return;
   }
@@ -398,7 +398,7 @@ void BedLevelService::ApplyLiveZOffset() {
 
 
 void BedLevelService::UnapplyLiveZOffset() {
-  if (ExecuterHead.MachineType != MACHINE_TYPE_3DPRINT) {
+  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
     LOG_E("only enable z offset for 3DP!\n");
     return;
   }

@@ -32,6 +32,9 @@
 #include "../core/language.h"
 #include "../HAL/shared/Delay.h"
 
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #include "../../../snapmaker/src/snapmaker.h"
+#endif
 
 #define MAX6675_SEPARATE_SPI EITHER(HEATER_0_USES_MAX6675, HEATER_1_USES_MAX6675) && PIN_EXISTS(MAX6675_SCK, MAX6675_DO)
 
@@ -1396,7 +1399,7 @@ void Temperature::updateTemperaturesFromRawValues() {
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     for(int i = 0; i < HOTENDS; i++)
-      temp_hotend[i].current = printer.cur_temp(i);
+      temp_hotend[i].current = printer.GetTemp(i);
   #else
     HOTEND_LOOP() temp_hotend[e].current = analog_to_celsius_hotend(temp_hotend[e].raw, e);
   #endif
@@ -2561,7 +2564,7 @@ void Temperature::isr() {
     /**
      * Standard heater PWM modulation
      */
-    if(MACHINE_TYPE_3DPRINT == ExecuterHead.MachineType) {
+    if(MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
       if (pwm_count_tmp >= 127) {
         pwm_count_tmp -= 127;
         #define _PWM_MOD(N,S,T) do{                           \

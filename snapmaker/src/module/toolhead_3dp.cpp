@@ -17,13 +17,13 @@ static void CallbackAckProbeState(uint8_t *cmd, uint8_t length) {
 
 static void CallbackAckNozzleTemp(uint8_t *cmd, uint8_t length) {
   // temperature from module, was
-  printer.cur_temp(cmd[0]<<8 | cmd[1]);
+  printer.SetTemp(cmd[0]<<8 | cmd[1], 0);
 }
 
 
 static void CallbackAckFilamentState(uint8_t *cmd, uint8_t length) {
   // temperature from module, was
-  printer.filament_state(cmd[0]);
+  printer.filament_state(cmd[0], 0);
 }
 
 
@@ -43,7 +43,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
     return ret;
 
   // we have configured 3DP in same port
-  if (mac_index_[0] != MODULE_MAC_INDEX_INVALID)
+  if (mac_index_ != MODULE_MAC_INDEX_INVALID)
     return E_SAME_STATE;
 
   cmd.mac    = mac;
@@ -73,7 +73,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
       cb = CallbackAckFilamentState;
       break;
 
-    case MODULE_FUNC_CUR_NOZZLE_TEMP:
+    case MODULE_FUNC_GET_NOZZLE_TEMP:
       cb = CallbackAckNozzleTemp;
       break;
 
@@ -86,13 +86,13 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
 
   ret = canhost.BindMessageID(func_buffer, message_id);
 
-  mac_index_[0] = mac_index;
+  mac_index_ = mac_index;
 
   return E_SUCCESS;
 }
 
 
-ErrCode ToolHead3DP::SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time=0) {
+ErrCode ToolHead3DP::SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time) {
   CanStdFuncCmd_t cmd;
 
   uint8_t buffer[2];
@@ -114,7 +114,7 @@ ErrCode ToolHead3DP::SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time
 }
 
 
-ErrCode ToolHead3DP::SetPID(uint8_t index, float value) {
+ErrCode ToolHead3DP::SetPID(uint8_t index, float value, uint8_t extrude_index) {
   CanStdFuncCmd_t cmd;
 
   uint8_t  buffer[5];

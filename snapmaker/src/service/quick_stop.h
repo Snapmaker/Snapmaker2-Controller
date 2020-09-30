@@ -45,7 +45,7 @@ class QuickStopService {
 
   private:
     void Park();
-
+    void TurnOffPower(QuickStopState sta);
 
   private:
     QuickStopState state_ = QS_STA_IDLE;

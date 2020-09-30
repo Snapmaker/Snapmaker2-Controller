@@ -2,6 +2,7 @@
 #define SNAPMAKER_MODULE_BASE_H_
 
 #include "../common/error.h"
+#include "../hmi/event_handler.h"
 
 #define MODULE_MAC_ID_MASK        (0x1FFFFFFF)
 #define MODULE_MAC_ID_INVALID     (0xFFFFFFFF)
@@ -22,7 +23,7 @@
 
 // to save memory, just support assign message id up to 64
 #define MODULE_SUPPORT_MESSAGE_ID_MAX (64)
-#define MODULE_SUPPORT_CONNECTED_MAX  (64)
+#define MODULE_SUPPORT_CONNECTED_MAX  (32)
 
 #define MODULE_SUPPORT_SAME_DEVICE_MAX  (8)
 
@@ -89,18 +90,18 @@ enum ModuleFunctionID {
   MODULE_FUNC_RUNOUT_SENSOR_STATE   ,  // 2
   MODULE_FUNC_STEPPER_CTRL          ,  // 3
   MODULE_FUNC_SET_SPINDLE_SPEED     ,  // 4
-  MODULE_FUNC_CUR_SPINDLE_SPEED     ,  // 5
-  MODULE_FUNC_CUR_NOZZLE_TEMP       ,  // 6
+  MODULE_FUNC_GET_SPINDLE_SPEED     ,  // 5
+  MODULE_FUNC_GET_NOZZLE_TEMP       ,  // 6
   MODULE_FUNC_SET_NOZZLE_TEMP       ,  // 7
   MODULE_FUNC_SET_FAN1              ,  // 8
   MODULE_FUNC_SET_FAN2              ,  // 9
   MODULE_FUNC_SET_3DP_PID           ,  // 10
   MODULE_FUNC_SET_CAMERA_POWER      ,  // 11
   MODULE_FUNC_SET_LASER_FOCUS       ,  // 12
-  MODULE_FUNC_CURRENT_LASER_FOCUS   ,  // 13
+  MODULE_FUNC_GET_LASER_FOCUS       ,  // 13
   MODULE_FUNC_SET_LIGHTBAR_COLOR    ,  // 14
   MODULE_FUNC_ENCLOSURE_DOOR_STATE  ,  // 15
-  MODULE_FUNC_CURRENT_3DP_PID       ,  // 16
+  MODULE_FUNC_3DP_PID               ,  // 16
   MODULE_FUNC_PROOFREAD_KNIFE       ,  // 17
   MODULE_FUNC_SET_ENCLOSURE_LIGHT   ,  // 18
   MODULE_FUNC_SET_ENCLOSURE_FAN     ,  // 19
@@ -131,21 +132,26 @@ const uint8_t module_prio_table[][2] = {
   {/* MODULE_FUNC_RUNOUT_SENSOR_STATE */  MODULE_FUNC_PRIORITY_HIGH,      2},
   {/* MODULE_FUNC_STEPPER_CTRL        */  MODULE_FUNC_PRIORITY_LOW,       0},
   {/* MODULE_FUNC_SET_SPINDLE_SPEED   */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
-  {/* MODULE_FUNC_CUR_SPINDLE_SPEED   */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
-  {/* MODULE_FUNC_CUR_NOZZLE_TEMP     */  MODULE_FUNC_PRIORITY_MEDIUM,    2},
+  {/* MODULE_FUNC_GET_SPINDLE_SPEED   */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
+  {/* MODULE_FUNC_GET_NOZZLE_TEMP     */  MODULE_FUNC_PRIORITY_MEDIUM,    2},
   {/* MODULE_FUNC_SET_NOZZLE_TEMP     */  MODULE_FUNC_PRIORITY_MEDIUM,    2},
   {/* MODULE_FUNC_SET_FAN1            */  MODULE_FUNC_PRIORITY_MEDIUM,    2},
   {/* MODULE_FUNC_SET_FAN2            */  MODULE_FUNC_PRIORITY_MEDIUM,    2},
   {/* MODULE_FUNC_SET_3DP_PID         */  MODULE_FUNC_PRIORITY_MEDIUM,    2},
   {/* MODULE_FUNC_SET_CAMERA_POWER    */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
   {/* MODULE_FUNC_SET_LASER_FOCUS     */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
-  {/* MODULE_FUNC_CURRENT_LASER_FOCUS */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
+  {/* MODULE_FUNC_GET_LASER_FOCUS     */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
   {/* MODULE_FUNC_SET_LIGHTBAR_COLOR  */  MODULE_FUNC_PRIORITY_LOW,       0},
   {/* MODULE_FUNC_ENCLOSURE_STATE     */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
-  {/* MODULE_FUNC_CURRENT_3DP_PID     */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
+  {/* MODULE_FUNC_3DP_PID             */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
   {/* MODULE_FUNC_PROOFREAD_KNIFE     */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
   {/* MODULE_FUNC_SET_ENCLOSURE_LIGHT */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
-  {/* MODULE_FUNC_SET_ENCLOSURE_FAN   */  MODULE_FUNC_PRIORITY_MEDIUM,    1}
+  {/* MODULE_FUNC_SET_ENCLOSURE_FAN   */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
+
+  {/* MODULE_FUNC_SYSTEM_STATUS       */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
+  {/* MODULE_FUNC_PAUSE_WORK          */  MODULE_FUNC_PRIORITY_EMERGENT,  1},
+  {/* MODULE_FUNC_RESUME_WORK         */  MODULE_FUNC_PRIORITY_EMERGENT,  1},
+  {/* MODULE_FUNC_STOP_WORK           */  MODULE_FUNC_PRIORITY_EMERGENT,  1}
 };
 
 
@@ -193,6 +199,15 @@ enum ModuleExtendCommand {
 };
 
 
+enum ModuleToolHeadType {
+  MODULE_TOOLHEAD_UNKNOW,
+
+  MODULE_TOOLHEAD_3DP,
+  MODULE_TOOLHEAD_CNC,
+  MODULE_TOOLHEAD_LASER
+};
+
+
 class ModuleBase {
   public:
     ModuleBase(uint16_t id): device_id_(id) {}
@@ -200,9 +215,15 @@ class ModuleBase {
     static ErrCode Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t length);
     static ErrCode InitModule8p(MAC_t &mac, int dir_pin, uint8_t index);
 
+    static ModuleToolHeadType toolhead() { return toolhead_; }
+
+    static bool lock_marlin_uart();
     static void LockMarlinUart();
     static void UnlockMarlinUart();
     static void ReportMarlinUart();
+
+    static ErrCode SetMAC(SSTP_Event_t &event);
+    static ErrCode GetMAC(SSTP_Event_t &event);
 
     virtual ErrCode Init(MAC_t &mac, uint8_t mac_index) { return E_SUCCESS; }
     virtual void Process() {
@@ -214,6 +235,7 @@ class ModuleBase {
     }
 
     virtual bool IsOnline(uint8_t sub_index = 0) { return false; }
+
     virtual uint32_t mac(uint8_t sub_index = 0) { return MODULE_MAC_ID_INVALID; }
 
     uint16_t device_id() { return device_id_; }
@@ -224,6 +246,7 @@ class ModuleBase {
     uint16_t timer_in_process_;
 
     static bool lock_marlin_uart_;
+    static ModuleToolHeadType toolhead_;
 };
 
 extern ModuleBase *static_modules[];

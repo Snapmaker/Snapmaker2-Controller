@@ -37,7 +37,7 @@
 
 #include "../gcode/gcode.h"
 
-#include "../snap_module/debug.h"
+#include "../../../snapmaker/src/snapmaker.h"
 
 #if ANY(Z_PROBE_SLED, Z_PROBE_ALLEN_KEY, PROBE_TRIGGERED_WHEN_STOWED_TEST) || (QUIET_PROBING && ENABLED(PROBING_STEPPERS_OFF))
   #include "../Marlin.h" // for stop(), disable_e_steppers

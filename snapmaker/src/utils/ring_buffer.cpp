@@ -23,14 +23,8 @@ void RingBuffer<T>::Deinit() {
 
 
 template<typename T>
-RingBuffer<T>::~RingBuffer() {
-  deinit();
-}
-
-
-template<typename T>
 int32_t RingBuffer<T>::InsertOne(const T &element) {
-  if (isFull()) {
+  if (IsFull()) {
     return 0;
   }
 
@@ -44,7 +38,7 @@ int32_t RingBuffer<T>::InsertOne(const T &element) {
 
 template<typename T>
 int32_t RingBuffer<T>::RemoveOne(T &val) {
-  if (isEmpty()) {
+  if (IsEmpty()) {
     return 0;
   }
 
@@ -58,7 +52,7 @@ int32_t RingBuffer<T>::RemoveOne(T &val) {
 
 template<typename T>
 int32_t RingBuffer<T>::PeekOne(T &val) {
-  if (isEmpty()) {
+  if (IsEmpty()) {
     return 0;
   }
 
@@ -70,7 +64,7 @@ int32_t RingBuffer<T>::PeekOne(T &val) {
 
 template<typename T>
 int32_t RingBuffer<T>::InsertMulti(T *buffer, int32_t to_insert) {
-  if (isFull()) {
+  if (IsFull()) {
     return 0;
   }
 
@@ -89,7 +83,7 @@ int32_t RingBuffer<T>::InsertMulti(T *buffer, int32_t to_insert) {
 
 template<typename T>
 int32_t RingBuffer<T>::RemoveMulti(T *buffer, int32_t to_remove) {
-  if (isEmpty()) {
+  if (IsEmpty()) {
     return 0;
   }
 
@@ -114,7 +108,7 @@ int32_t RingBuffer<T>::RemoveMulti(T *buffer, int32_t to_remove) {
 
 template<typename T>
 int32_t RingBuffer<T>::PeekMulti(T *buffer, int32_t to_peek) {
-  if (isEmpty()) {
+  if (IsEmpty()) {
     return 0;
   }
 

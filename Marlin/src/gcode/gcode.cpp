@@ -45,8 +45,11 @@ GcodeSuite gcode;
   #include "../feature/power_loss_recovery.h"
 #endif
 
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #include "../../../snapmaker/src/module/module_base.h"
+#endif
+
 #include "../Marlin.h" // for idle() and suspend_auto_report
-#include "../module/PeriphDevice.h"
 
 millis_t GcodeSuite::previous_move_ms;
 
@@ -169,6 +172,7 @@ void GcodeSuite::dwell(millis_t time) {
   extern void M100_dump_routine(PGM_P const title, const char *start, const char *end);
 #endif
 
+extern bool ok_to_HMI();
 void GcodeSuite::execute_command(void) {
   KEEPALIVE_STATE(IN_HANDLER);
 
@@ -802,7 +806,7 @@ void GcodeSuite::process_parsed_command(
   #endif
 ) {
 
-  if (Periph.GetHoldUart()) {
+  if (ModuleBase::lock_marlin_uart()) {
     // only handle M1120
     if (parser.command_letter == 'M' && parser.codenum == 1010) {
       execute_command();
@@ -817,8 +821,9 @@ void GcodeSuite::process_parsed_command(
   #if USE_EXECUTE_COMMANDS_IMMEDIATE
     if (!no_ok)
   #endif
-      if (!Periph.GetHoldUart())
-        ok_to_send();
+
+  if (!ModuleBase::lock_marlin_uart())
+    ok_to_send();
 }
 
 /**

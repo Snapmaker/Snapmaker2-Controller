@@ -13,8 +13,8 @@ typedef enum {
 } GCodeSources;
 
 #define PP_FILE_NAME_LEN  270
-#define PP_FAN_COUNT      4
-#define PP_HEATER         4
+#define PP_FAN_COUNT      2
+#define PP_HEATER         1
 
 // delay for debounce, uint: ms, for now we use 10ms
 #define POWERPANIC_DEBOUNCE	6
@@ -28,7 +28,7 @@ typedef struct __attribute__((aligned (4))) {
 	// speed of travel
 	float TravelFeedRate;
 	// CNC power
-	float cnc_power;
+	uint8_t cnc_power;
 	// laser Power
 	float laser_percent;
 	uint16_t laser_pwm;
@@ -46,8 +46,8 @@ typedef struct __attribute__((aligned (4))) {
 	uint8_t FanSpeed[PP_FAN_COUNT];
 	// if this section is valid
 	uint8_t Valid;
-	// working machineType when power-loss
-	uint8_t MachineType;
+	// working toolead when power-loss
+	uint8_t toolhead;
 	// Gcode source
 	uint8_t GCodeSource;
   // active extruder
@@ -86,9 +86,8 @@ class PowerLossRecovery {
         last_line_ = l;
     }
 
-    void TurnOffPower(QuickStopState sta);
-      void Reset(void);
-      void Check(void);
+	void Reset(void);
+	void Check(void);
 
       uint32_t LastLine() { return last_line_; }
 

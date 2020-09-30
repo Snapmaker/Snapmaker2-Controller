@@ -1,16 +1,54 @@
 #include "snapmaker.h"
 
-#include MARLIN_SRC(module/endstops.h)
-
+#include "common/debug.h"
 #include "hmi/event_handler.h"
-
 #include "module/can_host.h"
-
 #include "service/system.h"
+#include "service/upgrade.h"
 #include "service/power_loss_recovery.h"
+
+#include "../../Marlin/src/module/endstops.h"
+#include "../../Marlin/src/feature/runout.h"
+
+enum FLASH_Status {
+	FLASH_BUSY = 1,
+	FLASH_ERROR_PG,
+	FLASH_ERROR_WRP,
+	FLASH_ERROR_OPT,
+	FLASH_COMPLETE,
+	FLASH_TIMEOUT,
+	FLASH_BAD_ADDRESS
+};
+
+
+extern void FLASH_Unlock(void);
+extern void FLASH_Lock(void);
+extern FLASH_Status FLASH_WaitForLastOperation(uint32 Timeout);
+extern FLASH_Status FLASH_ErasePage(uint32 Page_Address);
+extern FLASH_Status FLASH_ProgramHalfWord(uint32 Address, uint16 Data);
+extern FLASH_Status FLASH_ProgramWord(uint32 Address, uint32 Data);
 
 
 extern void enqueue_hmi_to_marlin();
+
+/**
+ * Check Update Flag
+ */
+void CheckUpdateFlag(void)
+{
+  uint32_t Address;
+  uint32_t Flag;
+  Address = FLASH_UPDATE_CONTENT_INFO;
+  Flag = *((uint32_t*)Address);
+  if(Flag != 0xffffffff)
+  {
+    FLASH_Unlock();
+    FLASH_ErasePage(Address);
+    FLASH_Lock();
+  }
+}
+
+
 /**
  * main task
  */
@@ -34,6 +72,8 @@ static void main_loop(void *param) {
   pl_recovery.Init();
 
   canhost.Init();
+
+  CheckUpdateFlag();
 
   systemservice.SetCurrentStatus(SYSTAT_IDLE);
 
@@ -65,14 +105,6 @@ static void main_loop(void *param) {
       }
     #endif // SDSUPPORT
     #endif
-    if(CanDebugLen > 0) {
-      SERIAL_ECHOLN("");
-      for(int i=0;i<CanDebugLen;i++)
-      {
-        SERIAL_ECHO(Value8BitToString(CanDebugBuff[i]));
-        SERIAL_ECHO(" ");
-      }
-    }
 
     // receive and execute one command, or push Gcode into Marlin queue
     DispatchEvent(&dispather_param);
@@ -116,7 +148,6 @@ static void hmi_task(void *param) {
 
   dispather_param.event_queue = task_param->event_queue;
 
-  hmi.Init(&MSerial2, HMI_SERIAL_IRQ_PRIORITY);
 
   SET_INPUT_PULLUP(SCREEN_DET_PIN);
   if(READ(SCREEN_DET_PIN)) {
@@ -145,7 +176,7 @@ static void hmi_task(void *param) {
     else
       count = 0;
 
-    ret = hmi.CheckoutCmd(dispather_param.event_buff, &dispather_param.size);
+    ret = hmi.CheckoutCmd(dispather_param.event_buff, dispather_param.size);
     if (ret != E_SUCCESS) {
       // no command, sleep 10ms for next command
       vTaskDelay(portTICK_PERIOD_MS * 10);
@@ -173,17 +204,15 @@ static void heartbeat_task(void *param) {
     #endif
 
     systemservice.CheckException();
-    ExecuterHead.CheckAlive();
 
-    Periph.CheckStatus();
+    for (int i = 0; static_modules[i] != NULL; i++)
+      static_modules[i]->Process();
 
     if (++counter > 100) {
       counter = 0;
 
       // do following every 1s
       upgrade.Check();
-
-      ExecuterHead.Process();
 
       // comment temporarily
       // notificaiton = ulTaskNotifyTake(false, 0);
@@ -197,16 +226,29 @@ static void heartbeat_task(void *param) {
 }
 
 
-void vApplicationMallocFailedHook( void ) {
-  LOG_E("RTOS malloc failed");
-}
-
-
 ErrCode SnapmakerSetupEarly() {
   systemservice.Init();
 
   // init serial for HMI
-  hmi.Init(&HMISERIAL, HMI_SERIAL_IRQ_PRIORITY);
+  hmi.Init(&MSerial2, HMI_SERIAL_IRQ_PRIORITY);
+}
+
+
+/**
+ * Check App Valid Flag
+ */
+void CheckAppValidFlag(void)
+{
+  uint32_t Value;
+  uint32_t Address;
+  Address = FLASH_BOOT_PARA;
+  Value = *((uint32_t*)Address);
+  if(Value != 0xaa55ee11) {
+    FLASH_Unlock();
+    FLASH_ErasePage(Address);
+    FLASH_ProgramWord(Address, 0xaa55ee11);
+    FLASH_Lock();
+  }
 }
 
 

@@ -133,6 +133,8 @@ ErrCode CanHost::Init() {
   else {
     LOG_I("success to create marlin task!\n");
   }
+
+  return E_SUCCESS;
 }
 
 
@@ -297,7 +299,6 @@ out:
 
 ErrCode CanHost::WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms) {
   uint16_t tmp_u16;
-  ErrCode  ret;
   MAC_t    mac;
   uint8_t  cmd_id;
   
@@ -412,7 +413,6 @@ ErrCode CanHost::ReceiveHandler(void *parameter) {
 ErrCode CanHost::EventHandler(void *parameter) {
   uint8_t  std_buffer[CAN_STD_CMD_ELEMENT_SIZE];
   uint16_t length = 0;
-  MAC_t    mac;
 
   for (;;) {
     for (;;) {

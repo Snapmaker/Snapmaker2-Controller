@@ -2,15 +2,8 @@
 
 
 
-
-#define INVALID_EVENT_ID      ((uint16_t)0x100)
-#define INVALID_OP_CODE       ((uint16_t)0x100)
-#define INVALID_DATA_LENGTH   ((uint16_t)1024)
-
-
 ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &length) {
   uint16_t calc_chk = 0;
-  uint16_t recv_chk = 0;
 
 
   switch (state_) {
@@ -46,7 +39,7 @@ ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &l
 
     // to avoid length_ is out of range
     length_ = header_[SSTP_PDU_IDX_DATA_LEN_H]<<8 | header_[SSTP_PDU_IDX_DATA_LEN_L];
-    if (length_ > INVALID_DATA_LENGTH) {
+    if (length_ > SSTP_INVALID_DATA_LENGTH) {
       state_ = PROTOCOL_SSTP_STATE_IDLE;
       return E_INVALID_DATA_LENGTH;
     }
@@ -68,7 +61,7 @@ ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &l
     calc_chk = CalcChecksum(out, length_);
     state_ = PROTOCOL_SSTP_STATE_IDLE;
 
-    if (calc_chk != (uint16_t)(header_[SSTP_PDU_IDX_CHKSUM_H<<8 | header_[SSTP_PDU_IDX_CHKSUM_L]])) {
+    if (calc_chk != (uint16_t)(header_[SSTP_PDU_IDX_CHKSUM_H]<<8 | header_[SSTP_PDU_IDX_CHKSUM_L])) {
       return E_INVALID_DATA;
     }
 
@@ -146,8 +139,8 @@ uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
    * so we will have independent event_id and maybe more one op_code.
    * If yes, need to calculate them into checksum
    */
-  if (event.id < INVALID_EVENT_ID) {
-    if (event.op_code < INVALID_OP_CODE) {
+  if (event.id < SSTP_INVALID_EVENT_ID) {
+    if (event.op_code < SSTP_INVALID_OP_CODE) {
       checksum += (event.id<<8 | (event.op_code&0x00FF));
     }
     else if (size > 0) {
