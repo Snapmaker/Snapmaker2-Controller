@@ -15,7 +15,7 @@ class ToolHeadCNC: public ModuleBase {
     ErrCode TurnOn();
     ErrCode TurnOff();
 
-    bool IsOnline(uint8_t sub_index = 0);
+    bool IsOnline(uint8_t sub_index = 0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; };
 
     uint32_t mac(uint8_t sub_index = 0) {
       if (sub_index > 0)

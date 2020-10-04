@@ -217,7 +217,7 @@ class ModuleBase {
 
     static ModuleToolHeadType toolhead() { return toolhead_; }
 
-    static bool lock_marlin_uart();
+    static bool lock_marlin_uart() { return lock_marlin_uart_; };
     static void LockMarlinUart();
     static void UnlockMarlinUart();
     static void ReportMarlinUart();

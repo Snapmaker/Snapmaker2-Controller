@@ -3,7 +3,7 @@
 
 #include "../common/config.h"
 
-#include MARLIN_SRC(core/macros.h)
+#include "src/core/macros.h"
 
 #include "../hmi/event_handler.h"
 

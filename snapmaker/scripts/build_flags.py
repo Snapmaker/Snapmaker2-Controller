@@ -6,6 +6,7 @@ if __name__ == "__main__":
   args = " ".join([ 
                     "-Isnapmaker/lib/GD32F1/libraries/FreeRTOS1030",
                     "-Isnapmaker/lib/GD32F1/libraries/FreeRTOS1030/utility/include",
+                    "-Isnapmaker/src",
                   ])
 
 

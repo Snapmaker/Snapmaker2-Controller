@@ -1,5 +1,5 @@
 #include "event_handler.h"
-#include "../common/uart_host.h"
+
 #include "../common/debug.h"
 
 #include "../module/module_base.h"
@@ -12,14 +12,14 @@
 #include "../service/upgrade.h"
 #include "../service/system.h"
 
-#include MARLIN_SRC(Marlin.h)
-#include MARLIN_SRC(module/motion.h)
-#include MARLIN_SRC(module/temperature.h)
-#include MARLIN_SRC(module/planner.h)
-#include MARLIN_SRC(libs/hex_print_routines.h)
-
-#include MARLIN_SRC(gcode/gcode.h)
-#include MARLIN_SRC(gcode/queue.h)
+// marlin headers
+#include "src/Marlin.h"
+#include "src/module/motion.h"
+#include "src/module/temperature.h"
+#include "src/module/planner.h"
+#include "src/libs/hex_print_routines.h"
+#include "src/gcode/gcode.h"
+#include "src/gcode/queue.h"
 
 
 #define EVENT_ATTR_HAVE_MOTION  0x1

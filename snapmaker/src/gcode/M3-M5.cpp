@@ -21,11 +21,12 @@
  */
 
 #include "../common/config.h"
-#include  MARLIN_SRC(gcode/gcode.h)
-
 #include "../service/system.h"
 #include "../module/toolhead_cnc.h"
 #include "../module/toolhead_laser.h"
+
+// marlin headers
+#include  "src/gcode/gcode.h"
 
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
 

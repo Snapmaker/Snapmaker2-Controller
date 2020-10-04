@@ -3,17 +3,17 @@
 #include "bed_level.h"
 #include "../gcode/M1028.h"
 
-#include MARLIN_SRC(Marlin.h)
-#include MARLIN_SRC(module/planner.h)
-#include MARLIN_SRC(module/endstops.h)
-#include MARLIN_SRC(module/temperature.h)
-#include MARLIN_SRC(module/configuration_store.h)
+#include "src/Marlin.h"
+#include "src/module/planner.h"
+#include "src/module/endstops.h"
+#include "src/module/temperature.h"
+#include "src/module/configuration_store.h"
 
-#include MARLIN_SRC(gcode/gcode.h)
-#include MARLIN_SRC(gcode/parser.h)
+#include "src/gcode/gcode.h"
+#include "src/gcode/parser.h"
 
-#include MARLIN_SRC(feature/bedlevel/abl/abl.h)
-#include MARLIN_SRC(feature/bedlevel/bedlevel.h)
+#include "src/feature/bedlevel/abl/abl.h"
+#include "src/feature/bedlevel/bedlevel.h"
 
 BedLevelService levelservice;
 

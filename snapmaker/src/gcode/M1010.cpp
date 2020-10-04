@@ -3,9 +3,10 @@
 
 #include "../module/enclosure.h"
 
-#include MARLIN_SRC(gcode/gcode.h)
-#include MARLIN_SRC(gcode/queue.h)
-#include MARLIN_SRC(core/macros.h)
+// marlin headers
+#include "src/gcode/gcode.h"
+#include "src/gcode/queue.h"
+#include "src/core/macros.h"
 
 /*
 * Disable /Enable chamber door event

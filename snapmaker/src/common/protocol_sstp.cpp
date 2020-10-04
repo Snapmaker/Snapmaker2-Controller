@@ -1,7 +1,6 @@
 #include "protocol_sstp.h"
 
 
-
 ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &length) {
   uint16_t calc_chk = 0;
 
@@ -9,7 +8,7 @@ ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &l
   switch (state_) {
   case PROTOCOL_SSTP_STATE_IDLE:
     // SOF has 2 bytes, so try to read 2 bytes
-    if (ring.RemoveMulti(header_, SSTP_PDU_SOF_SIZE) != SSTP_PDU_SOF_SIZE)
+    if (ring.RemoveMulti(header_, (int32_t)SSTP_PDU_SOF_SIZE) != SSTP_PDU_SOF_SIZE)
       return E_NO_RESRC;
 
     // check if we got SOF
@@ -29,7 +28,7 @@ ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &l
       return E_NO_HEADER;
     }
 
-    ring.RemoveMulti(header_ + SSTP_PDU_SOF_SIZE, SSTP_HEADER_SIZE - SSTP_PDU_SOF_SIZE);
+    ring.RemoveMulti(header_ + SSTP_PDU_SOF_SIZE, (int32_t)(SSTP_HEADER_SIZE - SSTP_PDU_SOF_SIZE));
 
     // confirm the checksum of length_
     if (header_[SSTP_PDU_IDX_LEN_CHK] != (uint8_t)(header_[SSTP_PDU_IDX_DATA_LEN_H]^header_[SSTP_PDU_IDX_DATA_LEN_L])) {
@@ -56,7 +55,7 @@ ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &l
       return E_NO_DATA;
     }
 
-    ring.RemoveMulti(out, length_);
+    ring.RemoveMulti(out, (int32_t)length_);
 
     calc_chk = CalcChecksum(out, length_);
     state_ = PROTOCOL_SSTP_STATE_IDLE;

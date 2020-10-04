@@ -2,7 +2,8 @@
 #define SNAPMAKER_EVENT_HANDLER_H_
 
 #include "../common/error.h"
-#include "../common/uart_host.h"
+
+#include "uart_host.h"
 
 // event IDs
 // gcode from PC

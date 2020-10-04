@@ -13,19 +13,19 @@
 #include "bed_level.h"
 #include "system.h"
 
-#include MARLIN_SRC(Marlin.h)
-#include MARLIN_SRC(gcode/gcode.h)
-#include MARLIN_SRC(gcode/parser.h)
-#include MARLIN_SRC(module/configuration_store.h)
-#include MARLIN_SRC(module/printcounter.h)
-#include MARLIN_SRC(module/stepper.h)
-#include MARLIN_SRC(module/temperature.h)
-#include MARLIN_SRC(module/planner.h)
-#include MARLIN_SRC(module/motion.h)
-#include MARLIN_SRC(feature/runout.h)
-#include MARLIN_SRC(feature/bedlevel/bedlevel.h)
+#include "src/Marlin.h"
+#include "src/gcode/gcode.h"
+#include "src/gcode/parser.h"
+#include "src/module/configuration_store.h"
+#include "src/module/printcounter.h"
+#include "src/module/stepper.h"
+#include "src/module/temperature.h"
+#include "src/module/planner.h"
+#include "src/module/motion.h"
+#include "src/feature/runout.h"
+#include "src/feature/bedlevel/bedlevel.h"
 
-#include MARLIN_HAL(HAL.h)
+#include HAL_PATH(src/HAL, HAL.h)
 
 
 #define FLASH_PAGE_SIZE				2048
@@ -397,7 +397,7 @@ int PowerLossRecovery::SaveEnv(void) {
 	default:
 		break;
 	}
-  cur_data_.active_coordinate_system = gcode.active_coordinate_system;
+  	cur_data_.active_coordinate_system = gcode.active_coordinate_system;
 	// checksum need to be calculate at the end,
 	// when all data will not be changed again
 	pBuff = (uint8_t*)&cur_data_;

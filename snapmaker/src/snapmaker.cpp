@@ -7,26 +7,29 @@
 #include "service/upgrade.h"
 #include "service/power_loss_recovery.h"
 
-#include "../../Marlin/src/module/endstops.h"
-#include "../../Marlin/src/feature/runout.h"
+// marlin headers
+#include "src/module/endstops.h"
+#include "src/feature/runout.h"
 
-enum FLASH_Status {
-	FLASH_BUSY = 1,
-	FLASH_ERROR_PG,
-	FLASH_ERROR_WRP,
-	FLASH_ERROR_OPT,
-	FLASH_COMPLETE,
-	FLASH_TIMEOUT,
-	FLASH_BAD_ADDRESS
-};
+#include "flash_stm32.h"
+
+// enum FLASH_Status {
+// 	FLASH_BUSY = 1,
+// 	FLASH_ERROR_PG,
+// 	FLASH_ERROR_WRP,
+// 	FLASH_ERROR_OPT,
+// 	FLASH_COMPLETE,
+// 	FLASH_TIMEOUT,
+// 	FLASH_BAD_ADDRESS
+// };
 
 
-extern void FLASH_Unlock(void);
-extern void FLASH_Lock(void);
-extern FLASH_Status FLASH_WaitForLastOperation(uint32 Timeout);
-extern FLASH_Status FLASH_ErasePage(uint32 Page_Address);
-extern FLASH_Status FLASH_ProgramHalfWord(uint32 Address, uint16 Data);
-extern FLASH_Status FLASH_ProgramWord(uint32 Address, uint32 Data);
+// extern void FLASH_Unlock(void);
+// extern void FLASH_Lock(void);
+// extern FLASH_Status FLASH_WaitForLastOperation(uint32 Timeout);
+// extern FLASH_Status FLASH_ErasePage(uint32 Page_Address);
+// extern FLASH_Status FLASH_ProgramHalfWord(uint32 Address, uint16 Data);
+// extern FLASH_Status FLASH_ProgramWord(uint32 Address, uint32 Data);
 
 
 extern void enqueue_hmi_to_marlin();

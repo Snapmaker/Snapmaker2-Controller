@@ -8,9 +8,10 @@
 #include "../module/toolhead_cnc.h"
 #include "../module/toolhead_laser.h"
 
-#include MARLIN_SRC(gcode/gcode.h)
-#include MARLIN_SRC(module/motion.h)
-#include MARLIN_SRC(libs/hex_print_routines.h)
+// marlin headers
+#include "src/gcode/gcode.h"
+#include "src/module/motion.h"
+#include "src/libs/hex_print_routines.h"
 
 void GcodeSuite::M1005() {
   CanExtCmd_t cmd;

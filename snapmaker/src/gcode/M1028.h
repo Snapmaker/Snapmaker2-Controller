@@ -3,8 +3,8 @@
 
 #include "../common/config.h"
 
-#include MARLIN_SRC(Marlin.h)
-#include MARLIN_SRC(core/macros.h)
+#include "src/Marlin.h"
+#include "src/core/macros.h"
 
 extern float sm_homing_feedrate[XYZ];
 extern uint8_t sm_homing_bump_divisor[XYZ];

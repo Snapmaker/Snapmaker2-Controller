@@ -1,5 +1,7 @@
-#include "../common/debug.h"
+#include <libmaple/usart.h>
+#include "src/core/serial.h"
 
+#include "../common/debug.h"
 #include "uart_host.h"
 
 #define HOST_DEBUG  0
@@ -9,6 +11,8 @@
 void UartHost::Init(HardwareSerial *serial, uint8_t interrupt_prio) {
   uint8_t *buffer;
 
+  struct usart_dev* dev = serial->c_dev();
+
   buffer = (uint8_t *)pvPortMalloc(1024);
   configASSERT(buffer);
 
@@ -16,7 +20,7 @@ void UartHost::Init(HardwareSerial *serial, uint8_t interrupt_prio) {
 
   serial->begin(115200);
 
-  nvic_irq_set_priority(serial->c_dev()->irq_num, interrupt_prio);
+  nvic_irq_set_priority(dev->irq_num, interrupt_prio);
 
   serial_ = serial;
 

@@ -4,9 +4,9 @@
 
 #include "../service/system.h"
 
-#include MARLIN_SRC(gcode/gcode.h)
-#include MARLIN_SRC(gcode/queue.h)
-#include MARLIN_SRC(core/macros.h)
+#include "src/gcode/gcode.h"
+#include "src/gcode/queue.h"
+#include "src/core/macros.h"
 
 #if HAS_POSITION_SHIFT
   // The distance that XYZ has been offset by G92. Reset by G28.

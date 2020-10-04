@@ -2,15 +2,14 @@
 #define SNAPMAKER_UART_HOST_H_
 
 #include <stdio.h>
-#include <libmaple/ring_buffer.h>
+
+#include <HardwareSerial.h>
 #include "MapleFreeRTOS1030.h"
 
-#include "error.h"
-#include "protocol_sstp.h"
+#include "../common/error.h"
+#include "../common/protocol_sstp.h"
 
 #include "../utils/ring_buffer.h"
-
-class HardwareSerial;
 
 class UartHost {
 

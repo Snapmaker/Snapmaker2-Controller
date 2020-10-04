@@ -10,7 +10,9 @@
 #include "toolhead_cnc.h"
 #include "toolhead_laser.h"
 
-#include MARLIN_SRC(pins/pins.h)
+// marlin headers
+#include "src/inc/MarlinConfig.h"
+#include HAL_PATH(src/HAL, fastio_STM32F1.h)
 
 ModuleBase base(MODULE_DEVICE_ID_INVALID);
 

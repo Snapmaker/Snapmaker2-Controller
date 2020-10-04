@@ -1,7 +1,8 @@
 #include "can_channel.h"
 #include "../common/config.h"
 
-#include MARLIN_HAL(HAL_can_STM32F1.h)
+#include "src/inc/MarlinConfig.h"
+#include HAL_PATH(src/HAL, HAL_can_STM32F1.h)
 
 CanChannel can;
 
@@ -12,13 +13,13 @@ ErrCode CanChannel::Init(CANIrqCallback_t irq_cb) {
   if (!tmp) {
     return E_NO_MEM;
   }
-  mac_id_.Init(CAN_MAC_QUEUE_SIZE, (uint32_t *)tmp);
+  mac_id_.Init((int32_t)CAN_MAC_QUEUE_SIZE, (uint32_t *)tmp);
 
   tmp = pvPortMalloc(CAN_EXT_CMD_QUEUE_SIZE);
   if (!tmp) {
     return E_NO_MEM;
   }
-  ext_cmd_.Init(CAN_EXT_CMD_QUEUE_SIZE, (uint8_t *)tmp);
+  ext_cmd_.Init((int32_t)CAN_EXT_CMD_QUEUE_SIZE, (uint8_t *)tmp);
 
   std_cmd_w_ = 0;
   std_cmd_r_ = 0;

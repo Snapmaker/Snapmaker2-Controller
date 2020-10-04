@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include "config.h"
 
-#include MARLIN_SRC(core/macros.h)
+#include "src/core/macros.h"
 
 #include "error.h"
 #include "../hmi/event_handler.h"

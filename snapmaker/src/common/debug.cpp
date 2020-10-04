@@ -3,10 +3,10 @@
 #include "../service/system.h"
 #include "../service/power_loss_recovery.h"
 
-#include MARLIN_SRC(Marlin.h)
-#include MARLIN_SRC(gcode/gcode.h)
-#include MARLIN_SRC(module/motion.h)
-#include MARLIN_SRC(core/minmax.h)
+#include "src/Marlin.h"
+#include "src/gcode/gcode.h"
+#include "src/module/motion.h"
+#include "src/core/minmax.h"
 
 #if (SNAP_DEBUG == 1)
 

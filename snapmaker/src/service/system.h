@@ -7,7 +7,7 @@
 #include "../hmi/event_handler.h"
 #include "quick_stop.h"
 
-#include MARLIN_SRC(inc/MarlinConfig.h)
+#include "src/inc/MarlinConfig.h"
 
 
 #define FAULT_FLAG_NO_EXECUTOR        1       // lost executor

@@ -6,10 +6,10 @@
 
 #include "upgrade.h"
 #include "system.h"
-#include <EEPROM.h>
+#include "flash_stm32.h"
 
-#include MARLIN_SRC(Marlin.h)
-#include MARLIN_HAL(HAL_watchdog_STM32F1.h)
+#include "src/Marlin.h"
+#include HAL_PATH(src/HAL, HAL_watchdog_STM32F1.h)
 
 
 UpgradeService upgrade;

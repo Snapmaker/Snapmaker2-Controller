@@ -3,8 +3,8 @@
 
 #include "../service/system.h"
 
-#include MARLIN_SRC(inc/MarlinConfig.h)
-#include MARLIN_SRC(module/endstops.h)
+#include "src/inc/MarlinConfig.h"
+#include "src/module/endstops.h"
 
 
 Linear linear;

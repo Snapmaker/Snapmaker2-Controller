@@ -4,7 +4,7 @@
 #include "module_base.h"
 #include "can_host.h"
 
-#include "../common/uart_host.h"
+#include "../hmi/uart_host.h"
 
 #define TOOLHEAD_LASER_POWER_SAFE_LIMIT   (0.5)
 #define TOOLHEAD_LASER_POWER_NORMAL_LIMIT (100)
@@ -96,7 +96,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode GetCameraBtMAC(SSTP_Event_t &event);
 
 
-    uint32_t mac(uint8_t sub_index = 0);
+    uint32_t mac(uint8_t sub_index = 0) { return canhost.mac(mac_index_); }
 
     float power() { return power_val_; }
 

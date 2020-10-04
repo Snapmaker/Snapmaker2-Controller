@@ -6,14 +6,20 @@
 
 #include "../snapmaker.h"
 
-#include MARLIN_SRC(pins/pins.h)
-#include MARLIN_SRC(module/motion.h)
-#include MARLIN_SRC(module/planner.h)
+// marlin headers
+#include "src/core/macros.h"
+#include "src/core/boards.h"
+#include "Configuration.h"
+#include "src/pins/pins.h"
+#include "src/module/motion.h"
+#include "src/module/planner.h"
 
 
 #define LASER_CLOSE_FAN_DELAY     (120)
 
 #define TimSetPwm(n)  Tim1SetCCR4(n)
+
+ToolHeadLaser laser;
 
 extern void Tim1SetCCR4(uint16_t pwm);
 extern void Tim1PwmInit();
@@ -25,7 +31,6 @@ static const uint8_t power_table[]= {
   171,174,177,179,182,185,187,190,192,196,198,200,203,205,208,210,211,214,217,218,221,224,226,228,231,234,236,240,242,
   247,251,255
 };
-
 
 static void CallbackAckLaserFocus(uint8_t *cmd, uint8_t length) {
   laser.focus(cmd[0]<<8 | cmd[1]);

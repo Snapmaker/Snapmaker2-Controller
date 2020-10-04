@@ -33,7 +33,7 @@
 #include "../HAL/shared/Delay.h"
 
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-  #include "../../../snapmaker/src/snapmaker.h"
+  #include "snapmaker.h"
 #endif
 
 #define MAX6675_SEPARATE_SPI EITHER(HEATER_0_USES_MAX6675, HEATER_1_USES_MAX6675) && PIN_EXISTS(MAX6675_SCK, MAX6675_DO)

@@ -14,17 +14,17 @@
 #include "quick_stop.h"
 #include "power_loss_recovery.h"
 
-#include MARLIN_SRC(Marlin.h)
-#include MARLIN_SRC(module/printcounter.h)
-#include MARLIN_SRC(module/stepper.h)
-#include MARLIN_SRC(module/configuration_store.h)
-#include MARLIN_SRC(module/temperature.h)
-#include MARLIN_SRC(module/planner.h)
-#include MARLIN_SRC(module/motion.h)
-#include MARLIN_SRC(gcode/gcode.h)
-#include MARLIN_SRC(gcode/parser.h)
-#include MARLIN_SRC(feature/bedlevel/bedlevel.h)
-#include MARLIN_SRC(feature/runout.h)
+#include "src/Marlin.h"
+#include "src/module/printcounter.h"
+#include "src/module/stepper.h"
+#include "src/module/configuration_store.h"
+#include "src/module/temperature.h"
+#include "src/module/planner.h"
+#include "src/module/motion.h"
+#include "src/gcode/gcode.h"
+#include "src/gcode/parser.h"
+#include "src/feature/bedlevel/bedlevel.h"
+#include "src/feature/runout.h"
 
 
 SystemService systemservice;

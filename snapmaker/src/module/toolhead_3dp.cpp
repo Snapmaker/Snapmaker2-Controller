@@ -2,10 +2,11 @@
 
 #include "../common/config.h"
 
-#include MARLIN_SRC(pins/pins.h)
-
-
-#include MARLIN_SRC(Marlin.h)
+// marlin headers
+#include "src/core/macros.h"
+#include "src/core/boards.h"
+#include "Configuration.h"
+#include "src/pins/pins.h"
 
 ToolHead3DP printer;
 

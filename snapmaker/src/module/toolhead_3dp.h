@@ -6,7 +6,10 @@
 
 #include "../common/config.h"
 
+
 #define TOOLHEAD_3DP_FAN_MAX    (2)
+
+#define EXTRUDERS 1
 
 class ToolHead3DP: public ModuleBase {
   public:
@@ -29,7 +32,7 @@ class ToolHead3DP: public ModuleBase {
     ErrCode SetPID(uint8_t index, float value, uint8_t extrude_index=0);
     ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index=0);
 
-    bool IsOnline(uint8_t head_index=0);
+    bool IsOnline(uint8_t head_index=0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; };
 
     uint32_t mac(uint8_t head_index=0) {
       return canhost.mac(mac_index_);

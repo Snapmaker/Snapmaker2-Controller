@@ -58,8 +58,8 @@
 #include "feature/bedlevel/bedlevel.h"
 
 
-#include SNAPMAKER_SRC(snapmaker.h)
-#include SNAPMAKER_SRC(module/linear.h)
+#include "snapmaker.h"
+#include "module/linear.h"
 
 #if ENABLED(HOST_ACTION_COMMANDS)
   #include "feature/host_actions.h"
