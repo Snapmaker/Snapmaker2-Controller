@@ -1,8 +1,6 @@
 #ifndef SNAPMAKER_PROTOCOL_SSTP_H_
 #define SNAPMAKER_PROTOCOL_SSTP_H_
 
-#include "FreeRTOS.h"
-
 #include "error.h"
 #include "../utils/ring_buffer.h"
 

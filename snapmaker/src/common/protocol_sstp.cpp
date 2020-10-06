@@ -1,5 +1,6 @@
 #include "protocol_sstp.h"
 
+#include "MapleFreeRTOS1030.h"
 
 ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &length) {
   uint16_t calc_chk = 0;

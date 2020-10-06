@@ -23,8 +23,6 @@ public:
   void Flush();
 
 private:
-
-private:
   HardwareSerial *serial_;
 
   ProtocolSSTP sstp_;

@@ -240,11 +240,11 @@ void __irq_can1_tx(void) {
 }
 
 void __irq_can1_rx0(void) {
-  CanChannel::Irq(CAN_CH_1, 0);
+  can.Irq(CAN_CH_1, 0);
 }
 
 void __irq_can1_rx1(void) {
-  CanChannel::Irq(CAN_CH_1, 1);
+  can.Irq(CAN_CH_1, 1);
 }
 
 void __irq_can1_sce(void) {
@@ -254,11 +254,11 @@ void __irq_can2_tx(void) {
 }
 
 void __irq_can2_rx0(void) {
-  CanChannel::Irq(CAN_CH_2, 0);
+  can.Irq(CAN_CH_2, 0);
 }
 
 void __irq_can2_rx1(void) {
-  CanChannel::Irq(CAN_CH_2, 1);
+  can.Irq(CAN_CH_2, 1);
 }
 
 void __irq_can2_sce(void) {
