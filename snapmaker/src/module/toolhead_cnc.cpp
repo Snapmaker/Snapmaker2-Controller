@@ -11,8 +11,8 @@
 ToolHeadCNC cnc;
 
 
-static void CallbackAckSpindleSpeed(uint8_t *cmd, uint8_t length) {
-  cnc.rpm(cmd[0]<<8 | cmd[1]);
+static void CallbackAckSpindleSpeed(CanStdDataFrame_t &cmd) {
+  cnc.rpm(cmd.data[0]<<8 | cmd.data[1]);
 }
 
 
@@ -46,18 +46,19 @@ ErrCode ToolHeadCNC::Init(MAC_t &mac, uint8_t mac_index) {
   function.channel   = mac.bits.channel;
   function.mac_index = mac_index;
   function.sub_index = 0;
-  function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
 
   // register function ids to can host, it will assign message id
   for (int i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
+    function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
+
     if (function.id == MODULE_FUNC_GET_SPINDLE_SPEED)
       message_id[i] = canhost.RegisterFunction(function, CallbackAckSpindleSpeed);
     else
       message_id[i] = canhost.RegisterFunction(function, NULL);
   }
 
-  ret = canhost.BindMessageID(func_buffer, message_id);
+  ret = canhost.BindMessageID(cmd, message_id);
 
   mac_index_ = mac_index;
 

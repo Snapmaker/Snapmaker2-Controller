@@ -38,10 +38,10 @@ typedef unsigned short message_id_t;
 
 typedef union {
   struct {
-    uint32_t type:       1;  // static or dynamic modules
-    uint32_t configured: 1;  // indicate its function id is bound with message id
-    uint32_t channel:    1;  // connected to CAN1 or CAN2
     uint32_t id:         29; // actual MAC id from modules
+    uint32_t channel:    1;  // connected to CAN1 or CAN2
+    uint32_t configured: 1;  // indicate its function id is bound with message id
+    uint32_t type:       1;  // static or dynamic modules
   } bits;
 
   uint32_t val;

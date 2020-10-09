@@ -187,11 +187,12 @@ void CanInit() {
  * para DataLen: The count of the data to be send
  * return : true if success, or else false.  
  */
-bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameType, uint8_t DataLen, uint8_t *pData) {
+uint32_t CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameType, uint8_t DataLen, uint8_t *pData) {
   CanTxMsg TxMessage;
   uint8_t retry;
   uint32_t tmptick;
   uint32_t regtsr;
+  uint32_t can_esr = 0;
 
   BaseType_t ret = pdFAIL;
 
@@ -237,8 +238,9 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
         if((millis() - tmptick) > 500)
           break;
         regtsr = CAN1->TSR & (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0);
+        can_esr = CAN1->ESR;
         if(regtsr == (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0)) {
-          return true;
+          return 0;
         }
         else if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
           break;
@@ -261,15 +263,16 @@ bool CanSendPacked(uint32_t ID, uint8_t IDType, uint8_t PortNum, uint8_t FrameTy
         if((millis() - tmptick) > 500)
           break;
         regtsr = CAN2->TSR & (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0);
+        can_esr = CAN2->ESR;
         if(regtsr == (CAN_TSR_TXOK0 | CAN_TSR_RQCP0 | CAN_TSR_TME0)) {
-          return true;
+          return 0;
         }
         else if(regtsr == (CAN_TSR_RQCP0 | CAN_TSR_TME0))
           break;
       }while(true);
     }
   }
-  return false;
+  return can_esr;
 }
 
 /**

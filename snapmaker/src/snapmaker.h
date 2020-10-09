@@ -37,9 +37,9 @@ extern SnapTasks_t snap_tasks;
 #define HMI_SERIAL_IRQ_PRIORITY 8
 #define MARLIN_SERIAL_IRQ_PRIORITY 9
 
-ErrCode SnapmakerSetupEarly();
+void SnapmakerSetupEarly();
 
-ErrCode SnapmakerSetupPost();
+void SnapmakerSetupPost();
 
 
 

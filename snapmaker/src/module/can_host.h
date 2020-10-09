@@ -12,9 +12,8 @@
 
 #define CAN_STD_WAIT_QUEUE_MAX    (4)
 
-typedef void (*CanStdCmdCallback_t)(uint8_t *cmd, uint8_t length);
+typedef void (*CanStdCmdCallback_t)(CanStdDataFrame_t &cmd);
 
-typedef void (*CanExtCmdCallback_t)(uint8_t *cmd, uint16_t length);
 
 typedef struct {
   Function_t          function;
@@ -49,8 +48,8 @@ typedef struct {
 
 
 typedef struct {
-  MAC_t    mac;   /* MAC ID of module which we are waiting for */
-  uint8_t  cmd;   /* command we are waiting for its ack */
+  // MAC_t     mac;   /* MAC ID of module which we are waiting for */
+  uint16_t  cmd;   /* command we are waiting for its ack */
   MessageBufferHandle_t queue;
 } CanExtWaitNode_t;
 
@@ -77,7 +76,7 @@ class CanHost {
 
     bool IrqCallback(CanStdDataFrame_t &frame);
 
-    ErrCode BindMessageID(uint8_t *func_buffer, message_id_t *msg_buffer);
+    ErrCode BindMessageID(CanExtCmd_t &cmd, message_id_t *msg_buffer);
 
     uint32_t mac(uint8_t index) {
       if (index < MODULE_SUPPORT_CONNECTED_MAX)

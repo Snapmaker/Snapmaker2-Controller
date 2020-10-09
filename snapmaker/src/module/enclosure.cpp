@@ -8,8 +8,8 @@
 Enclosure enclosure;
 
 
-static void CallbackAckDoorState(uint8_t *cmd, uint8_t length) {
-  enclosure.door_state(cmd[0]);
+static void CallbackAckDoorState(CanStdDataFrame_t &cmd) {
+  enclosure.door_state(cmd.data[0]);
 }
 
 
@@ -35,18 +35,18 @@ ErrCode Enclosure::Init(MAC_t &mac, uint8_t mac_index) {
   function.channel   = mac.bits.channel;
   function.mac_index = mac_index;
   function.sub_index = 0;
-  function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
 
   // register function ids to can host, it will assign message id
   for (int i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
+    function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
     if (function.id == MODULE_FUNC_ENCLOSURE_DOOR_STATE)
       message_id[i] = canhost.RegisterFunction(function, CallbackAckDoorState);
     else
       message_id[i] = canhost.RegisterFunction(function, NULL);
   }
 
-  ret = canhost.BindMessageID(func_buffer, message_id);
+  ret = canhost.BindMessageID(cmd, message_id);
 
   mac_index_ = mac_index;
 

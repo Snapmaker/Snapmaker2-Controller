@@ -1,5 +1,6 @@
 #include "can_channel.h"
 #include "../common/config.h"
+#include "../common/debug.h"
 
 #include "src/inc/MarlinConfig.h"
 #include HAL_PATH(src/HAL, HAL_can_STM32F1.h)
@@ -40,7 +41,7 @@ ErrCode CanChannel::Init(CANIrqCallback_t irq_cb) {
 
 ErrCode CanChannel::Write(CanPacket_t &packet) {
   BaseType_t ret_lock = pdFAIL;
-  bool       ret_send = false;
+  uint32_t   ret_send = 0;
 
   if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
     ret_lock = xSemaphoreTake(lock_[packet.ch], portMAX_DELAY);
@@ -54,21 +55,21 @@ ErrCode CanChannel::Write(CanPacket_t &packet) {
       return E_PARAM;
     }
 
-    ret_send = CanSendPacked(packet.id, IDTYPE_STDID, packet.ch, FRAME_DATA, packet.length, packet.data);
+    ret_send = CanSendPacked(packet.id, IDTYPE_STDID, packet.ch + 1, FRAME_DATA, packet.length, packet.data);
 
     break;
 
   case CAN_FRAME_EXT_DATA:
     for (int32_t  i = 0; i < packet.length; i += 8) {
       if (packet.length - i > 8)
-        ret_send = CanSendPacked(packet.id, IDTYPE_EXTID, packet.ch, FRAME_DATA, 8, packet.data + i);
+        ret_send = CanSendPacked(packet.id, IDTYPE_EXTID, packet.ch + 1, FRAME_DATA, 8, packet.data + i);
       else
-        ret_send = CanSendPacked(packet.id, IDTYPE_EXTID, packet.ch, FRAME_DATA, packet.length - i, packet.data + i);
+        ret_send = CanSendPacked(packet.id, IDTYPE_EXTID, packet.ch + 1, FRAME_DATA, packet.length - i, packet.data + i);
     }
     break;
 
   case CAN_FRAME_EXT_REMOTE:
-    ret_send = CanSendPacked(packet.id, IDTYPE_EXTID, packet.ch, FRAME_REMOTE, 0, 0);
+    ret_send = CanSendPacked(packet.id, IDTYPE_EXTID, packet.ch + 1, FRAME_REMOTE, 0, 0);
     break;
 
   default:
@@ -79,10 +80,14 @@ ErrCode CanChannel::Write(CanPacket_t &packet) {
     xSemaphoreGive(lock_[packet.ch]);
   }
 
-  if (ret_send)
+  if (!ret_send) {
+    LOG_I("[CH%u:0x%X] send ok\n", packet.ch + 1, packet.id);
     return E_SUCCESS;
-  else
+  }
+  else {
+    LOG_E("[CH%u:0x%X] failed to send can packet: 0x%X\n", packet.ch + 1, packet.id, ret_send);
     return E_FAILURE;
+  }
 }
 
 
@@ -119,7 +124,7 @@ int32_t CanChannel::Read(CanFrameType ft, uint8_t *buffer, int32_t l) {
     if (std_cmd_in_q_ == 0)
       return 0;
 
-    tmp_pu8 = (uint8_t *)&std_cmd_[std_cmd_in_q_];
+    tmp_pu8 = (uint8_t *)&std_cmd_[std_cmd_r_];
 
     for (i = 0; i < CAN_STD_CMD_ELEMENT_SIZE; i++) {
       buffer[i] = tmp_pu8[i];
@@ -127,6 +132,8 @@ int32_t CanChannel::Read(CanFrameType ft, uint8_t *buffer, int32_t l) {
 
     if (++std_cmd_r_ >= CAN_STD_CMD_QUEUE_SIZE)
       std_cmd_r_ = 0;
+
+    std_cmd_in_q_--;
 
     return CAN_STD_CMD_ELEMENT_SIZE;
 
@@ -167,7 +174,7 @@ int32_t CanChannel::Peek(CanFrameType ft, uint8_t *buffer, int32_t l) {
 
 void CanChannel::Irq(CanChannelNumber ch,  uint8_t fifo_index) {
   int32_t i = 0;
-  bool is_remote_frame = false;
+  uint8_t filter_index;
 
   uint32_t  can_id;
   uint8_t   id_type;
@@ -179,11 +186,11 @@ void CanChannel::Irq(CanChannelNumber ch,  uint8_t fifo_index) {
   // read data
   switch (ch) {
   case CAN_CH_1:
-    is_remote_frame = Canbus1ParseData(&can_id, &id_type, &frame_type, std_data_frame.data, &length, fifo_index);
+    filter_index = Canbus1ParseData(&can_id, &id_type, &frame_type, std_data_frame.data, &length, fifo_index);
     break;
 
   case CAN_CH_2:
-    is_remote_frame = Canbus2ParseData(&can_id, &id_type, &frame_type, std_data_frame.data, &length, fifo_index);
+    filter_index = Canbus2ParseData(&can_id, &id_type, &frame_type, std_data_frame.data, &length, fifo_index);
     break;
 
   default:
@@ -191,42 +198,60 @@ void CanChannel::Irq(CanChannelNumber ch,  uint8_t fifo_index) {
   }
 
   // standard data frame
-  if (id_type == IDTYPE_STDID && !is_remote_frame) {
-    std_data_frame.id.val = (uint16_t)can_id;
-    std_data_frame.id.bits.length = length & 0x1F;
+  if (fifo_index == 0) {
+    if (id_type == IDTYPE_STDID && !filter_index) {
+      std_data_frame.id.val = (uint16_t)can_id;
+      std_data_frame.id.bits.length = length & 0x1F;
 
-    // check if we have callback for this message id
-    // if callback return true, indicates message is handled
-    if (irq_cb_ && irq_cb_(std_data_frame)) {
-      return;
-    }
+      // check if we have callback for this message id
+      // if callback return true, indicates message is handled
+      if (irq_cb_ && irq_cb_(std_data_frame)) {
+        return;
+      }
 
-    // if no callback, enqueue the data just received
-    if (std_cmd_in_q_ < CAN_STD_CMD_QUEUE_SIZE) {
-      // save data field
-      for (i = 0; i < length; i++) {
-        std_cmd_[std_cmd_w_] = std_data_frame;
-        if (++std_cmd_w_ >= CAN_STD_CMD_QUEUE_SIZE)
-          std_cmd_w_ = 0;
+      // if no callback, enqueue the data just received
+      if (std_cmd_in_q_ < CAN_STD_CMD_QUEUE_SIZE) {
+        // save data field
+        for (i = 0; i < length; i++) {
+          std_cmd_[std_cmd_w_] = std_data_frame;
+          if (++std_cmd_w_ >= CAN_STD_CMD_QUEUE_SIZE)
+            std_cmd_w_ = 0;
+          std_cmd_in_q_++;
+        }
       }
     }
 
     return;
   }
 
+  // first bit indicates main controller or modules
+  can_id &= 0xFFFFFFFE;
+
   // extended data frame
-  if (id_type == IDTYPE_EXTID && !is_remote_frame) {
+  if (id_type == IDTYPE_EXTID && filter_index) {
+    // if (std_data_frame.data[0] == 0xAA &&
+    //     std_data_frame.data[1] == 0x55) {
+    //   // to tell upper level the sender, put can_id in following
+    //   ext_cmd_.InsertMulti((uint8_t *)&can_id, 4);
+    // }
+
     ext_cmd_.InsertMulti(std_data_frame.data, length);
-    // to tell upper level the sender, put can_id in following
-    ext_cmd_.InsertMulti((uint8_t *)&can_id, 4);
+
     return;
   }
 
   // extended remote frame
-  if (id_type == IDTYPE_EXTID && is_remote_frame) {
+  if (id_type == IDTYPE_EXTID && !filter_index) {
     // low 29 bits is actual module MAC
-    // we add channel number in the high 2 bits, to tell upper level
-    can_id |= (ch<<30);
+    // we add channel number in the bit[29], to tell upper level
+
+    // bit[29] == 0 indicates CAN1
+    // bit[29] == 1 indicates CAN2
+    if (ch == CAN_CH_1)
+      can_id &= ~(1<<29);
+    else
+      can_id |= (1<<29);
+
     mac_id_.InsertOne(can_id);
     return;
   }

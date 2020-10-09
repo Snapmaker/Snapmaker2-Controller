@@ -32,8 +32,8 @@ static const uint8_t power_table[]= {
   247,251,255
 };
 
-static void CallbackAckLaserFocus(uint8_t *cmd, uint8_t length) {
-  laser.focus(cmd[0]<<8 | cmd[1]);
+static void CallbackAckLaserFocus(CanStdDataFrame_t &cmd) {
+  laser.focus(cmd.data[0]<<8 | cmd.data[1]);
 }
 
 
@@ -67,18 +67,18 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   function.channel   = mac.bits.channel;
   function.mac_index = mac_index;
   function.sub_index = 0;
-  function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
 
   // register function ids to can host, it will assign message id
   for (int i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
+    function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
     if (function.id == MODULE_FUNC_GET_LASER_FOCUS)
       message_id[i] = canhost.RegisterFunction(function, CallbackAckLaserFocus);
     else
       message_id[i] = canhost.RegisterFunction(function, NULL);
   }
 
-  ret = canhost.BindMessageID(func_buffer, message_id);
+  ret = canhost.BindMessageID(cmd, message_id);
 
   Tim1PwmInit();
   esp32_.Init(&MSerial3, EXECUTOR_SERIAL_IRQ_PRIORITY);

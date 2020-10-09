@@ -1,6 +1,7 @@
 #include "toolhead_3dp.h"
 
 #include "../common/config.h"
+#include "common/debug.h"
 
 // marlin headers
 #include "src/core/macros.h"
@@ -11,20 +12,20 @@
 ToolHead3DP printer;
 
 
-static void CallbackAckProbeState(uint8_t *cmd, uint8_t length) {
-  printer.probe_state(cmd[0]);
+static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
+  printer.probe_state(cmd.data[0]);
 }
 
 
-static void CallbackAckNozzleTemp(uint8_t *cmd, uint8_t length) {
+static void CallbackAckNozzleTemp(CanStdDataFrame_t &cmd) {
   // temperature from module, was
-  printer.SetTemp(cmd[0]<<8 | cmd[1], 0);
+  printer.SetTemp(cmd.data[0]<<8 | cmd.data[1], 0);
 }
 
 
-static void CallbackAckFilamentState(uint8_t *cmd, uint8_t length) {
+static void CallbackAckFilamentState(CanStdDataFrame_t &cmd) {
   // temperature from module, was
-  printer.filament_state(cmd[0], 0);
+  printer.filament_state(cmd.data[0], 0);
 }
 
 
@@ -32,10 +33,10 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   ErrCode ret;
 
   CanExtCmd_t cmd;
-  uint8_t     func_buffer[16];
+  uint8_t     func_buffer[32];
 
   Function_t    function;
-  message_id_t  message_id[4];
+  message_id_t  message_id[10];
 
   CanStdCmdCallback_t cb;
 
@@ -51,7 +52,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   cmd.data   = func_buffer;
   cmd.length = 1;
 
-  cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_GET_FUNCID_REQ;
+  cmd.data[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_GET_FUNCID_REQ;
 
   // try to get function ids from module
   if (canhost.SendExtCmdSync(cmd, 500, 2) != E_SUCCESS)
@@ -60,11 +61,12 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   function.channel   = mac.bits.channel;
   function.mac_index = mac_index;
   function.sub_index = 0;
-  function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
 
+  LOG_I("total %u functions\n", func_buffer[1]);
   // register function ids to can host, it will assign message id
   for (int i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
+    function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
     switch (function.id) {
     case MODULE_FUNC_PROBE_STATE:
       cb = CallbackAckProbeState;
@@ -85,7 +87,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
     message_id[i] = canhost.RegisterFunction(function, cb);
   }
 
-  ret = canhost.BindMessageID(func_buffer, message_id);
+  ret = canhost.BindMessageID(cmd, message_id);
 
   mac_index_ = mac_index;
 

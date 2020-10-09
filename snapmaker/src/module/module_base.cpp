@@ -134,10 +134,10 @@ ErrCode ModuleBase::InitModule8p(MAC_t &mac, int dir_pin, uint8_t index) {
   uint8_t     buffer[16];
 
   cmd.data   = buffer;
-  cmd.length = 1;
+  cmd.length = 2;
   cmd.mac    = mac;
 
-  cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_CONFIG_REQ;
+  cmd.data[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_CONFIG_REQ;
   cmd.data[MODULE_EXT_CMD_INDEX_DATA] = index;
 
   WRITE(dir_pin, HIGH);

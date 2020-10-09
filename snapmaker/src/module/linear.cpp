@@ -1,8 +1,10 @@
-#include "../common/config.h"
 #include "linear.h"
 
+#include "../common/config.h"
+#include "../common/debug.h"
 #include "../service/system.h"
 
+// marlin headers
 #include "src/inc/MarlinConfig.h"
 #include "src/module/endstops.h"
 
@@ -11,16 +13,14 @@ Linear linear;
 
 
 LinearAxisType Linear::DetectAxis(MAC_t &mac, uint16_t &length, uint8_t &endstop) {
-  CanExtCmd_t cmd = {mac};
+  CanExtCmd_t cmd;
   uint8_t     buffer[16];
 
   int i;
   int pins[3] = {X_DIR_PIN, Y_DIR_PIN, Z_DIR_PIN};
 
+  cmd.mac    = mac;
   cmd.data   = buffer;
-  cmd.length = 1;
-
-  cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_CONFIG_REQ;
 
   WRITE(X_DIR_PIN, LOW);
   WRITE(Y_DIR_PIN, LOW);
@@ -31,60 +31,64 @@ LinearAxisType Linear::DetectAxis(MAC_t &mac, uint16_t &length, uint8_t &endstop
 
     vTaskDelay(portTICK_PERIOD_MS * 10);
 
+    cmd.data[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_CONFIG_REQ;
     cmd.data[MODULE_EXT_CMD_INDEX_DATA] = i;
+    cmd.length = 2;
 
     if (canhost.SendExtCmdSync(cmd, 500) == E_SUCCESS) {
       if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] == 1) {
         length = (cmd.data[MODULE_EXT_CMD_INDEX_DATA + 1]<<8 | cmd.data[MODULE_EXT_CMD_INDEX_DATA + 2]);
         endstop = cmd.data[MODULE_EXT_CMD_INDEX_DATA + 3];
-        goto out;
+        break;
       }
     }
+
+    WRITE(pins[i], LOW);
   }
 
-  // if nobody tell us it detected low level from dir signal
-  // we cannot recognize what kind of axis it is
-  i = LINEAR_AXIS_UNKNOWN;
-
-out:
-  WRITE(X_DIR_PIN, LOW);
-  WRITE(Y_DIR_PIN, LOW);
-  WRITE(Z_DIR_PIN, LOW);
+  if (i > LINEAR_AXIS_Z1) {
+    // if nobody tell us it detected low level from dir signal
+    // we cannot recognize what kind of axis it is
+    i = LINEAR_AXIS_UNKNOWN;
+  }
+  else {
+    WRITE(pins[i], LOW);
+  }
 
   return (LinearAxisType)i;
 }
 
 
-static void LinearCallbackEndstopX1(uint8_t *cmd, uint8_t length) {
+static void LinearCallbackEndstopX1(CanStdDataFrame_t &cmd) {
   switch (linear.machine_size())
   {
   case MACHINE_SIZE_A250:
   case MACHINE_SIZE_A350:
-    linear.SetEndstop(X_MIN, cmd[0]);
+    linear.SetEndstop(X_MIN, cmd.data[0]);
     break;
 
   case MACHINE_SIZE_A150:
   default:
-    linear.SetEndstop(X_MAX, cmd[0]);
+    linear.SetEndstop(X_MAX, cmd.data[0]);
     break;
   }
 }
 
 
-static void LinearCallbackEndstopY1(uint8_t *cmd, uint8_t length) {
-  linear.SetEndstop(Y_MAX, cmd[0]);
+static void LinearCallbackEndstopY1(CanStdDataFrame_t &cmd) {
+  linear.SetEndstop(Y_MAX, cmd.data[0]);
 }
 
-static void LinearCallbackEndstopY2(uint8_t *cmd, uint8_t length) {
-  linear.SetEndstop(Y_MAX, cmd[0]);
+static void LinearCallbackEndstopY2(CanStdDataFrame_t &cmd) {
+  linear.SetEndstop(Y_MAX, cmd.data[0]);
 }
 
-static void LinearCallbackEndstopZ1(uint8_t *cmd, uint8_t length) {
-  linear.SetEndstop(Z_MAX, cmd[0]);
+static void LinearCallbackEndstopZ1(CanStdDataFrame_t &cmd) {
+  linear.SetEndstop(Z_MAX, cmd.data[0]);
 }
 
-static void LinearCallbackEndstopZ2(uint8_t *cmd, uint8_t length) {
-  linear.SetEndstop(Z_MAX, cmd[0]);
+static void LinearCallbackEndstopZ2(CanStdDataFrame_t &cmd) {
+  linear.SetEndstop(Z_MAX, cmd.data[0]);
 }
 
 
@@ -99,13 +103,19 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   Function_t    function;
   message_id_t  message_id[4];
 
-  CanStdCmdCallback_t cb;
+  CanStdCmdCallback_t cb = NULL;
   int i;
+
+  LOG_I("New Linear Module, MAC: 0x%08X\n", mac.val);
 
   // need to check what kind of axis it is before we register function id
   type = DetectAxis(mac, length, endstop);
-  if (type >= LINEAR_AXIS_MAX)
+  if (type >= LINEAR_AXIS_MAX) {
+    LOG_E("Unknown axix!\n\n", mac.val);
     return E_FAILURE;
+  }
+
+  LOG_I("It is axis %c\n", axis_codes[type]);
 
   // check if X/Y/Z-1 is exist
   if (mac_index_[type] != 0xFF) {
@@ -158,7 +168,6 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   function.channel   = cmd.mac.bits.channel;
   function.sub_index = type;
   function.mac_index = mac_index;
-  function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
 
   if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] > MODULE_FUNCTION_MAX_IN_ONE)
     cmd.data[MODULE_EXT_CMD_INDEX_DATA] = MODULE_FUNCTION_MAX_IN_ONE;
@@ -166,6 +175,7 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   // register function ids to can host, it will assign message id
   for (i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
+    function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
     if (function.id == MODULE_FUNC_ENDSTOP_STATE) {
       // just register callback for endstop
       // cache the message id for endstop for inquiring status of endstop later
@@ -178,7 +188,7 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
     }
   }
 
-  return canhost.BindMessageID(func_buffer, message_id);
+  return canhost.BindMessageID(cmd, message_id);
 }
 
 
@@ -284,6 +294,8 @@ MachineSize Linear::UpdateMachineSize() {
 
     return (machine_size_ = MACHINE_SIZE_A350);
   }
+
+  return (machine_size_ = MACHINE_SIZE_UNKNOWN);
 }
 
 

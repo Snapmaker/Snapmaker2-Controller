@@ -13,24 +13,6 @@
 
 #include "flash_stm32.h"
 
-// enum FLASH_Status {
-// 	FLASH_BUSY = 1,
-// 	FLASH_ERROR_PG,
-// 	FLASH_ERROR_WRP,
-// 	FLASH_ERROR_OPT,
-// 	FLASH_COMPLETE,
-// 	FLASH_TIMEOUT,
-// 	FLASH_BAD_ADDRESS
-// };
-
-
-// extern void FLASH_Unlock(void);
-// extern void FLASH_Lock(void);
-// extern FLASH_Status FLASH_WaitForLastOperation(uint32 Timeout);
-// extern FLASH_Status FLASH_ErasePage(uint32 Page_Address);
-// extern FLASH_Status FLASH_ProgramHalfWord(uint32 Address, uint16 Data);
-// extern FLASH_Status FLASH_ProgramWord(uint32 Address, uint32 Data);
-
 
 extern void enqueue_hmi_to_marlin();
 
@@ -70,13 +52,6 @@ static void main_loop(void *param) {
   configASSERT(dispather_param.event_buff);
 
   dispather_param.event_queue = task_param->event_queue;
-
-  // init power panic handler and load data from flash
-  pl_recovery.Init();
-
-  canhost.Init();
-
-  CheckUpdateFlag();
 
   systemservice.SetCurrentStatus(SYSTAT_IDLE);
 
@@ -151,15 +126,6 @@ static void hmi_task(void *param) {
 
   dispather_param.event_queue = task_param->event_queue;
 
-
-  SET_INPUT_PULLUP(SCREEN_DET_PIN);
-  if(READ(SCREEN_DET_PIN)) {
-    LOG_I("Screen Unplugged!\n");
-  }
-  else {
-    LOG_I("Screen Plugged!\n");
-  }
-
   for (;;) {
     if(READ(SCREEN_DET_PIN)) {
       xTaskNotifyStateClear(task_param->heartbeat);
@@ -229,9 +195,9 @@ static void heartbeat_task(void *param) {
 }
 
 
-ErrCode SnapmakerSetupEarly() {
-  systemservice.Init();
+void SnapmakerSetupEarly() {
 
+  systemservice.Init();
   // init serial for HMI
   hmi.Init(&MSerial2, HMI_SERIAL_IRQ_PRIORITY);
 }
@@ -255,15 +221,42 @@ void CheckAppValidFlag(void)
 }
 
 
-ErrCode SnapmakerSetupPost() {
+void SnapmakerSetupPost() {
+  millis_t ms = millis();
+
+  LOG_E("ms: %u", ms);
+  // init the power supply pins
+  OUT_WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
+  OUT_WRITE(POWER1_SUPPLY_PIN, POWER1_SUPPLY_ON);
+  OUT_WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_ON);
+
+  SET_INPUT_PULLUP(SCREEN_DET_PIN);
+
+  if(READ(SCREEN_DET_PIN)) {
+    disable_power_domain(POWER_DOMAIN_SCREEN);
+    SERIAL_ECHOLN("Screen doesn't exist!\n");
+  }
+  else {
+    enable_power_domain(POWER_DOMAIN_SCREEN);
+    SERIAL_ECHOLN("Screen exists!\n");
+  }
+
+  // power on the modules by default
+  enable_all_steppers();
 
   BreathLightInit();
 
   CheckAppValidFlag();
 
+  CheckUpdateFlag();
+
   // to disable heartbeat if module need to be upgraded
   upgrade.CheckIfUpgradeModule();
 
+  // init power panic handler and load data from flash
+  pl_recovery.Init();
+
+  canhost.Init();
 
   snap_tasks = (SnapTasks_t)pvPortMalloc(sizeof(struct SnapTasks));
   snap_tasks->event_queue = xMessageBufferCreate(1024);

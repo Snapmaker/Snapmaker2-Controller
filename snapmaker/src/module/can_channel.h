@@ -46,10 +46,10 @@ typedef struct CanPacket {
 typedef struct CanStdDataFrame {
   union {
     struct {
-      uint16_t  length:   5;  // indicates length of data field: 1 - 8
-      uint16_t  type:     1;  // indicates type of this frame, 0 = request, 1 = ack
-      uint16_t  reserved: 1;  // reserved, main controller fill 0, module fill 1
       uint16_t  msg_id:   9;  // message id
+      uint16_t  reserved: 1;  // reserved, main controller fill 0, module fill 1
+      uint16_t  type:     1;  // indicates type of this frame, 0 = request, 1 = ack
+      uint16_t  length:   5;  // indicates length of data field: 1 - 8
     } bits;
 
     uint16_t val;
