@@ -135,6 +135,8 @@ ErrCode SystemService::PreProcessStop() {
   if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
     laser.TurnOff();
   }
+
+  return E_SUCCESS;
 }
 
 /**
@@ -1606,7 +1608,7 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // laser power
-  tmp_u32 = laser.power();
+  tmp_u32 = (uint32_t)(laser.power() * 1000);
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
 
   // RPM of CNC
@@ -1889,7 +1891,6 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
   ErrCode ret = E_SUCCESS;
 
   float param;
-  float tmp_f32;
 
   PDU_TO_LOCAL_WORD(param, event.data + 1);
 
@@ -2027,7 +2028,7 @@ ErrCode SystemService::GetRuntimeEnv(SSTP_Event_t &event) {
   event.data = buff;
   event.length = 5;
 
-  hmi.Send(event);
+  return hmi.Send(event);
 }
 
 
@@ -2107,6 +2108,8 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
   default:
     break;
   }
+
+  return E_SUCCESS;
 }
 
 
@@ -2146,5 +2149,7 @@ ErrCode SystemService::CallbackPostQS(QuickStopSource source) {
   default:
     break;
   }
+
+  return E_SUCCESS;
 }
 

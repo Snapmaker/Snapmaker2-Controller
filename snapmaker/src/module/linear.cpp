@@ -12,7 +12,7 @@
 Linear linear;
 
 
-LinearAxisType Linear::DetectAxis(MAC_t &mac, uint16_t &length, uint8_t &endstop) {
+LinearAxisType Linear::DetectAxis(MAC_t &mac, uint8_t &endstop) {
   CanExtCmd_t cmd;
   uint8_t     buffer[16];
 
@@ -37,7 +37,6 @@ LinearAxisType Linear::DetectAxis(MAC_t &mac, uint16_t &length, uint8_t &endstop
 
     if (canhost.SendExtCmdSync(cmd, 500) == E_SUCCESS) {
       if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] == 1) {
-        length = (cmd.data[MODULE_EXT_CMD_INDEX_DATA + 1]<<8 | cmd.data[MODULE_EXT_CMD_INDEX_DATA + 2]);
         endstop = cmd.data[MODULE_EXT_CMD_INDEX_DATA + 3];
         break;
       }
@@ -95,7 +94,6 @@ static void LinearCallbackEndstopZ2(CanStdDataFrame_t &cmd) {
 ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   uint8_t   type;
   uint8_t   endstop;
-  uint16_t  length;
 
   CanExtCmd_t cmd;
   uint8_t     func_buffer[16];
@@ -106,16 +104,14 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   CanStdCmdCallback_t cb = NULL;
   int i;
 
-  LOG_I("New Linear Module, MAC: 0x%08X\n", mac.val);
-
   // need to check what kind of axis it is before we register function id
-  type = DetectAxis(mac, length, endstop);
+  type = DetectAxis(mac, endstop);
   if (type >= LINEAR_AXIS_MAX) {
     LOG_E("Unknown axix!\n\n", mac.val);
     return E_FAILURE;
   }
 
-  LOG_I("It is axis %c\n", axis_codes[type]);
+  LOG_I("\tGot axis %c, endstop: %u\n", axis_codes[type], endstop);
 
   // check if X/Y/Z-1 is exist
   if (mac_index_[type] != 0xFF) {
@@ -129,13 +125,30 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   }
 
   mac_index_[type] = mac_index;
-  length_[type]    = mac_index;
 
   cmd.mac    = mac;
   cmd.data   = func_buffer;
-  cmd.length = 1;
+
+  // try to get linear length
+  cmd.data[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_LINEAR_LENGTH_REQ;
+  cmd.data[MODULE_EXT_CMD_INDEX_DATA] = 0;
+  cmd.length = 2;
+  if (canhost.SendExtCmdSync(cmd, 500, 2) != E_SUCCESS)
+    return E_FAILURE;
+  length_[type] = (uint16_t)((cmd.data[2]<<24 | cmd.data[3]<<16 | cmd.data[4]<<8 | cmd.data[5]) / 1000);
+
+  // try to get linear lead
+  cmd.data[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_LINEAR_LEAD_REQ;
+  cmd.data[MODULE_EXT_CMD_INDEX_DATA] = 0;
+  cmd.length = 2;
+  if (canhost.SendExtCmdSync(cmd, 500, 2) != E_SUCCESS)
+    return E_FAILURE;
+  lead_[type] = (uint16_t)((cmd.data[2]<<24 | cmd.data[3]<<16 | cmd.data[4]<<8 | cmd.data[5]) / 1000);
+
+  LOG_I("\tlength: %u, lead: %u\n", length_[type], lead_[type]);
 
   cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_GET_FUNCID_REQ;
+  cmd.length = 1;
 
   // try to get function ids from module
   if (canhost.SendExtCmdSync(cmd, 500, 2) != E_SUCCESS)
@@ -207,7 +220,7 @@ ErrCode Linear::PollEndstop(LinearAxisType axis) {
     if (endstop_msg_[i] == MODULE_MESSAGE_ID_INVALID)
       continue;
 
-    message.id = endstop_msg_[axis];
+    message.id = endstop_msg_[i];
     canhost.SendStdCmd(message);
     vTaskDelay(portTICK_PERIOD_MS * 10);
   }
@@ -224,9 +237,8 @@ MachineSize Linear::UpdateMachineSize() {
     return (machine_size_ = MACHINE_SIZE_UNKNOWN);
   }
 
-  systemservice.ClearException(EHOST_MC, ETYPE_NO_HOST);
-
   if (length_[LINEAR_AXIS_X1] < 200) {
+    LOG_I("Detected Model A150\n");
     X_MAX_POS = 167;
     Y_MAX_POS = 165;
     Z_MAX_POS = 150;
@@ -246,10 +258,13 @@ MachineSize Linear::UpdateMachineSize() {
     MAGNET_X_SPAN = 114;
     MAGNET_Y_SPAN = 114;
 
-    return (machine_size_ = MACHINE_SIZE_A150);
+    machine_size_ = MACHINE_SIZE_A150;
+
+    goto out;
   }
 
   if (length_[LINEAR_AXIS_X1] < 300) {
+    LOG_I("Detected Model A250\n");
     X_MAX_POS = 252;
     Y_MAX_POS = 260;
     Z_MAX_POS = 235;
@@ -269,10 +284,12 @@ MachineSize Linear::UpdateMachineSize() {
     MAGNET_X_SPAN = 184;
     MAGNET_Y_SPAN = 204;
 
-    return (machine_size_ = MACHINE_SIZE_A250);
+    machine_size_ = MACHINE_SIZE_A250;
+    goto out;
   }
 
   if (length_[LINEAR_AXIS_X1] < 400) {
+    LOG_I("Detected Model A350\n");
     X_MAX_POS = 345;
     Y_MAX_POS = 357;
     Z_MAX_POS = 334;
@@ -292,10 +309,17 @@ MachineSize Linear::UpdateMachineSize() {
     MAGNET_X_SPAN = 274;
     MAGNET_Y_SPAN = 304;
 
-    return (machine_size_ = MACHINE_SIZE_A350);
+    machine_size_ = MACHINE_SIZE_A350;
+    goto out;
   }
 
+  systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
   return (machine_size_ = MACHINE_SIZE_UNKNOWN);
+
+out:
+  UpdateMachineDefines();
+  systemservice.ClearException(EHOST_MC, ETYPE_NO_HOST);
+  return machine_size_;
 }
 
 

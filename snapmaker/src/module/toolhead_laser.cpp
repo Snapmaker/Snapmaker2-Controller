@@ -85,6 +85,8 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
 
   mac_index_ = mac_index;
 
+  toolhead_ = MODULE_TOOLHEAD_LASER;
+
   return E_SUCCESS;
 }
 

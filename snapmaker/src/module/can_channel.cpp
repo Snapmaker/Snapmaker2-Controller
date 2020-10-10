@@ -81,11 +81,11 @@ ErrCode CanChannel::Write(CanPacket_t &packet) {
   }
 
   if (!ret_send) {
-    LOG_I("[CH%u:0x%X] send ok\n", packet.ch + 1, packet.id);
+    LOG_V("[CH%u:0x%X] send ok\n", packet.ch + 1, packet.id);
     return E_SUCCESS;
   }
   else {
-    LOG_E("[CH%u:0x%X] failed to send can packet: 0x%X\n", packet.ch + 1, packet.id, ret_send);
+    LOG_V("[CH%u:0x%X] failed to send can packet: 0x%X\n", packet.ch + 1, packet.id, ret_send);
     return E_FAILURE;
   }
 }

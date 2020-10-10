@@ -29,6 +29,7 @@
 
 #include "../Marlin.h"
 #include "temperature.h"
+#include "src/libs/hex_print_routines.h"
 
 #include "../snapmaker/src/module/toolhead_3dp.h"
 #include "../snapmaker/src/module/linear.h"
@@ -446,15 +447,16 @@ void _O2 Endstops::M119() {
   SERIAL_ECHOLNPGM(MSG_M119_REPORT);
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-    #define ES_REPORT_LINEAR(S) print_es_state(linear.endstop(S) == S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
+    #define ES_REPORT_LINEAR(S) print_es_state(linear.GetEndstop(S) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
 
+    SERIAL_ECHOLNPAIR("endstop bits: 0x", hex_word(linear.endstop()));
     ES_REPORT_LINEAR(X_MIN);
     ES_REPORT_LINEAR(X_MAX);
     ES_REPORT_LINEAR(Y_MIN);
     ES_REPORT_LINEAR(Y_MAX);
     ES_REPORT_LINEAR(Z_MIN);
     ES_REPORT_LINEAR(Z_MAX);
-    print_es_state(READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
+    print_es_state(printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
     print_es_state(printer.filament_state() != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
   #else
 
@@ -587,7 +589,6 @@ void _O2 Endstops::M119() {
 #define _ENDSTOP(AXIS, MINMAX) AXIS ##_## MINMAX
 #define _ENDSTOP_PIN(AXIS, MINMAX) AXIS ##_## MINMAX ##_PIN
 #define _ENDSTOP_INVERTING(AXIS, MINMAX) AXIS ##_## MINMAX ##_ENDSTOP_INVERTING
-#define _READ_MODULE_BIT(AXIS, MINMAX) (CanModules.Endstop & _BV(_ENDSTOP(AXIS, MINMAX))?HIGH:LOW)
 // Check endstops - Could be called from Temperature ISR!
 #if DISABLED(SW_MACHINE_SIZE)
   void Endstops::update() {
@@ -907,7 +908,7 @@ void _O2 Endstops::M119() {
     #endif
 
     //#define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
-    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear.endstop(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
+    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear.GetEndstop(_ENDSTOP_PIN(AXIS, MINMAX)) == _ENDSTOP_INVERTING(AXIS, MINMAX)))
     #define COPY_LIVE_STATE(SRC_BIT, DST_BIT) SET_BIT_TO(live_state, DST_BIT, TEST(live_state, SRC_BIT))
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)

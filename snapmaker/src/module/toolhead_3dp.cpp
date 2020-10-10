@@ -38,11 +38,17 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   Function_t    function;
   message_id_t  message_id[10];
 
-  CanStdCmdCallback_t cb;
+  CanStdMesgCmd_t mesg_cmd = {MODULE_MESSAGE_ID_INVALID, 0, NULL};
+  uint8_t msg_id_index_probe = 0xff;
+  uint8_t msg_id_index_runout = 0xff;
+
+  CanStdCmdCallback_t cb = NULL;
 
   ret = ModuleBase::InitModule8p(mac, E0_DIR_PIN, 0);
   if (ret != E_SUCCESS)
     return ret;
+
+  LOG_I("\tGot 3D printer!\n");
 
   // we have configured 3DP in same port
   if (mac_index_ != MODULE_MAC_INDEX_INVALID)
@@ -62,7 +68,6 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   function.mac_index = mac_index;
   function.sub_index = 0;
 
-  LOG_I("total %u functions\n", func_buffer[1]);
   // register function ids to can host, it will assign message id
   for (int i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
@@ -70,10 +75,12 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
     switch (function.id) {
     case MODULE_FUNC_PROBE_STATE:
       cb = CallbackAckProbeState;
+      msg_id_index_probe = i;
       break;
 
     case MODULE_FUNC_RUNOUT_SENSOR_STATE:
       cb = CallbackAckFilamentState;
+      msg_id_index_runout = i;
       break;
 
     case MODULE_FUNC_GET_NOZZLE_TEMP:
@@ -84,14 +91,45 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
       cb = NULL;
       break;
     }
+
     message_id[i] = canhost.RegisterFunction(function, cb);
+
+    if (message_id[i] == MODULE_MESSAGE_ID_INVALID) {
+      LOG_E("\tfailed to register function!\n");
+      break;
+    }
   }
 
   ret = canhost.BindMessageID(cmd, message_id);
+  if (ret != E_SUCCESS) {
+    LOG_E("\tfailed to bind message id!\n");
+    goto out;
+  }
 
   mac_index_ = mac_index;
 
-  return E_SUCCESS;
+  // read the state of sensors
+  vTaskDelay(portTICK_PERIOD_MS * 5);
+
+  if (msg_id_index_probe != 0xff) {
+    mesg_cmd.id = message_id[msg_id_index_probe];
+    canhost.SendStdCmd(mesg_cmd);
+  }
+
+  vTaskDelay(portTICK_PERIOD_MS * 5);
+  if (msg_id_index_runout != 0xff) {
+    mesg_cmd.id = message_id[msg_id_index_runout];
+    canhost.SendStdCmd(mesg_cmd);
+  }
+
+  vTaskDelay(portTICK_PERIOD_MS * 5);
+
+  LOG_I("\tprobe: %u, filament: %u\n", probe_state_, filament_state_[0]);
+
+  toolhead_ = MODULE_TOOLHEAD_3DP;
+
+out:
+  return ret;
 }
 
 
@@ -169,4 +207,13 @@ ErrCode ToolHead3DP::SetHeater(uint16_t target_temp, uint8_t extrude_index) {
   cmd.length = 2;
 
   return canhost.SendStdCmd(cmd, 0);
+}
+
+
+void ToolHead3DP::Process() {
+  if (++timer_in_process_ < 1000) return;
+
+  timer_in_process_ = 0;
+
+
 }

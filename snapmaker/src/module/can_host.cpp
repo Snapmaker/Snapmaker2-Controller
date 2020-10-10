@@ -1,7 +1,9 @@
 #include "can_host.h"
 #include "../common/debug.h"
+#include "linear.h"
 
 #include "src/Marlin.h"
+
 
 #define CAN_CHANNEL_MASK      (0x3)
 #define CAN_CHANNEL_SHIFT     (10)
@@ -109,27 +111,27 @@ ErrCode CanHost::Init() {
 
   // init can channels
   if (can.Init(CANIrqCallback) != E_SUCCESS)
-    LOG_E("fail to init can channel\n");
+    LOG_E("Failed to init can channel\n");
 
 
   ret = xTaskCreate(TaskReceiveHandler, "can_recv_handler", CAN_RECEIVE_HANDLER_STACK_DEPTH,
         NULL, CAN_RECEIVE_HANDLER_PRIORITY, NULL);
   if (ret != pdPASS) {
-    LOG_E("failt to create can receiver handler!\n");
+    LOG_E("Failed to create receiver task!\n");
     while(1);
   }
   else {
-    LOG_I("success to create can receiver task!\n");
+    LOG_I("Created can receiver task!\n");
   }
 
   ret = xTaskCreate(TaskEventHandler, "can_event_handler", CAN_EVENT_HANDLER_STACK_DEPTH,
         NULL, CAN_EVENT_HANDLER_PRIORITY, NULL);
   if (ret != pdPASS) {
-    LOG_E("failt to create can event handler!\n");
+    LOG_E("Failed to create can event task!\n");
     while(1);
   }
   else {
-    LOG_I("success to create can event task!\n");
+    LOG_I("Created can event task!\n");
   }
 
   AssignMessageRegion();
@@ -305,7 +307,6 @@ out:
 
 ErrCode CanHost::WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms) {
   uint16_t tmp_u16;
-  MAC_t    mac;
   uint8_t  cmd_id;
 
   if (!cmd.data)
@@ -392,16 +393,18 @@ ErrCode CanHost::ReceiveHandler(void *parameter) {
 
       if (tmp_q) {
         // send message to SendExtMessageSync(), just send data field, because it knows the event id and opcode
-        LOG_I("sync ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
+        LOG_V("sync ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
         xMessageBufferSend(tmp_q, parser_buffer_, tmp_u16, 100 * portTICK_PERIOD_MS);
       }
       else {
         // send message to EventHandler()
         xMessageBufferSend(ext_cmd_q_, parser_buffer_, tmp_u16, 100 * portTICK_PERIOD_MS);
-        LOG_I("async ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
+        LOG_V("async ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
         // xMessageBufferSend(ext_cmd_q_, &mac, 4, 100 * portTICK_PERIOD_MS);
       }
     }
+
+    vTaskDelay(portTICK_PERIOD_MS * 10);
   }
 }
 
@@ -416,26 +419,31 @@ ErrCode CanHost::EventHandler(void *parameter) {
 
   CanPacket_t pkt = {CAN_CH_2, CAN_FRAME_EXT_REMOTE, 0x01, 0, 0};
 
+  LOG_I("Scanning modules ...\n");
   vTaskDelay(portTICK_PERIOD_MS * 2000);
 
   if (can.Write(pkt) != E_SUCCESS)
-    LOG_E("fail to broadcast!\n");
+    LOG_E("No module on CAN%u!\n", 2);
   // delay 1s, to get all mac form CAN2
 
   pkt.ch = CAN_CH_1;
   if (can.Write(pkt) != E_SUCCESS)
-    LOG_E("fail to broadcast!\n");
+    LOG_E("No module on CAN%u!\n", 1);
 
   vTaskDelay(portTICK_PERIOD_MS * 1000);
 
   // read all mac
   while (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {
-    LOG_I("Got Mac: 0x%08X\n", mac.val);
+    LOG_I("\nNew Module: 0x%08X\n", mac.val);
     InitModules(mac);
   }
 
+  linear.UpdateMachineSize();
+  linear.PollEndstop(LINEAR_AXIS_ALL);
+
   for (;;) {
     if (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {
+      LOG_I("New Module: 0x%08X\n", mac.val);
       InitModules(mac);
     }
 
@@ -460,7 +468,7 @@ ErrCode CanHost::EventHandler(void *parameter) {
     for (int i = 0; static_modules[i] != NULL; i++)
       static_modules[i]->Process();
 
-    vTaskDelay(portTICK_PERIOD_MS);
+    vTaskDelay(portTICK_PERIOD_MS * 10);
   }
 }
 
@@ -594,7 +602,7 @@ ErrCode CanHost::BindMessageID(CanExtCmd_t &cmd, message_id_t *msg_buffer) {
     map_buffer[4*i + 3] = msg_buffer[i] & 0x00FF;
     map_buffer[4*i + 4] = func_buffer[2*i + 2];
     map_buffer[4*i + 5] = func_buffer[2*i + 3];
-    LOG_I("Function [%u] <-> Message [%u]\n", func_buffer[2*i + 3], msg_buffer[i]);
+    LOG_I("\tFunction [%u] <-> Message [%u]\n", func_buffer[2*i + 3], msg_buffer[i]);
   }
 
   cmd.data = map_buffer;

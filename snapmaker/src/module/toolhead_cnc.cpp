@@ -62,6 +62,8 @@ ErrCode ToolHeadCNC::Init(MAC_t &mac, uint8_t mac_index) {
 
   mac_index_ = mac_index;
 
+  toolhead_ = MODULE_TOOLHEAD_CNC;
+
   return E_SUCCESS;
 }
 

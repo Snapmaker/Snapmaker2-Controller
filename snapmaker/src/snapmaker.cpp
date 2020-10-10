@@ -3,6 +3,7 @@
 #include "common/debug.h"
 #include "hmi/event_handler.h"
 #include "module/can_host.h"
+#include "module/linear.h"
 #include "service/system.h"
 #include "service/upgrade.h"
 #include "service/power_loss_recovery.h"
@@ -161,8 +162,8 @@ static void hmi_task(void *param) {
 
 
 static void heartbeat_task(void *param) {
-  uint32_t  notificaiton = 0;
-  SSTP_Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
+  //uint32_t  notificaiton = 0;
+  //SSTP_Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
 
   int counter = 0;
 
@@ -266,32 +267,32 @@ void SnapmakerSetupPost() {
   ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH,
         (void *)snap_tasks, MARLIN_LOOP_TASK_PRIO, &snap_tasks->marlin);
   if (ret != pdPASS) {
-    LOG_E("failt to create marlin task!\n");
+    LOG_E("Failed to create marlin task!\n");
     while(1);
   }
   else {
-    LOG_I("success to create marlin task!\n");
+    LOG_I("Created marlin task!\n");
   }
 
   ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH,
         (void *)snap_tasks, HMI_TASK_PRIO, &snap_tasks->hmi);
   if (ret != pdPASS) {
-    LOG_E("failt to create HMI task!\n");
+    LOG_E("Failed to create HMI task!\n");
     while(1);
   }
   else {
-    LOG_I("success to create HMI task!\n");
+    LOG_I("Created HMI task!\n");
   }
 
 
   ret = xTaskCreate((TaskFunction_t)heartbeat_task, "HB_task", HB_TASK_STACK_DEPTH,
         (void *)snap_tasks, HB_TASK_STACK_DEPTH, &snap_tasks->heartbeat);
   if (ret != pdPASS) {
-    LOG_E("failt to create heartbeat task!\n");
+    LOG_E("Failed to create heartbeat task!\n");
     while(1);
   }
   else {
-    LOG_I("success to create heartbeat task!\n");
+    LOG_I("Created heartbeat task!\n");
   }
 
   vTaskStartScheduler();

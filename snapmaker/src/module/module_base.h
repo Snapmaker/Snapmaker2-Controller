@@ -240,7 +240,7 @@ class ModuleBase {
 
     uint16_t device_id() { return device_id_; }
 
-  private:
+  protected:
     uint16_t device_id_;
 
     uint16_t timer_in_process_;
