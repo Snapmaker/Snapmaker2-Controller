@@ -64,7 +64,7 @@ class Linear: public ModuleBase  {
     }
 
 
-    void SetEndstop(uint8_t index, uint8_t state) {
+    void SetEndstopBit(uint8_t index, uint8_t state) {
       if (state) {
         endstop_ |= 1<<index;
       }
@@ -72,7 +72,7 @@ class Linear: public ModuleBase  {
         endstop_ &= ~(1<<index);
       }
     }
-    bool GetEndstop(uint8_t index) { return (endstop_>>index & 0x1); }
+    bool GetEndstopBit(uint8_t index) { return (endstop_>>index & 0x1);}
 
     uint32_t endstop() { return endstop_; }
 

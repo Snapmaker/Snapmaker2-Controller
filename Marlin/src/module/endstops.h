@@ -83,7 +83,7 @@ class Endstops {
       static uint8_t endstop_poll_count;    // Countdown from threshold for polling
     #endif
 
- 
+
   public:
     Endstops() {};
 
@@ -179,7 +179,15 @@ class Endstops {
       static void run_monitor();
     #endif
 
-    static void reinit_hit_status();
+    /**
+     *reinit_hit_status:Reinitialize the endstops status
+    */
+    static void reinit_hit_status() {
+      hit_state = 0;
+      live_state = 0;
+      prev_hit_state = 0;
+      update();
+    }
 };
 
 extern Endstops endstops;

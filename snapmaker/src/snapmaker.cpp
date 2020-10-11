@@ -184,6 +184,8 @@ static void heartbeat_task(void *param) {
       // do following every 1s
       upgrade.Check();
 
+      linear.PollEndstop(LINEAR_AXIS_ALL);
+
       // comment temporarily
       // notificaiton = ulTaskNotifyTake(false, 0);
       // if (notificaiton && upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)

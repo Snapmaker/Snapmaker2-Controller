@@ -63,31 +63,31 @@ static void LinearCallbackEndstopX1(CanStdDataFrame_t &cmd) {
   {
   case MACHINE_SIZE_A250:
   case MACHINE_SIZE_A350:
-    linear.SetEndstop(X_MIN, cmd.data[0]);
+    linear.SetEndstopBit(X_MIN, cmd.data[0]);
     break;
 
   case MACHINE_SIZE_A150:
   default:
-    linear.SetEndstop(X_MAX, cmd.data[0]);
+    linear.SetEndstopBit(X_MAX, cmd.data[0]);
     break;
   }
 }
 
 
 static void LinearCallbackEndstopY1(CanStdDataFrame_t &cmd) {
-  linear.SetEndstop(Y_MAX, cmd.data[0]);
+  linear.SetEndstopBit(Y_MAX, cmd.data[0]);
 }
 
 static void LinearCallbackEndstopY2(CanStdDataFrame_t &cmd) {
-  linear.SetEndstop(Y_MAX, cmd.data[0]);
+  linear.SetEndstopBit(Y_MAX, cmd.data[0]);
 }
 
 static void LinearCallbackEndstopZ1(CanStdDataFrame_t &cmd) {
-  linear.SetEndstop(Z_MAX, cmd.data[0]);
+  linear.SetEndstopBit(Z_MAX, cmd.data[0]);
 }
 
 static void LinearCallbackEndstopZ2(CanStdDataFrame_t &cmd) {
-  linear.SetEndstop(Z_MAX, cmd.data[0]);
+  linear.SetEndstopBit(Z_MAX, cmd.data[0]);
 }
 
 
@@ -318,6 +318,8 @@ MachineSize Linear::UpdateMachineSize() {
 
 out:
   UpdateMachineDefines();
+  endstops.reinit_hit_status();
+  PollEndstop(LINEAR_AXIS_ALL);
   systemservice.ClearException(EHOST_MC, ETYPE_NO_HOST);
   return machine_size_;
 }
@@ -401,5 +403,3 @@ ErrCode Linear::GetLengthOrLead(SSTP_Event_t &event, uint8_t ext_cmd) {
 
   return hmi.Send(event);
 }
-
-

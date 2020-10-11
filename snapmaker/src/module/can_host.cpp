@@ -439,7 +439,6 @@ ErrCode CanHost::EventHandler(void *parameter) {
   }
 
   linear.UpdateMachineSize();
-  linear.PollEndstop(LINEAR_AXIS_ALL);
 
   for (;;) {
     if (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {

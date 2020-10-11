@@ -447,10 +447,8 @@ void _O2 Endstops::M119() {
   SERIAL_ECHOLNPGM(MSG_M119_REPORT);
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-    #define ES_REPORT_LINEAR(S) print_es_state(linear.GetEndstop(S) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
+    #define ES_REPORT_LINEAR(S) print_es_state(linear.GetEndstopBit(S) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
 
-    SERIAL_ECHOLNPAIR("endstop bits: 0x", hex_word(linear.endstop()));
-    SERIAL_ECHOLNPAIR("endstop state: 0x", hex_byte(live_state));
     ES_REPORT_LINEAR(X_MIN);
     ES_REPORT_LINEAR(X_MAX);
     ES_REPORT_LINEAR(Y_MIN);
@@ -459,6 +457,8 @@ void _O2 Endstops::M119() {
     ES_REPORT_LINEAR(Z_MAX);
     print_es_state(printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
     print_es_state(printer.filament_state() != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
+    SERIAL_ECHOLNPAIR("endstop bits: 0x", hex_word(linear.endstop()));
+    SERIAL_ECHOLNPAIR("hit state: 0x", hex_byte(hit_state));
   #else
 
 
@@ -908,13 +908,13 @@ void _O2 Endstops::M119() {
       if (!abort_enabled()) return;
     #endif
 
-    //#define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
-    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear.GetEndstop(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
+    // #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
+    // #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear.GetEndstopBit(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
     #define COPY_LIVE_STATE(SRC_BIT, DST_BIT) SET_BIT_TO(live_state, DST_BIT, TEST(live_state, SRC_BIT))
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
       #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-        if (G38_move) UPDATE_ENDSTOP_BIT(Z, MIN_PROBE);
+        if (G38_move) SET_BIT_TO(live_state, Z_MIN_PROBE, (printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING));
       #else
         #if PIN_EXISTS(Z_MIN_PROBE)
           // If G38 command is active check Z_MIN_PROBE for ALL movement
@@ -963,7 +963,7 @@ void _O2 Endstops::M119() {
         #endif
       #else
         if(X_HOME_DIR < 0)
-          UPDATE_ENDSTOP_BIT(X, MIN);
+          SET_BIT_TO(live_state, X_MIN, (linear.GetEndstopBit(X_MIN) != X_MIN_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -977,7 +977,7 @@ void _O2 Endstops::M119() {
         #endif
       #else
         if(X_HOME_DIR > 0)
-          UPDATE_ENDSTOP_BIT(X, MAX);
+          SET_BIT_TO(live_state, X_MAX, (linear.GetEndstopBit(X_MAX) != X_MAX_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -991,7 +991,7 @@ void _O2 Endstops::M119() {
         #endif
       #else
         if(Y_HOME_DIR < 0)
-          UPDATE_ENDSTOP_BIT(Y, MIN);
+          SET_BIT_TO(live_state, Y_MIN, (linear.GetEndstopBit(Y_MIN) != Y_MIN_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -1005,7 +1005,7 @@ void _O2 Endstops::M119() {
         #endif
       #else
         if(Y_HOME_DIR > 0)
-          UPDATE_ENDSTOP_BIT(Y, MAX);
+          SET_BIT_TO(live_state, Y_MAX, (linear.GetEndstopBit(Y_MAX) != Y_MAX_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -1028,7 +1028,7 @@ void _O2 Endstops::M119() {
         UPDATE_ENDSTOP_BIT(Z, MIN);
       #elif ENABLED(SW_MACHINE_SIZE)
         if(Z_HOME_DIR < 0)
-          UPDATE_ENDSTOP_BIT(Z, MIN);
+          SET_BIT_TO(live_state, Z_MIN_PROBE, (printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING));
       #elif Z_HOME_DIR < 0
         UPDATE_ENDSTOP_BIT(Z, MIN);
       #endif
@@ -1036,7 +1036,7 @@ void _O2 Endstops::M119() {
 
     // When closing the gap check the enabled probe
     #if USES_Z_MIN_PROBE_ENDSTOP || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-      UPDATE_ENDSTOP_BIT(Z, MIN_PROBE);
+      SET_BIT_TO(live_state, Z_MIN_PROBE, (printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING));
     #endif
 
     #if HAS_Z_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
@@ -1058,7 +1058,7 @@ void _O2 Endstops::M119() {
       #elif !USES_Z_MIN_PROBE_ENDSTOP || Z_MAX_PIN != Z_MIN_PROBE_PIN
         // If this pin isn't the bed probe it's the Z endstop
         if(Z_HOME_DIR > 0)
-          UPDATE_ENDSTOP_BIT(Z, MAX);
+          SET_BIT_TO(live_state, Z_MAX, (linear.GetEndstopBit(Z_MAX) != Z_MAX_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -1339,14 +1339,4 @@ void _O2 Endstops::M119() {
   }
 
 #endif // PINS_DEBUGGING
-
-/**
- *reinit_hit_status:Reinitialize the endstops status
- */
-void Endstops::reinit_hit_status() {
-  hit_state = 0;
-  live_state = 0;
-  prev_hit_state = 0;
-  update();
-}
 
