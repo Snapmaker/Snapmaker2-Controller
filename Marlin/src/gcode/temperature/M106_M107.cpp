@@ -78,7 +78,7 @@ void GcodeSuite::M106() {
 
       thermalManager.set_fan_speed(p, s);
     }
-  #endif // ENABLED(CAN_FAN)
+  #endif // (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
 }
 
 /**

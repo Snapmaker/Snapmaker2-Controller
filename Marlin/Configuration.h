@@ -2165,39 +2165,3 @@
 
 // Allow servo angle to be edited and saved to EEPROM
 //#define EDITABLE_SERVO_ANGLES
-
-
-
-/**
- * Executer Can 
- */
-#define EXECUTER_CANBUS_SUPPORT
-#if ENABLED(EXECUTER_CANBUS_SUPPORT)
-  #define BASIC_CAN_NUM  2
-  #define EXTEND_CAN_NUM  1
-#endif // ENABLED(EXECUTER_CANBUS_SUPPORT)
-
-/**
- * Executer Can 
- */
-#define PERIPH_CANBUS_SUPPORT
-
-#if ENABLED(PERIPH_CANBUS_SUPPORT)
-  #define CAN_ENDSTOP_X_MIN
-  #define CAN_ENDSTOP_Y_MIN
-  #define CAN_ENDSTOP_Z_MIN
-  #define CAN_ENDSTOP_X_MAX
-  #define CAN_ENDSTOP_Y_MAX
-  #define CAN_ENDSTOP_Z_MAX
-  #define CAN_ZMIN_PROBE
-  #define CAN_FILAMENT1_RUNOUT
-  #define CAN_FAN
-  #define CAN_ENCLOSURE
-#endif
-
-#if ANY(EXECUTER_CANBUS_SUPPORT, PERIPH_CANBUS_SUPPORT)
-  #define CANBUS_SUPPORT
-#endif
-
-
-#define DOOR_SWITCH

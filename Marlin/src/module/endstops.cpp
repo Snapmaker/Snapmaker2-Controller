@@ -235,7 +235,7 @@ void Endstops::init() {
    statefromcan |= (1<<Y2_MAX);
   #endif
 
-  #if DISABLED(CAN_ENDSTOP_Z_MAX)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if HAS_Z_MAX
       #if ENABLED(ENDSTOPPULLUP_ZMAX)
         SET_INPUT_PULLUP(Z_MAX_PIN);
@@ -287,7 +287,7 @@ void Endstops::init() {
     #endif
   #endif
 
-  #if DISABLED(CAN_ZMIN_PROBE)
+  #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     #if USES_Z_MIN_PROBE_ENDSTOP
       #if ENABLED(ENDSTOPPULLUP_ZMIN_PROBE)
         SET_INPUT_PULLUP(Z_MIN_PROBE_PIN);
@@ -450,6 +450,7 @@ void _O2 Endstops::M119() {
     #define ES_REPORT_LINEAR(S) print_es_state(linear.GetEndstop(S) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
 
     SERIAL_ECHOLNPAIR("endstop bits: 0x", hex_word(linear.endstop()));
+    SERIAL_ECHOLNPAIR("endstop state: 0x", hex_byte(live_state));
     ES_REPORT_LINEAR(X_MIN);
     ES_REPORT_LINEAR(X_MAX);
     ES_REPORT_LINEAR(Y_MIN);
@@ -463,7 +464,7 @@ void _O2 Endstops::M119() {
 
   #define ES_REPORT(S) print_es_state(READ(S##_PIN) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
   #define ES_REPORT_CAN(S) print_es_state(((CanModules.Endstop & _BV(S)) == 0) == S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
-  #if defined(CAN_ENDSTOP_X_MIN)
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     ES_REPORT_CAN(X_MIN);
   #elif HAS_X_MIN
     ES_REPORT(X_MIN);
@@ -475,7 +476,7 @@ void _O2 Endstops::M119() {
   #elif HAS_X2_MIN
     ES_REPORT(X2_MIN);
   #endif
-  #if defined(CAN_ENDSTOP_X_MAX)
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     ES_REPORT_CAN(X_MAX);
   #elif HAS_X_MAX
     ES_REPORT(X_MAX);
@@ -485,7 +486,7 @@ void _O2 Endstops::M119() {
   #elif HAS_X2_MAX
     ES_REPORT(X2_MAX);
   #endif
-  #if defined(CAN_ENDSTOP_Y_MIN)
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     ES_REPORT_CAN(Y_MIN);
   #elif HAS_Y_MIN
     ES_REPORT(Y_MIN);
@@ -495,7 +496,7 @@ void _O2 Endstops::M119() {
   #elif HAS_Y2_MIN
     ES_REPORT(Y2_MIN);
   #endif
-  #if defined(CAN_ENDSTOP_Y_MAX)
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     ES_REPORT_CAN(Y_MAX);
   #elif HAS_Y_MAX
     ES_REPORT(Y_MAX);
@@ -505,7 +506,7 @@ void _O2 Endstops::M119() {
   #elif HAS_Y2_MAX
     ES_REPORT(Y_MAX);
   #endif
-  #if defined(CAN_ENDSTOP_Z_MIN)
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     ES_REPORT_CAN(Z_MIN);
   #elif HAS_Z_MIN
     ES_REPORT(Z_MIN);
@@ -520,7 +521,7 @@ void _O2 Endstops::M119() {
   #elif HAS_Z3_MIN
     ES_REPORT(Z3_MIN);
   #endif
-  #if defined(CAN_ENDSTOP_Z_MAX)
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     ES_REPORT_CAN(Z_MAX);
   #elif HAS_Z_MAX
     ES_REPORT(Z_MAX);
@@ -601,7 +602,7 @@ void _O2 Endstops::M119() {
     #define COPY_LIVE_STATE(SRC_BIT, DST_BIT) SET_BIT_TO(live_state, DST_BIT, TEST(live_state, SRC_BIT))
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
-      #if ENABLED(CAN_ZMIN_PROBE)
+      #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
         if (G38_move) UPDATE_ENDSTOP_BIT(Z, MIN_PROBE);
       #else
         #if PIN_EXISTS(Z_MIN_PROBE)
@@ -641,7 +642,7 @@ void _O2 Endstops::M119() {
     /**
      * Check and update endstops
      */
-    #if HAS_X_MIN || defined(CAN_ENDSTOP_X_MIN)
+    #if HAS_X_MIN || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if ENABLED(X_DUAL_ENDSTOPS)
         UPDATE_ENDSTOP_BIT(X, MIN);
         #if HAS_X2_MIN || defined(CAN_ENDSTOP_X2_MIN)
@@ -654,7 +655,7 @@ void _O2 Endstops::M119() {
       #endif
     #endif
 
-    #if HAS_X_MAX || defined(CAN_ENDSTOP_X_MAX)
+    #if HAS_X_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if ENABLED(X_DUAL_ENDSTOPS)
         UPDATE_ENDSTOP_BIT(X, MAX);
         #if HAS_X2_MAX || defined(CAN_ENDSTOP_X2_MAX)
@@ -667,7 +668,7 @@ void _O2 Endstops::M119() {
       #endif
     #endif
 
-    #if HAS_Y_MIN || defined(CAN_ENDSTOP_Y_MIN)
+    #if HAS_Y_MIN || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if ENABLED(Y_DUAL_ENDSTOPS)
         UPDATE_ENDSTOP_BIT(Y, MIN);
         #if HAS_Y2_MIN || defined(CAN_ENDSTOP_Y2_MIN)
@@ -680,7 +681,7 @@ void _O2 Endstops::M119() {
       #endif
     #endif
 
-    #if HAS_Y_MAX || defined(CAN_ENDSTOP_Y_MAX)
+    #if HAS_Y_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if ENABLED(Y_DUAL_ENDSTOPS)
         UPDATE_ENDSTOP_BIT(Y, MAX);
         #if HAS_Y2_MAX || defined(CAN_ENDSTOP_Y2_MAX)
@@ -693,7 +694,7 @@ void _O2 Endstops::M119() {
       #endif
     #endif
 
-    #if HAS_Z_MIN || defined(CAN_ENDSTOP_Z_MIN)
+    #if HAS_Z_MIN || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if Z_MULTI_ENDSTOPS
         UPDATE_ENDSTOP_BIT(Z, MIN);
         #if HAS_Z2_MIN || defined(CAN_ENDSTOP_Z2_MIN)
@@ -719,11 +720,11 @@ void _O2 Endstops::M119() {
     #endif
 
     // When closing the gap check the enabled probe
-    #if USES_Z_MIN_PROBE_ENDSTOP || defined(CAN_ZMIN_PROBE)
+    #if USES_Z_MIN_PROBE_ENDSTOP || defined()
       UPDATE_ENDSTOP_BIT(Z, MIN_PROBE);
     #endif
 
-    #if HAS_Z_MAX || defined(CAN_ENDSTOP_Z_MAX)
+    #if HAS_Z_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       // Check both Z dual endstops
       #if Z_MULTI_ENDSTOPS
         UPDATE_ENDSTOP_BIT(Z, MAX);
@@ -804,7 +805,7 @@ void _O2 Endstops::M119() {
       } \
     }while(0)
 
-    #if ENABLED(G38_PROBE_TARGET) && (PIN_EXISTS(Z_MIN_PROBE) || (ENABLED(CAN_ZMIN_PROBE))) && !(CORE_IS_XY || CORE_IS_XZ)
+    #if ENABLED(G38_PROBE_TARGET) && (PIN_EXISTS(Z_MIN_PROBE) || (MOTHERBOARD == BOARD_SNAPMAKER_2_0) && !(CORE_IS_XY || CORE_IS_XZ)
       #if ENABLED(G38_PROBE_AWAY)
         #define _G38_OPEN_STATE (G38_move >= 4)
       #else
@@ -908,11 +909,11 @@ void _O2 Endstops::M119() {
     #endif
 
     //#define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
-    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear.GetEndstop(_ENDSTOP_PIN(AXIS, MINMAX)) == _ENDSTOP_INVERTING(AXIS, MINMAX)))
+    #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear.GetEndstop(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
     #define COPY_LIVE_STATE(SRC_BIT, DST_BIT) SET_BIT_TO(live_state, DST_BIT, TEST(live_state, SRC_BIT))
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
-      #if ENABLED(CAN_ZMIN_PROBE)
+      #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
         if (G38_move) UPDATE_ENDSTOP_BIT(Z, MIN_PROBE);
       #else
         #if PIN_EXISTS(Z_MIN_PROBE)
@@ -952,7 +953,7 @@ void _O2 Endstops::M119() {
     /**
      * Check and update endstops
      */
-    #if HAS_X_MIN || defined(CAN_ENDSTOP_X_MIN)
+    #if HAS_X_MIN || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if ENABLED(X_DUAL_ENDSTOPS)
         UPDATE_ENDSTOP_BIT(X, MIN);
         #if HAS_X2_MIN || defined(CAN_ENDSTOP_X2_MIN)
@@ -966,7 +967,7 @@ void _O2 Endstops::M119() {
       #endif
     #endif
 
-    #if HAS_X_MAX || defined(CAN_ENDSTOP_X_MAX)
+    #if HAS_X_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if ENABLED(X_DUAL_ENDSTOPS)
         UPDATE_ENDSTOP_BIT(X, MAX);
         #if HAS_X2_MAX || defined(CAN_ENDSTOP_X2_MAX)
@@ -980,7 +981,7 @@ void _O2 Endstops::M119() {
       #endif
     #endif
 
-    #if HAS_Y_MIN || defined(CAN_ENDSTOP_Y_MIN)
+    #if HAS_Y_MIN || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if ENABLED(Y_DUAL_ENDSTOPS)
         UPDATE_ENDSTOP_BIT(Y, MIN);
         #if HAS_Y2_MIN || defined(CAN_ENDSTOP_Y2_MIN)
@@ -994,7 +995,7 @@ void _O2 Endstops::M119() {
       #endif
     #endif
 
-    #if HAS_Y_MAX || defined(CAN_ENDSTOP_Y_MAX)
+    #if HAS_Y_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if ENABLED(Y_DUAL_ENDSTOPS)
         UPDATE_ENDSTOP_BIT(Y, MAX);
         #if HAS_Y2_MAX || defined(CAN_ENDSTOP_Y2_MAX)
@@ -1008,7 +1009,7 @@ void _O2 Endstops::M119() {
       #endif
     #endif
 
-    #if HAS_Z_MIN || defined(CAN_ENDSTOP_Z_MIN)
+    #if HAS_Z_MIN || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       #if Z_MULTI_ENDSTOPS
         UPDATE_ENDSTOP_BIT(Z, MIN);
         #if HAS_Z2_MIN || defined(CAN_ENDSTOP_Z2_MIN)
@@ -1034,11 +1035,11 @@ void _O2 Endstops::M119() {
     #endif
 
     // When closing the gap check the enabled probe
-    #if USES_Z_MIN_PROBE_ENDSTOP || defined(CAN_ZMIN_PROBE)
+    #if USES_Z_MIN_PROBE_ENDSTOP || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       UPDATE_ENDSTOP_BIT(Z, MIN_PROBE);
     #endif
 
-    #if HAS_Z_MAX || defined(CAN_ENDSTOP_Z_MAX)
+    #if HAS_Z_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       // Check both Z dual endstops
       #if Z_MULTI_ENDSTOPS
         UPDATE_ENDSTOP_BIT(Z, MAX);
@@ -1120,7 +1121,7 @@ void _O2 Endstops::M119() {
       } \
     }while(0)
 
-    #if ENABLED(G38_PROBE_TARGET) && (PIN_EXISTS(Z_MIN_PROBE) || (ENABLED(CAN_ZMIN_PROBE))) && !(CORE_IS_XY || CORE_IS_XZ)
+    #if ENABLED(G38_PROBE_TARGET) && (PIN_EXISTS(Z_MIN_PROBE) || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)) && !(CORE_IS_XY || CORE_IS_XZ)
       #if ENABLED(G38_PROBE_AWAY)
         #define _G38_OPEN_STATE (G38_move >= 4)
       #else

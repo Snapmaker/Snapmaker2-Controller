@@ -228,7 +228,7 @@ void GcodeSuite::G28(const bool always_home_all) {
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     // External Module only reply when switch status changed.
     // Force sync status here to avoid hitting boundary because of the limit switch out of sync. 
-    linear.PollEndstop(LINEAR_AXIS_ALL);
+    //linear.PollEndstop(LINEAR_AXIS_ALL);
   #endif
 
   // Disable the leveling matrix before homing
