@@ -1,6 +1,7 @@
 #include "toolhead_cnc.h"
 
 #include "../common/config.h"
+#include "../common/debug.h"
 
 // marlin headers
 #include "src/core/macros.h"
@@ -29,6 +30,8 @@ ErrCode ToolHeadCNC::Init(MAC_t &mac, uint8_t mac_index) {
   if (ret != E_SUCCESS)
     return ret;
 
+  LOG_I("\tGet toolhead CNC!\n");
+
   // we have configured CNC in same port
   if (mac_index_ != MODULE_MAC_INDEX_INVALID)
     return E_SAME_STATE;
@@ -56,6 +59,10 @@ ErrCode ToolHeadCNC::Init(MAC_t &mac, uint8_t mac_index) {
       message_id[i] = canhost.RegisterFunction(function, CallbackAckSpindleSpeed);
     else
       message_id[i] = canhost.RegisterFunction(function, NULL);
+
+    // buffer the message id to set spindle speed
+    if (function.id == MODULE_FUNC_SET_SPINDLE_SPEED)
+      msg_id_set_speed_ = message_id[i];
   }
 
   ret = canhost.BindMessageID(cmd, message_id);

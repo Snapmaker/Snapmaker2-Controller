@@ -6,7 +6,13 @@
 
 class ToolHeadCNC: public ModuleBase {
   public:
-		ToolHeadCNC(): ModuleBase(MODULE_DEVICE_ID_CNC) {}
+		ToolHeadCNC(): ModuleBase(MODULE_DEVICE_ID_CNC) {
+      mac_index_ = MODULE_MAC_INDEX_INVALID;
+      power_     = 0;
+      rpm_       = 0;
+
+      msg_id_set_speed_ = MODULE_MESSAGE_ID_INVALID;
+    }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
 

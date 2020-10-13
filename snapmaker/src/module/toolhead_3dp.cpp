@@ -48,7 +48,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   if (ret != E_SUCCESS)
     return ret;
 
-  LOG_I("\tGot 3D printer!\n");
+  LOG_I("\tGot toolhead 3DP!\n");
 
   // we have configured 3DP in same port
   if (mac_index_ != MODULE_MAC_INDEX_INVALID)
