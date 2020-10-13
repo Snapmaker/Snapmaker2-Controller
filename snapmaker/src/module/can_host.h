@@ -80,7 +80,7 @@ class CanHost {
 
     uint32_t mac(uint8_t index) {
       if (index < MODULE_SUPPORT_CONNECTED_MAX)
-        return (uint32_t)mac_[index].val;
+        return mac_[index].val;
       else
         return MODULE_MAC_ID_INVALID;
     }

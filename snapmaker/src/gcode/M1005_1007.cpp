@@ -1,4 +1,5 @@
 #include "../common/config.h"
+#include "../common/debug.h"
 
 #include "../service/upgrade.h"
 #include "../module/can_host.h"
@@ -15,44 +16,38 @@
 
 void GcodeSuite::M1005() {
   CanExtCmd_t cmd;
-  MAC_t mac;
+  MAC_t       mac;
 
-  uint8_t buffer[VERSION_STRING_SIZE + 4];
-  int     i;
+  char buffer[VERSION_STRING_SIZE + 4];
+  int  i;
 
-  cmd.data = buffer;
-  cmd.data[0] = MODULE_EXT_CMD_VERSION_REQ;
-  cmd.length = 1;
+  // version in code
+  LOG_I("%s: %s\n", MSG_MARLIN, SHORT_BUILD_VERSION);
+  LOG_I("Compiled: %s, %s\n", __DATE__, __TIME__);
 
-  SERIAL_ECHOPGM(MSG_MARLIN);
-  SERIAL_CHAR(' ');
-  SERIAL_ECHOLNPGM(SHORT_BUILD_VERSION);
-  SERIAL_ECHO_MSG("Compiled: " __DATE__ ", " __TIME__);
-  
-    // screen show version
-  char Version[33] = {0};
-  memcpy(Version, (char*)(FLASH_BOOT_PARA + 2048), 30);
-  SERIAL_ECHOPGM(MSG_MARLIN_PACK);
-  SERIAL_CHAR(' ');
-  SERIAL_ECHOPGM(Version);
-  SERIAL_EOL();
+  // version in package
+  memcpy(buffer, (char*)(FLASH_BOOT_PARA + 2048), 30);
+  LOG_I("%s: %s\n", MSG_MARLIN_PACK, buffer);
 
-  SERIAL_ECHOLN("Module Ver:");
+  // version of modules
+  LOG_I("Module Ver:\n");
+  cmd.data = (uint8_t *)buffer;
   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
     mac.val = canhost.mac(i);
+
     if (mac.val == MODULE_MAC_ID_INVALID)
       break;
 
+    cmd.mac     = mac;
     cmd.data[0] = MODULE_EXT_CMD_VERSION_REQ;
-    cmd.length = 1;
+    cmd.length  = 1;
 
-    if (canhost.SendExtCmdSync(cmd, 500) != E_SUCCESS)
+    if (canhost.SendExtCmdSync(cmd, 500) != E_SUCCESS) {
       continue;
+    }
 
-    SERIAL_ECHO("0x");
-    print_hex_word(mac.val>>16);
-    print_hex_word(mac.val);
-    SERIAL_ECHOLNPAIR(": ", buffer+2);
+    buffer[cmd.length + 2] = 0;
+    LOG_I("0x%08X: %s\n", mac.val, buffer+2);
   }
 
 

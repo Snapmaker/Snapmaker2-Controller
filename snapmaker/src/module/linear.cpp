@@ -238,7 +238,7 @@ MachineSize Linear::UpdateMachineSize() {
   }
 
   if (length_[LINEAR_AXIS_X1] < 200) {
-    LOG_I("Detected Model A150\n");
+    LOG_I("Model: A150\n");
     X_MAX_POS = 167;
     Y_MAX_POS = 165;
     Z_MAX_POS = 150;
@@ -264,7 +264,7 @@ MachineSize Linear::UpdateMachineSize() {
   }
 
   if (length_[LINEAR_AXIS_X1] < 300) {
-    LOG_I("Detected Model A250\n");
+    LOG_I("Model: A250\n");
     X_MAX_POS = 252;
     Y_MAX_POS = 260;
     Z_MAX_POS = 235;
@@ -289,7 +289,7 @@ MachineSize Linear::UpdateMachineSize() {
   }
 
   if (length_[LINEAR_AXIS_X1] < 400) {
-    LOG_I("Detected Model A350\n");
+    LOG_I("Model: A350\n");
     X_MAX_POS = 345;
     Y_MAX_POS = 357;
     Z_MAX_POS = 334;
