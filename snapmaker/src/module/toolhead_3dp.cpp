@@ -211,7 +211,7 @@ ErrCode ToolHead3DP::SetHeater(uint16_t target_temp, uint8_t extrude_index) {
 
 
 void ToolHead3DP::Process() {
-  if (++timer_in_process_ < 1000) return;
+  if (++timer_in_process_ < 100) return;
 
   timer_in_process_ = 0;
 

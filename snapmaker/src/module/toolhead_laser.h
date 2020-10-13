@@ -64,13 +64,20 @@ enum LaserCameraCommand {
 
 class ToolHeadLaser: public ModuleBase {
   public:
-		ToolHeadLaser(): ModuleBase(MODULE_DEVICE_ID_LINEAR) {
+		ToolHeadLaser(): ModuleBase(MODULE_DEVICE_ID_LASER) {
       power_limit_ = 100;
-
-      power_pwm_ = 0;
-      power_val_ = 0;
+      power_pwm_   = 0;
+      power_val_   = 0;
+      mac_index_   = MODULE_MAC_INDEX_INVALID;
 
       state_ = TOOLHEAD_LASER_STATE_OFFLINE;
+      focus_ = TOOLHEAD_LASER_CAMERA_FOCUS_MAX;
+
+      fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
+      fan_tick_  = 0;
+
+      msg_id_set_fan_   = MODULE_MESSAGE_ID_INVALID;
+      msg_id_get_focus_ = MODULE_MESSAGE_ID_INVALID;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -83,7 +90,7 @@ class ToolHeadLaser: public ModuleBase {
     void SetPowerLimit(float limit);  // change power_val_, power_pwm_ and power_limit_, may change actual output if current output is beyond limit
 
     void TryCloseFan();
-    bool IsOnline(uint8_t sub_index = 0) { return state_ != TOOLHEAD_LASER_STATE_OFFLINE; }
+    bool IsOnline(uint8_t sub_index = 0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; }
 
     // callbacks for HMI event
     ErrCode GetFocus(SSTP_Event_t &event);
@@ -95,6 +102,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode GetCameraBtName(SSTP_Event_t &event);
     ErrCode GetCameraBtMAC(SSTP_Event_t &event);
 
+    void Process();
 
     uint32_t mac(uint8_t sub_index = 0) { return canhost.mac(mac_index_); }
 

@@ -227,7 +227,10 @@ class ModuleBase {
 
     virtual ErrCode Init(MAC_t &mac, uint8_t mac_index) { return E_SUCCESS; }
     virtual void Process() {
-      if (++timer_in_process_ < 1000) return;
+      if (device_id_ != MODULE_DEVICE_ID_INVALID)
+        return;
+
+      if (++timer_in_process_ < 100) return;
 
       timer_in_process_ = 0;
 

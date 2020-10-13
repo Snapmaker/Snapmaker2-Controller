@@ -73,21 +73,14 @@ void GcodeSuite::M1005() {
 
 
 void GcodeSuite::M1006() {
-  int type = 0;
   SERIAL_ECHO("Tool Head: ");
-  if (printer.IsOnline())
-    type = 1;
-  if (laser.IsOnline())
-    type = 2;
-  if (cnc.IsOnline())
-    type = 3;
 
-  switch (type) {
-  case 1:
+  switch (ModuleBase::toolhead()) {
+  case MODULE_TOOLHEAD_3DP:
     SERIAL_ECHOLN("3DP");
     break;
 
-  case  2:
+  case MODULE_TOOLHEAD_LASER:
     SERIAL_ECHOLN("LASER");
     SERIAL_ECHO("Current Status: ");
     SERIAL_ECHOLN((laser.state() == TOOLHEAD_LASER_STATE_ON)? "ON" : "OFF");
@@ -95,7 +88,7 @@ void GcodeSuite::M1006() {
     SERIAL_ECHOLNPAIR("Focus Height: ", laser.focus());
     break;
 
-  case  3:
+  case MODULE_TOOLHEAD_CNC:
     SERIAL_ECHOLN("CNC");
     SERIAL_ECHOLNPAIR("Current Power: ", cnc.power());
     SERIAL_ECHOLNPAIR("RPM: ", cnc.rpm());

@@ -50,6 +50,8 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   if (ret != E_SUCCESS)
     return ret;
 
+  LOG_I("\tGot toolhead Laser!\n");
+
   // we have configured Laser in same port
   if (mac_index_ != MODULE_MAC_INDEX_INVALID)
     return E_SAME_STATE;
@@ -72,10 +74,15 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   for (int i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
     function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
-    if (function.id == MODULE_FUNC_GET_LASER_FOCUS)
-      message_id[i] = canhost.RegisterFunction(function, CallbackAckLaserFocus);
+    if (function.id == MODULE_FUNC_GET_LASER_FOCUS) {
+      message_id[i]     = canhost.RegisterFunction(function, CallbackAckLaserFocus);
+      msg_id_get_focus_ = message_id[i];
+    }
     else
       message_id[i] = canhost.RegisterFunction(function, NULL);
+
+    if (function.id == MODULE_FUNC_SET_FAN1)
+      msg_id_set_fan_ = message_id[i];
   }
 
   ret = canhost.BindMessageID(cmd, message_id);
@@ -84,6 +91,7 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   esp32_.Init(&MSerial3, EXECUTOR_SERIAL_IRQ_PRIORITY);
 
   mac_index_ = mac_index;
+  state_     = TOOLHEAD_LASER_STATE_OFF;
 
   toolhead_ = MODULE_TOOLHEAD_LASER;
 
@@ -198,14 +206,15 @@ void ToolHeadLaser::TryCloseFan() {
 
   if (fan_state_ == TOOLHEAD_LASER_FAN_STATE_TO_BE_CLOSED) {
     if (++fan_tick_ > LASER_CLOSE_FAN_DELAY) {
-      fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
       fan_tick_  = 0;
+      fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
 
       buffer[0]  = 0;
       buffer[1]  = 0;
       cmd.id     = msg_id_set_fan_;
       cmd.data   = buffer;
       cmd.length = 2;
+
       canhost.SendStdCmd(cmd);
     }
   }
@@ -226,14 +235,15 @@ ErrCode ToolHeadLaser::GetFocus(SSTP_Event_t &event) {
   uint8_t  buff[5];
 
   LoadFocus();
+  vTaskDelay(portTICK_PERIOD_MS * 10);
 
-  LOG_I("SC get Focus: %.3f\n", focus_);
+  LOG_I("SC get Focus: (%u/1000) mm\n", focus_);
 
   buff[0] = 0;
 
   buff[1] = 0;
   buff[2] = 0;
-  buff[3] = focus_>>8;
+  buff[3] = (uint8_t)(focus_>>8);
   buff[4] = (uint8_t)focus_;
 
   event.length = 5;
@@ -247,8 +257,9 @@ ErrCode ToolHeadLaser::SetFocus(SSTP_Event_t &event) {
   ErrCode err = E_FAILURE;
 
   CanStdFuncCmd_t cmd;
-  uint8_t buff[2];
-  int     focus;
+
+  uint8_t  buff[2];
+  uint32_t focus;
 
   if (event.length < 4) {
     LOG_E("Must specify Focus!\n");
@@ -266,7 +277,7 @@ ErrCode ToolHeadLaser::SetFocus(SSTP_Event_t &event) {
   event.data = &err;
 
   if (focus > TOOLHEAD_LASER_CAMERA_FOCUS_MAX) {
-    LOG_E("new focus[%d] is out of range!\n", focus);
+    LOG_E("new focus[%u] is out of range!\n", focus);
     return hmi.Send(event);
   }
 
@@ -444,23 +455,26 @@ ErrCode ToolHeadLaser::ReadBluetoothInfo(LaserCameraCommand cmd, uint8_t *out, u
   ErrCode  ret = E_SUCCESS;
   int      i;
 
-  esp32_.Send(event);
+  if (esp32_.Send(event) != E_SUCCESS)
+    LOG_E("failed to send command to BT\n");
   esp32_.Flush();
   vTaskDelay(200);
 
   ret = esp32_.CheckoutCmd(out, length);
   if (ret != E_SUCCESS) {
-    LOG_E("failed to read BT content - %u!\n", ret);
+    LOG_E("failed to read BT info - %u!\n", ret);
     return ret;
   }
 
+  LOG_I("ack: %u, %u, len: %u\n", out[0], out[1], length);
+
   if (length < 2) {
-    LOG_E("failed to read BT content - %u!\n", 112);
+    LOG_E("failed to read BT info - %u!\n", 112);
     return E_NO_RESRC;
   }
 
   if (out[0] != (cmd + 1) || out[1] != 0) {
-    LOG_E("failed to read BT content - %u!\n", 113);
+    LOG_E("failed to read BT info - %u!\n", 113);
     return E_INVALID_DATA;
   }
 
@@ -573,4 +587,13 @@ ErrCode ToolHeadLaser::GetCameraBtMAC(SSTP_Event_t &event) {
   }
 
   return hmi.Send(event);
+}
+
+
+void ToolHeadLaser::Process() {
+  if (++timer_in_process_ < 100) return;
+
+  timer_in_process_ = 0;
+
+  TryCloseFan();
 }
