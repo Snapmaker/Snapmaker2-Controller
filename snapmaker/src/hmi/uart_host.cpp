@@ -23,9 +23,6 @@ void UartHost::Init(HardwareSerial *serial, uint8_t interrupt_prio) {
   nvic_irq_set_priority(dev->irq_num, interrupt_prio);
 
   serial_ = serial;
-
-  mlock_uart_ = xSemaphoreCreateMutex();
-  configASSERT(mlock_uart_);
 }
 
 

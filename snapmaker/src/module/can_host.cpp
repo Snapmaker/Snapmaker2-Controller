@@ -276,25 +276,26 @@ ErrCode CanHost::SendExtCmdSync(CanExtCmd_t &cmd, uint32_t timeout_ms, uint8_t r
   xSemaphoreGive(ext_wait_lock_);
 
   // no free node in wait queue
-  for (;;) {
+  for (; retry > 0; retry--) {
     ret = SendExtCmd(cmd);
-    if (ret != E_SUCCESS && !(--retry))
-      goto out;
-    else
-      break;
-  }
+    if (ret != E_SUCCESS) {
+      vTaskDelay(timeout_ms * portTICK_PERIOD_MS);
+      continue;
+    }
 
   // just receive data field
-  tmp_u16 = xMessageBufferReceive(ext_wait_q_.queue, cmd.data, CAN_EXT_CMD_QUEUE_SIZE, timeout_ms * portTICK_PERIOD_MS);
+    tmp_u16 = xMessageBufferReceive(ext_wait_q_.queue, cmd.data, CAN_EXT_CMD_QUEUE_SIZE, timeout_ms * portTICK_PERIOD_MS);
 
-  if (!tmp_u16) {
-    ret = E_TIMEOUT;
-    goto out;
+    if (!tmp_u16) {
+      ret = E_TIMEOUT;
+      continue;
+    }
+    else {
+      cmd.length = tmp_u16;
+      break;
+    }
   }
 
-  cmd.length = tmp_u16;
-
-out:
   // release node of wait queue
   xSemaphoreTake(ext_wait_lock_, 0);
   // ext_wait_q_.mac.val = MODULE_MAC_ID_INVALID;
@@ -305,22 +306,22 @@ out:
 }
 
 
-ErrCode CanHost::WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms) {
+ErrCode CanHost::WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms, uint8_t retry) {
   uint16_t tmp_u16;
   uint8_t  cmd_id;
 
   if (!cmd.data)
     return E_PARAM;
 
-  cmd_id = cmd.data[MODULE_EXT_CMD_INDEX_DATA];
+  cmd_id = cmd.data[MODULE_EXT_CMD_INDEX_ID];
 
-  for (;;) {
+  for (; retry > 0; retry--) {
     // handle extended command secondly
-    tmp_u16 = xMessageBufferReceive(ext_cmd_q_, cmd.data, CAN_EXT_CMD_QUEUE_SIZE, timeout_ms * portTICK_PERIOD_MS);
+    tmp_u16 = xMessageBufferReceive(ext_cmd_q_, cmd.data, cmd.length, timeout_ms * portTICK_PERIOD_MS);
     if (!tmp_u16)
-      break;
+      continue;
 
-    if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] != cmd_id)
+    if (cmd.data[MODULE_EXT_CMD_INDEX_ID] != cmd_id)
       continue;
 
     // tmp_u16 = xMessageBufferReceive(ext_cmd_q_, &mac, 4, timeout_ms * portTICK_PERIOD_MS);
@@ -503,45 +504,55 @@ ErrCode CanHost::AssignMessageRegion() {
 
 ErrCode CanHost::InitModules(MAC_t &mac) {
   int      i;
-  ErrCode  ret;
   uint16_t device_id = MODULE_GET_DEVICE_ID(mac.val);
+  ErrCode  ret;
+
+  bool     existed   = false;
+  uint8_t  mac_index = total_mac_;
 
   if (total_mac_ >= MODULE_SUPPORT_CONNECTED_MAX)
     return E_NO_RESRC;
 
-  // check if we have two same mac in system
-  // this situation is not supported
+  // check if this mac is configured
   for (i = 0; i < total_mac_; i++) {
     if (mac.bits.id == mac_[i].bits.id) {
-      if (mac_[i].bits.configured == 0)
-        return E_HARDWARE;
-      else
+      if (mac_[i].bits.configured) {
+        // if yes, just re-bind function id to message id
         return BindMessageID(mac, i);
+      }
+      else {
+        // if no, just try to configure it again
+        existed = true;
+        mac_index = i;
+        break;
+      }
     }
   }
 
   // check if it is static modules then init it
   for (i = 0; static_modules[i] != NULL; i++) {
     if (static_modules[i]->device_id() == device_id) {
-      ret = static_modules[i]->Init(mac, total_mac_);
-      if (ret != E_SUCCESS)
-        return ret;
-
       mac.bits.type = MODULE_TYPE_STATIC;
+
+      ret = static_modules[i]->Init(mac, mac_index);
+      if (ret == E_SUCCESS) {
+        mac.bits.configured = 1;
+      }
+
       goto out;
     }
   }
 
   // it is dynamic modules
-  ret = InitDynamicModule(mac, total_mac_);
-  if (ret != E_SUCCESS)
-    return ret;
+  ret = InitDynamicModule(mac, mac_index);
+  if (ret == E_SUCCESS) {
+    mac.bits.configured = 1;
+  }
 
 out:
-  mac.bits.configured = 1;
-
-  // record this mac
-  mac_[total_mac_++].val = mac.val;
+  // if doesn't exist, record it in array
+  if (!existed)
+    mac_[total_mac_++].val = mac.val;
 
   return E_SUCCESS;
 }
@@ -715,14 +726,26 @@ ErrCode CanHost::UpgradeModules(uint32_t fw_addr, uint32_t length) {
     if (mac_[i].val == MODULE_MAC_ID_INVALID)
       break;
 
-    if (!mac_[i].bits.configured)
-      continue;
-
     if (MODULE_GET_DEVICE_ID(mac_[i].val) >= MODULE_DEVICE_ID_INVALID)
       continue;
 
     ModuleBase::Upgrade(mac_[i], fw_addr, length);
   }
+
+  LOG_I("All upgraded!\n");
+
+  vTaskDelay(100);
+  CanPacket_t pkt = {CAN_CH_2, CAN_FRAME_EXT_REMOTE, 0x01, 0, 0};
+
+  LOG_I("Scanning modules ...\n");
+
+  if (can.Write(pkt) != E_SUCCESS)
+    LOG_E("No module on CAN%u!\n", 2);
+
+  pkt.ch = CAN_CH_1;
+  if (can.Write(pkt) != E_SUCCESS)
+    LOG_E("No module on CAN%u!\n", 1);
+
 
   return E_SUCCESS;
 }

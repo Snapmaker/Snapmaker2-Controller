@@ -51,6 +51,8 @@ void GcodeSuite::M101() {
   /* Generate raw status information about each task. */
   n_tasks = uxTaskGetSystemState( TaskStatArray, MAX_TASKS, NULL);
 
+  SERIAL_ECHOLNPAIR("Free Heap: ", xPortGetFreeHeapSize());
+
   SERIAL_ECHOLNPAIR("n_tasks: ", n_tasks);
 
   /* For each populated position in the TaskStatArray array,

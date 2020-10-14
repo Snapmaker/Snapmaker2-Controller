@@ -259,6 +259,7 @@ ErrCode UpgradeService::GetUpgradeStatus(SSTP_Event_t &event) {
 ErrCode UpgradeService::GetModuleVer(SSTP_Event_t &event) {
   CanExtCmd_t cmd;
   MAC_t       mac;
+  ErrCode ret;
 
   uint8_t buffer[VERSION_STRING_SIZE + 8];
   int     i, l;
@@ -271,15 +272,19 @@ ErrCode UpgradeService::GetModuleVer(SSTP_Event_t &event) {
   cmd.data = buffer + 2;
 
   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
+    l = 0;
     mac.val = canhost.mac(i);
     if (mac.val == MODULE_MAC_ID_INVALID)
       break;
 
+    cmd.mac     = mac;
     cmd.data[0] = MODULE_EXT_CMD_VERSION_REQ;
-    cmd.length = 1;
+    cmd.length  = 1;
 
-    if (canhost.SendExtCmdSync(cmd, 500) != E_SUCCESS)
+    if ((ret = canhost.SendExtCmdSync(cmd, 500)) != E_SUCCESS) {
+      LOG_I(LOG_HEAD "Failed to get ver for MAC: 0x%X, ret: %u\n", mac.val, ret);
       continue;
+    }
 
     WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, mac.val, l);
     for (; l < (VERSION_STRING_SIZE + 4); l++) {

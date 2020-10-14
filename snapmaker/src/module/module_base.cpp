@@ -3,6 +3,7 @@
 
 #include "../service/upgrade.h"
 #include "../common/protocol_sstp.h"
+#include "../common/debug.h"
 #include "../hmi/event_handler.h"
 
 #include "linear.h"
@@ -35,8 +36,12 @@ ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
 
   cmd.mac  = mac;
   cmd.data = (uint8_t *)pvPortMalloc(528);
-  if (cmd.data)
+  if (!cmd.data) {
+    LOG_I("Failed to apply mem\n");
     return E_NO_MEM;
+  }
+
+  LOG_I("Start upgrading: 0x%08X\n", mac.val);
 
   cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_START_UPGRADE_REQ;
 
@@ -54,22 +59,29 @@ ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
 
   // 1. send upgrade request to module
   ret = canhost.SendExtCmdSync(cmd, 1000, 2);
-  if (ret != E_SUCCESS)
+  if (ret != E_SUCCESS) {
+    LOG_I("Failed to req upgrade\n");
     goto out;
+  }
+
   // module reject to be upgraded
   if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] != 1) {
     ret = E_SAME_STATE;
+    LOG_I("Reject to be upgraded\n");
     goto out;
   }
 
   // 2. waiting for module become ready to receive fw
   cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_GET_UPGRADE_STATUS_REQ;
   cmd.length = 1;
-  ret = canhost.SendExtCmdSync(cmd, 1000, 2);
-  if (ret != E_SUCCESS)
+  ret = canhost.SendExtCmdSync(cmd, 500, 10);
+  if (ret != E_SUCCESS) {
+    LOG_I("Failed to get up status\n");
     goto out;
+  }
   // timeout to be ready
   if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] != 1) {
+    LOG_I("Timeout to be ready\n");
     ret = E_INVALID_STATE;
     goto out;
   }
@@ -83,16 +95,21 @@ ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
   if (fw_length % UPGRADE_FW_OFFSET_FW_SIZE)
     total_packet++;
 
+  LOG_I("Start to send fw\n");
   for (;;) {
     // 4. wait packet request from module
     cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_TRANS_FW_ACK;
-    ret = canhost.WaitExtCmdAck(cmd, 1000);
-    if (ret != E_SUCCESS)
+    cmd.length = 528;
+    ret = canhost.WaitExtCmdAck(cmd, 500, 10);
+    if (ret != E_SUCCESS) {
+      LOG_I("Time out to get pack\n");
       goto out;
+    }
 
     // packet index from module
     packet_index = cmd.data[2]<<8 | cmd.data[3];
     if (packet_index  >= total_packet) {
+      LOG_I("Index is reached end: %u\n", packet_index, total_packet);
       break;
     }
 
@@ -116,6 +133,7 @@ ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
     canhost.SendExtCmd(cmd);
   }
 
+  LOG_I("Done\n\n");
   // 6. request to end upgrading
   cmd.data[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_END_UPGRADE_REQ;
   cmd.data[MODULE_EXT_CMD_INDEX_DATA] = 0;

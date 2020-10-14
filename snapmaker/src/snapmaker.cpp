@@ -230,8 +230,8 @@ void SnapmakerSetupPost() {
   LOG_E("ms: %u", ms);
   // init the power supply pins
   OUT_WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
-  OUT_WRITE(POWER1_SUPPLY_PIN, POWER1_SUPPLY_ON);
-  OUT_WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_ON);
+  OUT_WRITE(POWER1_SUPPLY_PIN, POWER1_SUPPLY_OFF);
+  OUT_WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
 
   SET_INPUT_PULLUP(SCREEN_DET_PIN);
 
@@ -260,6 +260,9 @@ void SnapmakerSetupPost() {
   pl_recovery.Init();
 
   canhost.Init();
+
+  enable_power_domain(POWER_DOMAIN_LINEAR);
+  enable_power_domain(POWER_DOMAIN_ADDON);
 
   snap_tasks = (SnapTasks_t)pvPortMalloc(sizeof(struct SnapTasks));
   snap_tasks->event_queue = xMessageBufferCreate(1024);

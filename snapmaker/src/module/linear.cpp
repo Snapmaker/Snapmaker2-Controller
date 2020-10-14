@@ -107,7 +107,7 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   // need to check what kind of axis it is before we register function id
   type = DetectAxis(mac, endstop);
   if (type >= LINEAR_AXIS_MAX) {
-    LOG_E("Unknown axix!\n\n", mac.val);
+    LOG_E("Unknown axis!\n\n", mac.val);
     return E_FAILURE;
   }
 

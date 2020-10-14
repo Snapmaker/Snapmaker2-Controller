@@ -65,7 +65,7 @@ class CanHost {
 
     ErrCode SendExtCmd(CanExtCmd_t &cmd);
     ErrCode SendExtCmdSync(CanExtCmd_t &cmd, uint32_t timeout_ms=0, uint8_t retry=1);
-    ErrCode WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms=0);
+    ErrCode WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms=0, uint8_t retry=1);
 
     ErrCode ReceiveHandler(void *parameter);
     ErrCode EventHandler(void *parameter);
@@ -79,7 +79,7 @@ class CanHost {
     ErrCode BindMessageID(CanExtCmd_t &cmd, message_id_t *msg_buffer);
 
     uint32_t mac(uint8_t index) {
-      if (index < MODULE_SUPPORT_CONNECTED_MAX)
+      if (index < total_mac_)
         return mac_[index].val;
       else
         return MODULE_MAC_ID_INVALID;
