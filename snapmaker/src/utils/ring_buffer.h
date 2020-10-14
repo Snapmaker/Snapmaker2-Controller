@@ -33,23 +33,13 @@ class RingBuffer {
   }
 
   int32_t RemoveOne(T &val) {
-  if (IsEmpty()) {
-    return 0;
-  }
-
-  val = data[head_];
-  if (++head_ >= size_)
-    head_ = 0;
-
-  return 1;
-}
-
-  int32_t PeekOne(T &val) {
     if (IsEmpty()) {
       return 0;
     }
 
     val = data[head_];
+    if (++head_ >= size_)
+      head_ = 0;
 
     return 1;
   }
@@ -94,30 +84,6 @@ class RingBuffer {
     return to_remove;
   }
 
-  int32_t PeekMulti(T *buffer, int32_t to_peek) {
-    if (IsEmpty()) {
-      return 0;
-    }
-
-    if (Available() < to_peek)
-      return 0;
-
-    // if didn't specify number to peek, try to peek all
-    if (0 == to_peek)
-      to_peek = Available();
-
-    int32_t tmp_head = head_;
-
-    for (int32_t i = 0; i < to_peek; i++) {
-      buffer[i] = data[tmp_head];
-      if (++tmp_head >= size_) {
-        tmp_head = 0;
-      }
-    }
-
-    return to_peek;
-  }
-
   // compiler will treat the functions who have body defined
   // in Class as inline function by default
   bool IsFull() {
@@ -138,21 +104,15 @@ class RingBuffer {
     return (delta >= 0)? (size_ - delta) : (size_ + delta);
   }
 
+  void Reset() {
+    head_ = tail_ = 0;
+  }
+
  private:
   int32_t size_;
   int32_t head_;
   int32_t tail_;
   T *data;
-
-  void Deinit() {
-    size_ = 0;
-    head_ = 0;
-    tail_ = 0;
-
-    if (data != NULL)
-      delete data;
-    data = NULL;
-  }
 };
 
 

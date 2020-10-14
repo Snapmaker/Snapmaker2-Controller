@@ -68,7 +68,6 @@ class CanChannel {
     ErrCode Write(CanPacket_t &packet);
 
     int32_t Read(CanFrameType ft, uint8_t *pdu, int32_t l);
-    int32_t Peek(CanFrameType ft, uint8_t *pdu, int32_t l);
 
     int32_t Available(CanFrameType ft);
 

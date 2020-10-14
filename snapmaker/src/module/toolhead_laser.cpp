@@ -93,6 +93,7 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   mac_index_ = mac_index;
   state_     = TOOLHEAD_LASER_STATE_OFF;
 
+  // set toolhead
   toolhead_ = MODULE_TOOLHEAD_LASER;
 
   return E_SUCCESS;
@@ -235,9 +236,9 @@ ErrCode ToolHeadLaser::GetFocus(SSTP_Event_t &event) {
   uint8_t  buff[5];
 
   LoadFocus();
-  vTaskDelay(portTICK_PERIOD_MS * 10);
+  vTaskDelay(portTICK_PERIOD_MS * 20);
 
-  LOG_I("SC get Focus: (%u/1000) mm\n", focus_);
+  LOG_I("SC get Focus: %.2f mm\n", focus_ / 1000.0f);
 
   buff[0] = 0;
 
@@ -270,7 +271,7 @@ ErrCode ToolHeadLaser::SetFocus(SSTP_Event_t &event) {
 
   PDU_TO_LOCAL_WORD(focus, event.data);
 
-  LOG_I("SC set Focus: %d\n", focus);
+  LOG_I("SC set Focus: %.2f\n", focus / 1000.0f);
 
   // length and data is picked up, can be changed
   event.length = 1;
@@ -450,41 +451,44 @@ out:
  * return:0 for read success, 1 for unname, 2 for timeout
  */
 ErrCode ToolHeadLaser::ReadBluetoothInfo(LaserCameraCommand cmd, uint8_t *out, uint16_t &length) {
-  SSTP_Event_t  event = {cmd, SSTP_INVALID_OP_CODE, 0, NULL};
+  SSTP_Event_t  event = {cmd, 0, 0, NULL};
 
   ErrCode  ret = E_SUCCESS;
-  int      i;
 
-  if (esp32_.Send(event) != E_SUCCESS)
-    LOG_E("failed to send command to BT\n");
-  esp32_.Flush();
-  vTaskDelay(200);
 
-  ret = esp32_.CheckoutCmd(out, length);
-  if (ret != E_SUCCESS) {
-    LOG_E("failed to read BT info - %u!\n", ret);
-    return ret;
-  }
+  for (int i = 1; i < 4; i++) {
+    esp32_.FlushInput();
 
-  LOG_I("ack: %u, %u, len: %u\n", out[0], out[1], length);
+    esp32_.Send(event);
+    esp32_.FlushOutput();
+    vTaskDelay(200 * portTICK_PERIOD_MS * i);
 
-  if (length < 2) {
-    LOG_E("failed to read BT info - %u!\n", 112);
-    return E_NO_RESRC;
-  }
-
-  if (out[0] != (cmd + 1) || out[1] != 0) {
-    LOG_E("failed to read BT info - %u!\n", 113);
-    return E_INVALID_DATA;
-  }
-
-  for (i = 2; i < length; i++) {
-    if (!out[i]) {
-      break;
+    ret = esp32_.CheckoutCmd(out, length);
+    if (ret != E_SUCCESS) {
+      LOG_E("failed to read BT info - %u!\n", ret);
+    }
+    else {
+      goto out;
     }
   }
 
-  length = i;
+  return ret;
+
+out:
+  if (length < 2) {
+    LOG_E("failed to read BT info - %u!\n", 110);
+    return E_NO_RESRC;
+  }
+
+  if (out[0] != (cmd + 1)) {
+    LOG_E("failed to read BT info - %u!\n", 111);
+    return E_INVALID_DATA;
+  }
+
+  if (out[1] != 0) {
+    LOG_E("failed to read BT info - %u!\n", 112);
+    return E_INVALID_DATA;
+  }
 
   return E_SUCCESS;
 }
@@ -496,7 +500,7 @@ ErrCode ToolHeadLaser::ReadBluetoothInfo(LaserCameraCommand cmd, uint8_t *out, u
  * ret  None
  */
 ErrCode ToolHeadLaser::SetBluetoothInfo(LaserCameraCommand cmd, uint8_t *info, uint16_t length) {
-  SSTP_Event_t  event = {cmd, SSTP_INVALID_OP_CODE};
+  SSTP_Event_t  event = {cmd, 0};
 
   uint8_t  buffer[72];
   ErrCode  ret;
@@ -504,18 +508,34 @@ ErrCode ToolHeadLaser::SetBluetoothInfo(LaserCameraCommand cmd, uint8_t *info, u
   event.length = length;
   event.data   = info;
 
-  esp32_.Send(event);
-  esp32_.Flush();
-  vTaskDelay(200);
+  for (int i = 1; i < 4; i++) {
+    esp32_.FlushInput();
 
-  ret = esp32_.CheckoutCmd(buffer, length);
-  if (ret != E_SUCCESS) {
-    LOG_E("failed to set BT info: %u!\n", ret);
-    return ret;
+    esp32_.Send(event);
+    esp32_.FlushOutput();
+    vTaskDelay(200 * portTICK_PERIOD_MS * i);
+
+    ret = esp32_.CheckoutCmd(buffer, length);
+    if (ret != E_SUCCESS) {
+      LOG_E("failed to set BT info - %u!\n", ret);
+    }
+    else {
+      goto out;
+    }
   }
 
-  if((buffer[0] != (cmd + 1)) || (buffer[1] != 0))
+  return ret;
+
+out:
+  if (buffer[0] != (cmd + 1)) {
+    LOG_E("failed to read BT info - %u!\n", 111);
+    return E_INVALID_CMD;
+  }
+
+  if (buffer[1] != 0) {
+    LOG_E("failed to read BT info - %u!\n", 112);
     return E_INVALID_DATA;
+  }
 
   return E_SUCCESS;
 }
@@ -556,7 +576,7 @@ ErrCode ToolHeadLaser::GetCameraBtName(SSTP_Event_t &event) {
      * event.data = buffer + 1; and length increase one
      */
     event.data   = buffer + 1;
-    event.length += 1;
+    event.length -= 1;
   }
 
   return hmi.Send(event);
@@ -583,7 +603,9 @@ ErrCode ToolHeadLaser::GetCameraBtMAC(SSTP_Event_t &event) {
      * event.data = buffer + 1; and length increase one
      */
     event.data   = buffer + 1;
-    event.length += 1;
+    event.length -= 1;
+
+    LOG_I("\t0x%08X, 0x%08X\n", *(uint32_t *)(buffer), *(uint32_t *)(buffer + 4));
   }
 
   return hmi.Send(event);

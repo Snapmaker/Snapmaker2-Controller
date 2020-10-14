@@ -48,8 +48,14 @@ ErrCode UartHost::CheckoutCmd(uint8_t *cmd, uint16_t &length) {
 }
 
 
-void UartHost::Flush() {
+void UartHost::FlushOutput() {
   serial_->flush();
+}
+
+
+void UartHost::FlushInput() {
+  while (serial_->read() != -1);
+  cmd_buffer_.Reset();
 }
 
 
@@ -63,8 +69,6 @@ ErrCode UartHost::Send(SSTP_Event_t &event) {
 
   uint16_t tmp_u16 = 0;
   uint8_t  pdu_header[SSTP_PDU_HEADER_SIZE + 2];
-
-  BaseType_t ret = pdFAIL;
 
   pdu_header[i++] = SSTP_PDU_SOF_H;
   pdu_header[i++] = SSTP_PDU_SOF_L;
@@ -87,26 +91,18 @@ ErrCode UartHost::Send(SSTP_Event_t &event) {
 
   pdu_header[i++] = (uint8_t)event.id;
 
-  if (event.op_code < SSTP_PDU_IDX_OP_CODE)
+  if (event.op_code < SSTP_INVALID_OP_CODE)
     pdu_header[i++] = (uint8_t)event.op_code;
 
-  // lock the uart, there will be more than one writer
-  if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
-    ret = xSemaphoreTake(mlock_uart_, configTICK_RATE_HZ/100);
-    if (ret != pdPASS) {
-      SERIAL_ECHOLN(LOG_HEAD "failed to get HMI uart lock!");
-      return E_BUSY;
-    }
-  }
+  taskENTER_CRITICAL();
 
   for (j = 0; j < i; j++)
     serial_->write(pdu_header[j]);
 
-  for (int j = 0; j < event.length; j++)
+  for (j = 0; j < event.length; j++)
     serial_->write(event.data[j]);
 
-  if (ret == pdPASS)
-    xSemaphoreGive(mlock_uart_);
+  taskEXIT_CRITICAL();
 
   return E_SUCCESS;
 }

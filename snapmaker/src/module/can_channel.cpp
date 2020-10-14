@@ -151,27 +151,6 @@ int32_t CanChannel::Read(CanFrameType ft, uint8_t *buffer, int32_t l) {
 }
 
 
-int32_t CanChannel::Peek(CanFrameType ft, uint8_t *buffer, int32_t l) {
-
-  if (!buffer) {
-    return -E_PARAM;
-  }
-
-  switch (ft) {
-  case CAN_FRAME_EXT_DATA:
-    return ext_cmd_.PeekMulti(buffer, l);
-
-  case CAN_FRAME_EXT_REMOTE:
-    return mac_id_.PeekMulti((uint32_t *)buffer, l);
-
-  default:
-    break;
-  }
-
-  return 0;
-}
-
-
 void CanChannel::Irq(CanChannelNumber ch,  uint8_t fifo_index) {
   int32_t i = 0;
   uint8_t filter_index;

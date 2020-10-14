@@ -132,31 +132,43 @@ uint16_t ProtocolSSTP::CalcChecksum(uint8_t *buffer, uint16_t length) {
 
 uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
   uint32_t volatile checksum = 0;
-  uint16_t volatile size = event.length;
-  uint16_t volatile start = 0;
+  uint16_t size = event.length;
+  uint16_t start = 0;
+
+  if (event.id >= SSTP_INVALID_EVENT_ID)
+    return 0;
 
   /* when send out event, we will have a event structure
    * so we will have independent event_id and maybe more one op_code.
    * If yes, need to calculate them into checksum
    */
-  if (event.id < SSTP_INVALID_EVENT_ID) {
+ 
+  if (size > 0) {
+    // data field exists
     if (event.op_code < SSTP_INVALID_OP_CODE) {
-      checksum += (event.id<<8 | (event.op_code&0x00FF));
-    }
-    else if (size > 0) {
-      // No independent op_code, but have data field
-      checksum += (event.id<<8 | event.data[0]);
-      start = 1;
+      // event id and op code exist
+      checksum = (event.id<<8 | (event.op_code&0x00FF));
     }
     else {
-      // just event_id, no op_code, and no data field
-      checksum += event.id;
-
-      checksum = ~checksum;
-
-      return (uint16_t)checksum;
-    }
+      // No independent op_code
+      checksum = (event.id<<8 | event.data[0]);
+      start = 1;
+    } 
   }
+  else {
+    // no data field
+    if (event.op_code < SSTP_INVALID_OP_CODE) {
+      // only event id and op code
+      checksum = (event.id<<8 | (event.op_code&0x00FF));
+    }
+    else {
+      // just event_id, no op_code
+      checksum = event.id;
+    }
+
+    goto out;
+  }
+
 
   for (int j = start; j < (size - 1); j = j + 2)
     checksum += (uint32_t)(event.data[j] << 8 | event.data[j + 1]);
@@ -165,10 +177,10 @@ uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
     checksum += event.data[size - 1];
   }
 
+out:
   while (checksum > 0xffff)
     checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
-
+ 
   checksum = ~checksum;
-
   return (uint16_t)checksum;
 }
