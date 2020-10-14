@@ -78,6 +78,8 @@ class ToolHeadLaser: public ModuleBase {
 
       msg_id_set_fan_   = MODULE_MESSAGE_ID_INVALID;
       msg_id_get_focus_ = MODULE_MESSAGE_ID_INVALID;
+
+      timer_in_process_ = 0;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -129,6 +131,8 @@ class ToolHeadLaser: public ModuleBase {
 
   private:
     uint8_t  mac_index_;
+
+    uint16_t timer_in_process_;
 
     ToolHeadLaserState  state_;
 

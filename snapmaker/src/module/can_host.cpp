@@ -464,6 +464,7 @@ ErrCode CanHost::EventHandler(void *parameter) {
       // if no callback, maybe need to send it to screen?
     }
 
+    ModuleBase::StaticProcess();
     for (int i = 0; static_modules[i] != NULL; i++)
       static_modules[i]->Process();
 
@@ -601,7 +602,7 @@ ErrCode CanHost::BindMessageID(CanExtCmd_t &cmd, message_id_t *msg_buffer) {
     map_buffer[4*i + 3] = msg_buffer[i] & 0x00FF;
     map_buffer[4*i + 4] = func_buffer[2*i + 2];
     map_buffer[4*i + 5] = func_buffer[2*i + 3];
-    LOG_I("\tFunction [%03u] <-> Message [%03u]\n", func_buffer[2*i + 3], msg_buffer[i]);
+    LOG_I("\tFunction [%3u] <-> Message [%3u]\n", func_buffer[2*i + 3], msg_buffer[i]);
   }
 
   cmd.data = map_buffer;

@@ -221,21 +221,19 @@ class ModuleBase {
     static void LockMarlinUart();
     static void UnlockMarlinUart();
     static void ReportMarlinUart();
+    static void StaticProcess() {
+      if (++timer_in_static_process_ < 100) return;
+
+      timer_in_static_process_ = 0;
+
+      ReportMarlinUart();
+    }
 
     static ErrCode SetMAC(SSTP_Event_t &event);
     static ErrCode GetMAC(SSTP_Event_t &event);
 
     virtual ErrCode Init(MAC_t &mac, uint8_t mac_index) { return E_SUCCESS; }
-    virtual void Process() {
-      if (device_id_ != MODULE_DEVICE_ID_INVALID)
-        return;
-
-      if (++timer_in_process_ < 100) return;
-
-      timer_in_process_ = 0;
-
-      ReportMarlinUart();
-    }
+    virtual void Process() { return; }
 
     virtual bool IsOnline(uint8_t sub_index = 0) { return false; }
 
@@ -246,9 +244,8 @@ class ModuleBase {
   protected:
     uint16_t device_id_;
 
-    uint16_t timer_in_process_;
-
     static bool lock_marlin_uart_;
+    static uint16_t timer_in_static_process_;
     static ModuleToolHeadType toolhead_;
 };
 

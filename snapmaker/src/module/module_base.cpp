@@ -14,11 +14,11 @@
 #include "src/inc/MarlinConfig.h"
 #include HAL_PATH(src/HAL, fastio_STM32F1.h)
 
-ModuleBase base(MODULE_DEVICE_ID_INVALID);
 
-ModuleBase *static_modules[] = {&base, &linear, &printer, &laser, &cnc, NULL};
+ModuleBase *static_modules[] = {&linear, &printer, &laser, &cnc, NULL};
 
 bool ModuleBase::lock_marlin_uart_ = false;
+uint16_t ModuleBase::timer_in_static_process_ = 0;
 ModuleToolHeadType ModuleBase::toolhead_ = MODULE_TOOLHEAD_UNKNOW;
 
 

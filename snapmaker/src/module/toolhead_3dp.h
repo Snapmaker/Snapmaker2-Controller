@@ -24,6 +24,8 @@ class ToolHead3DP: public ModuleBase {
       }
       mac_index_      = MODULE_MAC_INDEX_INVALID;
       probe_state_    = 0;
+
+      timer_in_process_ = 0;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -83,6 +85,8 @@ class ToolHead3DP: public ModuleBase {
 
   private:
     uint8_t mac_index_;
+
+    uint16_t timer_in_process_;
 
     uint16_t cur_temp_[EXTRUDERS];
     uint8_t  fan_speed_[TOOLHEAD_3DP_FAN_MAX];

@@ -145,7 +145,7 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
     return E_FAILURE;
   lead_[type] = (uint16_t)((cmd.data[2]<<24 | cmd.data[3]<<16 | cmd.data[4]<<8 | cmd.data[5]) / 1000);
 
-  LOG_I("\tlength: %u, lead: %u\n", length_[type], lead_[type]);
+  LOG_I("\tlength: %u mm, lead: %u mm\n", length_[type], (200 * 16 / lead_[type]));
 
   cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_GET_FUNCID_REQ;
   cmd.length = 1;
