@@ -7,6 +7,7 @@
 #include "../hmi/event_handler.h"
 
 #include "linear.h"
+#include "enclosure.h"
 #include "toolhead_3dp.h"
 #include "toolhead_cnc.h"
 #include "toolhead_laser.h"
@@ -16,7 +17,7 @@
 #include HAL_PATH(src/HAL, fastio_STM32F1.h)
 
 
-ModuleBase *static_modules[] = {&linear, &printer, &laser, &cnc, NULL};
+ModuleBase *static_modules[] = {&linear, &printer, &laser, &cnc, &enclosure, NULL};
 
 bool ModuleBase::lock_marlin_uart_ = false;
 uint16_t ModuleBase::timer_in_static_process_ = 0;

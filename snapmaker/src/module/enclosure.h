@@ -27,7 +27,7 @@ class Enclosure: public ModuleBase {
     Enclosure(): ModuleBase(MODULE_DEVICE_ID_ENCLOSURE) {
       door_state_  = ENCLOSURE_DOOR_STATE_CLOSED;
       mac_index_   = MODULE_MAC_INDEX_INVALID;
-      enabled_     = false;
+      enabled_     = true;  // enable by default
       fan_speed_   = 0;
       brightness_  = 0;
       event_state_ = ENCLOSURE_EVENT_STATE_IDLE;

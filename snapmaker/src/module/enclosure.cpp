@@ -32,6 +32,8 @@ ErrCode Enclosure::Init(MAC_t &mac, uint8_t mac_index) {
   if (canhost.SendExtCmdSync(cmd, 500, 2) != E_SUCCESS)
     return E_FAILURE;
 
+  LOG_I("\tGot Enclosure!\n");
+
   function.channel   = mac.bits.channel;
   function.mac_index = mac_index;
   function.sub_index = 0;
@@ -63,6 +65,8 @@ ErrCode Enclosure::SetLightBar(uint8_t brightness) {
   buffer[2] = brightness;
   buffer[3] = brightness;
 
+  LOG_I("Eclosure: set FAN speed %u\n", brightness);
+
   cmd.id     = MODULE_FUNC_SET_ENCLOSURE_LIGHT;
   cmd.data   = buffer;
   cmd.length = 4;
@@ -79,6 +83,8 @@ ErrCode Enclosure::SetFanSpeed(uint8_t speed) {
 
   buffer[0] = 0;
   buffer[1] = speed;
+
+  LOG_I("Eclosure: set FAN speed %u\n", speed);
 
   cmd.id     = MODULE_FUNC_SET_ENCLOSURE_FAN;
   cmd.data   = buffer;
