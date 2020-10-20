@@ -23,6 +23,9 @@ void UartHost::Init(HardwareSerial *serial, uint8_t interrupt_prio) {
   nvic_irq_set_priority(dev->irq_num, interrupt_prio);
 
   serial_ = serial;
+
+  mlock_uart_ = xSemaphoreCreateMutex();
+  configASSERT(mlock_uart_);
 }
 
 
@@ -64,6 +67,8 @@ ErrCode UartHost::Send(SSTP_Event_t &event) {
   int i = 0;
   int j;
 
+  BaseType_t ret = pdFAIL;
+
   uint16_t tmp_u16 = 0;
   uint8_t  pdu_header[SSTP_PDU_HEADER_SIZE + 2];
 
@@ -91,15 +96,22 @@ ErrCode UartHost::Send(SSTP_Event_t &event) {
   if (event.op_code < SSTP_INVALID_OP_CODE)
     pdu_header[i++] = (uint8_t)event.op_code;
 
-  taskENTER_CRITICAL();
-
+  // lock the uart, there will be more than one writer
+  if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING) {
+    ret = xSemaphoreTake(mlock_uart_, configTICK_RATE_HZ/100);
+    if (ret != pdPASS) {
+      SERIAL_ECHOLN(LOG_HEAD "failed to get HMI uart lock!");
+      return E_BUSY;
+    }
+  }
   for (j = 0; j < i; j++)
     serial_->write(pdu_header[j]);
 
   for (j = 0; j < event.length; j++)
     serial_->write(event.data[j]);
 
-  taskEXIT_CRITICAL();
+  if (ret == pdPASS)
+    xSemaphoreGive(mlock_uart_);
 
   return E_SUCCESS;
 }

@@ -29,6 +29,9 @@ private:
   ProtocolSSTP sstp_;
 
   RingBuffer<uint8_t> cmd_buffer_;
+
+  // lock for HMI uart
+  SemaphoreHandle_t mlock_uart_ = NULL;
 };
 
 #endif  // #ifndef SNAPMAKER_UART_HOST_H_
