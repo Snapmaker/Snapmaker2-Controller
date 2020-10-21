@@ -14,7 +14,7 @@
 
 // marlin headers
 #include "src/inc/MarlinConfig.h"
-#include HAL_PATH(src/HAL, fastio_STM32F1.h)
+#include HAL_PATH(src/HAL, HAL.h)
 
 
 ModuleBase *static_modules[] = {&linear, &printer, &laser, &cnc, &enclosure, NULL};

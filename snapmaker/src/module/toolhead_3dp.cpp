@@ -8,6 +8,8 @@
 #include "src/core/boards.h"
 #include "Configuration.h"
 #include "src/pins/pins.h"
+#include "src/inc/MarlinConfig.h"
+#include HAL_PATH(src/HAL, HAL.h)
 
 ToolHead3DP printer;
 
@@ -26,6 +28,16 @@ static void CallbackAckNozzleTemp(CanStdDataFrame_t &cmd) {
 static void CallbackAckFilamentState(CanStdDataFrame_t &cmd) {
   // temperature from module, was
   printer.filament_state(cmd.data[0], 0);
+}
+
+
+void ToolHead3DP::IOInit(void) {
+  SET_OUTPUT(E0_STEP_PIN);
+
+  SET_OUTPUT(E0_DIR_PIN);
+
+  SET_OUTPUT(E0_ENABLE_PIN);
+  if (!E_ENABLE_ON) WRITE(E0_ENABLE_PIN, HIGH);
 }
 
 
@@ -125,6 +137,8 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   vTaskDelay(portTICK_PERIOD_MS * 5);
 
   LOG_I("\tprobe: %u, filament: %u\n", probe_state_, filament_state_[0]);
+
+  IOInit();
 
   toolhead_ = MODULE_TOOLHEAD_3DP;
 

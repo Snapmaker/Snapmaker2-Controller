@@ -84,6 +84,9 @@ class ToolHead3DP: public ModuleBase {
     }
 
   private:
+    void IOInit(void);
+
+  private:
     uint8_t mac_index_;
 
     uint16_t timer_in_process_;

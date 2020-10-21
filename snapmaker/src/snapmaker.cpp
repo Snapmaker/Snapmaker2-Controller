@@ -17,6 +17,26 @@
 
 extern void enqueue_hmi_to_marlin();
 
+
+void HeatedBedSelfCheck(void) {
+  millis_t tmptick;
+
+  enable_power_domain(POWER_DOMAIN_BED);
+  // disable heated bed firstly
+  OUT_WRITE(HEATER_BED_PIN, LOW);
+  // and set input for the detect pin
+  SET_INPUT_PULLUP(HEATEDBED_ON_PIN);
+  vTaskDelay(portTICK_PERIOD_MS * 10);
+  // if we get LOW, indicate the NMOS is breakdown
+  // we need to disable its power supply immediately
+  if(READ(HEATEDBED_ON_PIN) == LOW) {
+    disable_power_domain(POWER_DOMAIN_BED);
+    enable_power_ban(POWER_DOMAIN_BED);
+    systemservice.ThrowException(EHOST_MC, ETYPE_PORT_BAD);
+  }
+}
+
+
 /**
  * Check Update Flag
  */
@@ -53,6 +73,8 @@ static void main_loop(void *param) {
   configASSERT(dispather_param.event_buff);
 
   dispather_param.event_queue = task_param->event_queue;
+
+  HeatedBedSelfCheck();
 
   systemservice.SetCurrentStatus(SYSTAT_IDLE);
 
