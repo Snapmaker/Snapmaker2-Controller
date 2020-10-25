@@ -4,6 +4,8 @@
 #include "error.h"
 #include "../utils/ring_buffer.h"
 
+#include <libmaple/ring_buffer.h>
+
 // protocol relative macros
 #define SSTP_PDU_SOF_H   0xAA
 #define SSTP_PDU_SOF_L   0x55
@@ -115,6 +117,7 @@ class ProtocolSSTP {
     }
 
     ErrCode Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &length);
+    ErrCode Parse(ring_buffer *rb, uint8_t *out, uint16_t &length);
 
     ErrCode Package(uint8_t *in_data, uint8_t *out, uint16_t &length);
 

@@ -25,6 +25,7 @@ public:
 
 private:
   HardwareSerial *serial_;
+  ring_buffer    *rb_;
 
   ProtocolSSTP sstp_;
 

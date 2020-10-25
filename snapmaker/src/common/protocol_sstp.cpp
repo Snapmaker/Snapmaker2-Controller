@@ -1,6 +1,156 @@
 #include "protocol_sstp.h"
+#include "debug.h"
 
+#include <libmaple/ring_buffer.h>
 #include "MapleFreeRTOS1030.h"
+
+// marlin headers
+#include "src/core/serial.h"
+#include "src/libs/hex_print_routines.h"
+
+#define LOG_HEAD  "SSTP: "
+#define TIMEOUT_FOR_HEADER      (2)
+#define TIMEOUT_FOR_NEXT_BYTE   (1)
+
+// min br = 115200bps, = 14.4 bytes/ms
+// max data length = 516 bytes in transferring FW
+// so, max MS to wait = 516 / 14.4 = 36ms
+#define DELAY_MS_FOR_DATA       (5)
+#define TIMEOUT_COUNT_FOR_DATA  (40/DELAY_MS_FOR_DATA)
+
+/* checkout event from UART RX ring buffer
+ * Note that we may call this function many times
+ * for one complete event
+ */
+ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
+  int16_t   c = -1;
+  int       i;
+  uint16_t  timeout = 0;
+  uint16_t  length = 0;
+  uint16_t  calc_chk = 0;
+  uint16_t  recv_chk = 0;
+  ErrCode   ret = E_FAILURE;
+
+  // no enough bytes for one command
+  if (rb_full_count(rb) < SSTP_PDU_HEADER_SIZE)
+    return E_NO_RESRC;
+
+  // ok, we have enough bytes, now find SOF
+  // if no SOF in all available bytes, return with same state
+  do {
+    c = rb_safe_remove(rb);
+      if (c == SSTP_PDU_SOF_H) {
+        c = rb_safe_remove(rb);
+        if (c == SSTP_PDU_SOF_L) {
+          break;
+        }
+        else {
+          continue;
+        }
+      }
+  } while (c != -1);
+
+  if (c == -1) {
+    // not found SOF
+    return E_NO_SOF;
+  }
+
+  // if it doesn't have enough bytes in ring buffer for header, just return
+  while (rb_full_count(rb) < (SSTP_PDU_HEADER_SIZE - 1)) {
+    vTaskDelay(portTICK_PERIOD_MS);
+    if (++timeout > TIMEOUT_FOR_HEADER) {
+      SERIAL_ECHOLN(LOG_HEAD "timeout to wait for PDU header");
+      return E_NO_HEADER;
+    }
+  }
+
+  // arrive here, we got SOF, and also have enough bytes for one command header
+  // so just start actually check if we got correct header.
+  // read all of header
+  for (i = 2; i < (SSTP_PDU_HEADER_SIZE); i++) {
+    timeout = 0;
+    do {
+      c = rb_safe_remove(rb);
+      if (c != -1)
+        break;
+      else {
+        vTaskDelay(portTICK_PERIOD_MS);
+        if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
+          SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for header, just got ", i);
+          return E_NO_HEADER;
+        }
+      }
+    } while (1);
+    header_[i] = (uint8_t)c;
+  }
+
+  // now we know the length, just check if we have correct data length
+  length = (uint16_t)(header_[SSTP_PDU_IDX_DATA_LEN_H]<<8 | header_[SSTP_PDU_IDX_DATA_LEN_L]);
+  // 1. check if we got normal length
+  if (length > SSTP_RECV_BUFFER_SIZE) {
+    SERIAL_ECHOLNPAIR(LOG_HEAD "length out of range, recv: ", hex_word(length));
+    return E_INVALID_DATA_LENGTH;
+  }
+
+  // 2. verify the length with checksum
+  c = header_[SSTP_PDU_IDX_DATA_LEN_H]^header_[SSTP_PDU_IDX_DATA_LEN_L];
+  if (header_[SSTP_PDU_IDX_LEN_CHK] != (uint8_t)c) {
+    SERIAL_ECHOLNPAIR(LOG_HEAD "length checksum error, recv: ", hex_byte(header_[SSTP_PDU_IDX_LEN_CHK]), "calc: ", hex_byte((uint8_t)c));
+    return E_INVALID_DATA_LENGTH;
+  }
+
+  // ok, got correct length, checkout the command checksum then switch state
+  recv_chk = (uint16_t)(header_[SSTP_PDU_IDX_CHKSUM_H]<<8 | header_[SSTP_PDU_IDX_CHKSUM_L]);
+
+  timeout = 0;
+  while (rb_full_count(rb) < length) {
+    vTaskDelay(DELAY_MS_FOR_DATA);
+    if (++timeout > TIMEOUT_COUNT_FOR_DATA) {
+      SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for data: ", length);
+      return E_NO_DATA;
+    }
+  }
+
+  // read all data field in UART RX buffer
+  for (int i = 0; i < length; i++) {
+    timeout = 0;
+    do {
+      c = rb_safe_remove(rb);
+      if (c != -1)
+        break;
+      else {
+        vTaskDelay(portTICK_PERIOD_MS);
+        if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
+          SERIAL_ECHOLN(LOG_HEAD "timeout wait for next byte of data");
+          return E_NO_DATA;
+        }
+      }
+    } while (1);
+    out[i] = (uint8_t)c;
+  }
+
+  calc_chk = CalcChecksum(out, length);
+
+  // calc checksum of data
+  if (calc_chk != recv_chk) {
+    SNAP_DEBUG_CMD_CHECKSUM_ERROR(true);
+    SERIAL_ECHOLNPAIR(LOG_HEAD "uncorrect calc checksum: ", hex_word(calc_chk), ", recv chksum: ", hex_word(recv_chk));
+    if (length > 0) {
+      SERIAL_ECHO(LOG_HEAD "content:");
+      for (int i = 0; i < length; i++) {
+        SERIAL_ECHOPAIR(" ", hex_byte(out[i]));
+      }
+      SERIAL_EOL();
+      SERIAL_EOL();
+    }
+    return E_INVALID_DATA;
+  }
+
+  // now we get an available command
+  size = length;
+
+  return E_SUCCESS;
+}
 
 ErrCode ProtocolSSTP::Parse(RingBuffer<uint8_t> &ring, uint8_t *out, uint16_t &length) {
   uint16_t calc_chk = 0;

@@ -24,6 +24,8 @@ void UartHost::Init(HardwareSerial *serial, uint8_t interrupt_prio) {
 
   serial_ = serial;
 
+  rb_ = dev->rb;
+
   mlock_uart_ = xSemaphoreCreateMutex();
   configASSERT(mlock_uart_);
 }
@@ -34,17 +36,19 @@ void UartHost::Init(HardwareSerial *serial, uint8_t interrupt_prio) {
  * for one complete event
  */
 ErrCode UartHost::CheckoutCmd(uint8_t *cmd, uint16_t &length) {
-  int c = -1;
+  // int c = -1;
 
-  for (;;) {
-    c = serial_->read();
-    if (c == -1)
-      break;
+  // for (;;) {
+  //   c = serial_->read();
+  //   if (c == -1)
+  //     break;
 
-    cmd_buffer_.InsertOne((uint8_t)c);
-  }
+  //   cmd_buffer_.InsertOne((uint8_t)c);
+  // }
 
-  return sstp_.Parse(cmd_buffer_, cmd, length);
+  // return sstp_.Parse(cmd_buffer_, cmd, length);
+
+  return sstp_.Parse(rb_, cmd, length);
 }
 
 
