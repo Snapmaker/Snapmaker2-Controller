@@ -181,6 +181,7 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   function.channel   = cmd.mac.bits.channel;
   function.sub_index = type;
   function.mac_index = mac_index;
+  function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
 
   if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] > MODULE_FUNCTION_MAX_IN_ONE)
     cmd.data[MODULE_EXT_CMD_INDEX_DATA] = MODULE_FUNCTION_MAX_IN_ONE;
@@ -188,7 +189,6 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   // register function ids to can host, it will assign message id
   for (i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
     function.id = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
-    function.priority  = MODULE_FUNC_PRIORITY_DEFAULT;
     if (function.id == MODULE_FUNC_ENDSTOP_STATE) {
       // just register callback for endstop
       // cache the message id for endstop for inquiring status of endstop later
@@ -197,7 +197,7 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
     }
     else {
       // for other functions in linear module, no callback for them
-     message_id[i] = canhost.RegisterFunction(function, NULL);
+      message_id[i] = canhost.RegisterFunction(function, NULL);
     }
   }
 

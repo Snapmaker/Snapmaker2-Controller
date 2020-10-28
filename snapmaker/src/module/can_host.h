@@ -72,7 +72,7 @@ class CanHost {
 
     ErrCode UpgradeModules(uint32_t fw_addr, uint32_t length);
 
-    message_id_t RegisterFunction(Function_t &function, CanStdCmdCallback_t callback);
+    message_id_t RegisterFunction(Function_t const &function, CanStdCmdCallback_t callback);
 
     bool IrqCallback(CanStdDataFrame_t &frame);
 

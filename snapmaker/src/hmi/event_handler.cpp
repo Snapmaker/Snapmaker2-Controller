@@ -228,6 +228,7 @@ static ErrCode SendStatus(SSTP_Event_t &event) {
   // if (snap_tasks && snap_tasks->heartbeat)
   //   xTaskNotify(snap_tasks->heartbeat, HEART_BEAT_NITIFICATION, eSetBits);
 
+  // won't send status to HMI while upgrading external module
   if (upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
     systemservice.SendStatus(event);
   return E_SUCCESS;

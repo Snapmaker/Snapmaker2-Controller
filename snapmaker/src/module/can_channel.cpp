@@ -153,7 +153,7 @@ int32_t CanChannel::Read(CanFrameType ft, uint8_t *buffer, int32_t l) {
 
 void CanChannel::Irq(CanChannelNumber ch,  uint8_t fifo_index) {
   int32_t i = 0;
-  uint8_t filter_index;
+  uint8_t filter_index = 0;
 
   uint32_t  can_id;
   uint8_t   id_type;
@@ -173,7 +173,7 @@ void CanChannel::Irq(CanChannelNumber ch,  uint8_t fifo_index) {
     break;
 
   default:
-    break;
+    return;
   }
 
   // standard data frame

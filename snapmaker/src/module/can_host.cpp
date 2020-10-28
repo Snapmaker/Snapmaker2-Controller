@@ -19,13 +19,6 @@
 #define CAN_MEDIUM_PRIO_MASSAGE_SIZE  (25)
 #define CAN_LOW_PRIO_MASSAGE_SIZE     (35)
 
-// parameters for creating task
-#define CAN_EVENT_HANDLER_PRIORITY    (2)
-#define CAN_EVENT_HANDLER_STACK_DEPTH (512)
-
-#define CAN_RECEIVE_HANDLER_PRIORITY    (3)
-#define CAN_RECEIVE_HANDLER_STACK_DEPTH (512)
-
 CanHost canhost;
 
 /**
@@ -558,40 +551,40 @@ out:
 }
 
 
-// void CanHost::ConfigModules() {
-//   int i;
-
-//   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
-//     if (mac_[i].val == MODULE_MAC_ID_INVALID)
-//       break;
-
-//     Config(mac_[i], i);
-
-//     // module is online only it get relative meesage id(s)
-//     mac_[i].bits.online = 1;
-//   }
-// }
-
-
-// ErrCode CanHost::ConfigModule(MAC_t &mac, uint8_t mac_index) {
-//   int      i;
-//   uint16_t device_id = MODULE_GET_DEVICE_ID(mac.val);
-
-//   if (mac.bits.type == MODULE_TYPE_STATIC) {
-//     for (i = 0; static_modules[i] != NULL; i++) {
-//       if (static_modules[i]->device_id == device_id) {
-//         return static_modules[i]->Config(mac, mac_index);
-//       }
-//     }
-//   }
-
-//   return ConfigDynamicModule(mac);
-// }
-
-
 ErrCode CanHost::InitDynamicModule(MAC_t &mac, uint8_t mac_index) {
+  CanExtCmd_t cmd;
+  uint8_t     func_buffer[MODULE_FUNCTION_MAX_IN_ONE*2 + 2];
 
-  return BindMessageID(mac, mac_index);
+  message_id_t message_id[MODULE_FUNCTION_MAX_IN_ONE] = { MODULE_MESSAGE_ID_INVALID };
+  Function_t function;
+
+  int i;
+
+  cmd.mac    = mac;
+  cmd.data   = func_buffer;
+  cmd.length = 1;
+
+  cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_GET_FUNCID_REQ;
+
+  // try to get function ids from module
+  if (SendExtCmdSync(cmd, 500, 2) != E_SUCCESS)
+    return E_FAILURE;
+
+  if (cmd.data[MODULE_EXT_CMD_INDEX_DATA] > MODULE_FUNCTION_MAX_IN_ONE)
+    cmd.data[MODULE_EXT_CMD_INDEX_DATA] = MODULE_FUNCTION_MAX_IN_ONE;
+
+  function.channel    = mac.bits.channel;
+  function.mac_index  = mac_index;
+  function.priority   = MODULE_FUNC_PRIORITY_DEFAULT;
+  function.sub_index  = 0;  // if 0 is proper for two same dynamic module plugged?
+
+  // register function ids to can host, it will assign message id
+  for (i = 0; i < cmd.data[MODULE_EXT_CMD_INDEX_DATA]; i++) {
+    function.id   = (cmd.data[i*2 + 2]<<8 | cmd.data[i*2 + 3]);
+    message_id[i] = RegisterFunction(function, NULL);
+  }
+
+  return BindMessageID(cmd, message_id);
 }
 
 
@@ -662,17 +655,18 @@ ErrCode CanHost::BindMessageID(MAC_t &mac, uint8_t mac_index) {
 }
 
 
-message_id_t CanHost::RegisterFunction(Function_t &function, CanStdCmdCallback_t callback) {
+message_id_t CanHost::RegisterFunction(Function_t const &function, CanStdCmdCallback_t callback) {
   int start, end;
 
-  if (function.priority == MODULE_FUNC_PRIORITY_DEFAULT) {
-    if (function.id < MODULE_FUNC_MAX)
-      function.priority = module_prio_table[function.id][0];
-    else
-      function.priority = MODULE_FUNC_PRIORITY_LOW;
+  // cannot change priority in reference 'function'
+  uint8_t prio = MODULE_FUNC_PRIORITY_LOW;
+
+  if (function.priority == MODULE_FUNC_PRIORITY_DEFAULT &&
+      function.id < MODULE_FUNC_MAX) {
+    prio = module_prio_table[function.id][0];
   }
 
-  switch (function.priority) {
+  switch (prio) {
   case MODULE_FUNC_PRIORITY_EMERGENT:
     start = 0;
     end   = message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0];
@@ -708,9 +702,10 @@ message_id_t CanHost::RegisterFunction(Function_t &function, CanStdCmdCallback_t
 
 assign_message_id:
   map_message_function_[start].function = function;
+  map_message_function_[start].function.priority = prio;
   map_message_function_[start].cb = callback;
 
-  message_region_[function.priority][1]++;
+  message_region_[prio][1]++;
 
   return (message_id_t)start;
 }

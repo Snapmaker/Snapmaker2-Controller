@@ -19,8 +19,6 @@ extern void enqueue_hmi_to_marlin();
 
 
 void HeatedBedSelfCheck(void) {
-  millis_t tmptick;
-
   enable_power_domain(POWER_DOMAIN_BED);
   // disable heated bed firstly
   OUT_WRITE(HEATER_BED_PIN, LOW);
@@ -153,13 +151,13 @@ static void hmi_task(void *param) {
     if(READ(SCREEN_DET_PIN)) {
       xTaskNotifyStateClear(task_param->heartbeat);
 
-      if (systemservice.GetCurrentStatus() == SYSTAT_WORK && count == 100) {
-        // if we lost screen in working for 10s, stop current work
+      if (systemservice.GetCurrentStatus() == SYSTAT_WORK && count) {
+        // if we lost screen in working for 100ms, stop current work
         systemservice.StopTrigger(TRIGGER_SOURCE_SC_LOST);
         LOG_E("stop cur work because screen lost!\n");
       }
 
-      if (++count > 100)
+      if (++count)
         count = 0;
 
       vTaskDelay(portTICK_PERIOD_MS * 100);
@@ -196,9 +194,6 @@ static void heartbeat_task(void *param) {
     #endif
 
     systemservice.CheckException();
-
-    for (int i = 0; static_modules[i] != NULL; i++)
-      static_modules[i]->Process();
 
     if (++counter > 100) {
       counter = 0;
