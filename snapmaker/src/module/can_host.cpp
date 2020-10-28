@@ -4,7 +4,6 @@
 
 #include "src/Marlin.h"
 
-
 #define CAN_CHANNEL_MASK      (0x3)
 #define CAN_CHANNEL_SHIFT     (10)
 #define CAN_CHANNEL(val)  ((val&CAN_CHANNEL_MASK)>>CAN_CHANNEL_SHIFT);
@@ -12,12 +11,6 @@
 #define CAN_MESSAGE_ID_MASK   (0x1FF)
 #define CAN_MESSAGE_ID_SHIFT  (0)
 #define CAN_MESSAGE_ID(val)   ((val&CAN_MESSAGE_ID_MASK)>>CAN_MESSAGE_ID_SHIFT)
-
-
-#define CAN_HIGHEST_PRIO_MASSAGE_SIZE (10)
-#define CAN_HIGH_PRIO_MASSAGE_SIZE    (15)
-#define CAN_MEDIUM_PRIO_MASSAGE_SIZE  (25)
-#define CAN_LOW_PRIO_MASSAGE_SIZE     (35)
 
 CanHost canhost;
 
@@ -33,16 +26,18 @@ CanHost canhost;
  *  false       - message is not handled
  */
 static bool CANIrqCallback(CanStdDataFrame_t &frame) {
-  if (frame.id.bits.msg_id >= CAN_HIGHEST_PRIO_MASSAGE_SIZE)
-    return false;
-
   return canhost.IrqCallback(frame);
 }
 
 
 bool CanHost::IrqCallback(CanStdDataFrame_t &frame) {
-  if (!map_message_function_[frame.id.bits.msg_id].cb)
+  // handle only emergent and high prio message in IRQ callback
+  if (frame.id.bits.msg_id >= message_region_[MODULE_FUNC_PRIORITY_HIGH][0])
     return false;
+
+  // didn't register callback for this message, just return true to bypass it
+  if (!map_message_function_[frame.id.bits.msg_id].cb)
+    return true;
 
   map_message_function_[frame.id.bits.msg_id].cb(frame);
 
@@ -480,18 +475,27 @@ ErrCode CanHost::AssignMessageRegion() {
     message_region_[prio_of_function][0] += total_of_same_function;
   }
 
-  message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0] += MODULE_SPARE_MESSAGE_ID_EMERGENT;
-  message_region_[MODULE_FUNC_PRIORITY_HIGH][0]     += MODULE_SPARE_MESSAGE_ID_HIGH;
-  message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0]   += MODULE_SPARE_MESSAGE_ID_MEDIUM;
-
   for (int i = 0; i < MODULE_FUNC_PRIORITY_MAX; i++) {
     total_message += message_region_[i][0];
   }
 
-  if (total_message >= MODULE_SUPPORT_MESSAGE_ID_MAX)
+  if (total_message >= MODULE_SUPPORT_MESSAGE_ID_MAX) {
+    SERIAL_ECHOLN("message is not enough for used!");
     return E_NO_RESRC;
-  else
-    return E_SUCCESS;
+  }
+
+  message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0] += MODULE_SPARE_MESSAGE_ID_EMERGENT;
+  message_region_[MODULE_FUNC_PRIORITY_HIGH][0]     += (MODULE_SPARE_MESSAGE_ID_HIGH + message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0]);
+  message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0]   += (MODULE_SPARE_MESSAGE_ID_MEDIUM + message_region_[MODULE_FUNC_PRIORITY_HIGH][0]);
+  message_region_[MODULE_FUNC_PRIORITY_LOW][0]      = MODULE_SUPPORT_MESSAGE_ID_MAX;
+  SERIAL_ECHOLN("Message ID region:");
+  SERIAL_ECHOLNPAIR("emergent: ", 0, " - ", message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0]-1);
+  SERIAL_ECHOLNPAIR("high    : ", message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0], " - ", message_region_[MODULE_FUNC_PRIORITY_HIGH][0]-1);
+  SERIAL_ECHOLNPAIR("medium  : ", message_region_[MODULE_FUNC_PRIORITY_HIGH][0], " - ", message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0]-1);
+  SERIAL_ECHOLNPAIR("low     : ", message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0], " - ", message_region_[MODULE_FUNC_PRIORITY_LOW][0]-1);
+  SERIAL_EOL();
+
+  return E_SUCCESS;
 }
 
 

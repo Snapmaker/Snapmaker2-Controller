@@ -38,6 +38,7 @@
   #include "../../../snapmaker/src/module/toolhead_3dp.h"
   #include "../../../snapmaker/src/service/system.h"
   #include "../../../snapmaker/src/common/debug.h"
+  #include "../../../snapmaker/src/snapmaker.h"
 #endif
 
 #ifndef SOFT_PWM_SCALE

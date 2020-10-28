@@ -114,7 +114,8 @@ class CanHost {
     // map for message id and function id
     MessageMap_t  map_message_function_[MODULE_SUPPORT_MESSAGE_ID_MAX];
     uint16_t      total_message_id_;
-    // in the second dimension, first element indicates counts we prepare for this priority
+
+    // in the second dimension, first element indicates begining we assign for this priority
     // second element indicates counts which has been used of this priority
     uint16_t      message_region_[MODULE_FUNC_PRIORITY_MAX][2];
 

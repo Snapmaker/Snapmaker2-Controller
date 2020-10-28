@@ -42,7 +42,7 @@ ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
     return E_NO_MEM;
   }
 
-  LOG_I("Start upgrading: 0x%08X\n", mac.val);
+  LOG_I("\nStart upgrading: 0x%08X\n", mac.val);
 
   cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_START_UPGRADE_REQ;
 

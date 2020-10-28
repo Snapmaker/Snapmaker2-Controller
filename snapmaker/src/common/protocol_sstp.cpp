@@ -16,7 +16,7 @@
 // max data length = 516 bytes in transferring FW
 // so, max MS to wait = 516 / 14.4 = 36ms
 #define DELAY_MS_FOR_DATA       (5)
-#define TIMEOUT_COUNT_FOR_DATA  (40/DELAY_MS_FOR_DATA)
+#define TIMEOUT_COUNT_FOR_DATA  (100/DELAY_MS_FOR_DATA)
 
 /* checkout event from UART RX ring buffer
  * Note that we may call this function many times
@@ -29,7 +29,6 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
   uint16_t  length = 0;
   uint16_t  calc_chk = 0;
   uint16_t  recv_chk = 0;
-  ErrCode   ret = E_FAILURE;
 
   // no enough bytes for one command
   if (rb_full_count(rb) < SSTP_PDU_HEADER_SIZE)

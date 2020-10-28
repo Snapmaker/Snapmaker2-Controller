@@ -2,7 +2,9 @@
 #include "debug.h"
 #include "../service/system.h"
 #include "../service/power_loss_recovery.h"
+#include "../snapmaker.h"
 
+// marlin headers
 #include "src/Marlin.h"
 #include "src/gcode/gcode.h"
 #include "src/module/motion.h"

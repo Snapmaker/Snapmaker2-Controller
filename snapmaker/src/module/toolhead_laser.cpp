@@ -393,8 +393,9 @@ ErrCode ToolHeadLaser::DoAutoFocusing(SSTP_Event_t &event) {
   next_z = start_pos[Z_AXIS] - ((float)(Count - 1) / 2.0 * z_interval);
 
   // too low
-  if(next_z <= 5) {
-    LOG_W("start Z height is too low: %.2f\n", next_z);
+  if(next_z <= 10) {
+    LOG_E("start Z height is too low: %.2f\n", next_z);
+    goto out;
   }
 
   // Move to next Z
@@ -418,7 +419,7 @@ ErrCode ToolHeadLaser::DoAutoFocusing(SSTP_Event_t &event) {
     planner.synchronize();
 
     // Laser off
-    SetOutput(laser_pwr_in_cali);
+    SetOutput(0);
 
     // Move up Z increase
     if(i != (Count - 1))
