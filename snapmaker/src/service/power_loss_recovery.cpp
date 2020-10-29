@@ -356,7 +356,7 @@ int PowerLossRecovery::SaveEnv(void) {
   cur_data_.accumulator = print_job_timer.duration();
 
   for (i = 0; i < PP_FAN_COUNT; i++)
-    cur_data_.FanSpeed[i] = printer.fan_speed(i);
+    cur_data_.FanSpeed[i] = printer1->fan_speed(i);
 
   // if power loss, we have record the position to cur_data_.PositionData[]
 	// NOTE that we save logical position for XYZ
@@ -443,7 +443,7 @@ void PowerLossRecovery::Resume3DP() {
 
   	// recover FAN speed after heating to save time
 	for (int i = 0; i < PP_FAN_COUNT; i++) {
-		printer.SetFan(i, pre_data_.FanSpeed[i]);
+		printer1->SetFan(i, pre_data_.FanSpeed[i]);
 	}
 
 	current_position[E_AXIS] += 20;

@@ -74,9 +74,9 @@ void GcodeSuite::M301() {
     #endif
     SERIAL_EOL();
     #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-      printer.SetPID(0, PID_PARAM(Kp, e));
-      printer.SetPID(1, PID_PARAM(Ki, e));
-      printer.SetPID(2, PID_PARAM(Kd, e));
+      printer1->SetPID(0, PID_PARAM(Kp, e));
+      printer1->SetPID(1, PID_PARAM(Ki, e));
+      printer1->SetPID(2, PID_PARAM(Kd, e));
     #endif
   }
   else

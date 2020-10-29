@@ -94,7 +94,7 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   state_     = TOOLHEAD_LASER_STATE_OFF;
 
   // set toolhead
-  toolhead_ = MODULE_TOOLHEAD_LASER;
+  SetToolhead(MODULE_TOOLHEAD_LASER);
 
   return E_SUCCESS;
 }

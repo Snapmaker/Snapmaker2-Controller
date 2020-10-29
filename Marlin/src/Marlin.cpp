@@ -959,6 +959,8 @@ void setup() {
 
   #if HAS_FILAMENT_SENSOR
     runout.setup();
+    // enable by default
+    runout.enabled = true;
   #endif
 
   // Extruder Power

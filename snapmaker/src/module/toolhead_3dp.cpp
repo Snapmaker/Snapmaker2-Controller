@@ -11,23 +11,24 @@
 #include "src/inc/MarlinConfig.h"
 #include HAL_PATH(src/HAL, HAL.h)
 
-ToolHead3DP printer;
+ToolHead3DP printer_single(MODULE_DEVICE_ID_3DP_SINGLE);
 
+ToolHead3DP *printer1 = &printer_single;
 
 static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
-  printer.probe_state(cmd.data[0]);
+  printer1->probe_state(cmd.data[0], 0);
 }
 
 
 static void CallbackAckNozzleTemp(CanStdDataFrame_t &cmd) {
   // temperature from module, was
-  printer.SetTemp(cmd.data[0]<<8 | cmd.data[1], 0);
+  printer1->SetTemp(cmd.data[0]<<8 | cmd.data[1], 0);
 }
 
 
 static void CallbackAckFilamentState(CanStdDataFrame_t &cmd) {
   // temperature from module, was
-  printer.filament_state(cmd.data[0], 0);
+  printer1->filament_state(cmd.data[0], 0);
 }
 
 
@@ -136,11 +137,11 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
 
   vTaskDelay(portTICK_PERIOD_MS * 5);
 
-  LOG_I("\tprobe: %u, filament: %u\n", probe_state_, filament_state_[0]);
+  LOG_I("\tprobe: 0x%x, filament: 0x%x\n", probe_state_, filament_state_);
 
   IOInit();
 
-  toolhead_ = MODULE_TOOLHEAD_3DP;
+  SetToolhead(MODULE_TOOLHEAD_3DP);
 
 out:
   return ret;

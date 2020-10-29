@@ -14,10 +14,13 @@
 
 // marlin headers
 #include "src/inc/MarlinConfig.h"
+#include "src/feature/bedlevel/abl/abl.h"
+#include "src/module/configuration_store.h"
 #include HAL_PATH(src/HAL, HAL.h)
 
+extern ToolHead3DP printer_single;
 
-ModuleBase *static_modules[] = {&linear, &printer, &laser, &cnc, &enclosure, NULL};
+ModuleBase *static_modules[] = {&linear, &printer_single, &laser, &cnc, &enclosure, NULL};
 
 bool ModuleBase::lock_marlin_uart_ = false;
 uint16_t ModuleBase::timer_in_static_process_ = 0;
@@ -248,4 +251,26 @@ ErrCode ModuleBase::GetMAC(SSTP_Event_t &event) {
   event.length = (uint16_t)j;
 
   return hmi.Send(event);
+}
+
+
+extern uint32_t GRID_MAX_POINTS_X;
+extern uint32_t GRID_MAX_POINTS_Y;
+void ModuleBase::SetToolhead(ModuleToolHeadType toolhead) {
+  bool need_saved = false;
+
+  // if plugged non-3DP toolhead, will reset leveling data
+  if (toolhead != MODULE_TOOLHEAD_3DP) {
+    for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
+      for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+        if (z_values[x][y] != DEFAUT_LEVELING_HEIGHT) {
+          z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
+          need_saved = true;
+        }
+      }
+  }
+
+  toolhead_ = toolhead;
+  if (need_saved)
+    settings.save();
 }

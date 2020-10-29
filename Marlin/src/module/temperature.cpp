@@ -1402,7 +1402,7 @@ void Temperature::updateTemperaturesFromRawValues() {
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     for(int i = 0; i < HOTENDS; i++)
-      temp_hotend[i].current = printer.GetTemp(i) / 10.f;
+      temp_hotend[i].current = printer1->GetTemp(i) / 10.f;
   #else
     HOTEND_LOOP() temp_hotend[e].current = analog_to_celsius_hotend(temp_hotend[e].raw, e);
   #endif

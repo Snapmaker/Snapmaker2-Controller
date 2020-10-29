@@ -124,7 +124,7 @@ ErrCode SystemService::PreProcessStop() {
 
     // if user abort the work, FAN0 will not be closed
     // set target temp to 0 only make FAN1 be closed
-    printer.SetFan(0, 0);
+    printer1->SetFan(0, 0);
   }
 
   // diable power panic data

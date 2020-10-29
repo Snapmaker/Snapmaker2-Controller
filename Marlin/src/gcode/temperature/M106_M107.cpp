@@ -61,7 +61,7 @@ void GcodeSuite::M106() {
     NOMORE(s, 255U);
     NOMORE(p, 4);
     if(p < 4)
-      printer.SetFan(p, s);
+      printer1->SetFan(p, s);
 
   #else
     const uint8_t p = parser.byteval('P', _ALT_P);
@@ -89,7 +89,7 @@ void GcodeSuite::M107() {
     uint8_t p = parser.byteval('P', 0);
     NOMORE(p, 4);
     if(p < 4)
-      printer.SetFan(p, 0);
+      printer1->SetFan(p, 0);
 
   #else
     const uint8_t p = parser.byteval('P', _ALT_P);

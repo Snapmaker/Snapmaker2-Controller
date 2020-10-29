@@ -611,7 +611,7 @@ class Temperature {
       start_watching_heater_tempdrop(HOTEND_INDEX);
       start_watching_heater_notheated(true, HOTEND_INDEX);
       #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-        printer.SetHeater(celsius, e);
+        printer1->SetHeater(celsius, e);
       #endif
     }
 

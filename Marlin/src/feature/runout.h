@@ -125,6 +125,8 @@ class TFilamentMonitor : public FilamentMonitorBase {
       }
     }
 
+    static uint8_t runout_states () { return sensor.poll_runout_states(); }
+
     // query current state of sensor
     // return true -> no filament
     // return false -> filament is exist
@@ -183,13 +185,14 @@ class FilamentSensorBase {
       #endif
     }
 
+    #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
     // Return a bitmask of runout pin states
     static inline uint8_t poll_runout_pins() {
       return (
         #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
           (READ(FIL_RUNOUT_PIN ) ? _BV(0) : 0)
         #else
-          (printer.filament_state()? _BV(0):0)
+          (printer1->filament_state()? _BV(0):0)
         #endif
         #if NUM_RUNOUT_SENSORS > 1
           #if DISABLED(CAN_FILAMENT2_RUNOUT)
@@ -228,16 +231,27 @@ class FilamentSensorBase {
         #endif
       );
     }
+    #endif
 
     // Return a bitmask of runout flag states (1 bits always indicates runout)
     static inline uint8_t poll_runout_states() {
-      return poll_runout_pins() ^ uint8_t(
-        #if DISABLED(FIL_RUNOUT_INVERTING)
-          _BV(NUM_RUNOUT_SENSORS) - 1
-        #else
-          0
-        #endif
-      );
+      #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+        return printer1->filament_state() ^ uint8_t(
+          #if DISABLED(FIL_RUNOUT_INVERTING)
+            _BV(NUM_RUNOUT_SENSORS) - 1
+          #else
+            0
+          #endif
+        );
+      #else
+        return poll_runout_pins() ^ uint8_t(
+          #if DISABLED(FIL_RUNOUT_INVERTING)
+            _BV(NUM_RUNOUT_SENSORS) - 1
+          #else
+            0
+          #endif
+        );
+      #endif
     }
 };
 

@@ -58,12 +58,12 @@ typedef struct {
 
 
 enum ModuleDeviceID {
-  MODULE_DEVICE_ID_3DP      ,  // 0
-  MODULE_DEVICE_ID_CNC      ,  // 1
-  MODULE_DEVICE_ID_LASER    ,  // 2
-  MODULE_DEVICE_ID_LINEAR   ,  // 3
-  MODULE_DEVICE_ID_LIGHT    ,  // 4
-  MODULE_DEVICE_ID_ENCLOSURE,  // 5
+  MODULE_DEVICE_ID_3DP_SINGLE   ,  // 0
+  MODULE_DEVICE_ID_CNC          ,  // 1
+  MODULE_DEVICE_ID_LASER        ,  // 2
+  MODULE_DEVICE_ID_LINEAR       ,  // 3
+  MODULE_DEVICE_ID_LIGHT        ,  // 4
+  MODULE_DEVICE_ID_ENCLOSURE    ,  // 5
 
   MODULE_DEVICE_ID_INVALID
 };
@@ -236,10 +236,15 @@ class ModuleBase {
     uint16_t device_id() { return device_id_; }
 
   protected:
+    static void SetToolhead(ModuleToolHeadType toolhead);
+
+  protected:
     uint16_t device_id_;
 
     static bool lock_marlin_uart_;
     static uint16_t timer_in_static_process_;
+
+  private:
     static ModuleToolHeadType toolhead_;
 };
 

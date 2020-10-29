@@ -444,7 +444,7 @@ void GcodeSuite::G28(const bool always_home_all) {
   #endif
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-    if(printer.IsOnline() && (all_axes_homed())) {
+    if((ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) && (all_axes_homed())) {
       set_bed_leveling_enabled(true);
       levelservice.ApplyLiveZOffset();
     }

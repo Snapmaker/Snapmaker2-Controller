@@ -264,7 +264,7 @@ void QuickStopService::TurnOffPower(QuickStopState sta) {
 
 		// turn off hot end and FAN
 		if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
-			printer.SetHeater(0, 0);
+			printer1->SetHeater(0, 0);
 		}
 	}
   else {

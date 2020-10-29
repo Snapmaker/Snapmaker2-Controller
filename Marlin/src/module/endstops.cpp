@@ -444,6 +444,7 @@ static void print_es_state(const bool is_hit, PGM_P const label=NULL) {
   SERIAL_EOL();
 }
 
+#include "../feature/runout.h"
 void _O2 Endstops::M119() {
   SERIAL_ECHOLNPGM(MSG_M119_REPORT);
 
@@ -456,10 +457,8 @@ void _O2 Endstops::M119() {
     ES_REPORT_LINEAR(Y_MAX);
     ES_REPORT_LINEAR(Z_MIN);
     ES_REPORT_LINEAR(Z_MAX);
-    print_es_state(printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
-    print_es_state(printer.filament_state() != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
-    SERIAL_ECHOLNPAIR("endstop bits: 0x", hex_word(linear.endstop()));
-    SERIAL_ECHOLNPAIR("hit state: 0x", hex_byte(hit_state));
+    print_es_state(TEST(printer1->probe_state(), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
+    print_es_state(TEST(printer1->filament_state(), 0) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
   #else
 
 
@@ -539,7 +538,7 @@ void _O2 Endstops::M119() {
   #endif
   #if USES_Z_MIN_PROBE_ENDSTOP
     #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-      print_es_state(printer.probe_state() == Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
+      print_es_state(printer1->probe_state() == Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
     #else
       print_es_state(READ(Z_MIN_PROBE_PIN) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
     #endif
@@ -547,7 +546,7 @@ void _O2 Endstops::M119() {
   #if HAS_FILAMENT_SENSOR
     #if NUM_RUNOUT_SENSORS == 1
       #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-        print_es_state(printer.filament_state() != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
+        print_es_state(printer1->filament_state() != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
       #else
         print_es_state(READ(FIL_RUNOUT_PIN) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
       #endif
@@ -915,7 +914,7 @@ void _O2 Endstops::M119() {
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
       #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-        if (G38_move) SET_BIT_TO(live_state, Z_MIN_PROBE, (printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING));
+        if (G38_move) SET_BIT_TO(live_state, Z_MIN_PROBE, (printer1->probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING));
       #else
         #if PIN_EXISTS(Z_MIN_PROBE)
           // If G38 command is active check Z_MIN_PROBE for ALL movement
@@ -1029,7 +1028,7 @@ void _O2 Endstops::M119() {
         UPDATE_ENDSTOP_BIT(Z, MIN);
       #elif ENABLED(SW_MACHINE_SIZE)
         if(Z_HOME_DIR < 0)
-          SET_BIT_TO(live_state, Z_MIN_PROBE, (printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING));
+          SET_BIT_TO(live_state, Z_MIN_PROBE, (TEST(printer1->probe_state(), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING));
       #elif Z_HOME_DIR < 0
         UPDATE_ENDSTOP_BIT(Z, MIN);
       #endif
@@ -1037,7 +1036,7 @@ void _O2 Endstops::M119() {
 
     // When closing the gap check the enabled probe
     #if USES_Z_MIN_PROBE_ENDSTOP || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-      SET_BIT_TO(live_state, Z_MIN_PROBE, (printer.probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING));
+      SET_BIT_TO(live_state, Z_MIN_PROBE, (TEST(printer1->probe_state(), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING));
     #endif
 
     #if HAS_Z_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
