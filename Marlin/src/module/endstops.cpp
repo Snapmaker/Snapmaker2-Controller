@@ -48,6 +48,7 @@ Endstops endstops;
 
 bool Endstops::enabled, Endstops::enabled_globally; // Initialized by settings.load()
 volatile uint8_t Endstops::hit_state;
+uint8_t Endstops::prev_hit_state;
 
 Endstops::esbits_t Endstops::live_state = 0;
 volatile uint32_t Endstops::statefromcan = 0;

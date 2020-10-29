@@ -37,6 +37,9 @@
 // --------------------------------------------------------------------------
 
 #include "HAL.h"
+
+#if (MOTHERBOARD !=BOARD_SNAPMAKER_2_0)
+
 #include "../shared/HAL_SPI.h"
 #include "pins_arduino.h"
 #include "spi_pins.h"
@@ -182,4 +185,6 @@ void spiBeginTransaction(uint32_t spiClock, uint8_t bitOrder, uint8_t dataMode) 
 
 #endif // SOFTWARE_SPI
 
-#endif // __STM32F1__
+#endif  // (MOTHERBOARD !=BOARD_SNAPMAKER_2_0)
+
+#endif // __GD32F1__

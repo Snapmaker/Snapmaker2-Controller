@@ -28,6 +28,9 @@
 
 #include <stdint.h>
 
+#include "Configuration.h"
+#if (MOTHERBOARD !=BOARD_SNAPMAKER_2_0)
+
 /**
  * SPI speed where 0 <= index <= 6
  *
@@ -76,3 +79,5 @@ void spiRead(uint8_t* buf, uint16_t nbyte);
 void spiSendBlock(uint8_t token, const uint8_t* buf);
 /** Begin SPI transaction, set clock, bit order, data mode */
 void spiBeginTransaction(uint32_t spiClock, uint8_t bitOrder, uint8_t dataMode);
+
+#endif  // #if (MOTHERBOARD !=BOARD_SNAPMAKER_2_0)

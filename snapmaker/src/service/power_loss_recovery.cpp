@@ -402,7 +402,7 @@ int PowerLossRecovery::SaveEnv(void) {
 	// when all data will not be changed again
 	pBuff = (uint8_t*)&cur_data_;
 	cur_data_.CheckSum = 0;
-	for(i = 0; i < sizeof(PowerLossRecoveryData_t); i++)
+	for(i = 0; i < (int)sizeof(PowerLossRecoveryData_t); i++)
 		cur_data_.CheckSum += pBuff[i];
 
   return 0;

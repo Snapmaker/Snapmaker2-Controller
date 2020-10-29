@@ -1117,7 +1117,6 @@ void MarlinSettings::postprocess() {
     //
     #if ENABLED(SW_MACHINE_SIZE)
     {
-      int i;
       LOOP_XYZ(i) {
         _FIELD_TEST(s_home_offset[i]);
         EEPROM_WRITE(s_home_offset[i]);
@@ -1857,7 +1856,6 @@ void MarlinSettings::postprocess() {
       //
       #if ENABLED(SW_MACHINE_SIZE)
       {
-        int i;
         LOOP_XYZ(i) {
           _FIELD_TEST(s_home_offset[i]);
           EEPROM_READ(s_home_offset[i]);

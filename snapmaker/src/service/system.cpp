@@ -1586,7 +1586,7 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[Z_AXIS], Z_AXIS) * 1000);
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
 
-  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[E_AXIS], E_AXIS) * 1000);
+  tmp_i32 = (int32_t) (current_position[E_AXIS] * 1000);
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
 
   // temperatures of Bed

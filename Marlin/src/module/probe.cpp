@@ -620,7 +620,7 @@ static float run_z_probe() {
   #if MULTIPLE_PROBING > 2
   float probe_speed = MMM_TO_MMS(Z_PROBE_SPEED_SLOW);
   float clearance = Z_CLEARANCE_MULTI_PROBE;
-  float probes[MULTIPLE_PROBING];
+  // float probes[MULTIPLE_PROBING];
   float probes_total = 0;
   float last_probed_z = -10;
     for (uint8_t p = MULTIPLE_PROBING + 1; --p;) {
@@ -657,6 +657,7 @@ static float run_z_probe() {
 
       if (p > 1) do_blocking_move_to_z(current_position[Z_AXIS] + clearance, MMM_TO_MMS(Z_PROBE_SPEED_SLOW));
 
+      // raise Z until probe is not triggered
       if (TEST(endstops.trigger_state(),
         #if ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
           Z_MIN

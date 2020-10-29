@@ -367,9 +367,10 @@ void SnapmakerSetupPost() {
 }
 
 
+extern "C" {
+
 void vApplicationMallocFailedHook( void ) {
   LOG_E("RTOS malloc failed");
 }
 
-
-
+}

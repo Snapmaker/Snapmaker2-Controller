@@ -284,4 +284,17 @@ __default_handler:
 	.weak	__stm32reservedexception17
 	.globl	__stm32reservedexception17
 	.set	__stm32reservedexception17, __default_handler
+	.weak	__irq_spi3
+	.globl	__irq_spi3
+	.set	__irq_spi3, __default_handler
+	.weak	__irq_eth
+	.globl	__irq_eth
+	.set	__irq_eth, __default_handler
+	.weak	__irq_eth_wkup
+	.globl	__irq_eth_wkup
+	.set	__irq_eth_wkup, __default_handler
+	.weak	__irq_otg_fs
+	.globl	__irq_otg_fs
+	.set	__irq_otg_fs, __default_handler
+
 #endif /* STM32_HIGH_DENSITY */

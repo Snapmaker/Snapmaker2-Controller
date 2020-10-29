@@ -715,7 +715,10 @@ int Temperature::getHeaterPower(const int heater) {
 // Temperature Error Handlers
 //
 void Temperature::_temp_error(const int8_t heater, PGM_P const serial_msg, PGM_P const lcd_msg) {
-  static bool killed = false;
+  #if DISABLED(BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE)
+    static bool killed = false;
+  #endif
+
   if (IsRunning()) {
     SERIAL_ERROR_START();
     serialprintPGM(serial_msg);
@@ -2806,7 +2809,7 @@ void Temperature::isr() {
   //
   // Update lcd buttons 488 times per second
   //
-  static bool do_buttons;
+  // static bool do_buttons;
 
   /**
    * One sensor is sampled on every other call of the ISR.
