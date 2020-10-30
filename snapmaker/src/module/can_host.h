@@ -67,8 +67,8 @@ class CanHost {
     ErrCode SendExtCmdSync(CanExtCmd_t &cmd, uint32_t timeout_ms=0, uint8_t retry=1);
     ErrCode WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms=0, uint8_t retry=1);
 
-    ErrCode ReceiveHandler(void *parameter);
-    ErrCode EventHandler(void *parameter);
+    void ReceiveHandler(void *parameter);
+    void EventHandler(void *parameter);
 
     ErrCode UpgradeModules(uint32_t fw_addr, uint32_t length);
 

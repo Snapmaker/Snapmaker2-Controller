@@ -3223,8 +3223,8 @@ void Temperature::isr() {
       wait_for_heatup = true;
       millis_t now, next_temp_ms = 0, next_cool_check_ms = 0;
 
-      xTaskNotify(snap_tasks->hmi, HMI_NOTIFY_WAITFOR_HEATING, eSetBits);
-
+      // tell other task we are waiting for heating hotend
+      xEventGroupSetBits(sm2_handle->event_group, EVENT_GROUP_WAIT_FOR_HEATING);
       do {
         // Target temperature might be changed during the loop
         if (target_temp != degTargetHotend(target_extruder)) {
@@ -3302,7 +3302,7 @@ void Temperature::isr() {
 
       } while (wait_for_heatup && TEMP_CONDITIONS);
 
-      ulTaskNotifyValueClear(snap_tasks->hmi, HMI_NOTIFY_WAITFOR_HEATING);
+      xEventGroupClearBits(sm2_handle->event_group, EVENT_GROUP_WAIT_FOR_HEATING);
 
       if (wait_for_heatup) {
         #if ENABLED(PRINTER_EVENT_LEDS)
@@ -3357,8 +3357,8 @@ void Temperature::isr() {
         printerEventLEDs.onBedHeatingStart();
       #endif
 
-      xTaskNotify(snap_tasks->hmi, HMI_NOTIFY_WAITFOR_HEATING, eSetBits);
-
+      // tell other task we will be blocked in heating bed
+      xEventGroupSetBits(sm2_handle->event_group, EVENT_GROUP_WAIT_FOR_HEATING);
       do {
         // Target temperature might be changed during the loop
         if (target_temp != degTargetBed()) {
@@ -3435,8 +3435,8 @@ void Temperature::isr() {
         first_loop = false;
 
       } while (wait_for_heatup && TEMP_BED_CONDITIONS);
-
-      ulTaskNotifyValueClear(snap_tasks->hmi, HMI_NOTIFY_WAITFOR_HEATING);
+      // clear the event
+      xEventGroupClearBits(sm2_handle->event_group, EVENT_GROUP_WAIT_FOR_HEATING);
 
       #if DISABLED(BUSY_WHILE_HEATING) && ENABLED(HOST_KEEPALIVE_FEATURE)
         gcode.busy_state = old_busy_state;

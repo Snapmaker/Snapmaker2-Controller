@@ -1,6 +1,7 @@
 #include "can_host.h"
-#include "../common/debug.h"
 #include "linear.h"
+#include "../common/debug.h"
+#include "../snapmaker.h"
 
 #include "src/Marlin.h"
 
@@ -42,16 +43,6 @@ bool CanHost::IrqCallback(CanStdDataFrame_t &frame) {
   map_message_function_[frame.id.bits.msg_id].cb(frame);
 
   return true;
-}
-
-
-static void TaskEventHandler(void *p) {
-  canhost.EventHandler(p);
-}
-
-
-static void TaskReceiveHandler(void *p) {
-  canhost.ReceiveHandler(p);
 }
 
 
@@ -100,27 +91,6 @@ ErrCode CanHost::Init() {
   // init can channels
   if (can.Init(CANIrqCallback) != E_SUCCESS)
     LOG_E("Failed to init can channel\n");
-
-
-  ret = xTaskCreate(TaskReceiveHandler, "can_recv_handler", CAN_RECEIVE_HANDLER_STACK_DEPTH,
-        NULL, CAN_RECEIVE_HANDLER_PRIORITY, NULL);
-  if (ret != pdPASS) {
-    LOG_E("Failed to create receiver task!\n");
-    while(1);
-  }
-  else {
-    LOG_I("Created can receiver task!\n");
-  }
-
-  ret = xTaskCreate(TaskEventHandler, "can_event_handler", CAN_EVENT_HANDLER_STACK_DEPTH,
-        NULL, CAN_EVENT_HANDLER_PRIORITY, NULL);
-  if (ret != pdPASS) {
-    LOG_E("Failed to create can event task!\n");
-    while(1);
-  }
-  else {
-    LOG_I("Created can event task!\n");
-  }
 
   AssignMessageRegion();
 
@@ -330,7 +300,7 @@ ErrCode CanHost::WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms, uint8_t re
  * This function should be put in a independent task
  *
  */
-ErrCode CanHost::ReceiveHandler(void *parameter) {
+void CanHost::ReceiveHandler(void *parameter) {
   CanStdDataFrame_t  std_cmd;
   uint16_t tmp_u16;
 
@@ -382,13 +352,13 @@ ErrCode CanHost::ReceiveHandler(void *parameter) {
 
       if (tmp_q) {
         // send message to SendExtMessageSync(), just send data field, because it knows the event id and opcode
-        LOG_V("sync ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
+        // LOG_V("sync ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
         xMessageBufferSend(tmp_q, parser_buffer_, tmp_u16, 100 * portTICK_PERIOD_MS);
       }
       else {
         // send message to EventHandler()
         xMessageBufferSend(ext_cmd_q_, parser_buffer_, tmp_u16, 100 * portTICK_PERIOD_MS);
-        LOG_V("async ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
+        // LOG_V("async ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
         // xMessageBufferSend(ext_cmd_q_, &mac, 4, 100 * portTICK_PERIOD_MS);
       }
     }
@@ -401,10 +371,12 @@ ErrCode CanHost::ReceiveHandler(void *parameter) {
 /* To handle async event from ReceiveHandler()
  * This function should be perfromed in a independent task
  * */
-ErrCode CanHost::EventHandler(void *parameter) {
+void CanHost::EventHandler(void *parameter) {
   CanStdDataFrame_t  std_cmd;
   uint16_t length = 0;
   MAC_t   mac;
+
+  EventGroupHandle_t event_group = ((SnapmakerHandle_t)parameter)->event_group;
 
   CanPacket_t pkt = {CAN_CH_2, CAN_FRAME_EXT_REMOTE, 0x01, 0, 0};
 
@@ -428,6 +400,9 @@ ErrCode CanHost::EventHandler(void *parameter) {
   }
 
   linear.UpdateMachineSize();
+
+  // broadcase modules have been initialized
+  xEventGroupSetBits(event_group, EVENT_GROUP_MODULE_READY);
 
   for (;;) {
     if (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {

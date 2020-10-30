@@ -14,6 +14,7 @@
 
 #include "flash_stm32.h"
 
+SnapmakerHandle_t sm2_handle;
 
 extern void enqueue_hmi_to_marlin();
 
@@ -106,53 +107,33 @@ void CheckUpdateFlag(void)
  * main task
  */
 static void main_loop(void *param) {
-  SnapTasks_t task_param;
   struct DispatcherParam dispather_param;
 
   millis_t cur_mills;
-
-  configASSERT(param);
-  task_param = (SnapTasks_t)param;
 
   dispather_param.owner = TASK_OWN_MARLIN;
 
   dispather_param.event_buff = (uint8_t *)pvPortMalloc(SSTP_RECV_BUFFER_SIZE);
   configASSERT(dispather_param.event_buff);
 
-  dispather_param.event_queue = task_param->event_queue;
+  dispather_param.event_queue = ((SnapmakerHandle_t)param)->event_queue;
 
   HeatedBedSelfCheck();
 
   systemservice.SetCurrentStatus(SYSTAT_IDLE);
+
+  // waiting for initializing modules
+  xEventGroupWaitBits(((SnapmakerHandle_t)param)->event_group, EVENT_GROUP_MODULE_READY, pdFALSE, pdTRUE, portTICK_PERIOD_MS * 10000);
+
+  // init power-loss recovery after initializing modules
+  // because we need to check if current toolhead is same with previous
+  pl_recovery.Init();
 
   SERIAL_ECHOLN("Finish init\n");
 
   cur_mills = millis() - 3000;
 
   for (;;) {
-
-    #if(0)
-    #if ENABLED(SDSUPPORT)
-      card.checkautostart();
-
-      if (card.flag.abort_sd_printing) {
-        card.stopSDPrint(
-          #if SD_RESORT
-            true
-          #endif
-        );
-        clear_command_queue();
-        quickstop_stepper();
-        print_job_timer.stop();
-        thermalManager.disable_all_heaters();
-        thermalManager.zero_fan_speeds();
-        wait_for_heatup = false;
-        #if ENABLED(POWER_LOSS_RECOVERY)
-          card.removeJobRecoveryFile();
-        #endif
-      }
-    #endif // SDSUPPORT
-    #endif
 
     // receive and execute one command, or push Gcode into Marlin queue
     DispatchEvent(&dispather_param);
@@ -179,7 +160,7 @@ static void main_loop(void *param) {
 
 
 static void hmi_task(void *param) {
-  SnapTasks_t    task_param;
+  SnapmakerHandle_t    task_param;
   struct DispatcherParam dispather_param;
 
   ErrCode ret = E_FAILURE;
@@ -187,7 +168,7 @@ static void hmi_task(void *param) {
   uint8_t count = 0;
 
   configASSERT(param);
-  task_param = (SnapTasks_t)param;
+  task_param = (SnapmakerHandle_t)param;
 
   dispather_param.owner = TASK_OWN_HMI;
 
@@ -231,7 +212,6 @@ static void hmi_task(void *param) {
 
 
 static void heartbeat_task(void *param) {
-  //uint32_t  notificaiton = 0;
   //SSTP_Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
 
   int counter = 0;
@@ -249,13 +229,6 @@ static void heartbeat_task(void *param) {
 
       // do following every 1s
       upgrade.Check();
-
-      // linear.PollEndstop(LINEAR_AXIS_ALL);
-
-      // comment temporarily
-      // notificaiton = ulTaskNotifyTake(false, 0);
-      // if (notificaiton && upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
-      //   systemservice.SendStatus(event);
     }
 
     // sleep for 10ms
@@ -290,6 +263,16 @@ void CheckAppValidFlag(void)
 }
 
 
+static void TaskEventHandler(void *p) {
+  canhost.EventHandler(p);
+}
+
+
+static void TaskReceiveHandler(void *p) {
+  canhost.ReceiveHandler(p);
+}
+
+
 void SnapmakerSetupPost() {
   // init the power supply pins
   OUT_WRITE(POWER0_SUPPLY_PIN, POWER0_SUPPLY_ON);
@@ -319,21 +302,22 @@ void SnapmakerSetupPost() {
   // to disable heartbeat if module need to be upgraded
   upgrade.CheckIfUpgradeModule();
 
-  // init power panic handler and load data from flash
-  pl_recovery.Init();
-
   canhost.Init();
 
   enable_power_domain(POWER_DOMAIN_LINEAR);
   enable_power_domain(POWER_DOMAIN_ADDON);
 
-  snap_tasks = (SnapTasks_t)pvPortMalloc(sizeof(struct SnapTasks));
-  snap_tasks->event_queue = xMessageBufferCreate(1024);
+  sm2_handle = (SnapmakerHandle_t)pvPortMalloc(sizeof(struct SnapmakerHandle));
+  sm2_handle->event_queue = xMessageBufferCreate(1024);
+  configASSERT(sm2_handle->event_queue);
+
+  sm2_handle->event_group = xEventGroupCreate();
+  configASSERT(sm2_handle->event_group);
 
   // create marlin task
   BaseType_t ret;
   ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH,
-        (void *)snap_tasks, MARLIN_LOOP_TASK_PRIO, &snap_tasks->marlin);
+        (void *)sm2_handle, MARLIN_LOOP_TASK_PRIO, &sm2_handle->marlin);
   if (ret != pdPASS) {
     LOG_E("Failed to create marlin task!\n");
     while(1);
@@ -343,7 +327,7 @@ void SnapmakerSetupPost() {
   }
 
   ret = xTaskCreate((TaskFunction_t)hmi_task, "HMI_task", HMI_TASK_STACK_DEPTH,
-        (void *)snap_tasks, HMI_TASK_PRIO, &snap_tasks->hmi);
+        (void *)sm2_handle, HMI_TASK_PRIO, &sm2_handle->hmi);
   if (ret != pdPASS) {
     LOG_E("Failed to create HMI task!\n");
     while(1);
@@ -354,13 +338,33 @@ void SnapmakerSetupPost() {
 
 
   ret = xTaskCreate((TaskFunction_t)heartbeat_task, "HB_task", HB_TASK_STACK_DEPTH,
-        (void *)snap_tasks, HB_TASK_STACK_DEPTH, &snap_tasks->heartbeat);
+        (void *)sm2_handle, HB_TASK_PRIO, &sm2_handle->heartbeat);
   if (ret != pdPASS) {
     LOG_E("Failed to create heartbeat task!\n");
     while(1);
   }
   else {
     LOG_I("Created heartbeat task!\n");
+  }
+
+  ret = xTaskCreate((TaskFunction_t)TaskReceiveHandler, "can_recv_handler", CAN_RECEIVE_HANDLER_STACK_DEPTH,
+        (void *)sm2_handle, CAN_RECEIVE_HANDLER_PRIORITY,  &sm2_handle->can_recv);
+  if (ret != pdPASS) {
+    LOG_E("Failed to create receiver task!\n");
+    while(1);
+  }
+  else {
+    LOG_I("Created can receiver task!\n");
+  }
+
+  ret = xTaskCreate((TaskFunction_t)TaskEventHandler, "can_event_handler", CAN_EVENT_HANDLER_STACK_DEPTH,
+        (void *)sm2_handle, CAN_EVENT_HANDLER_PRIORITY, &sm2_handle->can_event);
+  if (ret != pdPASS) {
+    LOG_E("Failed to create can event task!\n");
+    while(1);
+  }
+  else {
+    LOG_I("Created can event task!\n");
   }
 
   vTaskStartScheduler();

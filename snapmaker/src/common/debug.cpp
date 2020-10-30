@@ -150,7 +150,7 @@ ErrCode SnapDebug::SetLogLevel(SSTP_Event_t &event) {
     event.length = 1;
   }
   else {
-    LOG_V("SC req change log level");
+    // LOG_V("SC req change log level");
     sc_msg_level = (SnapDebugLevel)event.data[0];
     event.data[0] = E_SUCCESS;
   }

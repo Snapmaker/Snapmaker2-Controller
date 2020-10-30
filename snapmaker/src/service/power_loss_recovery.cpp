@@ -327,9 +327,6 @@ int PowerLossRecovery::SaveEnv(void) {
   int     i = 0;
   uint8_t *pBuff;
 
-  // extruders' temperature
-	HOTEND_LOOP() cur_data_.HeaterTemp[e] = thermalManager.temp_hotend[e].target;
-
 	LOOP_XYZ(idx) cur_data_.position_shift[idx] = position_shift[idx];
 
 	cur_data_.FilePosition = last_line_;
@@ -337,9 +334,6 @@ int PowerLossRecovery::SaveEnv(void) {
 	cur_data_.axes_relative_mode = relative_mode;
 
 	LOOP_XYZE(idx) cur_data_.axis_relative_modes[idx] = gcode.axis_relative_modes[idx];
-
-  // heated bed
-  cur_data_.BedTamp = thermalManager.temp_bed.target;
 
   cur_data_.toolhead = ModuleBase::toolhead();
 
@@ -355,13 +349,34 @@ int PowerLossRecovery::SaveEnv(void) {
 
   cur_data_.accumulator = print_job_timer.duration();
 
-  for (i = 0; i < PP_FAN_COUNT; i++)
-    cur_data_.FanSpeed[i] = printer1->fan_speed(i);
-
   // if power loss, we have record the position to cur_data_.PositionData[]
-	// NOTE that we save logical position for XYZ
+	// NOTE that we save native position for XYZ
 	for (i=0; i<NUM_AXIS; i++) {
 		cur_data_.PositionData[i] = current_position[i];
+	}
+
+	switch (ModuleBase::toolhead())
+	{
+	case MODULE_TOOLHEAD_CNC:
+		cur_data_.cnc_power = cnc.power();
+		break;
+
+	case MODULE_TOOLHEAD_LASER:
+		cur_data_.laser_percent = laser.power();
+		cur_data_.laser_pwm = laser.power_pwm();
+	break;
+
+  case MODULE_TOOLHEAD_3DP:
+    for (i = 0; i < PP_FAN_COUNT; i++)
+      cur_data_.FanSpeed[i] = printer1->fan_speed(i);
+    // extruders' temperature
+    HOTEND_LOOP() cur_data_.HeaterTemp[e] = thermalManager.temp_hotend[e].target;
+    // heated bed
+    cur_data_.BedTamp = thermalManager.temp_bed.target;
+    break;
+
+	default:
+		break;
 	}
 
 #if (MOTHERBOARD == BOARD_SNAPMAKER1)
@@ -381,23 +396,10 @@ int PowerLossRecovery::SaveEnv(void) {
 	}
 #endif
 
+  cur_data_.active_coordinate_system = gcode.active_coordinate_system;
+
   cur_data_.Valid = 1;
 
-	switch (ModuleBase::toolhead())
-	{
-	case MODULE_TOOLHEAD_CNC:
-		cur_data_.cnc_power = cnc.power();
-		break;
-
-	case MODULE_TOOLHEAD_LASER:
-		cur_data_.laser_percent = laser.power();
-		cur_data_.laser_pwm = laser.power_pwm();
-	break;
-
-	default:
-		break;
-	}
-  	cur_data_.active_coordinate_system = gcode.active_coordinate_system;
 	// checksum need to be calculate at the end,
 	// when all data will not be changed again
 	pBuff = (uint8_t*)&cur_data_;

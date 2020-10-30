@@ -37,7 +37,7 @@ extern "C" {
 #include "utility/include/queue.h"
 #include "utility/include/semphr.h"
 #include "utility/include/message_buffer.h"
-
+#include "utility/include/event_groups.h"
 #ifdef __cplusplus
 }
 #endif

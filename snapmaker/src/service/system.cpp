@@ -48,8 +48,6 @@ void SystemService::Init() {
  */
 ErrCode SystemService::PauseTrigger(TriggerSource type)
 {
-  uint32_t notification = 0;
-
   if (cur_status_ != SYSTAT_WORK && cur_status_!= SYSTAT_RESUME_WAITING) {
     LOG_W("cannot pause in current status: %d\n", cur_status_);
     return E_NO_SWITCHING_STA;
@@ -91,21 +89,20 @@ ErrCode SystemService::PauseTrigger(TriggerSource type)
 
   pause_source_ = type;
 
-  // get notification of current task
-  xTaskNotifyWait(0, 0, &notification, 0);
-  if (notification & HMI_NOTIFY_WAITFOR_HEATING) {
+  // check if we are waiting for heating
+  if (xEventGroupGetBits(sm2_handle->event_group) & EVENT_GROUP_WAIT_FOR_HEATING) {
     taskENTER_CRITICAL();
 
     // if we are waiting for heatup, abort the waiting
     wait_for_heatup = false;
-
+    // save the command line of heating Gcode
     pl_recovery.SaveCmdLine(CommandLine[cmd_queue_index_r]);
 
     taskEXIT_CRITICAL();
   }
 
   // clear event in queue to marlin
-  xMessageBufferReset(snap_tasks->event_queue);
+  xMessageBufferReset(sm2_handle->event_queue);
 
   quickstop.Trigger(QS_SOURCE_PAUSE);
 
@@ -144,8 +141,6 @@ ErrCode SystemService::PreProcessStop() {
  * return: true if stop triggle success, or false
  */
 ErrCode SystemService::StopTrigger(TriggerSource source, uint16_t event_opc) {
-  uint32_t notification = 0;
-
   if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
       cur_status_ != SYSTAT_PAUSE_FINISH) {
     LOG_E("cannot stop in current status[%d]\n", cur_status_);
@@ -203,9 +198,8 @@ ErrCode SystemService::StopTrigger(TriggerSource source, uint16_t event_opc) {
   else
     stop_type_ = STOP_TYPE_ABORTED;
 
-  // get notification of current task
-  xTaskNotifyWait(0, 0, &notification, 0);
-  if (notification & HMI_NOTIFY_WAITFOR_HEATING) {
+  // check if we are wating for heating
+  if (xEventGroupGetBits(sm2_handle->event_group) & EVENT_GROUP_WAIT_FOR_HEATING) {
     taskENTER_CRITICAL();
     // if we are waiting for heatup, abort the waiting
     wait_for_heatup = false;
@@ -336,7 +330,7 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
   }
 
   // send event to marlin task to handle
-  if (xMessageBufferSend(snap_tasks->event_queue, event, 2, portTICK_PERIOD_MS * 100)) {
+  if (xMessageBufferSend(sm2_handle->event_queue, event, 2, portTICK_PERIOD_MS * 100)) {
     cur_status_ = SYSTAT_RESUME_TRIG;
     return E_SUCCESS;
   }
@@ -734,7 +728,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     if (fault_flag_ & FAULT_FLAG_POWER_LOSS)
       return E_SAME_STATE;
     new_fault_flag = FAULT_FLAG_POWER_LOSS;
-    LOG_E("power-loss apeared at last poweroff!\n");
+    // LOG_E("power-loss apeared at last poweroff!\n");
     break;
 
   case ETYPE_HEAT_FAIL:
@@ -1670,7 +1664,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
     break;
 
   case SYSCTL_OPC_RESUME:
-    if (xTaskGetCurrentTaskHandle() == snap_tasks->hmi) {
+    if (xTaskGetCurrentTaskHandle() == sm2_handle->hmi) {
       LOG_I("SC req RESUME\n");
       err = ResumeTrigger(TRIGGER_SOURCE_SC);
       if (err == E_SUCCESS)

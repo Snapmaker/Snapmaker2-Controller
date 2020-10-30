@@ -33,8 +33,6 @@
 
 #define DEBUG_EVENT_HANDLER 0
 
-#define HEART_BEAT_NITIFICATION (60*10)
-
 
 typedef ErrCode (*CallbackFunc_t)(SSTP_Event_t &event);
 
@@ -224,10 +222,6 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
 
 
 static ErrCode SendStatus(SSTP_Event_t &event) {
-  // comment temporarily
-  // if (snap_tasks && snap_tasks->heartbeat)
-  //   xTaskNotify(snap_tasks->heartbeat, HEART_BEAT_NITIFICATION, eSetBits);
-
   // won't send status to HMI while upgrading external module
   if (upgrade.GetState() != UPGRADE_STA_UPGRADING_EM)
     systemservice.SendStatus(event);

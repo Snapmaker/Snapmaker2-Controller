@@ -195,7 +195,7 @@ ErrCode UpgradeService::GetMainControllerVer(SSTP_Event_t &event) {
 
   uint8_t ver[33];
 
-  LOG_I(LOG_HEAD "SC req MC version\n");
+  // LOG_I(LOG_HEAD "SC req MC version\n");
 
   //Request controller's firmware version
   addr = FLASH_BOOT_PARA + 2048;
@@ -218,7 +218,7 @@ ErrCode UpgradeService::CompareMCVer(SSTP_Event_t &event) {
   ErrCode   err = E_SUCCESS;
   uint8_t   cur_ver[33];
 
-  LOG_I(LOG_HEAD "SC req compare version\n");
+  // LOG_I(LOG_HEAD "SC req compare version\n");
 
   addr = FLASH_BOOT_PARA + 2048;
 
@@ -247,7 +247,7 @@ ErrCode UpgradeService::CompareMCVer(SSTP_Event_t &event) {
 ErrCode UpgradeService::GetUpgradeStatus(SSTP_Event_t &event) {
   uint8_t up_status = (uint8_t) upgrade_state_;
 
-  LOG_I(LOG_HEAD "SC req upgrade statue\n");
+  // LOG_I(LOG_HEAD "SC req upgrade statue\n");
 
   event.data = &up_status;
   event.length = 1;
@@ -265,7 +265,7 @@ ErrCode UpgradeService::GetModuleVer(SSTP_Event_t &event) {
   int     i, l;
 
 
-  LOG_I(LOG_HEAD "SC req MODULE ver\n");
+  // LOG_I(LOG_HEAD "SC req MODULE ver\n");
 
   event.data = buffer;
 
@@ -282,7 +282,7 @@ ErrCode UpgradeService::GetModuleVer(SSTP_Event_t &event) {
     cmd.length  = 1;
 
     if ((ret = canhost.SendExtCmdSync(cmd, 500)) != E_SUCCESS) {
-      LOG_I(LOG_HEAD "Failed to get ver for MAC: 0x%X, ret: %u\n", mac.val, ret);
+      // LOG_I(LOG_HEAD "Failed to get ver for MAC: 0x%X, ret: %u\n", mac.val, ret);
       continue;
     }
 
@@ -303,7 +303,7 @@ ErrCode UpgradeService::GetModuleVer(SSTP_Event_t &event) {
 ErrCode UpgradeService::SendModuleUpgradeStatus(uint8_t sta) {
   SSTP_Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_SYNC_MODULE_UP_STATUS};
 
-  LOG_I(LOG_HEAD "Sending module upgrade statue\n");
+  // LOG_I(LOG_HEAD "Sending module upgrade statue\n");
 
   event.data = &sta;
   event.length = 1;

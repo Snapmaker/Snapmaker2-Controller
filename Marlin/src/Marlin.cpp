@@ -259,8 +259,6 @@ uint32_t ABL_GRID_POINTS_VIRT_Y;
 uint32_t ABL_TEMP_POINTS_X;
 uint32_t ABL_TEMP_POINTS_Y;
 
-SnapTasks_t snap_tasks;
-
 /**
  * ***************************************************************************
  * ******************************** FUNCTIONS ********************************

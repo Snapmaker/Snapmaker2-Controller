@@ -11,17 +11,23 @@
 #include "service/quick_stop.h"
 #include "service/power_loss_recovery.h"
 
-struct SnapTasks {
+struct SnapmakerHandle {
   TaskHandle_t marlin;
   TaskHandle_t hmi;
   TaskHandle_t heartbeat;
+  TaskHandle_t can_recv;
+  TaskHandle_t can_event;
+
   MessageBufferHandle_t event_queue;
+  EventGroupHandle_t    event_group;
 };
-typedef struct SnapTasks* SnapTasks_t;
+typedef struct SnapmakerHandle* SnapmakerHandle_t;
 
-extern SnapTasks_t snap_tasks;
+extern SnapmakerHandle_t sm2_handle;
 
-#define HMI_NOTIFY_WAITFOR_HEATING 0X00000001
+
+#define EVENT_GROUP_MODULE_READY      (0x00000001)
+#define EVENT_GROUP_WAIT_FOR_HEATING  (0X00000002)
 
 
 #define ACTION_BAN_NONE               (0)
