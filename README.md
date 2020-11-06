@@ -29,10 +29,9 @@ As of recommended in Marlin's development settings, we use **Visual Studio Code*
 - Open downloaded repo in **VSCode**
   - Use the **Open Folder…** command in the **VSCode** **File** menu
   - Then choose top folder of **Snapmaker2-Controller** in your location
-- After opening the source code in **VSCode**, you will get these icons in the bottom status bar of VSCode，it also indicates PlatformIO has been installed successfully.
+- After opening the source code in **VSCode**, you will see these icons at the bottom status bar，it also indicates PlatformIO has been installed successfully.
 
-![VSCode with PlatformIO]()
-
+![VSCode with PlatformIO](https://user-images.githubusercontent.com/3749551/98325327-814d3200-2029-11eb-9dd8-df9bee2dcbad.png)
 
 
 ### Compile the code
