@@ -33,7 +33,6 @@ As of recommended in Marlin's development settings, we use **Visual Studio Code*
 
 ![VSCode with PlatformIO](https://user-images.githubusercontent.com/3749551/98325327-814d3200-2029-11eb-9dd8-df9bee2dcbad.png)
 
-
 ### Compile the code
 
 - To compile the code, you have two ways:
