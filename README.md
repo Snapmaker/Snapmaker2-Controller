@@ -3,13 +3,14 @@
 Snapmaker2-Controller is the firmware for Snapmaker 2.0 3-in-1 3D Printers. It's based on the popular [Marlin firmware](http://marlinfw.org/) with optimized FreeRTOS support.
 
 
-
 ## Features of Snapmaker2-Controller
 
 - Build on top of FreeRTOS.
-- Rotary Module add-on supports.
-
-
+- Support 3 different function modules: 3D Printing Module, Laser Module, CNC Module.
+- Support add-ons like *Rotary Module* and *Enclosure Module*.
+- CAN based communication system.
+- Snapmaker specific functions like Auto-leveling, Laser Auto-Focus, Power-Loss Recovery etc.
+- HMI (Touch Screen) communication over SSTP.
 
 ## Development
 

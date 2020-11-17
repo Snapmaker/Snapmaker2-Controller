@@ -2,7 +2,7 @@
 
 This is the hardware link of Snapmaker2-Controller, it shows how different modules communicate with each other.
 
-![Hardware-Link](https://user-images.githubusercontent.com/3749551/98462552-0d10bb00-21f0-11eb-84d1-36e81ff4741e.png)
+![Hardware-Link](https://user-images.githubusercontent.com/3749551/99341821-9053a000-28c5-11eb-8437-5dc9dea185ce.png)
 
 ### Controller <-> Luban
 
@@ -17,6 +17,7 @@ This is the hardware link of Snapmaker2-Controller, it shows how different modul
 
 - Wired link: stepper signals (enable, direction, step signals)
 - CAN bus:
+    - indentify and configure module
     - upgrade module
     - read probe sensor
     - read filament sensor
@@ -28,7 +29,8 @@ This is the hardware link of Snapmaker2-Controller, it shows how different modul
 
 - Wired link: laser power (remapped from step signal)
 - CAN bus:
-    - upgrad module
+    - indentify and configure module
+    - upgrade module
     - read/write laser focus data
     - Set FAN speed
 - UART bus (remapped from enable and direction signals):
@@ -39,6 +41,7 @@ This is the hardware link of Snapmaker2-Controller, it shows how different modul
 ### Controller <-> CNC module
 
 - CAN bus:
+    - indentify and configure module
     - upgrade module
     - set spindle speed
 
@@ -46,18 +49,33 @@ This is the hardware link of Snapmaker2-Controller, it shows how different modul
 
 - Wired link: stepper signals (enable, direction, step signals)
 - CAN bus:
+    - indentify and configure module
+        - e.g. distinguish X, Y, Z linear modules
     - upgrade module
     - get the lead
     - get the length
     - get endstop status
 
+### Controller <-> Rotary module
+
+- Wired link: stepper signals (enable, direction, step signals)
+- CAN bus:
+    - indentify and configure module
+    - upgrade module
+
 ### Controller <-> Enclosure add-on
 
 - CAN bus:
+    - indentify and configure module
     - upgrade module
     - get door status (open / closed)
     - set light bar brightness
     - set FAN speed
+
+### Controller <-> Power Module
+
+- 24V provider
+- Wired link: Power-Loss signal
 
 ### HMI <-> Snapmaker Luban
 
@@ -71,5 +89,6 @@ This is the hardware link of Snapmaker2-Controller, it shows how different modul
 ### HMI <-> Laser camera
 
 - Bluetooth
+    - LED control
     - take picture
     - file transfer
