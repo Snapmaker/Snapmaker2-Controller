@@ -42,19 +42,19 @@ As of recommended in Marlin's development settings, we use **Visual Studio Code*
 
 NOTE: if you build the source for first time, PlatformIO will download the relative libraries and toochains. It may take a few minutes.
 
-- After PlatformIO finishing the build, you will get two images
+- After PlatformIO finishing the build, you will get two images:
   - (Top)/.pioenvs/GD32F105/firmware.bin: image to be programmed into main controller
   - (Top)/.pioenvs/GD32F105/firmware.elf: image to be used in Ozone(online debug tool) 
 
-- To clean previous build, just click the **clean** icon, or type command ***pio run -t clean*** in the terminal
-
-
+- To clean previous build, just click the **clean** icon, or type command ***pio run -t clean*** in the terminal.
 
 ### Program compiled firmware to main controller
 
-TBD
+You need to install [Luban](https://github.com/Snapmaker/Luban) to package the compiled firmware.
 
+First, Open `Settings -> Firmware Tool` in Luban, upload the compiled `firmware.bin`, click "Compile and Export". You will get a file with name like `Snapmaker2_V3.2.0_20201117.bin`, this is the packaged update file to be programmed.
 
+Then, Update your firmware via USB follow instructions in [How to update Firmware](https://forum.snapmaker.com/t/snapmaker-2-0-firmware-updates-and-downloads/5443/10) section.
 
 ## License
 
