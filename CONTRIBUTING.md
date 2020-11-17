@@ -102,17 +102,7 @@ After your pull request is merged, you can safely delete your branch and pull th
 
 ## <a name="code"></a> Code Style Guidelines
 
-Generally, we follow [Airbnb's JavaScript Style Guide](https://github.com/airbnb/javascript), based
-on that we write a [ESLint config for Snapmaker](https://github.com/Snapmaker/eslint-config-snapmaker)
-to check code style.
-
-A githook is also added to run the check automatically before every git push.
-
-- Check code style:
-
-```
-npm run lint
-```
+TBD
 
 ## <a name="commit"></a> Commit Message Guidelines
 
