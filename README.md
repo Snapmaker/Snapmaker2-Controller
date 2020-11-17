@@ -2,8 +2,9 @@
 
 Snapmaker2-Controller is the firmware for Snapmaker 2.0 3-in-1 3D Printers. It's based on the popular [Marlin firmware](http://marlinfw.org/) with optimized FreeRTOS support.
 
+## Documentation
 
-## Features of Snapmaker2-Controller
+Snapmaker2-Controller builds on the codebase of Marlin 2.0, we also added some new features:
 
 - Build on top of FreeRTOS.
 - Support 3 different function modules: 3D Printing Module, Laser Module, CNC Module.
@@ -11,6 +12,13 @@ Snapmaker2-Controller is the firmware for Snapmaker 2.0 3-in-1 3D Printers. It's
 - CAN based communication system.
 - Snapmaker specific functions like Auto-leveling, Laser Auto-Focus, Power-Loss Recovery etc.
 - HMI (Touch Screen) communication over SSTP.
+
+To read more documentations about **Snapmaker2-Controller**, you can checkout the [Snapmaker2-Controller Overview](https://github.com/Snapmaker/Snapmaker2-Controller/blob/main/docs/Overview.md) or [Hardware Link](https://github.com/Snapmaker/Snapmaker2-Controller/blob/main/docs/Hardware-Link.md) for further reading.
+
+## Feedback & Contribution
+
+- To submit a bug or feature request, [file an issue](https://github.com/Snapmaker/Snapmaker2-Controller/issues/new) in github issues.
+- To contribute some code, make sure you have read and followed our guidelines for [contributing](https://github.com/Snapmaker/Snapmaker2-Controller/blob/master/CONTRIBUTING.md).
 
 ## Development
 
@@ -43,8 +51,8 @@ As of recommended in Marlin's development settings, we use **Visual Studio Code*
 NOTE: if you build the source for first time, PlatformIO will download the relative libraries and toochains. It may take a few minutes.
 
 - After PlatformIO finishing the build, you will get two images:
-  - (Top)/.pioenvs/GD32F105/firmware.bin: image to be programmed into main controller
-  - (Top)/.pioenvs/GD32F105/firmware.elf: image to be used in Ozone(online debug tool) 
+  - `(PROJECT FOLDER)/.pioenvs/GD32F105/firmware.bin`: image to be programmed into main controller
+  - `(PROJECT FOLDER)/.pioenvs/GD32F105/firmware.elf`: image used to debug the firmware (in online debug tools like Ozone) 
 
 - To clean previous build, just click the **clean** icon, or type command ***pio run -t clean*** in the terminal.
 
@@ -52,9 +60,9 @@ NOTE: if you build the source for first time, PlatformIO will download the relat
 
 You need to install [Luban](https://github.com/Snapmaker/Luban) to package the compiled firmware.
 
-First, Open `Settings -> Firmware Tool` in Luban, upload the compiled `firmware.bin`, click "Compile and Export". You will get a file with name like `Snapmaker2_V3.2.0_20201117.bin`, this is the packaged update file to be programmed.
+First, Open **Settings** -> **Firmware Tool** in Luban, upload the compiled `firmware.bin`, click **Compile and Export**. You will get a file with name like `Snapmaker2_V3.2.0_20201117.bin`, this is the packaged update file to be programmed.
 
-Then, Update your firmware via USB follow instructions in [How to update Firmware](https://forum.snapmaker.com/t/snapmaker-2-0-firmware-updates-and-downloads/5443/10) section.
+Then, Update your firmware via USB follow the instructions in [How to update Firmware](https://forum.snapmaker.com/t/snapmaker-2-0-firmware-updates-and-downloads/5443/10) section.
 
 ## License
 
