@@ -17,7 +17,7 @@ if upload_protocol.startswith("jlink"):
         commands = [
             "h",
             "loadbin %s, %s" % (source, board.get(
-                "upload.offset_address", "0x08009800")),
+                "upload.offset_address", "0x0800B800")),
             "r",
             "q"
         ]
