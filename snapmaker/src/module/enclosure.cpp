@@ -145,6 +145,7 @@ void Enclosure::PollDoorState() {
 
 
 void Enclosure::Disable() {
+  enabled_ = false;
   if (event_state_ == ENCLOSURE_EVENT_STATE_HANDLED_OPEN &&
       event_state_ == ENCLOSURE_EVENT_STATE_OPENED) {
     HandleDoorClosed();
@@ -154,6 +155,7 @@ void Enclosure::Disable() {
 
 
 void Enclosure::Enable() {
+  enabled_= true;
   if (door_state_ == ENCLOSURE_DOOR_STATE_OPEN &&
       event_state_ == ENCLOSURE_EVENT_STATE_IDLE) {
     HandleDoorOpened();
