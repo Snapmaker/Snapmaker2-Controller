@@ -151,6 +151,8 @@ void Enclosure::Disable() {
     HandleDoorClosed();
     event_state_ = ENCLOSURE_EVENT_STATE_IDLE;
   }
+
+  LOG_I("Door detection disabled\n");
 }
 
 
@@ -160,6 +162,8 @@ void Enclosure::Enable() {
       event_state_ == ENCLOSURE_EVENT_STATE_IDLE) {
     HandleDoorOpened();
   }
+
+  LOG_I("Door detection enabled\n");
 }
 
 
