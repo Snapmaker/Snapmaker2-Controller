@@ -121,7 +121,7 @@ class RingBuffer {
 
   int32_t Free() {
     int32_t delta = (int32_t)(tail_ - head_);
-    return (delta >= 0)? (size_ - delta) : (size_ + delta);
+    return (delta >= 0)? (size_ - delta) : -delta;
   }
 
   void Reset() {
