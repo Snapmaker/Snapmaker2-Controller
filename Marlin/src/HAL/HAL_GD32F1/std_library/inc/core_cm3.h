@@ -121,8 +121,9 @@
 /** __FPU_USED indicates whether an FPU is used or not.
     This core does not support an FPU at all
 */
-#define __FPU_USED       0
+#define __FPU_USED       1
 
+#if 0
 #if defined ( __CC_ARM )
   #if defined __TARGET_FPU_VFP
     #error "Compiler generates FPU instructions for a device without an FPU (check __FPU_PRESENT)"
@@ -158,6 +159,7 @@
     #error "Compiler generates FPU instructions for a device without an FPU (check __FPU_PRESENT)"
   #endif
 
+#endif
 #endif
 
 #include "CMSIS/core_cmInstr.h"                /* Core Instruction Access */
