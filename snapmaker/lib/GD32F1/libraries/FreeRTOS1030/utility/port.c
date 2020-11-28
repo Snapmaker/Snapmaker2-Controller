@@ -132,7 +132,7 @@ static void prvPortStartFirstTask( void ) __attribute__ (( naked ));
 /*
  * Function to enable the VFP.
  */
-//static void vPortEnableVFP( void ) __attribute__ (( naked ));
+static void vPortEnableVFP( void ) __attribute__ (( naked ));
 
 /*
  * Used to catch tasks that attempt to return from their implementing function.
@@ -287,7 +287,6 @@ static void prvPortStartFirstTask( void )
 /*
  * See header file for description.
  */
-extern void systick_attach_callback(void (*callback)(void));
 BaseType_t xPortStartScheduler( void )
 {
 	/* configMAX_SYSCALL_INTERRUPT_PRIORITY must not be set to 0.
@@ -376,7 +375,7 @@ BaseType_t xPortStartScheduler( void )
 	uxCriticalNesting = 0;
 
 	/* Ensure the VFP is enabled - it should be anyway. */
-	//vPortEnableVFP();
+	vPortEnableVFP();
 
 	/* Lazy save always. */
 	*( portFPCCR ) |= portASPEN_AND_LSPEN_BITS;
@@ -448,9 +447,9 @@ void __exc_pendsv( void )
 	"	ldr	r3, pxCurrentTCBConst			\n" /* Get the location of the current TCB. */
 	"	ldr	r2, [r3]						\n"
 	"										\n"
-//	"	tst r14, #0x10						\n" /* Is the task using the FPU context?  If so, push high vfp registers. */
-//	"	it eq								\n"
-//	"	vstmdbeq r0!, {s16-s31}				\n"
+	"	tst r14, #0x10						\n" /* Is the task using the FPU context?  If so, push high vfp registers. */
+	"	it eq								\n"
+	"	vstmdbeq r0!, {s16-s31}				\n"
 	"										\n"
 	"	stmdb r0!, {r4-r11, r14}			\n" /* Save the core registers. */
 	"	str r0, [r2]						\n" /* Save the new top of stack into the first member of the TCB. */
@@ -470,9 +469,9 @@ void __exc_pendsv( void )
 	"										\n"
 	"	ldmia r0!, {r4-r11, r14}			\n" /* Pop the core registers. */
 	"										\n"
-//	"	tst r14, #0x10						\n" /* Is the task using the FPU context?  If so, pop the high vfp registers too. */
-//	"	it eq								\n"
-//	"	vldmiaeq r0!, {s16-s31}				\n"
+	"	tst r14, #0x10						\n" /* Is the task using the FPU context?  If so, pop the high vfp registers too. */
+	"	it eq								\n"
+	"	vldmiaeq r0!, {s16-s31}				\n"
 	"										\n"
 	"	msr psp, r0							\n"
 	"	isb									\n"
@@ -706,18 +705,18 @@ __attribute__(( weak )) void vPortSetupTimerInterrupt( void )
 /*-----------------------------------------------------------*/
 
 /* This is a naked function. */
-// static void vPortEnableVFP( void )
-// {
-// 	__asm volatile
-// 	(
-// 		"	ldr.w r0, =0xE000ED88		\n" /* The FPU enable bits are in the CPACR. */
-// 		"	ldr r1, [r0]				\n"
-// 		"								\n"
-// 		"	orr r1, r1, #( 0xf << 20 )	\n" /* Enable CP10 and CP11 coprocessors, then save back. */
-// 		"	str r1, [r0]				\n"
-// 		"	bx r14						"
-// 	);
-// }
+static void vPortEnableVFP( void )
+{
+	__asm volatile
+	(
+		"	ldr.w r0, =0xE000ED88		\n" /* The FPU enable bits are in the CPACR. */
+		"	ldr r1, [r0]				\n"
+		"								\n"
+		"	orr r1, r1, #( 0xf << 20 )	\n" /* Enable CP10 and CP11 coprocessors, then save back. */
+		"	str r1, [r0]				\n"
+		"	bx r14						"
+	);
+}
 /*-----------------------------------------------------------*/
 
 #if( configASSERT_DEFINED == 1 )

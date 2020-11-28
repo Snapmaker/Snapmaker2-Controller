@@ -31,6 +31,7 @@ extern void init(void);
 // Force init to be called *first*, i.e. before static object allocation.
 // Otherwise, statically allocated objects that need libmaple may fail.
  __attribute__(( constructor (101))) void premain() {
+    *(volatile unsigned int*)0xE000ED88 |= 0xF00000; //Enable the FPU coprocessors
     init();
 }
 
