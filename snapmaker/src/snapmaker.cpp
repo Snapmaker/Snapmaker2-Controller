@@ -249,6 +249,7 @@ static void heartbeat_task(void *param) {
 
       // do following every 1s
       upgrade.Check();
+      canhost.SendHeartbeat();
     }
 
     // sleep for 10ms
