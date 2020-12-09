@@ -92,6 +92,10 @@ ErrCode CanChannel::Write(CanPacket_t &packet) {
     ret_send = CanSendPacked(packet.id, IDTYPE_EXTID, packet.ch + 1, FRAME_REMOTE, 0, 0);
     break;
 
+  case CAN_FRAME_STD_REMOTE:
+    ret_send = CanSendPacked(packet.id, IDTYPE_STDID, packet.ch + 1, FRAME_REMOTE, 0, 0);
+    break;
+
   default:
     break;
   }
