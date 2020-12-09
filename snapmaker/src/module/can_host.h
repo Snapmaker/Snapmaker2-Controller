@@ -94,6 +94,8 @@ class CanHost {
     ErrCode SendExtCmdSync(CanExtCmd_t &cmd, uint32_t timeout_ms=0, uint8_t retry=1);
     ErrCode WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms=0, uint8_t retry=1);
 
+    ErrCode SendHeartbeat();
+
     void ReceiveHandler(void *parameter);
     void EventHandler(void *parameter);
 
