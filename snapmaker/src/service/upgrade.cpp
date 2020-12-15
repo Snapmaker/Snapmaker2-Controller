@@ -46,6 +46,8 @@ ErrCode UpgradeService::RequestNextPacket() {
 
   event.data = buff;
 
+  timeout_ = 0;
+
   return hmi.Send(event);
 }
 
@@ -95,7 +97,6 @@ ErrCode UpgradeService::StartUpgrade(SSTP_Event_t &event) {
   FLASH_Lock();
   taskEXIT_CRITICAL();
 
-  timeout_ = 0;
   received_fw_size_ = 0;
   req_pkt_counter_  = 0;
   pre_pkt_counter_  = 0;
@@ -333,9 +334,6 @@ ErrCode UpgradeService::SendModuleUpgradeStatus(uint8_t sta) {
 
 
 void UpgradeService::Check(void) {
-  SSTP_Event_t event = {EID_UPGRADE_ACK, UPGRADE_OPC_TRANS_FW};
-  uint8_t buff[2];
-
   if (upgrade_state_ != UPGRADE_STA_RECV_FW) {
     return;
   }
@@ -349,12 +347,7 @@ void UpgradeService::Check(void) {
   }
 
   if (!(timeout_ & 0x0003)) {
-    event.length = 0;
-    HWORD_TO_PDU_BYTES_INDE_MOVE(buff, req_pkt_counter_, event.length);
-
-    event.data = buff;
-
-    hmi.Send(event);
+    RequestNextPacket();
   }
 }
 
