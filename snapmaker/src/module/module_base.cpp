@@ -119,7 +119,6 @@ ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
   if (fw_length % UPGRADE_FW_OFFSET_FW_SIZE)
     total_packet++;
 
-  LOG_I("Start to send fw\n");
   for (;;) {
     // 4. wait packet request from module
     cmd.data[MODULE_EXT_CMD_INDEX_ID] = MODULE_EXT_CMD_TRANS_FW_ACK;
@@ -133,7 +132,6 @@ ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
     // packet index from module
     packet_index = cmd.data[2]<<8 | cmd.data[3];
     if (packet_index  >= total_packet) {
-      LOG_I("Index is reached end: %u\n", packet_index, total_packet);
       break;
     }
 
@@ -157,7 +155,7 @@ ErrCode ModuleBase::Upgrade(MAC_t &mac, uint32_t fw_addr, uint32_t fw_length) {
     canhost.SendExtCmd(cmd);
   }
 
-  LOG_I("Done\n\n");
+  LOG_I("Done\n");
   // 6. request to end upgrading
   cmd.data[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_END_UPGRADE_REQ;
   cmd.data[MODULE_EXT_CMD_INDEX_DATA] = 0;
