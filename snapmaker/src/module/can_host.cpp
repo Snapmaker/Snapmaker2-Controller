@@ -36,7 +36,7 @@
 CanHost canhost;
 
 /**
- * IRQ callback for can channel, to handle emergent message,
+ * IRQ callback for can channel, to handle emergency message,
  * such as endstop state from linear module
  * Parameter:
  *  message_id  - message id from CAN ID field
@@ -52,7 +52,7 @@ static bool CANIrqCallback(CanStdDataFrame_t &frame) {
 
 
 bool CanHost::IrqCallback(CanStdDataFrame_t &frame) {
-  // handle only emergent and high prio message in IRQ callback
+  // handle only emergency and high prio message in IRQ callback
   if (frame.id.bits.msg_id >= message_region_[MODULE_FUNC_PRIORITY_HIGH][0])
     return false;
 
@@ -168,20 +168,20 @@ ErrCode CanHost::SendStdCmd(CanStdFuncCmd_t &function, uint8_t sub_index) {
   return ret;
 }
 
-ErrCode CanHost::SendHeartbeat() {
-  CanPacket_t  packet;
-  ErrCode      ret = E_FAILURE;
 
-  packet.id = 0x01;
 
-  packet.ft     = CAN_FRAME_STD_REMOTE;
-  packet.data   = NULL;
-  packet.length = 0;
-  packet.ch = CAN_CH_1;
-  ret = can.Write(packet);
+void CanHost::SendHeartbeat() {
+  CanPacket_t packet = {CAN_CH_1, CAN_FRAME_STD_REMOTE, 0x01, 0, 0};
+  can.Write(packet);
   packet.ch = CAN_CH_2;
-  ret = can.Write(packet);
-  return ret;
+  can.Write(packet);
+}
+
+void CanHost::SendEmergencyStop() {
+  CanPacket_t packet = {CAN_CH_1, CAN_FRAME_STD_REMOTE, 0x02, 0, 0};
+  can.Write(packet);
+  packet.ch = CAN_CH_2;
+  can.Write(packet);
 }
 
 ErrCode CanHost::SendStdCmdSync(CanStdFuncCmd_t &cmd, uint32_t timeout_ms, uint8_t retry, uint8_t sub_index) {
@@ -513,8 +513,8 @@ ErrCode CanHost::AssignMessageRegion() {
   message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0]   += (MODULE_SPARE_MESSAGE_ID_MEDIUM + message_region_[MODULE_FUNC_PRIORITY_HIGH][0]);
   message_region_[MODULE_FUNC_PRIORITY_LOW][0]      = MODULE_SUPPORT_MESSAGE_ID_MAX;
   SERIAL_ECHOLN("Message ID region:");
-  SERIAL_ECHOLNPAIR("emergent: ", 0, " - ", message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0]-1);
-  SERIAL_ECHOLNPAIR("high    : ", message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0], " - ", message_region_[MODULE_FUNC_PRIORITY_HIGH][0]-1);
+  SERIAL_ECHOLNPAIR("emergent: ", 0, " - ", message_region_[MODULE_SPARE_MESSAGE_ID_EMERGENT][0]-1);
+  SERIAL_ECHOLNPAIR("high    : ", message_region_[MODULE_SPARE_MESSAGE_ID_EMERGENT][0], " - ", message_region_[MODULE_FUNC_PRIORITY_HIGH][0]-1);
   SERIAL_ECHOLNPAIR("medium  : ", message_region_[MODULE_FUNC_PRIORITY_HIGH][0], " - ", message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0]-1);
   SERIAL_ECHOLNPAIR("low     : ", message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0], " - ", message_region_[MODULE_FUNC_PRIORITY_LOW][0]-1);
   SERIAL_EOL();
@@ -536,7 +536,7 @@ void CanHost::ShowModuleVersion(MAC_t mac) {
   cmd.data[0] = MODULE_EXT_CMD_VERSION_REQ;
   cmd.length  = 1;
   if (canhost.SendExtCmdSync(cmd, 500) != E_SUCCESS) {
-    LOG_I("ver fail\n");
+    LOG_I("failed or failed to get ver\n");
   } else {
     buffer[cmd.length] = 0;
     LOG_I(" %s\n",  buffer+2);
