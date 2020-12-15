@@ -84,7 +84,7 @@ enum ModuleDeviceID {
   MODULE_DEVICE_ID_LINEAR       ,  // 3
   MODULE_DEVICE_ID_LIGHT        ,  // 4
   MODULE_DEVICE_ID_ENCLOSURE    ,  // 5
-
+  MODULE_EMERGENCY_STOP      = 8,  // 8
   MODULE_DEVICE_ID_INVALID
 };
 
@@ -125,7 +125,7 @@ enum ModuleFunctionID {
   MODULE_FUNC_PROOFREAD_KNIFE       ,  // 17
   MODULE_FUNC_SET_ENCLOSURE_LIGHT   ,  // 18
   MODULE_FUNC_SET_ENCLOSURE_FAN     ,  // 19
-
+  FUNC_REPORT_EMERGENCY_STOP        ,  // 20
   MODULE_FUNC_MAX
 };
 
@@ -161,11 +161,12 @@ const uint8_t module_prio_table[][2] = {
   {/* MODULE_FUNC_PROOFREAD_KNIFE     */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
   {/* MODULE_FUNC_SET_ENCLOSURE_LIGHT */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
   {/* MODULE_FUNC_SET_ENCLOSURE_FAN   */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
+  {/* FUNC_REPORT_EMERGENCY_STOP      */  MODULE_FUNC_PRIORITY_EMERGENT,  1},
 
   {/* MODULE_FUNC_SYSTEM_STATUS       */  MODULE_FUNC_PRIORITY_MEDIUM,    1},
   {/* MODULE_FUNC_PAUSE_WORK          */  MODULE_FUNC_PRIORITY_EMERGENT,  1},
   {/* MODULE_FUNC_RESUME_WORK         */  MODULE_FUNC_PRIORITY_EMERGENT,  1},
-  {/* MODULE_FUNC_STOP_WORK           */  MODULE_FUNC_PRIORITY_EMERGENT,  1}
+  {/* MODULE_FUNC_STOP_WORK           */  MODULE_FUNC_PRIORITY_EMERGENT,  1},
 };
 
 
@@ -221,6 +222,11 @@ enum ModuleToolHeadType {
   MODULE_TOOLHEAD_LASER
 };
 
+enum LockMarlinUartSource {
+  LOCK_SOURCE_NONE,
+  LOCK_SOURCE_ENCLOSURE,
+  LOCK_SOURCE_EMERGENT_STOP,
+};
 
 class ModuleBase {
   public:
@@ -232,7 +238,8 @@ class ModuleBase {
     static ModuleToolHeadType toolhead() { return toolhead_; }
 
     static bool lock_marlin_uart() { return lock_marlin_uart_; };
-    static void LockMarlinUart();
+    static LockMarlinUartSource lock_marlin_source() { return lock_marlin_source_; };
+    static void LockMarlinUart(LockMarlinUartSource source=LOCK_SOURCE_NONE);
     static void UnlockMarlinUart();
     static void ReportMarlinUart();
     static void StaticProcess() {
@@ -262,6 +269,7 @@ class ModuleBase {
     uint16_t device_id_;
 
     static bool lock_marlin_uart_;
+    static LockMarlinUartSource lock_marlin_source_;
     static uint16_t timer_in_static_process_;
 
   private:

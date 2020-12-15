@@ -168,20 +168,20 @@ ErrCode CanHost::SendStdCmd(CanStdFuncCmd_t &function, uint8_t sub_index) {
   return ret;
 }
 
-ErrCode CanHost::SendHeartbeat() {
-  CanPacket_t  packet;
-  ErrCode      ret = E_FAILURE;
 
-  packet.id = 0x01;
 
-  packet.ft     = CAN_FRAME_STD_REMOTE;
-  packet.data   = NULL;
-  packet.length = 0;
-  packet.ch = CAN_CH_1;
-  ret = can.Write(packet);
+void CanHost::SendHeartbeat() {
+  CanPacket_t packet = {CAN_CH_1, CAN_FRAME_STD_REMOTE, 0x01, 0, 0};
+  can.Write(packet);
   packet.ch = CAN_CH_2;
-  ret = can.Write(packet);
-  return ret;
+  can.Write(packet);
+}
+
+void CanHost::SendEmergentStop() {
+  CanPacket_t packet = {CAN_CH_1, CAN_FRAME_STD_REMOTE, 0x02, 0, 0};
+  can.Write(packet);
+  packet.ch = CAN_CH_2;
+  can.Write(packet);
 }
 
 ErrCode CanHost::SendStdCmdSync(CanStdFuncCmd_t &cmd, uint32_t timeout_ms, uint8_t retry, uint8_t sub_index) {

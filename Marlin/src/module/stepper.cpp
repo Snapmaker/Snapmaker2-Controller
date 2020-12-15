@@ -97,7 +97,7 @@ Stepper stepper; // Singleton
 #include "../core/language.h"
 #include "../gcode/queue.h"
 #include "../HAL/shared/Delay.h"
-
+#include "../../../snapmaker/src/module/emergent_stop.h"
 #include "../../../snapmaker/src/snapmaker.h"
 
 #if MB(ALLIGATOR)
@@ -1289,7 +1289,7 @@ void Stepper::isr() {
   // checking power loss here because when no moves in block buffer, ISR will not
   // execute to endstop.update(), then we cannot check power loss there.
   // But if power loss happened and ISR cannot get block, no need to check again
-  if (quickstop.CheckInISR(current_block)) {
+  if (quickstop.CheckInISR(current_block) || emergency_stop.IsTrigger()) {
     abort_current_block = false;
     if (current_block) {
       axis_did_move = 0;

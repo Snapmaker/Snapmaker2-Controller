@@ -162,7 +162,7 @@ ErrCode SystemService::PreProcessStop() {
  */
 ErrCode SystemService::StopTrigger(TriggerSource source, uint16_t event_opc) {
   if (cur_status_ != SYSTAT_WORK && cur_status_ != SYSTAT_RESUME_WAITING &&
-      cur_status_ != SYSTAT_PAUSE_FINISH) {
+      cur_status_ != SYSTAT_PAUSE_FINISH && source != TRIGGER_SOURCE_STOP_BUTTON) {
     LOG_E("cannot stop in current status[%d]\n", cur_status_);
     return E_NO_SWITCHING_STA;
   }
@@ -180,6 +180,11 @@ ErrCode SystemService::StopTrigger(TriggerSource source, uint16_t event_opc) {
       LOG_E("current working port is not PC!");
       return E_FAILURE;
     }
+    break;
+
+  case TRIGGER_SOURCE_STOP_BUTTON:
+    LOG_E("current working is stopped!");
+    PreProcessStop();
     break;
 
   default:
@@ -229,7 +234,11 @@ ErrCode SystemService::StopTrigger(TriggerSource source, uint16_t event_opc) {
 
   stop_source_ = source;
 
-  quickstop.Trigger(QS_SOURCE_STOP);
+  if (source == TRIGGER_SOURCE_STOP_BUTTON) {
+    quickstop.Trigger(QS_SOURCE_STOP_BUTTEN);
+  } else {
+    quickstop.Trigger(QS_SOURCE_STOP);
+  }
 
   return E_SUCCESS;
 }

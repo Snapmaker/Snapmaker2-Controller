@@ -25,6 +25,8 @@
 
 #include "../module/toolhead_cnc.h"
 #include "../module/toolhead_3dp.h"
+#include "../module/toolhead_laser.h"
+#include "../module/enclosure.h"
 
 #include "src/module/stepper.h"
 #include "src/module/temperature.h"
@@ -56,14 +58,18 @@ void QuickStopService::Trigger(QuickStopSource new_source, bool from_isr /*=fals
     DISABLE_TEMPERATURE_INTERRUPT();
   }
 
-  if (source_ == QS_SOURCE_IDLE) {
+  if (new_source == QS_SOURCE_STOP_BUTTEN) {
+    source_ = new_source;
+    state_ = QS_STA_STOPPED;
+    // to stop planning movement
+    planner.cleaning_buffer_counter = 0;
+  } else if (source_ == QS_SOURCE_IDLE) {
     source_ = new_source;
     state_ = QS_STA_TRIGGERED;
 
     // to stop planning movement
     planner.cleaning_buffer_counter = 2000;
-  }
-  else {
+  } else {
     if (new_source == QS_SOURCE_POWER_LOSS) {
       pre_source_ = source_;
       source_ = new_source;
@@ -294,6 +300,27 @@ void QuickStopService::TurnOffPower(QuickStopState sta) {
   }
 }
 
+void QuickStopService::EmergencyStop() {
+  // module stop after module version 1.9.1
+  canhost.SendEmergentStop();
+  // compatible old module
+  switch (ModuleBase::toolhead()) {
+    case MACHINE_TYPE_CNC:
+      cnc.TurnOff();
+      break;
+    case MACHINE_TYPE_3DPRINT:
+      printer1->SetFan(1, 0);
+      printer1->SetFan(0, 0);
+      break;
+    case MACHINE_TYPE_LASER:
+      laser.SetCameraLight(0);
+      break;
+    case MACHINE_TYPE_UNDEFINE:
+      break;
+  }
+  enclosure.SetFanSpeed(0);
+  enclosure.SetLightBar(0);
+}
 
 void QuickStopService::Process() {
   if (state_ == QS_STA_IDLE)
@@ -332,8 +359,13 @@ void QuickStopService::Process() {
         LOGICAL_Y_POSITION(current_position[Y_AXIS]), LOGICAL_Z_POSITION(current_position[Z_AXIS]), current_position[E_AXIS]);
   }
 
-  // parking
-  Park();
+  if (source_ == QS_SOURCE_STOP_BUTTEN) {
+    LOG_I("Trigger emergency stop!\n");
+    EmergencyStop();
+  } else {
+    // parking
+    Park();
+  }
 
   if (source_ == QS_SOURCE_POWER_LOSS) {
     // for normal power-loss, CPU cannot arrive here

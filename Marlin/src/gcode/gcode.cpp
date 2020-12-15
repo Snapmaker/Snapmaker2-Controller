@@ -807,13 +807,22 @@ void GcodeSuite::process_parsed_command(
 ) {
 
   if (ModuleBase::lock_marlin_uart()) {
-    // only handle M1120
-    if (parser.command_letter == 'M' && parser.codenum == 1010) {
-      execute_command();
-      ok_to_send();
+    switch (ModuleBase::lock_marlin_source()) {
+      case LOCK_SOURCE_ENCLOSURE:
+        // only handle M1010
+        if (parser.command_letter == 'M' && parser.codenum == 1010) {
+          execute_command();
+          ok_to_send();
+        }
+        return;
+      case LOCK_SOURCE_EMERGENT_STOP:
+        ok_to_send();
+        SERIAL_ECHOLN("emergency stop state, please restart the machine");
+        return;
+      case LOCK_SOURCE_NONE:
+        SERIAL_ECHOLN("uart lock!");
+        return;
     }
-
-    return;
   }
 
   execute_command();

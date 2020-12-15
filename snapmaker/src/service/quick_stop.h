@@ -45,6 +45,7 @@ enum QuickStopSource : uint8_t {
   QS_SOURCE_PAUSE,
   QS_SOURCE_STOP,
   QS_SOURCE_POWER_LOSS,
+  QS_SOURCE_STOP_BUTTEN,
 
   QS_SOURCE_INVALID
 };
@@ -57,7 +58,7 @@ class QuickStopService {
     bool CheckInISR(block_t *blk) AT_SNAP_SECTION;
 
     void Trigger(QuickStopSource new_source, bool from_isr=false);
-
+    void EmergencyStop();
     void Process();
 
     bool inline isTriggered() { return source_ != QS_SOURCE_IDLE; }

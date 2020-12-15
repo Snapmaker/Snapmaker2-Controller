@@ -632,6 +632,20 @@ ErrCode ToolHeadLaser::GetCameraBtMAC(SSTP_Event_t &event) {
   return hmi.Send(event);
 }
 
+/**
+ * SetCameraLight:set camera light status
+ * para state:1-open 0-close
+ */
+void ToolHeadLaser::SetCameraLight(uint8_t state) {
+  SSTP_Event_t  event = {M_SET_CAMERA_LIGHT, 0, 0, NULL};
+  uint8_t buff[1];
+  buff[0] = !state;
+  event.data = buff;
+  event.length = 1;
+  esp32_.Send(event);
+  esp32_.FlushOutput();
+  LOG_I("set Laser Camera light:%d!\n", state);
+}
 
 void ToolHeadLaser::Process() {
   if (++timer_in_process_ < 100) return;

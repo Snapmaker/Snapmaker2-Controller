@@ -28,6 +28,7 @@
 
 #include "linear.h"
 #include "enclosure.h"
+#include "emergent_stop.h"
 #include "toolhead_3dp.h"
 #include "toolhead_cnc.h"
 #include "toolhead_laser.h"
@@ -40,9 +41,10 @@
 
 extern ToolHead3DP printer_single;
 
-ModuleBase *static_modules[] = {&linear, &printer_single, &laser, &cnc, &enclosure, NULL};
+ModuleBase *static_modules[] = {&linear, &printer_single, &laser, &cnc, &enclosure, &emergency_stop, NULL};
 
 bool ModuleBase::lock_marlin_uart_ = false;
+LockMarlinUartSource ModuleBase::lock_marlin_source_ = LOCK_SOURCE_NONE;
 uint16_t ModuleBase::timer_in_static_process_ = 0;
 ModuleToolHeadType ModuleBase::toolhead_ = MODULE_TOOLHEAD_UNKNOW;
 
@@ -197,21 +199,29 @@ ErrCode ModuleBase::InitModule8p(MAC_t &mac, int dir_pin, uint8_t index) {
 }
 
 
-void ModuleBase::LockMarlinUart() {
+void ModuleBase::LockMarlinUart(LockMarlinUartSource source) {
   lock_marlin_uart_ = true;
+  lock_marlin_source_ = max(lock_marlin_source_, source);
 }
 
 
 void ModuleBase::UnlockMarlinUart() {
   lock_marlin_uart_ = false;
+  lock_marlin_source_ = LOCK_SOURCE_NONE;
 }
 
 
 void ModuleBase::ReportMarlinUart() {
   if (!lock_marlin_uart_)
     return;
-
-  SERIAL_ECHOLN(";Locked UART");
+  switch (lock_marlin_source_) {
+    case LOCK_SOURCE_NONE:
+    case LOCK_SOURCE_ENCLOSURE:
+      SERIAL_ECHOLN(";Locked UART");
+      break;
+    case LOCK_SOURCE_EMERGENT_STOP:
+      break;
+  }
 }
 
 
