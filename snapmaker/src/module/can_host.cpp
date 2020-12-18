@@ -722,10 +722,16 @@ ErrCode CanHost::UpgradeModules(uint32_t fw_addr, uint32_t length) {
 
     ModuleBase::Upgrade(mac_[i], fw_addr, length);
   }
-
+  SetReceiverSpeed(RECEIVER_SPEED_NORMAL);
+  // Waiting module to enter app
+  vTaskDelay(pdMS_TO_TICKS(200));
   LOG_I("All upgraded!\n");
+  // Restart all module
+  disable_power_domain(POWER_DOMAIN_1|POWER_DOMAIN_2);
+  vTaskDelay(pdMS_TO_TICKS(1000));
+  enable_power_domain(POWER_DOMAIN_1|POWER_DOMAIN_2);
+  vTaskDelay(pdMS_TO_TICKS(1000));
 
-  vTaskDelay(100);
   CanPacket_t pkt = {CAN_CH_2, CAN_FRAME_EXT_REMOTE, 0x01, 0, 0};
 
   LOG_I("Scanning modules ...\n");
