@@ -35,7 +35,6 @@
 #include "src/libs/hex_print_routines.h"
 
 void GcodeSuite::M1005() {
-  CanExtCmd_t cmd;
   MAC_t       mac;
 
   char buffer[VERSION_STRING_SIZE + 4];
@@ -51,23 +50,12 @@ void GcodeSuite::M1005() {
 
   // version of modules
   LOG_I("Module Ver:\n");
-  cmd.data = (uint8_t *)buffer;
   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
     mac.val = canhost.mac(i);
 
     if (mac.val == MODULE_MAC_ID_INVALID)
       break;
-
-    cmd.mac     = mac;
-    cmd.data[0] = MODULE_EXT_CMD_VERSION_REQ;
-    cmd.length  = 1;
-
-    if (canhost.SendExtCmdSync(cmd, 500) != E_SUCCESS) {
-      continue;
-    }
-
-    buffer[cmd.length + 2] = 0;
-    LOG_I("0x%08X: %s\n", mac.val, buffer+2);
+    canhost.ShowModuleVersion(mac);
   }
 
 

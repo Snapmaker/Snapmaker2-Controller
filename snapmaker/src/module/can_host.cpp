@@ -493,6 +493,26 @@ ErrCode CanHost::AssignMessageRegion() {
   return E_SUCCESS;
 }
 
+void CanHost::ShowModuleVersion(MAC_t mac) {
+  CanExtCmd_t cmd;
+
+  char buffer[50];
+  if (mac.val == MODULE_MAC_ID_INVALID)
+    return;
+
+  // version of modules
+  LOG_I("Module 0x%08X:", mac.bits.id);
+  cmd.data = (uint8_t *)buffer;
+  cmd.mac     = mac;
+  cmd.data[0] = MODULE_EXT_CMD_VERSION_REQ;
+  cmd.length  = 1;
+  if (canhost.SendExtCmdSync(cmd, 500) != E_SUCCESS) {
+    LOG_I("ver fail\n");
+  } else {
+    buffer[cmd.length] = 0;
+    LOG_I(" %s\n",  buffer+2);
+  }
+}
 
 ErrCode CanHost::InitModules(MAC_t &mac) {
   int      i;
@@ -505,6 +525,7 @@ ErrCode CanHost::InitModules(MAC_t &mac) {
   if (total_mac_ >= MODULE_SUPPORT_CONNECTED_MAX)
     return E_NO_RESRC;
 
+  ShowModuleVersion(mac);
   // check if this mac is configured
   for (i = 0; i < total_mac_; i++) {
     if (mac.bits.id == mac_[i].bits.id) {
