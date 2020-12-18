@@ -720,9 +720,6 @@ ErrCode CanHost::UpgradeModules(uint32_t fw_addr, uint32_t length) {
     if (mac_[i].val == MODULE_MAC_ID_INVALID)
       break;
 
-    if (MODULE_GET_DEVICE_ID(mac_[i].val) >= MODULE_DEVICE_ID_INVALID)
-      continue;
-
     ModuleBase::Upgrade(mac_[i], fw_addr, length);
   }
 
