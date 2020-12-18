@@ -97,7 +97,7 @@ class CanHost {
     bool IrqCallback(CanStdDataFrame_t &frame);
 
     ErrCode BindMessageID(CanExtCmd_t &cmd, message_id_t *msg_buffer);
-
+    void ShowModuleVersion(MAC_t mac);
     uint32_t mac(uint8_t index) {
       if (index < total_mac_)
         return mac_[index].val;
