@@ -806,7 +806,7 @@ void idle(
   #endif
 
   if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
-    vTaskDelay(portTICK_PERIOD_MS);
+    vTaskDelay(pdMS_TO_TICKS(1));
 }
 
 /**
