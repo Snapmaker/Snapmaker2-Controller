@@ -3,7 +3,7 @@
 
 #include <wirish.h>
 #include "flash_stm32.h"
-#include "../../../../Marlin/src/core/macros.h"
+#include "../../../../../Marlin/src/core/macros.h"
 
 // HACK ALERT. This definition may not match your processor
 // To Do. Work out correct value for EEPROM_PAGE_SIZE on the STM32F103CT6 etc 

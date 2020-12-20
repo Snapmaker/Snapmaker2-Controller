@@ -14,8 +14,6 @@ env.Append(
             "--specs=nano.specs",
             "--specs=nosys.specs",
 
-            "-IMarlin/src/HAL/GD32F1",
-
             "-MMD",
             "-MP",
             "-DTARGET_GD32F1"
