@@ -1,11 +1,8 @@
 # extra script for linker and compile options
 Import("env")
 env.Append(
-  CCFLAGS=[ "-Os",
-            "-mcpu=cortex-m4",
-#           "-mfpu=fpv4-sp-d16",
-#           "-mfloat-abi=hard",
-            "-mthumb",
+  CCFLAGS=[ #"-mfpu=fpv4-sp-d16",
+            #"-mfloat-abi=softfp",
 
             "-fsigned-char",
             "-fno-move-loop-invariants",
@@ -16,5 +13,4 @@ env.Append(
 
             "-DTARGET_GD32F1"
   ],
-  CFLAGS=["-std=gnu11"],
 )

@@ -1,7 +1,7 @@
 {
   "build": {
     "core": "maple",
-    "cpu": "cortex-m3",
+    "cpu": "cortex-m4",
     "extra_flags": "-DSTM32F105xE",
     "f_cpu": "120000000L",
     "xtal": 25000000,
