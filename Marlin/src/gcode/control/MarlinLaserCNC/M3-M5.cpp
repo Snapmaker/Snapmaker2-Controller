@@ -20,13 +20,13 @@
  *
  */
 
-#include "../../inc/MarlinConfig.h"
+#include "../../../inc/MarlinConfig.h"
 
 #if ENABLED(SPINDLE_LASER_ENABLE)
 
-#include "../gcode.h"
-#include "../../module/stepper.h"
-#include "../../module/laserexecuter.h"
+#include "../../gcode.h"
+#include "../../../module/stepper.h"
+#include "../../../module/laserexecuter.h"
 
 
 uint8_t spindle_laser_power; // = 0

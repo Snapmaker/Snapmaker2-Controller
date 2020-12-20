@@ -32,7 +32,7 @@
 
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../../core/debug_out.h"
-#include "../../../../snapmaker/src/snapmaker.h"
+#include "../../../../../snapmaker/src/snapmaker.h"
 
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
