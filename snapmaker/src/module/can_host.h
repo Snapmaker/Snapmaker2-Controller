@@ -32,6 +32,9 @@
 
 #define CAN_STD_WAIT_QUEUE_MAX    (4)
 
+#define CAN_RECV_SPEED_NORMAL 10  // ms
+#define CAN_RECV_SPEED_HIGH 0
+
 typedef void (*CanStdCmdCallback_t)(CanStdDataFrame_t &cmd);
 
 
@@ -73,6 +76,10 @@ typedef struct {
   MessageBufferHandle_t queue;
 } CanExtWaitNode_t;
 
+typedef enum {
+  RECEIVER_SPEED_NORMAL,
+  RECEIVER_SPEED_HIGH,
+}RECEIVER_SPEED_E;
 
 class CanHost {
   public:
@@ -98,6 +105,7 @@ class CanHost {
 
     ErrCode BindMessageID(CanExtCmd_t &cmd, message_id_t *msg_buffer);
     void ShowModuleVersion(MAC_t mac);
+    void SetReceiverSpeed(RECEIVER_SPEED_E speed);
     uint32_t mac(uint8_t index) {
       if (index < total_mac_)
         return mac_[index].val;
@@ -130,6 +138,7 @@ class CanHost {
     MessageBufferHandle_t ext_cmd_q_;   // command queue from ReceiveHandler() to EventHandler for extend command
     CanExtWaitNode_t      ext_wait_q_;
     xSemaphoreHandle      ext_wait_lock_;
+    uint8_t receiver_speed_ = CAN_RECV_SPEED_NORMAL;
 
     // map for message id and function id
     MessageMap_t  map_message_function_[MODULE_SUPPORT_MESSAGE_ID_MAX];
