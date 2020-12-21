@@ -68,7 +68,6 @@ bool CanHost::IrqCallback(CanStdDataFrame_t &frame) {
 
 ErrCode CanHost::Init() {
   int i;
-  BaseType_t ret;
 
   for (i = 0; i < MODULE_SUPPORT_MESSAGE_ID_MAX; i++) {
     map_message_function_[i].cb       = 0;
@@ -748,7 +747,7 @@ assign_message_id:
 
 ErrCode CanHost::UpgradeModules(uint32_t fw_addr, uint32_t length) {
   int   i;
-
+  
   SetReceiverSpeed(RECEIVER_SPEED_HIGH);
   // upgrade dynamic modules
   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
