@@ -31,6 +31,8 @@
 #include "service/quick_stop.h"
 #include "service/power_loss_recovery.h"
 
+#include "module/toolhead_3dp.h"
+
 struct SnapmakerHandle {
   TaskHandle_t marlin;
   TaskHandle_t hmi;

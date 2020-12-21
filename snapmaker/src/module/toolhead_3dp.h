@@ -25,25 +25,32 @@
 #include "can_host.h"
 
 #include "../common/config.h"
+#include "../common/debug.h"
 
-#define TOOLHEAD_3DP_FAN_MAX    (2)
+#define TOOLHEAD_3DP_FAN_MAX      (2)
+#define TOOLHEAD_3DP_EXTRUDER_MAX (2)
 
-#define EXTRUDERS 1
+#define TOOLHEAD_3DP_EXTRUDER0    (1)
+#define TOOLHEAD_3DP_EXTRUDER1    (0)
 
 class ToolHead3DP: public ModuleBase {
   public:
     ToolHead3DP(ModuleDeviceID id): ModuleBase(id) {
-      for (int i = 0; i < EXTRUDERS; i++) {
+      for (int i = 0; i < TOOLHEAD_3DP_EXTRUDER_MAX; i++) {
         cur_temp_[i]  = 0;
+        target_temp_[i] = 0;
       }
 
       for (int i = 0; i < TOOLHEAD_3DP_FAN_MAX; i++) {
         fan_speed_[i] = 0;
       }
       mac_index_      = MODULE_MAC_INDEX_INVALID;
+      cur_extruder_   = TOOLHEAD_3DP_EXTRUDER0;
       probe_state_    = 0;
 
       timer_in_process_ = 0;
+
+      msg_id_swtich_extruder_ = MODULE_MESSAGE_ID_INVALID;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -51,6 +58,7 @@ class ToolHead3DP: public ModuleBase {
     ErrCode SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time=0);
     ErrCode SetPID(uint8_t index, float value, uint8_t extrude_index=0);
     ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index=0);
+    ErrCode SwitchExtruder(uint8_t extrude_index);
 
     void Process();
 
@@ -67,40 +75,23 @@ class ToolHead3DP: public ModuleBase {
       return fan_speed_[fan_index];
     }
 
-    void probe_state(uint8_t state, uint8_t extrude_index=0) {
-      if (extrude_index >= EXTRUDERS)
-        return;
+    void SetProbeState(uint8_t state[]);
+    bool GetProbeState(uint8_t extruder=0);
+    uint8_t probe_state() { return probe_state_; }
 
-      if (state)
-        probe_state_ |= (1<<extrude_index);
-      else
-        probe_state_ &= ~(1<<extrude_index);
-    }
-    uint8_t probe_state() {
-      return probe_state_;
-    }
+    void SetFilamentState(uint8_t state[]);
+    bool GetFilamentState(uint8_t extruder=0);
+    uint8_t filament_state() { return filament_state_; }
 
-    void filament_state(uint8_t state, uint8_t extrude_index=0) {
-      if (extrude_index >= EXTRUDERS)
-        return;
+    void SetTemp(uint8_t temp[]) {
+      cur_temp_[0] = temp[0]<<8|temp[1];
 
-      if (state)
-        filament_state_ |= (1<<extrude_index);
-      else
-        filament_state_ &= ~(1<<extrude_index);
-    }
-    uint8_t filament_state() {
-      return filament_state_;
-    }
-
-    void SetTemp(uint16_t temp, uint8_t extrude_index=0) {
-      if (extrude_index >= EXTRUDERS)
-        return;
-
-      cur_temp_[extrude_index] = temp;
+      if (device_id_ == MODULE_DEVICE_ID_3DP_DUAL) {
+        cur_temp_[1] = temp[4]<<8|temp[5];
+      }
     }
     uint16_t GetTemp(uint8_t extrude_index=0) {
-      if (extrude_index >= EXTRUDERS)
+      if (extrude_index >= TOOLHEAD_3DP_EXTRUDER_MAX)
         return 0;
 
       return cur_temp_[extrude_index];
@@ -111,15 +102,19 @@ class ToolHead3DP: public ModuleBase {
 
   private:
     uint8_t mac_index_;
+    uint8_t cur_extruder_;
 
     uint16_t timer_in_process_;
 
-    uint16_t cur_temp_[EXTRUDERS];
+    uint16_t cur_temp_[TOOLHEAD_3DP_EXTRUDER_MAX];
+    uint16_t target_temp_[TOOLHEAD_3DP_EXTRUDER_MAX];
     uint8_t  fan_speed_[TOOLHEAD_3DP_FAN_MAX];
 
     // 1 bit indicates one sensor
     uint8_t probe_state_;
     uint8_t filament_state_;
+
+    message_id_t msg_id_swtich_extruder_;
 };
 
 extern ToolHead3DP *printer1;

@@ -31,8 +31,10 @@
 #include "temperature.h"
 #include "src/libs/hex_print_routines.h"
 
-#include "../snapmaker/src/module/toolhead_3dp.h"
-#include "../snapmaker/src/module/linear.h"
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #include "../snapmaker/src/module/toolhead_3dp.h"
+  #include "../snapmaker/src/module/linear.h"
+#endif
 
 #if ENABLED(ENDSTOP_INTERRUPTS_FEATURE)
   #include HAL_PATH(../HAL, endstop_interrupts.h)
@@ -457,8 +459,16 @@ void _O2 Endstops::M119() {
     ES_REPORT_LINEAR(Y_MAX);
     ES_REPORT_LINEAR(Z_MIN);
     ES_REPORT_LINEAR(Z_MAX);
-    print_es_state(TEST(printer1->probe_state(), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
-    print_es_state(TEST(printer1->filament_state(), 0) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
+    print_es_state(printer1->GetProbeState(0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE"0"));
+    #if EXTRUDERS > 1
+      print_es_state(printer1->GetProbeState(1) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE"1"));
+    #endif
+
+    print_es_state(printer1->GetFilamentState(0) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR"0"));
+    #if EXTRUDERS > 1
+      print_es_state(printer1->GetFilamentState(1) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR"1"));
+    #endif
+
   #else
 
 
@@ -914,7 +924,14 @@ void _O2 Endstops::M119() {
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
       #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-        if (G38_move) SET_BIT_TO(live_state, Z_MIN_PROBE, (printer1->probe_state() != Z_MIN_PROBE_ENDSTOP_INVERTING));
+        if (G38_move) {
+          if (printer1->GetProbeState(active_extruder) != Z_MIN_PROBE_ENDSTOP_INVERTING) {
+            SBI(live_state, Z_MIN_PROBE);
+          }
+          else {
+            CBI(live_state, Z_MIN_PROBE);
+          }
+        }
       #else
         #if PIN_EXISTS(Z_MIN_PROBE)
           // If G38 command is active check Z_MIN_PROBE for ALL movement
@@ -1027,8 +1044,14 @@ void _O2 Endstops::M119() {
       #elif ENABLED(Z_MIN_PROBE_USES_Z_MIN_ENDSTOP_PIN)
         UPDATE_ENDSTOP_BIT(Z, MIN);
       #elif ENABLED(SW_MACHINE_SIZE)
-        if(Z_HOME_DIR < 0)
-          SET_BIT_TO(live_state, Z_MIN_PROBE, (TEST(printer1->probe_state(), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING));
+        if(Z_HOME_DIR < 0) {
+          if (printer1->GetProbeState(active_extruder) != Z_MIN_PROBE_ENDSTOP_INVERTING) {
+            SBI(live_state, Z_MIN_PROBE);
+          }
+          else {
+            CBI(live_state, Z_MIN_PROBE);
+          }
+        }
       #elif Z_HOME_DIR < 0
         UPDATE_ENDSTOP_BIT(Z, MIN);
       #endif
@@ -1036,7 +1059,12 @@ void _O2 Endstops::M119() {
 
     // When closing the gap check the enabled probe
     #if USES_Z_MIN_PROBE_ENDSTOP || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-      SET_BIT_TO(live_state, Z_MIN_PROBE, (TEST(printer1->probe_state(), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING));
+      if (printer1->GetProbeState(active_extruder) != Z_MIN_PROBE_ENDSTOP_INVERTING) {
+        SBI(live_state, Z_MIN_PROBE);
+      }
+      else {
+        CBI(live_state, Z_MIN_PROBE);
+      }
     #endif
 
     #if HAS_Z_MAX || (MOTHERBOARD == BOARD_SNAPMAKER_2_0)

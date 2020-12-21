@@ -28,6 +28,7 @@
 #include "src/inc/MarlinConfig.h"
 #include "src/module/endstops.h"
 
+#include "toolhead_3dp.h"
 
 Linear linear;
 
@@ -320,14 +321,24 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    LOOP_XYZ(i) home_offset[i] = l_home_offset[i];
-
     X_DEF_SIZE = 320;
     Y_DEF_SIZE = 340;
     Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
 
     MAGNET_X_SPAN = 274;
     MAGNET_Y_SPAN = 304;
+
+    if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
+      float temp_offset[3] = L_HOME_OFFSET_DEFAULT_DUAL_EXTRUDER;
+      LOOP_XYZ(i) home_offset[i] = temp_offset[i];
+      X_MAX_POS = 355;
+
+      X_DEF_SIZE    = 305;
+      MAGNET_X_SPAN = 260;
+    }
+    else {
+      LOOP_XYZ(i) home_offset[i] = l_home_offset[i];
+    }
 
     machine_size_ = MACHINE_SIZE_A350;
     goto out;

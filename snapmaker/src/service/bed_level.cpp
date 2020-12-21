@@ -97,7 +97,16 @@ ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
 
     // Recover the Z max feedrate to 20mm/s
     planner.settings.max_feedrate_mm_s[Z_AXIS] = orig_max_z_speed;
+  }
 
+  if (err != E_SUCCESS)
+    goto OUT;
+
+  if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
+    level_mode_ = LEVEL_MODE_AUTO_NO_ADJUST;
+    return SaveAndExitLeveling(event);
+  }
+  else {
     level_mode_ = LEVEL_MODE_AUTO;
   }
 
@@ -268,8 +277,13 @@ ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
 
   planner.synchronize();
 
-  if (level_mode_ == LEVEL_MODE_MANUAL && manual_level_index_ <= GRID_MAX_POINTS_INDEX) {
-    // save the last point
+  switch (level_mode_) {
+  case LEVEL_MODE_MANUAL:
+    if (manual_level_index_ > GRID_MAX_POINTS_INDEX) {
+      err = E_FAILURE;
+      goto out;
+    }
+
     MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
     LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", manual_level_index_,
         current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
@@ -281,14 +295,21 @@ ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
 
     bed_level_virt_interpolate();
     settings.save();
-  }
-  else if (level_mode_ == LEVEL_MODE_AUTO) {
+    break;
+
+  case LEVEL_MODE_AUTO_NO_ADJUST:
+    nozzle_height_probed = 1;
+    process_cmd_imd("G1029 S1");
+    break;
+
+  case LEVEL_MODE_AUTO:
     process_cmd_imd("G1029 S0");
-  }
-  else {
+    break;
+
+  default:
     LOG_E("didn't start leveling!\n");
     err = E_FAILURE;
-    return hmi.Send(event);
+    break;
   }
 
   LOG_I("new leveling data:\n");
@@ -311,6 +332,7 @@ ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
   // clear flag
   level_mode_ = LEVEL_MODE_INVALD;
 
+out:
   return hmi.Send(event);
 }
 

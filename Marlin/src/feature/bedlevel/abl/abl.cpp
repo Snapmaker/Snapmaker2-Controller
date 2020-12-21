@@ -470,9 +470,9 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
     LOG_I("Probing No. %d\n", k);
 
     if (k < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y - 1))
-      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE); // raw position
+      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE, 0, printer1->device_id() != MODULE_DEVICE_ID_3DP_DUAL); // raw position
     else
-      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_NONE); // raw position
+      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_NONE, 0, printer1->device_id() != MODULE_DEVICE_ID_3DP_DUAL); // raw position
     z_values[cur_x][cur_y] = z;
     visited[cur_x][cur_y] = true;
     if (isnan(z)) {

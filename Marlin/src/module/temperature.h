@@ -589,8 +589,6 @@ class Temperature {
     static void setTargetHotend(const int16_t celsius, const uint8_t e) {
       E_UNUSED();
 
-      LOG_I("new E target temp: %d\n", celsius);
-
       if (action_ban & ACTION_BAN_NO_HEATING_HOTEND) {
         if (celsius > 0) {
           LOG_E("ERROR: System Fault[0x%X]! NOW cannot heat hotend!\n", systemservice.GetFaultFlag());

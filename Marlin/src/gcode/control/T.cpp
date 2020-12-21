@@ -34,6 +34,10 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
 
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #include "../snapmaker/src/module/toolhead_3dp.h"
+#endif
+
 /**
  * T0-T<n>: Switch tool, usually switching extruders
  *
@@ -71,6 +75,10 @@ void GcodeSuite::T(const uint8_t tool_index) {
       MMM_TO_MMS(parser.linearval('F')),
       (tool_index == active_extruder) || parser.boolval('S')
     );
+
+    printer1->SwitchExtruder(tool_index);
+    active_extruder = tool_index;
+
 
   #endif
 

@@ -66,9 +66,9 @@
  * TODO: Currently using same Enable pin to all steppers.
  */
 
-#define E1_STEP_PIN        PE13
-#define E1_DIR_PIN         PC10
-#define E1_ENABLE_PIN      PD11
+#define E1_STEP_PIN        PE14
+#define E1_DIR_PIN         PB10
+#define E1_ENABLE_PIN      PB11
 
 #define E2_STEP_PIN        -1
 #define E2_DIR_PIN         -1
@@ -83,7 +83,8 @@
 //
 // Heaters / Fans
 //
-#define HEATER_0_PIN       PA15   // EXTRUDER 1
+#define HEATER_0_PIN       PA15   // unused pin, fake
+#define HEATER_1_PIN       PA12   // unused pin, fake
 
 #define HEATER_BED_PIN     PA7   // BED
 
@@ -96,8 +97,8 @@
 // Temperature Sensors
 //
 #define TEMP_BED_PIN       PC4   // ANALOG NUMBERING
-#define TEMP_0_PIN         PC5   // ANALOG NUMBERING
-#define TEMP_1_PIN         -1   // ANALOG NUMBERING
+#define TEMP_0_PIN         PC5   // unused pin, fake
+#define TEMP_1_PIN         PE7   // unused pin, fake
 
 //
 // Filament Switch

@@ -27,6 +27,8 @@ enum LevelMode: uint8_t {
   LEVEL_MODE_AUTO = 0,
   LEVEL_MODE_MANUAL,
 
+  LEVEL_MODE_AUTO_NO_ADJUST,
+
   LEVEL_MODE_INVALD
 };
 

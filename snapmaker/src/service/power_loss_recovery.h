@@ -34,7 +34,6 @@ typedef enum {
 
 #define PP_FILE_NAME_LEN  270
 #define PP_FAN_COUNT      2
-#define PP_HEATER         1
 
 // delay for debounce, uint: ms, for now we use 10ms
 #define POWERPANIC_DEBOUNCE	6
@@ -42,7 +41,7 @@ typedef struct __attribute__((aligned (4))) {
 	// checksum of this section
 	uint32_t CheckSum;
 	// temperature of extrucders
-	int16_t HeaterTemp[PP_HEATER];
+	int16_t HeaterTemp[EXTRUDERS];
 	// speed of work
 	float PrintFeedRate;
 	// speed of travel

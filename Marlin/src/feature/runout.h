@@ -308,6 +308,10 @@ class FilamentSensorBase {
   class FilamentSensorSwitch : public FilamentSensorBase {
     private:
       static inline bool poll_runout_state(const uint8_t extruder) {
+        #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+          return printer1->GetFilamentState(extruder) != FIL_RUNOUT_INVERTING;
+        #else
+
         const uint8_t runout_states = poll_runout_states();
 
         #if NUM_RUNOUT_SENSORS == 1
@@ -327,6 +331,8 @@ class FilamentSensorBase {
         #if NUM_RUNOUT_SENSORS > 1
           return TEST(runout_states, extruder); // Specific extruder
         #endif
+
+        #endif  // #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       }
 
     public:
