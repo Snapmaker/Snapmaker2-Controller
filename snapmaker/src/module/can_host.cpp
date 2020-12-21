@@ -314,6 +314,21 @@ ErrCode CanHost::WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms, uint8_t re
 
   return E_TIMEOUT;
 }
+/** Set ReceiveHandler delay time
+ * Adjust the speed according to the amount of data received
+ */
+void CanHost::SetReceiverSpeed(RECEIVER_SPEED_E speed) {
+  switch (speed){
+    case RECEIVER_SPEED_NORMAL:
+      receiver_speed_ = CAN_RECV_SPEED_NORMAL;
+      break;
+    case RECEIVER_SPEED_HIGH:
+      receiver_speed_ = CAN_RECV_SPEED_HIGH;
+      break;
+    default:
+      receiver_speed_ = CAN_RECV_SPEED_NORMAL;
+  }
+}
 
 
 /* To check if we got new event form CAN ISR
@@ -734,6 +749,7 @@ assign_message_id:
 ErrCode CanHost::UpgradeModules(uint32_t fw_addr, uint32_t length) {
   int   i;
 
+  SetReceiverSpeed(RECEIVER_SPEED_HIGH);
   // upgrade dynamic modules
   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
 
