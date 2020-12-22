@@ -9,7 +9,7 @@ import os
 from os.path import join, dirname
 from pathlib import Path
 
-_VERSION = "1.0.0"
+_VERSION = "1.1.0"
 
 # type id in minor image
 MINOR_IMAGE_TYPE_CONTROLLER   = 0
