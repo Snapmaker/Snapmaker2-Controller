@@ -58,6 +58,25 @@ NOTE: if you build the source for first time, PlatformIO will download the relat
 
 ### Program compiled firmware to main controller
 
+#### With PlatformIO CLI
+
+After building, type below command in VSCode terminal
+
+```
+> pio run -t pack
+```
+
+Then you will get below firmwares in the folder `(PROJECT FOLDER)/release`:
+
+- `firmware.bin`: raw binary of firmware.
+- `firmware.elf`: firmware with debug information.
+- `SM2_MC_APP_{xxx such as V4.0.0}_{xxx such as 20201222}.bin`: minor image of module, can be used to generate major image
+- `Snapmaker_{xxx: version such as V4.0.0}_{xxx: date such as 20201222}.bin`: major image which can be used to upgrade modules with USB stick
+
+Finally, copy the major image to your USB stick and upgrade your machine follow the instructions in [How to update Firmware](https://forum.snapmaker.com/t/snapmaker-2-0-firmware-updates-and-downloads/5443/10) section.
+
+#### With Luban
+
 You need to install [Luban](https://github.com/Snapmaker/Luban) to package the compiled firmware.
 
 First, Open **Settings** -> **Firmware Tool** in Luban, upload the compiled `firmware.bin`, click **Compile and Export**. You will get a file with name like `Snapmaker2_V3.2.0_20201117.bin`, this is the packaged update file to be programmed.
