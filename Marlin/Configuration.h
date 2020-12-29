@@ -184,6 +184,13 @@
  */
 //#define PRUSA_MMU2
 
+// Snapmaker2.0 dual nozzle module
+// Snapmaker2.0 has two ways to switch nozzles
+#define LIFT_SWITCH_NOZZLE
+//#if DISABLED(LIST_SWITCH_NOZZLE)
+  //#define SWITCHING_NOZZLE
+//#endif
+
 // A dual extruder that uses a single stepper motor
 //#define SWITCHING_EXTRUDER
 #if ENABLED(SWITCHING_EXTRUDER)

@@ -97,3 +97,4 @@
  * previous tool out of the way and the new tool into place.
  */
 void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
+//void snapmaker_tool_change(const uint8_t tmp_extruder, const float change_position, const float fr_mm_s=0.0, bool no_move=false) ;

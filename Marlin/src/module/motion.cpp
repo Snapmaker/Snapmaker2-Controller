@@ -124,7 +124,7 @@ float destination[XYZE]; // = { 0 }
 #if HAS_HOTEND_OFFSET
   float hotend_offset[XYZ][HOTENDS]; // Initialized by settings.load()
   void reset_hotend_offsets() {
-    constexpr float tmp[XYZ][HOTENDS] = { HOTEND_OFFSET_X, HOTEND_OFFSET_Y, HOTEND_OFFSET_Z };
+    constexpr float tmp[XYZ][HOTENDS] = DEFAULT_HOTEND_OFFSETS;
     static_assert(
       tmp[X_AXIS][0] == 0 && tmp[Y_AXIS][0] == 0 && tmp[Z_AXIS][0] == 0,
       "Offsets for the first hotend must be 0.0."

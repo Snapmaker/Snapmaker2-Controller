@@ -76,6 +76,8 @@ void GcodeSuite::T(const uint8_t tool_index) {
       (tool_index == active_extruder) || parser.boolval('S')
     );
 
+    //snapmaker_tool_change(tool_index, parser.linearval('P'), MMM_TO_MMS(parser.linearval('F')), (tool_index == active_extruder) || parser.boolval('S'));
+
     printer1->SwitchExtruder(tool_index);
     active_extruder = tool_index;
 

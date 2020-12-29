@@ -443,6 +443,10 @@
   #ifndef HOTEND_OFFSET_Z
     #define HOTEND_OFFSET_Z { 0 } // Z offsets for each extruder
   #endif
+
+  #ifndef DEFAULT_HOTEND_OFFSETS
+    #define DEFAULT_HOTEND_OFFSETS   { {0.0, 16.5}, {0.0, 0.0}, {0.0, 0.0}}   //extruder 0 offsets must be 0
+  #endif
 #endif
 
 /**
