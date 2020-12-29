@@ -35,6 +35,8 @@
 #include "src/feature/bedlevel/abl/abl.h"
 #include "src/feature/bedlevel/bedlevel.h"
 
+#include "src/module/tool_change.h"
+
 BedLevelService levelservice;
 
 extern uint32_t GRID_MAX_POINTS_X;
@@ -70,6 +72,11 @@ ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
     live_z_offset_ = 0;
 
     process_cmd_imd("G28");
+
+    if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
+      // switch to the left nozzle
+      tool_change(0);
+    }
 
     snprintf(cmd, 16, "G1029 P%u\n", grid);
     process_cmd_imd(cmd);

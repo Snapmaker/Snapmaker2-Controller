@@ -28,6 +28,9 @@
 extern int bilinear_grid_spacing[2], bilinear_start[2];
 extern float bilinear_grid_factor[2],
              z_values[GRID_MAX_NUM][GRID_MAX_NUM];
+extern float z_values_virt[VIRTUAL_GRID_MAX_NUM][VIRTUAL_GRID_MAX_NUM];
+extern float extruders_z_values[EXTRUDERS][GRID_MAX_NUM][GRID_MAX_NUM];
+extern float extruders_z_values_virt[EXTRUDERS][VIRTUAL_GRID_MAX_NUM][VIRTUAL_GRID_MAX_NUM];
 float bilinear_z_offset(const float raw[XYZ]);
 void bilinear_grid_manual();
 
@@ -37,6 +40,7 @@ void refresh_bed_level();
 #if ENABLED(ABL_BILINEAR_SUBDIVISION)
   void print_bilinear_leveling_grid_virt();
   void bed_level_virt_interpolate();
+  void bed_level_virt_interpolate(uint8_t extruder_index);
 #endif
 
 #if IS_CARTESIAN && DISABLED(SEGMENT_LEVELED_MOVES)

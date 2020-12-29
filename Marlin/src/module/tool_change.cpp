@@ -819,6 +819,9 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
         }
       #endif
 
+      // use new active extruder leveling data
+      apply_active_extruder_leveling_data(active_extruder);
+
     } // (tmp_extruder != active_extruder)
 
     planner.synchronize();

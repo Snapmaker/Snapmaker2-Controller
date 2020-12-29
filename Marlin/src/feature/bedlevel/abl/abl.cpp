@@ -34,9 +34,12 @@
 #include "../../../core/debug_out.h"
 #include "../../../../snapmaker/src/snapmaker.h"
 
+#include "../../../module/tool_change.h"
+
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
       z_values[GRID_MAX_NUM][GRID_MAX_NUM];
+float extruders_z_values[EXTRUDERS][GRID_MAX_NUM][GRID_MAX_NUM];
 // nozzle height when probed bed, will initialize by settings.load()
 float nozzle_height_probed = 0;
 
@@ -145,6 +148,14 @@ void print_bilinear_leveling_grid() {
   print_2d_array(GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y, 3,
     [](const uint8_t ix, const uint8_t iy) { return z_values[ix][iy]; }
   );
+
+  print_2d_array(GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y, 3,
+    [](const uint8_t ix, const uint8_t iy) { return extruders_z_values[0][ix][iy]; }
+  );
+
+  print_2d_array(GRID_MAX_POINTS_X, GRID_MAX_POINTS_Y, 3,
+    [](const uint8_t ix, const uint8_t iy) { return extruders_z_values[1][ix][iy]; }
+  );
 }
 
 #if ENABLED(ABL_BILINEAR_SUBDIVISION)
@@ -159,6 +170,7 @@ void print_bilinear_leveling_grid() {
   extern uint32_t ABL_TEMP_POINTS_Y;
 
   float z_values_virt[VIRTUAL_GRID_MAX_NUM][VIRTUAL_GRID_MAX_NUM];
+  float extruders_z_values_virt[EXTRUDERS][VIRTUAL_GRID_MAX_NUM][VIRTUAL_GRID_MAX_NUM];
   int bilinear_grid_spacing_virt[2] = { 0 };
   float bilinear_grid_factor_virt[2] = { 0 };
 
@@ -166,6 +178,14 @@ void print_bilinear_leveling_grid() {
     SERIAL_ECHOLNPGM("Subdivided with CATMULL ROM Leveling Grid:");
     print_2d_array(ABL_GRID_POINTS_VIRT_X, ABL_GRID_POINTS_VIRT_Y, 5,
       [](const uint8_t ix, const uint8_t iy) { return z_values_virt[ix][iy]; }
+    );
+
+    print_2d_array(ABL_GRID_POINTS_VIRT_X, ABL_GRID_POINTS_VIRT_Y, 5,
+      [](const uint8_t ix, const uint8_t iy) { return extruders_z_values_virt[0][ix][iy]; }
+    );
+
+    print_2d_array(ABL_GRID_POINTS_VIRT_X, ABL_GRID_POINTS_VIRT_Y, 5,
+      [](const uint8_t ix, const uint8_t iy) { return extruders_z_values_virt[1][ix][iy]; }
     );
   }
 
@@ -207,6 +227,43 @@ void print_bilinear_leveling_grid() {
     return z_values[x - 1][y - 1];
   }
 
+  float bed_level_virt_coord(const uint8_t x, const uint8_t y, uint8_t extruder_index) {
+    uint8_t ep = 0, ip = 1;
+    if (!x || x == ABL_TEMP_POINTS_X - 1) {
+      if (x) {
+        ep = GRID_MAX_POINTS_X - 1;
+        ip = GRID_MAX_POINTS_X - 2;
+      }
+      if (WITHIN(y, 1, ABL_TEMP_POINTS_Y - 2))
+        return LINEAR_EXTRAPOLATION(
+          extruders_z_values[extruder_index][ep][y - 1],
+          extruders_z_values[extruder_index][ip][y - 1]
+        );
+      else
+        return LINEAR_EXTRAPOLATION(
+          bed_level_virt_coord(ep + 1, y, extruder_index),
+          bed_level_virt_coord(ip + 1, y, extruder_index)
+        );
+    }
+    if (!y || y == ABL_TEMP_POINTS_Y - 1) {
+      if (y) {
+        ep = GRID_MAX_POINTS_Y - 1;
+        ip = GRID_MAX_POINTS_Y - 2;
+      }
+      if (WITHIN(x, 1, ABL_TEMP_POINTS_X - 2))
+        return LINEAR_EXTRAPOLATION(
+          extruders_z_values[extruder_index][x - 1][ep],
+          extruders_z_values[extruder_index][x - 1][ip]
+        );
+      else
+        return LINEAR_EXTRAPOLATION(
+          bed_level_virt_coord(x, ep + 1, extruder_index),
+          bed_level_virt_coord(x, ip + 1, extruder_index)
+        );
+    }
+    return extruders_z_values[extruder_index][x - 1][y - 1];
+  }
+
   static float bed_level_virt_cmr(const float p[4], const uint8_t i, const float t) {
     return (
         p[i-1] * -t * sq(1 - t)
@@ -221,6 +278,17 @@ void print_bilinear_leveling_grid() {
     for (uint8_t i = 0; i < 4; i++) {
       for (uint8_t j = 0; j < 4; j++) {
         column[j] = bed_level_virt_coord(i + x - 1, j + y - 1);
+      }
+      row[i] = bed_level_virt_cmr(column, 1, ty);
+    }
+    return bed_level_virt_cmr(row, 1, tx);
+  }
+
+  static float bed_level_virt_2cmr(const uint8_t x, const uint8_t y, const float &tx, const float &ty, uint8_t extruder_index) {
+    float row[4], column[4];
+    for (uint8_t i = 0; i < 4; i++) {
+      for (uint8_t j = 0; j < 4; j++) {
+        column[j] = bed_level_virt_coord(i + x - 1, j + y - 1, extruder_index);
       }
       row[i] = bed_level_virt_cmr(column, 1, ty);
     }
@@ -247,6 +315,28 @@ void print_bilinear_leveling_grid() {
               );
           }
   }
+
+  void bed_level_virt_interpolate(uint8_t extruder_index) {
+    bilinear_grid_spacing_virt[X_AXIS] = bilinear_grid_spacing[X_AXIS] / (BILINEAR_SUBDIVISIONS);
+    bilinear_grid_spacing_virt[Y_AXIS] = bilinear_grid_spacing[Y_AXIS] / (BILINEAR_SUBDIVISIONS);
+    bilinear_grid_factor_virt[X_AXIS] = RECIPROCAL(bilinear_grid_spacing_virt[X_AXIS]);
+    bilinear_grid_factor_virt[Y_AXIS] = RECIPROCAL(bilinear_grid_spacing_virt[Y_AXIS]);
+    for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++)
+      for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
+        for (uint8_t ty = 0; ty < BILINEAR_SUBDIVISIONS; ty++)
+          for (uint8_t tx = 0; tx < BILINEAR_SUBDIVISIONS; tx++) {
+            if ((ty && y == GRID_MAX_POINTS_Y - 1) || (tx && x == GRID_MAX_POINTS_X - 1))
+              continue;
+              extruders_z_values_virt[extruder_index][x * (BILINEAR_SUBDIVISIONS) + tx][y * (BILINEAR_SUBDIVISIONS) + ty] =
+              bed_level_virt_2cmr(
+                x + 1,
+                y + 1,
+                (float)tx / (BILINEAR_SUBDIVISIONS),
+                (float)ty / (BILINEAR_SUBDIVISIONS),
+                extruder_index
+              );
+          }
+  }
 #endif // ABL_BILINEAR_SUBDIVISION
 
 // Refresh after other values have been updated
@@ -255,6 +345,8 @@ void refresh_bed_level() {
   bilinear_grid_factor[Y_AXIS] = RECIPROCAL(bilinear_grid_spacing[Y_AXIS]);
   #if ENABLED(ABL_BILINEAR_SUBDIVISION)
     bed_level_virt_interpolate();
+    bed_level_virt_interpolate(0);
+    bed_level_virt_interpolate(1);
   #endif
 }
 
@@ -451,13 +543,13 @@ void bilinear_grid_manual()
 }
 
 
-bool visited[GRID_MAX_NUM][GRID_MAX_NUM];
+bool visited[EXTRUDERS][GRID_MAX_NUM][GRID_MAX_NUM];
 uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   uint8_t ret = E_SUCCESS;
   bilinear_grid_manual();
 
   static int direction [4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
-  memset(visited, 0, sizeof(visited[0][0]) * GRID_MAX_NUM * GRID_MAX_NUM);
+  memset(visited, 0, sizeof(visited[0][0][0]) * GRID_MAX_NUM * GRID_MAX_NUM * EXTRUDERS);
 
   int cur_x = 0;
   int cur_y = 0;
@@ -473,8 +565,8 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
       z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE, 0, printer1->device_id() != MODULE_DEVICE_ID_3DP_DUAL); // raw position
     else
       z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_NONE, 0, printer1->device_id() != MODULE_DEVICE_ID_3DP_DUAL); // raw position
-    z_values[cur_x][cur_y] = z;
-    visited[cur_x][cur_y] = true;
+    extruders_z_values[active_extruder][cur_x][cur_y] = z;
+    visited[active_extruder][cur_x][cur_y] = true;
     if (isnan(z)) {
       SERIAL_ECHOLNPGM("auto probing fail !");
       reset_bed_level();
@@ -490,7 +582,7 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
     int new_y = cur_y + direction[dir_idx][1];
 
     if (new_x >= GRID_MAX_POINTS_X || new_x < 0 || new_y >= GRID_MAX_POINTS_Y || new_y < 0
-      || visited[new_x][new_y]) {
+      || visited[active_extruder][new_x][new_y]) {
       dir_idx = (dir_idx + 1) % 4; // turn 90 degree
       new_x = cur_x + direction[dir_idx][0];
       new_y = cur_y + direction[dir_idx][1];
@@ -500,7 +592,61 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
     cur_y = new_y;
   }
 
-  
+  if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
+    do_blocking_move_to_z(15, 10);
+    tool_change(1);
+    #if ENABLED(PROBE_ALL_LEVELING_POINTS)
+      cur_x = 0;
+      cur_y = 0;
+      dir_idx = 0;
+      for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
+        LOG_I("Probing No. %d\n", k);
+
+        if (k < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y - 1))
+          z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE, 0, printer1->device_id() != MODULE_DEVICE_ID_3DP_DUAL); // raw position
+        else
+          z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_NONE, 0, printer1->device_id() != MODULE_DEVICE_ID_3DP_DUAL); // raw position
+        extruders_z_values[active_extruder][cur_x][cur_y] = z;
+        visited[active_extruder][cur_x][cur_y] = true;
+        if (isnan(z)) {
+          SERIAL_ECHOLNPGM("auto probing fail !");
+          reset_bed_level();
+          ret = E_AUTO_PROBING;
+          break;
+        }
+
+        if (reply_screen) {
+            levelservice.SyncPointIndex((uint8_t)(cur_y * GRID_MAX_POINTS_X + cur_x + 1));
+        }
+
+        int new_x = cur_x + direction[dir_idx][0];
+        int new_y = cur_y + direction[dir_idx][1];
+
+        if (new_x >= GRID_MAX_POINTS_X || new_x < 0 || new_y >= GRID_MAX_POINTS_Y || new_y < 0
+          || visited[active_extruder][new_x][new_y]) {
+          dir_idx = (dir_idx + 1) % 4; // turn 90 degree
+          new_x = cur_x + direction[dir_idx][0];
+          new_y = cur_y + direction[dir_idx][1];
+        }
+
+        cur_x = new_x;
+        cur_y = new_y;
+      }
+    #elif ENABLED(PROBE_LAST_LEVELING_POINT)
+      //TODO
+      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE, 0, printer1->device_id() != MODULE_DEVICE_ID_3DP_DUAL);
+      float temp_z = z - extruders_z_values[0][cur_x][cur_y];
+      for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {
+        for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+          extruders_z_values[1][cur_x][cur_y] = extruders_z_values[0][cur_x][cur_y] + temp_z;
+        }
+      }
+    #endif
+
+    // do nozzle switch and update the leveling data to z_values
+    tool_change(0);
+  }
+
   // if fast_leveling is true, over directly. Otherwise move nozzle to current position of probe
   if (!fast_leveling) {
     do_blocking_move_to_z(current_position[Z_AXIS] + 1, speed_in_calibration[Z_AXIS]);

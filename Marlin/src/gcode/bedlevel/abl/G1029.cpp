@@ -84,12 +84,20 @@ void GcodeSuite::G1029() {
     GRID_MAX_POINTS_Y = size;
 
     bilinear_grid_manual();
-    for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {
-      for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
-        z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
-        #if ENABLED(EXTENSIBLE_UI)
-          ExtUI::onMeshUpdate(x, y, 0);
-        #endif
+    // for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {
+    //   for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+    //     z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
+    //     #if ENABLED(EXTENSIBLE_UI)
+    //       ExtUI::onMeshUpdate(x, y, 0);
+    //     #endif
+    //   }
+    // }
+
+    for (uint8_t e = 0; e < EXTRUDERS; e++) {
+      for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {
+        for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+          extruders_z_values[e][x][y] = DEFAUT_LEVELING_HEIGHT;
+        }
       }
     }
 
@@ -98,8 +106,8 @@ void GcodeSuite::G1029() {
     ABL_TEMP_POINTS_X = (GRID_MAX_POINTS_X + 2);
     ABL_TEMP_POINTS_Y = (GRID_MAX_POINTS_Y + 2);
 
-    bed_level_virt_interpolate();
-    
+    //bed_level_virt_interpolate();
+
     set_bed_leveling_enabled(true);
     SERIAL_ECHOLNPAIR("Set grid size : ", size);
     return;
@@ -130,6 +138,11 @@ void GcodeSuite::G1029() {
     if (opt_s == 0) {
       compensate_offset();
     }
+    else if (opt_s == 1) {
+      bed_level_virt_interpolate(0);
+      bed_level_virt_interpolate(1);
+      goto EXIT;
+    }
     else {
       if (nozzle_height_probed <= 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
         LOG_E("invalid nozzle height after level: %.2f", nozzle_height_probed);
@@ -141,9 +154,10 @@ void GcodeSuite::G1029() {
 
     bed_level_virt_interpolate();
 
+EXIT:
     // only save data in flash after adjusting z offset
-    if (opt_s == 0)
-      settings.save();
+    //if (opt_s == 0)
+    settings.save();
     return;
   }
 

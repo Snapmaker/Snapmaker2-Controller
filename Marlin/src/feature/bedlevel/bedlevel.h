@@ -49,6 +49,7 @@ extern uint32_t ABL_TEMP_POINTS_Y;
 
 bool leveling_is_valid();
 void set_bed_leveling_enabled(const bool enable=true);
+void apply_active_extruder_leveling_data(uint8_t active_extruder);
 void reset_bed_level();
 void reset_bed_level_if_upgraded();
 

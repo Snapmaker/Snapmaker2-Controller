@@ -125,6 +125,28 @@ void set_bed_leveling_enabled(const bool enable/*=true*/) {
 
 #endif // ENABLE_LEVELING_FADE_HEIGHT
 
+void apply_active_extruder_leveling_data(uint8_t active_extruder) {
+  if (active_extruder >= EXTRUDERS) return;
+
+  for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {
+    for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+      z_values[x][y] = extruders_z_values[active_extruder][x][y];
+      #if ENABLED(EXTENSIBLE_UI)
+        ExtUI::onMeshUpdate(x, y, 0);
+      #endif
+    }
+  }
+
+  for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {
+    for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+      z_values_virt[x][y] = extruders_z_values_virt[active_extruder][x][y];
+      #if ENABLED(EXTENSIBLE_UI)
+        ExtUI::onMeshUpdate(x, y, 0);
+      #endif
+    }
+  }
+}
+
 /**
  * Reset calibration results to zero.
  */
@@ -140,13 +162,26 @@ void reset_bed_level() {
     bilinear_start[Y_AXIS] = FRONT_PROBE_BED_POSITION;
     bilinear_grid_spacing[X_AXIS] = (X_MAX_POS - LEFT_PROBE_BED_POSITION) / GRID_MAX_POINTS_X;
     bilinear_grid_spacing[Y_AXIS] = (Y_MAX_POS - BACK_PROBE_BED_POSITION) / GRID_MAX_POINTS_Y;
-    for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
-      for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+    uint8_t e;
+    uint8_t x;
+    uint8_t y;
+    for (x = 0; x < GRID_MAX_POINTS_X; x++)
+      for (y = 0; y < GRID_MAX_POINTS_Y; y++) {
         z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
         #if ENABLED(EXTENSIBLE_UI)
           ExtUI::onMeshUpdate(x, y, 0);
         #endif
       }
+
+    for (e = 0; e < EXTRUDERS; e++) {
+      for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
+        for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
+          extruders_z_values[e][x][y] = DEFAUT_LEVELING_HEIGHT;
+          #if ENABLED(EXTENSIBLE_UI)
+            ExtUI::onMeshUpdate(x, y, 0);
+          #endif
+        }
+    }
   #elif ABL_PLANAR
     planner.bed_level_matrix.set_to_identity();
   #endif
