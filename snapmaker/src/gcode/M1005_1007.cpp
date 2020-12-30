@@ -59,6 +59,9 @@ void GcodeSuite::M1005() {
   }
 
 
+  if (ModuleBase::toolhead() == MACHINE_TYPE_LASER) {
+    laser.ReadBluetoothVer();
+  }
   SERIAL_ECHO("Machine Size: ");
   switch (linear.machine_size()) {
   case MACHINE_SIZE_A150:

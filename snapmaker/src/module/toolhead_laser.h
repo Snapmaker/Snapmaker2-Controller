@@ -123,6 +123,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode SetCameraBtName(SSTP_Event_t &event);
     ErrCode GetCameraBtName(SSTP_Event_t &event);
     ErrCode GetCameraBtMAC(SSTP_Event_t &event);
+    ErrCode ReadBluetoothVer();
     void SetCameraLight(uint8_t state);
 
     void Process();
