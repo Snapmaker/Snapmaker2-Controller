@@ -633,6 +633,26 @@ ErrCode ToolHeadLaser::GetCameraBtMAC(SSTP_Event_t &event) {
 }
 
 /**
+ * ReadBlueToothName:Read BT versions
+ * return:0 for read success, 1 for unname, 2 for timeout
+ */
+ErrCode ToolHeadLaser::ReadBluetoothVer() {
+  uint8_t  buff[72];
+  uint16_t size;
+  ErrCode ret = E_SUCCESS;
+
+  ret = ReadBluetoothInfo(M_REPORT_VERSIONS, buff, size);
+
+  if (ret != E_SUCCESS) {
+    LOG_E("failed to read BT version - %u!\n", ret);
+    return 2;
+  }
+
+  LOG_I("BT version: %s\n", buff + 2);
+  return 0;
+}
+
+/**
  * SetCameraLight:set camera light status
  * para state:1-open 0-close
  */
