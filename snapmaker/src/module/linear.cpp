@@ -49,7 +49,7 @@ LinearAxisType Linear::DetectAxis(MAC_t &mac, uint8_t &endstop) {
   for (i = LINEAR_AXIS_X1; i <= LINEAR_AXIS_Z1; i++)  {
     WRITE(pins[i], HIGH);
 
-    vTaskDelay(portTICK_PERIOD_MS * 10);
+    vTaskDelay(pdMS_TO_TICKS(10));
 
     cmd.data[MODULE_EXT_CMD_INDEX_ID]   = MODULE_EXT_CMD_CONFIG_REQ;
     cmd.data[MODULE_EXT_CMD_INDEX_DATA] = i;
@@ -242,7 +242,7 @@ ErrCode Linear::PollEndstop(LinearAxisType axis) {
 
     message.id = endstop_msg_[i];
     canhost.SendStdCmd(message);
-    vTaskDelay(portTICK_PERIOD_MS * 10);
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 
   return E_SUCCESS;

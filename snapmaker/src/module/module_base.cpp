@@ -181,7 +181,7 @@ ErrCode ModuleBase::InitModule8p(MAC_t &mac, int dir_pin, uint8_t index) {
   cmd.data[MODULE_EXT_CMD_INDEX_DATA] = index;
 
   WRITE(dir_pin, HIGH);
-  vTaskDelay(portTICK_PERIOD_MS * 10);
+  vTaskDelay(pdMS_TO_TICKS(10));
 
   // didn't get ack from module
   if (canhost.SendExtCmdSync(cmd, 500) != E_SUCCESS)
