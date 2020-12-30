@@ -145,6 +145,8 @@ void Enclosure::PollDoorState() {
 
 
 void Enclosure::Disable() {
+  LOG_I("disable door checking!\n");
+  enabled_ = false;
   if (event_state_ == ENCLOSURE_EVENT_STATE_HANDLED_OPEN &&
       event_state_ == ENCLOSURE_EVENT_STATE_OPENED) {
     HandleDoorClosed();
@@ -154,6 +156,8 @@ void Enclosure::Disable() {
 
 
 void Enclosure::Enable() {
+  LOG_I("enable door checking!\n");
+  enabled_ = true;
   if (door_state_ == ENCLOSURE_DOOR_STATE_OPEN &&
       event_state_ == ENCLOSURE_EVENT_STATE_IDLE) {
     HandleDoorOpened();
@@ -172,6 +176,7 @@ void Enclosure::HandleDoorOpened() {
 
 
 void Enclosure::HandleDoorClosed() {
+  LOG_I("closed opened!\n");
   systemservice.ClearSystemFaultBit(FAULT_FLAG_DOOR_OPENED);
 
   if (laser.IsOnline())
@@ -179,7 +184,7 @@ void Enclosure::HandleDoorClosed() {
 }
 
 void Enclosure::Process() {
-  if (!enabled_)
+  if (!IsOnline() || !enabled_)
     return;
 
 
