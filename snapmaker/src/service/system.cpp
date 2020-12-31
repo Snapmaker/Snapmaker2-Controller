@@ -350,7 +350,7 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
   }
 
   // send event to marlin task to handle
-  if (xMessageBufferSend(sm2_handle->event_queue, event, 2, portTICK_PERIOD_MS * 100)) {
+  if (xMessageBufferSend(sm2_handle->event_queue, event, 2, pdMS_TO_TICKS(100))) {
     cur_status_ = SYSTAT_RESUME_TRIG;
     return E_SUCCESS;
   }

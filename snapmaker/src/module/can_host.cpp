@@ -194,7 +194,7 @@ ErrCode CanHost::SendStdCmdSync(CanStdFuncCmd_t &cmd, uint32_t timeout_ms, uint8
     goto out;
   }
 
-  tmp_u16 = xMessageBufferReceive(std_wait_q_[i].queue, cmd.data, CAN_STD_CMD_ELEMENT_SIZE - 2, timeout_ms *portTICK_PERIOD_MS);
+  tmp_u16 = xMessageBufferReceive(std_wait_q_[i].queue, cmd.data, CAN_STD_CMD_ELEMENT_SIZE - 2, pdMS_TO_TICKS(timeout_ms));
 
   if (!tmp_u16) {
     ret = E_TIMEOUT;
@@ -257,12 +257,12 @@ ErrCode CanHost::SendExtCmdSync(CanExtCmd_t &cmd, uint32_t timeout_ms, uint8_t r
   for (; retry > 0; retry--) {
     ret = SendExtCmd(cmd);
     if (ret != E_SUCCESS) {
-      vTaskDelay(timeout_ms * portTICK_PERIOD_MS);
+      vTaskDelay(pdMS_TO_TICKS(timeout_ms));
       continue;
     }
 
   // just receive data field
-    tmp_u16 = xMessageBufferReceive(ext_wait_q_.queue, cmd.data, CAN_EXT_CMD_QUEUE_SIZE, timeout_ms * portTICK_PERIOD_MS);
+    tmp_u16 = xMessageBufferReceive(ext_wait_q_.queue, cmd.data, CAN_EXT_CMD_QUEUE_SIZE, pdMS_TO_TICKS(timeout_ms));
 
     if (!tmp_u16) {
       ret = E_TIMEOUT;
@@ -295,14 +295,14 @@ ErrCode CanHost::WaitExtCmdAck(CanExtCmd_t &cmd, uint32_t timeout_ms, uint8_t re
 
   for (; retry > 0; retry--) {
     // handle extended command secondly
-    tmp_u16 = xMessageBufferReceive(ext_cmd_q_, cmd.data, cmd.length, timeout_ms * portTICK_PERIOD_MS);
+    tmp_u16 = xMessageBufferReceive(ext_cmd_q_, cmd.data, cmd.length, pdMS_TO_TICKS(timeout_ms));
     if (!tmp_u16)
       continue;
 
     if (cmd.data[MODULE_EXT_CMD_INDEX_ID] != cmd_id)
       continue;
 
-    // tmp_u16 = xMessageBufferReceive(ext_cmd_q_, &mac, 4, timeout_ms * portTICK_PERIOD_MS);
+    // tmp_u16 = xMessageBufferReceive(ext_cmd_q_, &mac, 4, pdMS_TO_TICKS(timeout_ms));
     // if (tmp_u16 != 4)
     //   continue;
 
@@ -346,11 +346,11 @@ void CanHost::ReceiveHandler(void *parameter) {
 
       if (!tmp_q) {
         // send message to EventHandler()
-        xMessageBufferSend(std_cmd_q_, &std_cmd, 2 + std_cmd.id.bits.length, 100 * portTICK_PERIOD_MS);
+        xMessageBufferSend(std_cmd_q_, &std_cmd, 2 + std_cmd.id.bits.length, pdMS_TO_TICKS(100));
       }
       else {
         // send message to SendStdMessageSync(), skip message id, which is the 2 bytes in begining
-        xMessageBufferSend(tmp_q, std_cmd.data, std_cmd.id.bits.length, 100 * portTICK_PERIOD_MS);
+        xMessageBufferSend(tmp_q, std_cmd.data, std_cmd.id.bits.length, pdMS_TO_TICKS(100));
       }
     }
 
@@ -373,17 +373,17 @@ void CanHost::ReceiveHandler(void *parameter) {
       if (tmp_q) {
         // send message to SendExtMessageSync(), just send data field, because it knows the event id and opcode
         // LOG_V("sync ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
-        xMessageBufferSend(tmp_q, parser_buffer_, tmp_u16, 100 * portTICK_PERIOD_MS);
+        xMessageBufferSend(tmp_q, parser_buffer_, tmp_u16, pdMS_TO_TICKS(100));
       }
       else {
         // send message to EventHandler()
-        xMessageBufferSend(ext_cmd_q_, parser_buffer_, tmp_u16, 100 * portTICK_PERIOD_MS);
+        xMessageBufferSend(ext_cmd_q_, parser_buffer_, tmp_u16, pdMS_TO_TICKS(100));
         // LOG_V("async ext cmd: %u\n", parser_buffer_[MODULE_EXT_CMD_INDEX_ID]);
-        // xMessageBufferSend(ext_cmd_q_, &mac, 4, 100 * portTICK_PERIOD_MS);
+        // xMessageBufferSend(ext_cmd_q_, &mac, 4, pdMS_TO_TICKS(100));
       }
     }
 
-    vTaskDelay(portTICK_PERIOD_MS * 10);
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 
@@ -401,7 +401,7 @@ void CanHost::EventHandler(void *parameter) {
   CanPacket_t pkt = {CAN_CH_2, CAN_FRAME_EXT_REMOTE, 0x01, 0, 0};
 
   LOG_I("Scanning modules ...\n");
-  vTaskDelay(portTICK_PERIOD_MS * 2000);
+  vTaskDelay(pdMS_TO_TICKS(2000));
 
   if (can.Write(pkt) != E_SUCCESS)
     LOG_E("No module on CAN%u!\n", 2);
@@ -411,7 +411,7 @@ void CanHost::EventHandler(void *parameter) {
   if (can.Write(pkt) != E_SUCCESS)
     LOG_E("No module on CAN%u!\n", 1);
 
-  vTaskDelay(portTICK_PERIOD_MS * 1000);
+  vTaskDelay(pdMS_TO_TICKS(1000));
 
   // read all mac
   while (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {
@@ -452,7 +452,7 @@ void CanHost::EventHandler(void *parameter) {
     for (int i = 0; static_modules[i] != NULL; i++)
       static_modules[i]->Process();
 
-    vTaskDelay(portTICK_PERIOD_MS * 10);
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 

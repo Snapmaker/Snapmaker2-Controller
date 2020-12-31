@@ -54,9 +54,6 @@
 
 #define SSTP_TIMEOUT_FOR_HEADER    (2)
 
-#define SSTP_DELAY_FOR_DATA        (2*portTICK_PERIOD_MS)
-#define SSTP_TIMEOUT_FOR_DATA      (1000/DELAY_FOR_DATA)
-
 #define SSTP_TIMEOUT_FOR_NEXT_BYTE (1)
 
 #define SSTP_INVALID_EVENT_ID      ((uint16_t)0x100)
@@ -67,9 +64,9 @@
 #define SSTP_HEADER_SIZE   8
 
 // timeout to wait for header field
-#define SSTP_HEADER_TIMEOUT  (portTICK_PERIOD_MS*10)
+#define SSTP_HEADER_TIMEOUT  (10)
 // timeout to wait for data field
-#define SSTP_DATA_TIMEOUT    (portTICK_PERIOD_MS*1000)
+#define SSTP_DATA_TIMEOUT    (1000)
 
 #define SSTP_EVENT_ID_INVALID (0xFFFF)
 #define SSTP_OP_CODE_INVALID  (0xFFFF)
