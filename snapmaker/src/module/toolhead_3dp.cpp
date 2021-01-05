@@ -35,6 +35,7 @@ ToolHead3DP printer_single(MODULE_DEVICE_ID_3DP_SINGLE);
 ToolHead3DP printer_dual(MODULE_DEVICE_ID_3DP_DUAL);
 
 ToolHead3DP *printer1 = &printer_single;
+ToolHead3DP *printer2 = &printer_dual;
 
 static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
   printer1->SetProbeState(cmd.data);
@@ -165,11 +166,13 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
 
   vTaskDelay(portTICK_PERIOD_MS * 100);
 
+#if 0
   // enable extruder 0
   mesg_cmd.id     = msg_id_swtich_extruder_;
   mesg_cmd.length = 1;
   mesg_cmd.data   = &cur_extruder_;
   canhost.SendStdCmd(mesg_cmd);
+#endif
 
   LOG_I("\tprobe: 0x%x, filament: 0x%x\n", probe_state_, filament_state_);
 
@@ -316,8 +319,9 @@ ErrCode ToolHead3DP::SetHeater(uint16_t target_temp, uint8_t extrude_index) {
 }
 
 
-ErrCode ToolHead3DP::SwitchExtruder(uint8_t extrude_index) {
-  CanStdMesgCmd_t cmd;
+ErrCode ToolHead3DP::SwitchExtruder(uint8_t extrude_index, uint16_t motor_runtime) {
+  CanStdFuncCmd_t cmd;
+  uint8_t can_buffer[3];
 
   switch (extrude_index) {
   case 0:
@@ -332,18 +336,18 @@ ErrCode ToolHead3DP::SwitchExtruder(uint8_t extrude_index) {
     return E_PARAM;
   }
 
-  cmd.id      = msg_id_swtich_extruder_;
-  cmd.data    = &extrude_index;
-  cmd.length  = 1;
+  can_buffer[0] = extrude_index;
+  can_buffer[1] = (motor_runtime >> 8) & 0xff;
+  can_buffer[2] = motor_runtime & 0xff;
+  cmd.id        = MODULE_FUNC_SWITCH_EXTRUDER;
+  cmd.data      = can_buffer;
+  cmd.length    = 3;
 
-  return canhost.SendStdCmd(cmd);
+  return canhost.SendStdCmdSync(cmd, 10000);
 }
-
 
 void ToolHead3DP::Process() {
   if (++timer_in_process_ < 100) return;
 
   timer_in_process_ = 0;
-
-
 }

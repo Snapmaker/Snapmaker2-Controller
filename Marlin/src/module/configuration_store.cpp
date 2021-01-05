@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V67"
+#define EEPROM_VERSION "V68"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -134,6 +134,13 @@ typedef struct SettingsDataStruct {
 
   #if HAS_HOTEND_OFFSET
     float hotend_offset[XYZ][HOTENDS - 1];              // M218 XYZ
+  #endif
+
+  #if EXTRUDERS > 1
+    float lift_switch_left_position;
+    float lift_switch_right_position;
+    uint16_t nozzle0_motor_runtime;
+    uint16_t nozzle1_motor_runtime;
   #endif
 
   //
@@ -530,6 +537,16 @@ void MarlinSettings::postprocess() {
     }
 
     //
+    // tool change params
+    //
+    {
+      EEPROM_WRITE(lift_switch_left_position);
+      EEPROM_WRITE(lift_switch_right_position);
+      EEPROM_WRITE(nozzle0_motor_runtime);
+      EEPROM_WRITE(nozzle1_motor_runtime);
+    }
+
+    //
     // Global Leveling
     //
     {
@@ -609,7 +626,7 @@ void MarlinSettings::postprocess() {
         EEPROM_WRITE(bilinear_grid_spacing); // 2 ints
         EEPROM_WRITE(bilinear_start);        // 2 ints
         EEPROM_WRITE(z_values);              // 9-256 floats
-        EEPROM_WRITE(extruders_z_values);        
+        EEPROM_WRITE(extruders_z_values);
       #else
         // For disabled Bilinear Grid write an empty 3x3 grid
         const uint8_t grid_max_x = 3, grid_max_y = 3;
@@ -1276,6 +1293,16 @@ void MarlinSettings::postprocess() {
           for (uint8_t e = 1; e < HOTENDS; e++)
             LOOP_XYZ(i) EEPROM_READ(hotend_offset[i][e]);
         #endif
+      }
+
+      //
+      // tool change params
+      //
+      {
+        EEPROM_READ(lift_switch_left_position);
+        EEPROM_READ(lift_switch_right_position);
+        EEPROM_READ(nozzle0_motor_runtime);
+        EEPROM_READ(nozzle1_motor_runtime);
       }
 
       //
@@ -2118,6 +2145,10 @@ void MarlinSettings::reset() {
 
   #if HAS_HOTEND_OFFSET
     reset_hotend_offsets();
+  #endif
+
+  #if EXTRUDERS > 1
+    reset_tool_change_params();
   #endif
 
   #if EXTRUDERS > 1

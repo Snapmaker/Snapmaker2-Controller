@@ -69,6 +69,31 @@ void GcodeSuite::T(const uint8_t tool_index) {
     tool_change(tool_index);
 
   #else
+    bool seen_m = parser.seen("M");
+    bool seen_n = parser.seen("N");
+    bool seen_l = parser.seen("L");
+    bool seen_r = parser.seen("R");
+
+    if (seen_m) {
+      nozzle0_motor_runtime = (uint16_t)parser.ushortval('M', (uint16_t)0);
+    }
+
+    if (seen_n) {
+      nozzle1_motor_runtime = (uint16_t)parser.ushortval('N', (uint16_t)0);
+    }
+
+    if (seen_m || seen_n) {
+      tool_change_motor(tool_index, MMM_TO_MMS(parser.linearval('F')), (tool_index == active_extruder) || parser.boolval('S'));
+      goto EXIT;
+    }
+
+    if (seen_l) {
+      lift_switch_left_position = (float)parser.floatval('L', (float)0);
+    }
+
+    if (seen_r) {
+      lift_switch_right_position = (float)parser.floatval('R', (float)0);
+    }
 
     tool_change(
       tool_index,
@@ -76,12 +101,8 @@ void GcodeSuite::T(const uint8_t tool_index) {
       (tool_index == active_extruder) || parser.boolval('S')
     );
 
-    //snapmaker_tool_change(tool_index, parser.linearval('P'), MMM_TO_MMS(parser.linearval('F')), (tool_index == active_extruder) || parser.boolval('S'));
-
-    printer1->SwitchExtruder(tool_index);
+EXIT:
     active_extruder = tool_index;
-
-
   #endif
 
   if (DEBUGGING(LEVELING)) {

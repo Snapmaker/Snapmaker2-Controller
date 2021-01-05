@@ -34,6 +34,9 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../core/debug_out.h"
 
+#include "../../../snapmaker/src/module/module_base.h"
+#include "../../../snapmaker/src/module/can_host.h"
+
 #if EXTRUDERS > 1
   toolchange_settings_t toolchange_settings;  // Initialized by settings.load()
 #endif
@@ -80,6 +83,22 @@
 #if HAS_LCD_MENU
   #include "../lcd/ultralcd.h"
 #endif
+
+
+#if EXTRUDERS > 1
+  float lift_switch_left_position;
+  float lift_switch_right_position;
+  uint16_t nozzle0_motor_runtime;
+  uint16_t nozzle1_motor_runtime;
+
+  void reset_tool_change_params (){
+    lift_switch_left_position = DEFAULT_LIFT_SWITCH_LEFT_POSITION;
+    lift_switch_right_position = DEFAULT_LIFT_SWITCH_RIGHT_POSITION;
+    nozzle0_motor_runtime = DEFAULT_NOZZLE0_MOTOR_RUNTIME;
+    nozzle1_motor_runtime = DEFAULT_NOZZLE1_MOTOR_RUNTIME;
+  }
+#endif
+
 
 #if DO_SWITCH_EXTRUDER
 
@@ -856,8 +875,11 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
   #endif // EXTRUDERS > 1
 }
 
-#if 0
-void snapmaker_tool_change(const uint8_t tmp_extruder, const float change_position, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
+/**
+ * Perform a tool-change, which may result in moving the
+ * previous tool out of the way and the new tool into place.
+ */
+void tool_change_liftswitch(const uint8_t tmp_extruder, const float lift_left_position, const float lift_right_position, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
   #if ENABLED(MIXING_EXTRUDER)
 
     UNUSED(fr_mm_s); UNUSED(no_move);
@@ -968,21 +990,17 @@ void snapmaker_tool_change(const uint8_t tmp_extruder, const float change_positi
 
         #if ENABLED(LIFT_SWITCH_NOZZLE)
           if (tmp_extruder == 0) {
-            current_position[X_AXIS] = change_position;
+            current_position[X_AXIS] = lift_left_position;
             //NOLESS(current_position[X_AXIS], soft_endstop[X_AXIS].max);
-            LOG_I("lift switch goes to the right, left nozzle activated\n");
           }
           else if (tmp_extruder == 1) {
-            current_position[X_AXIS] = change_position;
+            current_position[X_AXIS] = lift_right_position;
             //NOMORE(current_position[X_AXIS], soft_endstop[X_AXIS].max);
-            LOG_I("lift switch goes to the left, right nozzle activated\n");
           }
           planner.buffer_line(current_position, feedrate_mm_s, active_extruder);
           planner.synchronize();
         #endif
       }
-
-      LOG_I("current_position, x:%f, y:%f, z:%f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
       #if HAS_HOTEND_OFFSET
         #if ENABLED(DUAL_X_CARRIAGE)
@@ -995,6 +1013,8 @@ void snapmaker_tool_change(const uint8_t tmp_extruder, const float change_positi
       #else
         constexpr float xdiff = 0, ydiff = 0, zdiff = 0;
       #endif
+
+      LOG_I("xdiff: %f, ydiff: %f, zdiff: %f\n", xdiff, ydiff, zdiff);
 
       #if ENABLED(DUAL_X_CARRIAGE)
         dualx_tool_change(tmp_extruder, no_move);
@@ -1112,6 +1132,9 @@ void snapmaker_tool_change(const uint8_t tmp_extruder, const float change_positi
         }
       #endif
 
+      // use new active extruder leveling data
+      apply_active_extruder_leveling_data(active_extruder);
+
     } // (tmp_extruder != active_extruder)
 
     planner.synchronize();
@@ -1145,4 +1168,108 @@ void snapmaker_tool_change(const uint8_t tmp_extruder, const float change_positi
 
   #endif // EXTRUDERS > 1
 }
-#endif
+
+void tool_change_motor(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool no_move/*=false*/) {
+  planner.synchronize();
+
+  #if HAS_LEVELING
+    // Set current position to the physical position
+    const bool leveling_was_active = planner.leveling_active;
+    set_bed_leveling_enabled(false);
+  #endif
+
+  if (tmp_extruder >= EXTRUDERS)
+    return invalid_extruder_error(tmp_extruder);
+
+  if (!no_move && !all_axes_homed()) {
+    no_move = true;
+    if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("No move on toolchange");
+  }
+
+  if (tmp_extruder != active_extruder) {
+    const float old_feedrate_mm_s = fr_mm_s > 0.0 ? fr_mm_s : feedrate_mm_s;
+    feedrate_mm_s = fr_mm_s > 0.0 ? fr_mm_s : XY_PROBE_FEEDRATE_MM_S;
+
+    uint16_t motor_runtime = 0;
+
+    if (tmp_extruder == 0) {
+      motor_runtime = nozzle0_motor_runtime;
+    }
+    else if (tmp_extruder == 1) {
+      motor_runtime = nozzle1_motor_runtime;
+    }
+
+    set_destination_from_current();
+
+    // toolhead raise first
+    current_position[Z_AXIS] += toolchange_settings.z_raise;
+    #if HAS_SOFTWARE_ENDSTOPS
+      NOMORE(current_position[Z_AXIS], soft_endstop[Z_AXIS].max);
+    #endif
+    planner.buffer_line(current_position, feedrate_mm_s, active_extruder);
+    planner.synchronize();
+
+    printer2->SwitchExtruder(tmp_extruder, motor_runtime);
+
+    #if HAS_HOTEND_OFFSET
+      #if ENABLED(DUAL_X_CARRIAGE)
+        constexpr float xdiff = 0;
+      #else
+        const float xdiff = hotend_offset[X_AXIS][tmp_extruder] - hotend_offset[X_AXIS][active_extruder];
+      #endif
+      const float ydiff = hotend_offset[Y_AXIS][tmp_extruder] - hotend_offset[Y_AXIS][active_extruder],
+                  zdiff = hotend_offset[Z_AXIS][tmp_extruder] - hotend_offset[Z_AXIS][active_extruder];
+    #else
+      constexpr float xdiff = 0, ydiff = 0, zdiff = 0;
+    #endif
+
+    LOG_I("xdiff: %f, ydiff: %f, zdiff: %f\n", xdiff, ydiff, zdiff);
+
+    if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPAIR("Offset Tool XY by { ", xdiff, ", ", ydiff, ", ", zdiff, " }");
+
+    // The newly-selected extruder XY is actually at...
+    current_position[X_AXIS] += xdiff;
+    current_position[Y_AXIS] += ydiff;
+    current_position[Z_AXIS] += zdiff;
+
+    // Set the new active extruder if not already done in tool specific function above
+    active_extruder = tmp_extruder;
+
+    // Tell the planner the new "current position"
+    sync_plan_position();
+
+    #if ENABLED(DELTA)
+      //LOOP_XYZ(i) update_software_endstops(i); // or modify the constrain function
+      const bool safe_to_move = current_position[Z_AXIS] < delta_clip_start_height - 1;
+    #else
+      constexpr bool safe_to_move = true;
+    #endif
+
+    // Return to position and lower again
+    if (safe_to_move && !no_move && IsRunning()) {
+      if (DEBUGGING(LEVELING)) DEBUG_POS("Move back", destination);
+
+      // Prevent a move outside physical bounds
+      apply_motion_limits(destination);
+
+      // Move back to the original (or tweaked) position
+      do_blocking_move_to(destination);
+
+      feedrate_mm_s = old_feedrate_mm_s;
+    }
+
+    // use new active extruder leveling data
+    apply_active_extruder_leveling_data(active_extruder);
+
+  } // (tmp_extruder != active_extruder)
+
+  planner.synchronize();
+
+  #if HAS_LEVELING
+    // Restore leveling to re-establish the logical position
+    set_bed_leveling_enabled(leveling_was_active);
+  #endif
+
+  SERIAL_ECHO_START();
+  SERIAL_ECHOLNPAIR(MSG_ACTIVE_EXTRUDER, int(active_extruder));
+}

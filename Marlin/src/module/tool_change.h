@@ -38,6 +38,13 @@
 
   extern toolchange_settings_t toolchange_settings;
 
+  extern float lift_switch_left_position;
+  extern float lift_switch_right_position;
+  extern uint16_t nozzle0_motor_runtime;
+  extern uint16_t nozzle1_motor_runtime;
+
+  void reset_tool_change_params ();
+
 #endif
 
 #if DO_SWITCH_EXTRUDER
@@ -97,4 +104,4 @@
  * previous tool out of the way and the new tool into place.
  */
 void tool_change(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
-//void snapmaker_tool_change(const uint8_t tmp_extruder, const float change_position, const float fr_mm_s=0.0, bool no_move=false) ;
+void tool_change_motor(const uint8_t tmp_extruder, const float fr_mm_s=0.0, bool no_move=false);
