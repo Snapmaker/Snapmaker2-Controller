@@ -354,7 +354,7 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    LOOP_XYZ(i) home_offset[i] = s_home_offset[i];
+    LOOP_XN(i) home_offset[i] = s_home_offset[i];
 
     X_DEF_SIZE = 160;
     Y_DEF_SIZE = 160;
@@ -380,7 +380,7 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    LOOP_XYZ(i) home_offset[i] = m_home_offset[i];
+    LOOP_XN(i) home_offset[i] = m_home_offset[i];
 
     X_DEF_SIZE = 230;
     Y_DEF_SIZE = 250;
@@ -405,7 +405,7 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    LOOP_XYZ(i) home_offset[i] = l_home_offset[i];
+    LOOP_XN(i) home_offset[i] = l_home_offset[i];
 
     X_DEF_SIZE = 320;
     Y_DEF_SIZE = 340;

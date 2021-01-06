@@ -50,7 +50,7 @@
  * options for G2/G3 arc generation. In future these options may be GCode tunable.
  */
 void plan_arc(
-  const float (&cart)[XYZE],  // Destination position
+  const float (&cart)[X_TO_E],  // Destination position
   const float (&offset)[2],   // Center of rotation relative to current_position
   const uint8_t clockwise     // Clockwise?
 ) {
@@ -133,7 +133,7 @@ void plan_arc(
    * This is important when there are successive arc motions.
    */
   // Vector rotation matrix values
-  float raw[XYZE];
+  float raw[X_TO_E];
   const float theta_per_segment = angular_travel / segments,
               linear_per_segment = linear_travel / segments,
               extruder_per_segment = extruder_travel / segments,

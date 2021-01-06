@@ -57,7 +57,7 @@ typedef struct __attribute__((aligned (4))) {
 	// position of stepper on last move
 	float PositionData[NUM_AXIS];
 	// position shift between home offset and workspace offset
-	float position_shift[XYZ];
+	float position_shift[XN];
 	// line number of last gcode
 	int FilePosition;
 	//
@@ -78,7 +78,7 @@ typedef struct __attribute__((aligned (4))) {
 #endif
   int8_t active_coordinate_system;
 
-	bool axis_relative_modes[XYZE];
+	bool axis_relative_modes[X_TO_E];
 	bool axes_relative_mode;
 
 	int16_t feedrate_percentage;

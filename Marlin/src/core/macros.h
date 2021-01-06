@@ -23,11 +23,10 @@
 
 #include "minmax.h"
 
-#define NUM_AXIS 4
-#define ABCE 4
-#define XYZE 4
-#define ABC  3
+#define NUM_AXIS 5
+#define X_TO_E 5 // XYZBE
 #define XYZ  3
+#define XN 4 // XYZB
 
 #define _AXIS(A) (A##_AXIS)
 

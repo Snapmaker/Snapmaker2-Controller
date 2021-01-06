@@ -23,7 +23,7 @@
 
 #include "../inc/MarlinConfigPre.h"
 
-extern char axis_codes[XYZE];
+extern char axis_codes[X_TO_E];
 
 // Delay that ensures heaters and watchdog are kept alive
 void safe_delay(millis_t ms);

@@ -166,10 +166,10 @@ typedef struct block_t {
 #define BLOCK_MOD(n) ((n)&(BLOCK_BUFFER_SIZE-1))
 
 typedef struct {
-  uint32_t max_acceleration_mm_per_s2[XYZE_N],  // (mm/s^2) M201 XYZE
+  uint32_t max_acceleration_mm_per_s2[X_TO_EN],  // (mm/s^2) M201 XYZE
            min_segment_time_us;                 // (µs) M205 B
-  float axis_steps_per_mm[XYZE_N],              // (steps) M92 XYZE - Steps per millimeter
-        max_feedrate_mm_s[XYZE_N],              // (mm/s) M203 XYZE - Max speeds
+  float axis_steps_per_mm[X_TO_EN],              // (steps) M92 XYZE - Steps per millimeter
+        max_feedrate_mm_s[X_TO_EN],              // (mm/s) M203 XYZE - Max speeds
         acceleration,                           // (mm/s^2) M204 S - Normal acceleration. DEFAULT ACCELERATION for all printing moves.
         retract_acceleration,                   // (mm/s^2) M204 R - Retract acceleration. Filament pull-back and push-forward while standing still in the other axes
         travel_acceleration,                    // (mm/s^2) M204 T - Travel acceleration. DEFAULT ACCELERATION for all NON printing moves.
@@ -239,8 +239,8 @@ class Planner {
 
     static planner_settings_t settings;
 
-    static uint32_t max_acceleration_steps_per_s2[XYZE_N]; // (steps/s^2) Derived from mm_per_s2
-    static float steps_to_mm[XYZE_N];           // Millimeters per step
+    static uint32_t max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
+    static float steps_to_mm[X_TO_EN];          // Millimeters per step
 
     #if ENABLED(JUNCTION_DEVIATION)
       static float junction_deviation_mm;       // (mm) M205 J
@@ -280,7 +280,7 @@ class Planner {
     #endif
 
     #if HAS_POSITION_FLOAT
-      static float position_float[XYZE];
+      static float position_float[X_TO_E];
     #endif
 
     #if IS_KINEMATIC
@@ -341,7 +341,7 @@ class Planner {
     #endif
 
     #if ENABLED(BACKLASH_COMPENSATION)
-      static void add_backlash_correction_steps(const int32_t da, const int32_t db, const int32_t dc, const uint8_t dm, block_t * const block);
+      static void add_backlash_correction_steps(const int32_t dx, const int32_t dy, const int32_t dz, const int32_t db, const uint8_t dm, block_t * const block);
     #endif
 
   public:
@@ -470,7 +470,7 @@ class Planner {
        */
       static void apply_leveling(float &rx, float &ry, float &rz);
       FORCE_INLINE static void apply_leveling(float (&raw)[XYZ]) { apply_leveling(raw[X_AXIS], raw[Y_AXIS], raw[Z_AXIS]); }
-      FORCE_INLINE static void apply_leveling(float (&raw)[XYZE]) { apply_leveling(raw[X_AXIS], raw[Y_AXIS], raw[Z_AXIS]); }
+      FORCE_INLINE static void apply_leveling(float (&raw)[X_TO_E]) { apply_leveling(raw[X_AXIS], raw[Y_AXIS], raw[Z_AXIS]); }
 
       static void unapply_leveling(float raw[XYZ]);
     #endif
@@ -483,7 +483,7 @@ class Planner {
     #endif
 
     #if HAS_POSITION_MODIFIERS
-      FORCE_INLINE static void apply_modifiers(float (&pos)[XYZE]
+      FORCE_INLINE static void apply_modifiers(float (&pos)[X_TO_E]
         #if HAS_LEVELING
           , bool leveling =
           #if PLANNER_LEVELING
@@ -505,7 +505,7 @@ class Planner {
         #endif
       }
 
-      FORCE_INLINE static void unapply_modifiers(float (&pos)[XYZE]
+      FORCE_INLINE static void unapply_modifiers(float (&pos)[X_TO_E]
         #if HAS_LEVELING
           , bool leveling =
           #if PLANNER_LEVELING
@@ -578,9 +578,9 @@ class Planner {
      *
      * Returns true if movement was buffered, false otherwise
      */
-    static bool _buffer_steps(const int32_t (&target)[XYZE]
+    static bool _buffer_steps(const int32_t (&target)[X_TO_E]
       #if HAS_POSITION_FLOAT
-        , const float (&target_float)[ABCE]
+        , const float (&target_float)[X_TO_E]
       #endif
       #if IS_KINEMATIC && ENABLED(JUNCTION_DEVIATION)
         , const float (&delta_mm_cart)[XYZE]
@@ -601,9 +601,9 @@ class Planner {
      * Returns true is movement is acceptable, false otherwise
      */
     static bool _populate_block(block_t * const block, bool split_move,
-        const int32_t (&target)[XYZE]
+        const int32_t (&target)[X_TO_E]
       #if HAS_POSITION_FLOAT
-        , const float (&target_float)[XYZE]
+        , const float (&target_float)[X_TO_E]
       #endif
       #if IS_KINEMATIC && ENABLED(JUNCTION_DEVIATION)
         , const float (&delta_mm_cart)[XYZE]
@@ -631,25 +631,25 @@ class Planner {
      *
      * Leveling and kinematics should be applied ahead of calling this.
      *
-     *  a,b,c,e     - target positions in mm and/or degrees
+     *  x,y,z,b,e   - target positions in mm and/or degrees
      *  fr_mm_s     - (target) speed of the move
      *  extruder    - target extruder
      *  millimeters - the length of the movement, if known
      */
-    static bool buffer_segment(const float &a, const float &b, const float &c, const float &e
+    static bool buffer_segment(const float &x, const float &y, const float &z, const float &b, const float &e
       #if IS_KINEMATIC && ENABLED(JUNCTION_DEVIATION)
         , const float (&delta_mm_cart)[XYZE]
       #endif
       , const float &fr_mm_s, const uint8_t extruder, const float &millimeters=0.0
     );
 
-    FORCE_INLINE static bool buffer_segment(const float (&abce)[ABCE]
+    FORCE_INLINE static bool buffer_segment(const float (&target)[X_TO_E]
       #if IS_KINEMATIC && ENABLED(JUNCTION_DEVIATION)
         , const float (&delta_mm_cart)[XYZE]
       #endif
       , const float &fr_mm_s, const uint8_t extruder, const float &millimeters=0.0
     ) {
-      return buffer_segment(abce[A_AXIS], abce[B_AXIS], abce[C_AXIS], abce[E_AXIS]
+      return buffer_segment(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[B_AXIS], target[E_AXIS]
         #if IS_KINEMATIC && ENABLED(JUNCTION_DEVIATION)
           , delta_mm_cart
         #endif
@@ -664,24 +664,24 @@ class Planner {
      * needed.
      *
      *
-     *  rx,ry,rz,e   - target position in mm or degrees
+     *  rx,ry,rz,rb,e - target position in mm or degrees
      *  fr_mm_s      - (target) speed of the move (mm/s)
      *  extruder     - target extruder
      *  millimeters  - the length of the movement, if known
      *  inv_duration - the reciprocal if the duration of the movement, if known (kinematic only if feeedrate scaling is enabled)
      */
-    static bool buffer_line(const float &rx, const float &ry, const float &rz, const float &e, const float &fr_mm_s, const uint8_t extruder, const float millimeters=0.0
+    static bool buffer_line(const float &rx, const float &ry, const float &rz, const float &rb, const float &e, const float &fr_mm_s, const uint8_t extruder, const float millimeters=0.0
       #if ENABLED(SCARA_FEEDRATE_SCALING)
         , const float &inv_duration=0.0
       #endif
     );
 
-    FORCE_INLINE static bool buffer_line(const float (&cart)[XYZE], const float &fr_mm_s, const uint8_t extruder, const float millimeters=0.0
+    FORCE_INLINE static bool buffer_line(const float (&cart)[X_TO_E], const float &fr_mm_s, const uint8_t extruder, const float millimeters=0.0
       #if ENABLED(SCARA_FEEDRATE_SCALING)
         , const float &inv_duration=0.0
       #endif
     ) {
-      return buffer_line(cart[X_AXIS], cart[Y_AXIS], cart[Z_AXIS], cart[E_AXIS], fr_mm_s, extruder, millimeters
+      return buffer_line(cart[X_AXIS], cart[Y_AXIS], cart[Z_AXIS], cart[B_AXIS], cart[E_AXIS], fr_mm_s, extruder, millimeters
         #if ENABLED(SCARA_FEEDRATE_SCALING)
           , inv_duration
         #endif
@@ -701,8 +701,8 @@ class Planner {
      *
      * Clears previous speed values.
      */
-    static void set_position_mm(const float &rx, const float &ry, const float &rz, const float &e);
-    FORCE_INLINE static void set_position_mm(const float (&cart)[XYZE]) { set_position_mm(cart[X_AXIS], cart[Y_AXIS], cart[Z_AXIS], cart[E_AXIS]); }
+    static void set_position_mm(const float &rx, const float &ry, const float &rz, const float &rb, const float &e);
+    FORCE_INLINE static void set_position_mm(const float (&cart)[X_TO_E]) { set_position_mm(cart[X_AXIS], cart[Y_AXIS], cart[Z_AXIS], cart[B_AXIS], cart[E_AXIS]); }
     static void set_e_position_mm(const float &e);
 
     /**
@@ -711,8 +711,10 @@ class Planner {
      * The supplied position is in machine space, and no additional
      * conversions are applied.
      */
-    static void set_machine_position_mm(const float &a, const float &b, const float &c, const float &e);
-    FORCE_INLINE static void set_machine_position_mm(const float (&abce)[ABCE]) { set_machine_position_mm(abce[A_AXIS], abce[B_AXIS], abce[C_AXIS], abce[E_AXIS]); }
+    static void set_machine_position_mm(const float &x, const float &y, const float &z, const float &b, const float &e);
+    FORCE_INLINE static void set_machine_position_mm(const float (&target)[X_TO_E]) { 
+      set_machine_position_mm(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[B_AXIS], target[E_AXIS]); 
+    }
 
     /**
      * Get an axis position according to stepper position(s)
@@ -899,16 +901,16 @@ FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != bloc
 
     #if ENABLED(JUNCTION_DEVIATION)
 
-      FORCE_INLINE static void normalize_junction_vector(float (&vector)[XYZE]) {
+      FORCE_INLINE static void normalize_junction_vector(float (&vector)[X_TO_E]) {
         float magnitude_sq = 0;
-        LOOP_XYZE(idx) if (vector[idx]) magnitude_sq += sq(vector[idx]);
+        LOOP_X_TO_E(idx) if (vector[idx]) magnitude_sq += sq(vector[idx]);
         const float inv_magnitude = RSQRT(magnitude_sq);
-        LOOP_XYZE(idx) vector[idx] *= inv_magnitude;
+        LOOP_X_TO_E(idx) vector[idx] *= inv_magnitude;
       }
 
-      FORCE_INLINE static float limit_value_by_axis_maximum(const float &max_value, float (&unit_vec)[XYZE]) {
+      FORCE_INLINE static float limit_value_by_axis_maximum(const float &max_value, float (&unit_vec)[X_TO_E]) {
         float limit_value = max_value;
-        LOOP_XYZE(idx) if (unit_vec[idx]) // Avoid divide by zero
+        LOOP_X_TO_E(idx) if (unit_vec[idx]) // Avoid divide by zero
           NOMORE(limit_value, ABS(settings.max_acceleration_mm_per_s2[idx] / unit_vec[idx]));
         return limit_value;
       }

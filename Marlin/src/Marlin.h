@@ -146,6 +146,17 @@ void manage_inactivity(const bool ignore_stepper_queue=false);
 #define  enable_Z() do{ Z_enable; Z2_enable; Z3_enable; }while(0)
 #define disable_Z() do{ Z_disable; Z2_disable; Z3_disable; CBI(axis_known_position, Z_AXIS); }while(0)
 
+#if HAS_B_ENABLE
+  #define B_enable  B_ENABLE_WRITE( B_ENABLE_ON)
+  #define B_disable B_ENABLE_WRITE(!B_ENABLE_ON)
+#else
+  #define B_enable  NOOP
+  #define B_disable NOOP
+#endif
+
+#define  enable_B() do{ B_enable; }while(0)
+#define disable_B() do{ B_disable; CBI(axis_known_position, B_AXIS); }while(0)
+
 //
 // Extruder Stepper enable / disable
 //
@@ -391,6 +402,7 @@ void protected_pin_err();
   extern signed char X_HOME_DIR;
   extern signed char Y_HOME_DIR;
   extern signed char Z_HOME_DIR;
+  extern signed char B_HOME_DIR;
   extern float X_MAX_POS;
   extern float Y_MAX_POS;
   extern float Z_MAX_POS;

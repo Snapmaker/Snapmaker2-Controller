@@ -33,6 +33,7 @@
 #include "src/pins/pins.h"
 #include "src/module/motion.h"
 #include "src/module/planner.h"
+#include "rotary_module.h"
 
 
 #define LASER_CLOSE_FAN_DELAY     (120)
@@ -234,10 +235,15 @@ void ToolHeadLaser::TryCloseFan() {
 
 ErrCode ToolHeadLaser::LoadFocus() {
   CanStdMesgCmd_t cmd;
-
+  uint8_t data[1];
+  if (rotaryModule.status() != ROTATE_OFFLINE) {
+    data[0] = 1;
+  } else {
+    data[0] = 0;
+  }
   cmd.id     = msg_id_get_focus_;
-  cmd.length = 0;
-
+  cmd.length = 1;
+  cmd.data = data;
   return canhost.SendStdCmd(cmd);
 }
 
@@ -269,7 +275,7 @@ ErrCode ToolHeadLaser::SetFocus(SSTP_Event_t &event) {
 
   CanStdFuncCmd_t cmd;
 
-  uint8_t  buff[2];
+  uint8_t  buff[3];
   uint32_t focus;
 
   if (event.length < 4) {
@@ -294,15 +300,21 @@ ErrCode ToolHeadLaser::SetFocus(SSTP_Event_t &event) {
 
   buff[0] = (uint8_t)(focus >> 8);
   buff[1] = (uint8_t)(focus);
+  if (rotaryModule.status() != ROTATE_OFFLINE) {
+    buff[2] = 1;
+  } else {
+    buff[2] = 0;
+  }
 
   cmd.id     = MODULE_FUNC_SET_LASER_FOCUS;
   cmd.data   = buff;
-  cmd.length = 2;
+  cmd.length = 3;
 
   err = canhost.SendStdCmd(cmd, 0);
 
   if (err == E_SUCCESS)
     LoadFocus();
+  LOG_I("SC new focal length: %.3f\n", focus_);
 
   return hmi.Send(event);
 }

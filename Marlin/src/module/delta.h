@@ -77,8 +77,8 @@ void recalc_delta_settings();
   delta[C_AXIS] = DELTA_Z(V, C_AXIS); \
 }while(0)
 
-void inverse_kinematics(const float (&raw)[XYZ]);
-FORCE_INLINE void inverse_kinematics(const float (&raw)[XYZE]) {
+void inverse_kinematics(const float (&raw)[XN]);
+FORCE_INLINE void inverse_kinematics(const float (&raw)[X_TO_E]) {
   const float raw_xyz[XYZ] = { raw[X_AXIS], raw[Y_AXIS], raw[Z_AXIS] };
   inverse_kinematics(raw_xyz);
 }

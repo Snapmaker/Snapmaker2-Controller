@@ -34,7 +34,7 @@
   #include "../../module/stepper.h"
 #endif
 
-extern float destination[XYZE];
+extern float destination[X_TO_E];
 
 #if ENABLED(VARIABLE_G0_FEEDRATE)
   float saved_g0_feedrate_mm_s = MMM_TO_MMS(G0_FEEDRATE);

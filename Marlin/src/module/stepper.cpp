@@ -168,9 +168,9 @@ uint8_t Stepper::steps_per_isr;
 #endif
     uint8_t Stepper::oversampling_factor;
 
-int32_t Stepper::delta_error[XYZE] = { 0 };
+int32_t Stepper::delta_error[X_TO_E] = { 0 };
 
-uint32_t Stepper::advance_dividend[XYZE] = { 0 },
+uint32_t Stepper::advance_dividend[X_TO_E] = { 0 },
          Stepper::advance_divisor = 0,
          Stepper::step_events_completed = 0, // The number of step events executed in the current block
          Stepper::accelerate_until,          // The point from where we need to stop acceleration
@@ -220,7 +220,7 @@ int32_t Stepper::ticks_nominal = -1;
 volatile int32_t Stepper::endstops_trigsteps[XYZ];
 
 volatile int32_t Stepper::count_position[NUM_AXIS] = { 0 };
-int8_t Stepper::count_direction[NUM_AXIS] = { 0, 0, 0, 0 };
+int8_t Stepper::count_direction[NUM_AXIS] = { 0, 0, 0, 0, 0 };
 
 #define DUAL_ENDSTOP_APPLY_STEP(A,V)                                                                                        \
   if (separate_multi_axis) {                                                                                                \
@@ -335,6 +335,9 @@ int8_t Stepper::count_direction[NUM_AXIS] = { 0, 0, 0, 0 };
   #define Z_APPLY_STEP(v,Q) Z_STEP_WRITE(v)
 #endif
 
+#define B_APPLY_DIR(v,Q) B_DIR_WRITE(v)
+#define B_APPLY_STEP(v,Q) B_STEP_WRITE(v)
+
 #if DISABLED(MIXING_EXTRUDER)
   #define E_APPLY_STEP(v,Q) E_STEP_WRITE(stepper_extruder, v)
 #endif
@@ -381,15 +384,19 @@ void Stepper::set_directions() {
   #endif // DISABLED(SW_MACHINE_SIZE)
 
   #if HAS_X_DIR
-    SET_STEP_DIR(X); // A
+    SET_STEP_DIR(X); // X
   #endif
 
   #if HAS_Y_DIR
-    SET_STEP_DIR(Y); // B
+    SET_STEP_DIR(Y); // Y
   #endif
 
   #if HAS_Z_DIR
-    SET_STEP_DIR(Z); // C
+    SET_STEP_DIR(Z); // Z
+  #endif
+
+  #if HAS_B_DIR
+    SET_STEP_DIR(B); // B
   #endif
 
   #if DISABLED(LIN_ADVANCE)
@@ -1500,6 +1507,9 @@ void Stepper::stepper_pulse_phase_isr() {
     #if HAS_Z_STEP
       PULSE_START(Z);
     #endif
+    #if HAS_B_STEP
+      PULSE_START(B);
+    #endif
 
     // Pulse Extruders
     // Tick the E axis, correct error term and update position
@@ -1545,6 +1555,9 @@ void Stepper::stepper_pulse_phase_isr() {
     #endif
     #if HAS_Z_STEP
       PULSE_STOP(Z);
+    #endif
+    #if HAS_B_STEP
+      PULSE_STOP(B);
     #endif
 
     #if DISABLED(LIN_ADVANCE)
@@ -1708,8 +1721,9 @@ uint32_t Stepper::stepper_block_phase_isr() {
       // Sync block? Sync the stepper counts and return
       while (TEST(current_block->flag, BLOCK_BIT_SYNC_POSITION)) {
         _set_position(
-          current_block->position[A_AXIS], current_block->position[B_AXIS],
-          current_block->position[C_AXIS], current_block->position[E_AXIS]
+          current_block->position[X_AXIS], current_block->position[Y_AXIS],
+          current_block->position[Z_AXIS], current_block->position[B_AXIS],
+          current_block->position[E_AXIS]
         );
         planner.discard_current_block();
 
@@ -1741,7 +1755,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         #endif
         #define X_MOVE_TEST ( S_(1) != S_(2) || (S_(1) > 0 && D_(1) X_CMP D_(2)) )
       #else
-        #define X_MOVE_TEST !!current_block->steps[A_AXIS]
+        #define X_MOVE_TEST !!current_block->steps[X_AXIS]
       #endif
 
       #if CORE_IS_XY || CORE_IS_YZ
@@ -1759,7 +1773,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         #endif
         #define Y_MOVE_TEST ( S_(1) != S_(2) || (S_(1) > 0 && D_(1) Y_CMP D_(2)) )
       #else
-        #define Y_MOVE_TEST !!current_block->steps[B_AXIS]
+        #define Y_MOVE_TEST !!current_block->steps[Y_AXIS]
       #endif
 
       #if CORE_IS_XZ || CORE_IS_YZ
@@ -1777,13 +1791,16 @@ uint32_t Stepper::stepper_block_phase_isr() {
         #endif
         #define Z_MOVE_TEST ( S_(1) != S_(2) || (S_(1) > 0 && D_(1) Z_CMP D_(2)) )
       #else
-        #define Z_MOVE_TEST !!current_block->steps[C_AXIS]
+        #define Z_MOVE_TEST !!current_block->steps[Z_AXIS]
       #endif
 
+      #define B_MOVE_TEST !!current_block->steps[B_AXIS]
+
       uint8_t axis_bits = 0;
-      if (X_MOVE_TEST) SBI(axis_bits, A_AXIS);
-      if (Y_MOVE_TEST) SBI(axis_bits, B_AXIS);
-      if (Z_MOVE_TEST) SBI(axis_bits, C_AXIS);
+      if (X_MOVE_TEST) SBI(axis_bits, X_AXIS);
+      if (Y_MOVE_TEST) SBI(axis_bits, Y_AXIS);
+      if (Z_MOVE_TEST) SBI(axis_bits, Z_AXIS);
+      if (B_MOVE_TEST) SBI(axis_bits, B_AXIS);
       //if (!!current_block->steps[E_AXIS]) SBI(axis_bits, E_AXIS);
       //if (!!current_block->steps[A_AXIS]) SBI(axis_bits, X_HEAD);
       //if (!!current_block->steps[B_AXIS]) SBI(axis_bits, Y_HEAD);
@@ -1810,12 +1827,13 @@ uint32_t Stepper::stepper_block_phase_isr() {
       step_event_count = current_block->step_event_count << oversampling;
 
       // Initialize Bresenham delta errors to 1/2
-      delta_error[X_AXIS] = delta_error[Y_AXIS] = delta_error[Z_AXIS] = delta_error[E_AXIS] = -int32_t(step_event_count);
+      delta_error[X_AXIS] = delta_error[Y_AXIS] = delta_error[Z_AXIS] = delta_error[B_AXIS] = delta_error[E_AXIS] = -int32_t(step_event_count);
 
       // Calculate Bresenham dividends
       advance_dividend[X_AXIS] = current_block->steps[X_AXIS] << 1;
       advance_dividend[Y_AXIS] = current_block->steps[Y_AXIS] << 1;
       advance_dividend[Z_AXIS] = current_block->steps[Z_AXIS] << 1;
+      advance_dividend[B_AXIS] = current_block->steps[B_AXIS] << 1;
       advance_dividend[E_AXIS] = current_block->steps[E_AXIS] << 1;
 
       // Calculate Bresenham divisor
@@ -2065,6 +2083,9 @@ void Stepper::init() {
       Z3_DIR_INIT;
     #endif
   #endif
+  #if HAS_B_DIR
+    B_DIR_INIT;
+  #endif
 
   // Init Enable Pins - steppers default to disabled.
   #if HAS_X_ENABLE
@@ -2094,6 +2115,9 @@ void Stepper::init() {
       Z3_ENABLE_INIT;
       if (!Z_ENABLE_ON) Z3_ENABLE_WRITE(HIGH);
     #endif
+  #endif
+  #if HAS_B_ENABLE
+    B_ENABLE_INIT;
   #endif
   
 
@@ -2137,6 +2161,10 @@ void Stepper::init() {
     AXIS_INIT(Z, Z);
   #endif
 
+   #if HAS_B_STEP
+    AXIS_INIT(B, B);
+  #endif
+
   #if DISABLED(I2S_STEPPER_STREAM)
     HAL_timer_start(STEP_TIMER_NUM, 122); // Init Stepper ISR to 122 Hz for quick starting
     ENABLE_STEPPER_DRIVER_INTERRUPT();
@@ -2147,7 +2175,8 @@ void Stepper::init() {
   last_direction_bits = 0
     | (INVERT_X_DIR ? _BV(X_AXIS) : 0)
     | (INVERT_Y_DIR ? _BV(Y_AXIS) : 0)
-    | (INVERT_Z_DIR ? _BV(Z_AXIS) : 0);
+    | (INVERT_Z_DIR ? _BV(Z_AXIS) : 0)
+    | (INVERT_B_DIR ? _BV(B_AXIS) : 0);
 
   set_directions();
 
@@ -2168,7 +2197,7 @@ void Stepper::init() {
  * This allows get_axis_position_mm to correctly
  * derive the current XYZ position later on.
  */
-void Stepper::_set_position(const int32_t &a, const int32_t &b, const int32_t &c, const int32_t &e) {
+void Stepper::_set_position(const int32_t &x, const int32_t &y, const int32_t &z, const int32_t &b, const int32_t &e) {
   #if CORE_IS_XY
     // corexy positioning
     // these equations follow the form of the dA and dB equations on http://www.corexy.com/theory.html
@@ -2187,9 +2216,10 @@ void Stepper::_set_position(const int32_t &a, const int32_t &b, const int32_t &c
     count_position[C_AXIS] = CORESIGN(b - c);
   #else
     // default non-h-bot planning
-    count_position[X_AXIS] = a;
-    count_position[Y_AXIS] = b;
-    count_position[Z_AXIS] = c;
+    count_position[X_AXIS] = x;
+    count_position[Y_AXIS] = y;
+    count_position[Z_AXIS] = z;
+    count_position[B_AXIS] = b;
   #endif
   count_position[E_AXIS] = e;
 }
@@ -2270,7 +2300,8 @@ void Stepper::report_positions() {
 
   const int32_t xpos = count_position[X_AXIS],
                 ypos = count_position[Y_AXIS],
-                zpos = count_position[Z_AXIS];
+                zpos = count_position[Z_AXIS],
+                bpos = count_position[B_AXIS];
 
   if (was_enabled) ENABLE_STEPPER_DRIVER_INTERRUPT();
 
@@ -2294,6 +2325,9 @@ void Stepper::report_positions() {
     SERIAL_ECHOPGM(" Z:");
   #endif
   SERIAL_ECHO(zpos);
+
+  SERIAL_ECHOPGM(" B:");
+  SERIAL_ECHO(bpos);
 
   SERIAL_EOL();
 }

@@ -54,6 +54,7 @@
 
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../core/debug_out.h"
+#include "../snapmaker/src/module/rotary_module.h"
 
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
   #include "../snapmaker/src/module/toolhead_3dp.h"
@@ -279,7 +280,8 @@ void GcodeSuite::G28(const bool always_home_all) {
     const bool homeX = always_home_all || parser.seen('X'),
                homeY = always_home_all || parser.seen('Y'),
                homeZ = always_home_all || parser.seen('Z'),
-               home_all = (!homeX && !homeY && !homeZ) || (homeX && homeY && homeZ);
+               homeB = always_home_all || parser.seen('B'),
+               home_all = (!homeX && !homeY && !homeZ && !homeB) || (homeX && homeY && homeZ&& homeB);
 
     set_destination_from_current();
 
@@ -392,9 +394,21 @@ void GcodeSuite::G28(const bool always_home_all) {
           #endif
         } // home_all || homeZ
     #endif // DISABLED(SW_MACHINE_SIZE)
-
+    if (rotaryModule.status() == ROTATE_ONLINE) {
+      if (home_all || homeB) {
+        if (!axes_homed(B_AXIS)) {
+          // Home B axis, directly set B axis as homed
+          set_axis_is_at_home(B_AXIS);
+          destination[B_AXIS] = current_position[B_AXIS];
+        } else {
+          homeaxis(B_AXIS);
+        }
+      }
+    } else {
+      set_axis_is_at_home(B_AXIS);
+    }
     sync_plan_position();
-
+  
   #endif // !DELTA (G28)
 
   /**

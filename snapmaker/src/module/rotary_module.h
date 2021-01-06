@@ -18,29 +18,47 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef SNAPMAKER_M1028_H_
-#define SNAPMAKER_M1028_H_
 
-#include "../common/config.h"
+#ifndef SNAPMAKER_ROTATE_H_
+#define SNAPMAKER_ROTATE_H_
 
-#include "src/Marlin.h"
-#include "src/core/macros.h"
+#include "module_base.h"
+#include "can_host.h"
 
-extern float sm_homing_feedrate[XN];
-extern uint8_t sm_homing_bump_divisor[XN];
+typedef enum {
+  ROTATE_ONLINE = 0,
+  ROTATE_OFFLINE = 1,
+  ROTATE_UNUSABLE = 2,
+}ROTATE_STATE_E;
 
-// speed in calibration, mm/s
-extern float max_speed_in_calibration[XYZ];
-extern float speed_in_calibration[XYZ];
-extern float z_position_before_calibration;
-extern float z_position_in_cali_offset;
-extern float z_position_after_calibration;
-extern float speed_in_draw_ruler;
+/**
+ * Rotary Module
+ *
+ * Abstraction of rotary module add-on.
+ */
+class RotaryModule: public ModuleBase {
 
-extern float laser_pwr_in_cali;
+  public:
+    RotaryModule (): ModuleBase(MODULE_DEVICE_ID_ROTARY) {
+    }
+    /**
+     * Initialize rotary module.
+     */
+    ErrCode Init(MAC_t &mac, uint8_t mac_index);
 
-extern float z_limit_in_cali;
+    /**
+     * Detection of module.
+     */
+    // void Detect();
 
-extern bool go_home_before_cali;
+    /**
+     * Check if module is activated.
+     */
+    ROTATE_STATE_E status() {return status_;}
+    void status(ROTATE_STATE_E s) {status_ = s;}
+  private:
+    ROTATE_STATE_E status_ = ROTATE_OFFLINE;
+};
 
-#endif  // #ifndef SNAPMAKER_M1028_H_
+extern RotaryModule rotaryModule;
+#endif

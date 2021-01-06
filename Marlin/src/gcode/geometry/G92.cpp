@@ -39,7 +39,7 @@ void GcodeSuite::G92() {
       case 1:
         // Zero the G92 values and restore current position
         #if !IS_SCARA
-          LOOP_XYZ(i) {
+          LOOP_XN(i) {
             const float v = position_shift[i];
             if (v) {
               position_shift[i] = 0;
@@ -65,7 +65,7 @@ void GcodeSuite::G92() {
   #endif
 
   bool onlyE = true;
-  if (IS_G92_0) LOOP_XYZE(i) {
+  if (IS_G92_0) LOOP_X_TO_E(i) {
     if (parser.seenval(axis_codes[i])) {
       const float l = parser.value_axis_units((AxisEnum)i),
                   v = i == E_AXIS ? l : LOGICAL_TO_NATIVE(l, i),

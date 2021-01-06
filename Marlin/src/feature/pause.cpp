@@ -55,7 +55,7 @@
 
 // private:
 
-static float resume_position[XYZE];
+static float resume_position[X_TO_E];
 
 PauseMode pause_mode = PAUSE_MODE_PAUSE_PRINT;
 
