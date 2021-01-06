@@ -256,7 +256,7 @@ ErrCode ToolHeadLaser::GetFocus(SSTP_Event_t &event) {
   uint8_t  buff[5];
 
   LoadFocus();
-  vTaskDelay(portTICK_PERIOD_MS * 20);
+  vTaskDelay(pdMS_TO_TICKS(20));
 
   LOG_I("SC get Focus: %.2f mm\n", focus_ / 1000.0f);
 
@@ -482,7 +482,7 @@ ErrCode ToolHeadLaser::ReadBluetoothInfo(LaserCameraCommand cmd, uint8_t *out, u
 
     esp32_.Send(event);
     esp32_.FlushOutput();
-    vTaskDelay(200 * portTICK_PERIOD_MS * i);
+    vTaskDelay(pdMS_TO_TICKS(200 * i));
 
     ret = esp32_.CheckoutCmd(out, length);
     if (ret != E_SUCCESS) {
@@ -534,7 +534,7 @@ ErrCode ToolHeadLaser::SetBluetoothInfo(LaserCameraCommand cmd, uint8_t *info, u
 
     esp32_.Send(event);
     esp32_.FlushOutput();
-    vTaskDelay(200 * portTICK_PERIOD_MS * i);
+    vTaskDelay(pdMS_TO_TICKS(200 * i));
 
     ret = esp32_.CheckoutCmd(buffer, length);
     if (ret != E_SUCCESS) {

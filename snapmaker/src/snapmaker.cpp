@@ -94,7 +94,7 @@ void HeatedBedSelfCheck(void) {
   OUT_WRITE(HEATER_BED_PIN, LOW);
   // and set input for the detect pin
   SET_INPUT_PULLUP(HEATEDBED_ON_PIN);
-  vTaskDelay(portTICK_PERIOD_MS * 10);
+  vTaskDelay(pdMS_TO_TICKS(10));
   // if we get LOW, indicate the NMOS is breakdown
   // we need to disable its power supply immediately
   if(READ(HEATEDBED_ON_PIN) == LOW) {
@@ -143,7 +143,7 @@ static void main_loop(void *param) {
   systemservice.SetCurrentStatus(SYSTAT_IDLE);
 
   // waiting for initializing modules
-  xEventGroupWaitBits(((SnapmakerHandle_t)param)->event_group, EVENT_GROUP_MODULE_READY, pdFALSE, pdTRUE, portTICK_PERIOD_MS * 10000);
+  xEventGroupWaitBits(((SnapmakerHandle_t)param)->event_group, EVENT_GROUP_MODULE_READY, pdFALSE, pdTRUE, pdMS_TO_TICKS(10000));
 
   // init power-loss recovery after initializing modules
   // because we need to check if current toolhead is same with previous
@@ -210,7 +210,7 @@ static void hmi_task(void *param) {
       if (++count)
         count = 0;
 
-      vTaskDelay(portTICK_PERIOD_MS * 100);
+      vTaskDelay(pdMS_TO_TICKS(100));
       continue;
     }
     else
@@ -219,14 +219,14 @@ static void hmi_task(void *param) {
     ret = hmi.CheckoutCmd(dispather_param.event_buff, dispather_param.size);
     if (ret != E_SUCCESS) {
       // no command, sleep 10ms for next command
-      vTaskDelay(portTICK_PERIOD_MS * 10);
+      vTaskDelay(pdMS_TO_TICKS(10));
       continue;
     }
 
     // execute or send out one command
     DispatchEvent(&dispather_param);
 
-    vTaskDelay(portTICK_PERIOD_MS * 5);
+    vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 
@@ -252,7 +252,7 @@ static void heartbeat_task(void *param) {
     }
 
     // sleep for 10ms
-    vTaskDelay(portTICK_PERIOD_MS * 10);
+    vTaskDelay(pdMS_TO_TICKS(10));
   }
 }
 

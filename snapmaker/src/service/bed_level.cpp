@@ -85,6 +85,9 @@ ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
     endstops.enable_z_probe(true);
 
     // move quicky firstly to decrease the time
+    // move to the first calibration mesh point allow the sensor to detect the bed if the bed
+    // is on an unexpected height
+    do_blocking_move_to_logical_xy(_GET_MESH_X(0),_GET_MESH_Y(0),speed_in_calibration[X_AXIS]);
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
     planner.synchronize();
 

@@ -76,7 +76,7 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
 
   // if it doesn't have enough bytes in ring buffer for header, just return
   while (rb_full_count(rb) < (SSTP_PDU_HEADER_SIZE - 1)) {
-    vTaskDelay(portTICK_PERIOD_MS);
+    vTaskDelay(pdMS_TO_TICKS(1));
     if (++timeout > TIMEOUT_FOR_HEADER) {
       SERIAL_ECHOLN(LOG_HEAD "timeout to wait for PDU header");
       return E_NO_HEADER;
@@ -93,7 +93,7 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
       if (c != -1)
         break;
       else {
-        vTaskDelay(portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(1));
         if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
           SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for header, just got ", i);
           return E_NO_HEADER;
@@ -123,7 +123,7 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
 
   timeout = 0;
   while (rb_full_count(rb) < length) {
-    vTaskDelay(DELAY_MS_FOR_DATA);
+    vTaskDelay(pdMS_TO_TICKS(DELAY_MS_FOR_DATA));
     if (++timeout > TIMEOUT_COUNT_FOR_DATA) {
       SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for data: ", length);
       return E_NO_DATA;
@@ -138,7 +138,7 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
       if (c != -1)
         break;
       else {
-        vTaskDelay(portTICK_PERIOD_MS);
+        vTaskDelay(pdMS_TO_TICKS(1));
         if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
           SERIAL_ECHOLN(LOG_HEAD "timeout wait for next byte of data");
           return E_NO_DATA;

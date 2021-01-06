@@ -142,20 +142,20 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   mac_index_ = mac_index;
 
   // read the state of sensors
-  vTaskDelay(portTICK_PERIOD_MS * 5);
+  vTaskDelay(pdMS_TO_TICKS(5));
 
   if (msg_id_index_probe != 0xff) {
     mesg_cmd.id = message_id[msg_id_index_probe];
     canhost.SendStdCmd(mesg_cmd);
   }
 
-  vTaskDelay(portTICK_PERIOD_MS * 5);
+  vTaskDelay(pdMS_TO_TICKS(5));
   if (msg_id_index_runout != 0xff) {
     mesg_cmd.id = message_id[msg_id_index_runout];
     canhost.SendStdCmd(mesg_cmd);
   }
 
-  vTaskDelay(portTICK_PERIOD_MS * 5);
+  vTaskDelay(pdMS_TO_TICKS(5));
 
   LOG_I("\tprobe: 0x%x, filament: 0x%x\n", probe_state_, filament_state_);
 

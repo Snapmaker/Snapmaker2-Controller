@@ -66,7 +66,7 @@ void GcodeSuite::M1005() {
       continue;
     }
 
-    buffer[cmd.length + 2] = 0;
+    buffer[cmd.length] = 0;
     LOG_I("0x%08X: %s\n", mac.val, buffer+2);
   }
 
