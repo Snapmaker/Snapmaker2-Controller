@@ -214,12 +214,22 @@ ErrCode BedLevelService::SetManualLevelingPoint(SSTP_Event_t &event) {
     LOG_I("SC req move to pont: %d\n", index);
   }
 
+  LOG_I("manual leveling pre, index:%d, manual_level_index_:%d\n", index, manual_level_index_);
   if ((index <= GRID_MAX_POINTS_INDEX) && (index > 0)) {
     // check point index
-    if (manual_level_index_ <= GRID_MAX_POINTS_INDEX) {
+    if (manual_level_index_ < GRID_MAX_POINTS_INDEX - 1) {
       // save point index
       MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
       LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", manual_level_index_, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
+
+      if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
+        if (active_extruder == TOOLHEAD_3DP_EXTRUDER0) {
+          ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][manual_level_index_] = MeshPointZ[manual_level_index_];
+        }
+        else if (active_extruder == TOOLHEAD_3DP_EXTRUDER1) {
+          ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER1][manual_level_index_] = MeshPointZ[manual_level_index_];
+        }
+      }
 
       // if got new point, raise Z firstly
       if ((manual_level_index_ != index -1) && current_position[Z_AXIS] < z_position_before_calibration)
@@ -231,6 +241,7 @@ ErrCode BedLevelService::SetManualLevelingPoint(SSTP_Event_t &event) {
     do_blocking_move_to_logical_xy(_GET_MESH_X(manual_level_index_ % GRID_MAX_POINTS_X),
                     _GET_MESH_Y(manual_level_index_ / GRID_MAX_POINTS_Y), speed_in_calibration[X_AXIS]);
   }
+  LOG_I("manual leveling post, index:%d, manual_level_index_:%d\n", index, manual_level_index_);
 
   err = E_SUCCESS;
 
@@ -241,6 +252,19 @@ out:
   return hmi.Send(event);
 }
 
+ErrCode BedLevelService::GetCurrentPointZValue(SSTP_Event_t &event) {
+  ErrCode err = E_FAILURE;
+
+  MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
+  ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][manual_level_index_] = MeshPointZ[manual_level_index_];
+
+  err = E_SUCCESS;
+
+  event.data = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
 
 ErrCode BedLevelService::AdjustZOffsetInLeveling(SSTP_Event_t &event) {
   ErrCode err = E_FAILURE;
@@ -271,7 +295,6 @@ ErrCode BedLevelService::AdjustZOffsetInLeveling(SSTP_Event_t &event) {
   return hmi.Send(event);
 }
 
-
 ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
 
@@ -294,13 +317,45 @@ ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
     MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
     LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", manual_level_index_,
         current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
+
+    if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
+      if (active_extruder == TOOLHEAD_3DP_EXTRUDER0) {
+        ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][manual_level_index_] = MeshPointZ[manual_level_index_];
+      }
+      else if (active_extruder == TOOLHEAD_3DP_EXTRUDER1) {
+        ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER1][manual_level_index_] = MeshPointZ[manual_level_index_];
+      }
+    }
+
     for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
       for (i = 0; i < GRID_MAX_POINTS_X; i++) {
         z_values[i][j] = MeshPointZ[j * GRID_MAX_POINTS_X + i];
       }
     }
 
+    // 假如开启了右喷嘴单点调平，需要计算差值，然后将此差值补偿到其它点
+    if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
+      #if ENABLED(PROBE_ALL_LEVELING_POINTS)
+        for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+          for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+            extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][i][j] = ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][j * GRID_MAX_POINTS_X + i];
+            extruders_z_values[TOOLHEAD_3DP_EXTRUDER1][i][j] = ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER1][j * GRID_MAX_POINTS_X + i];
+          }
+        }
+      #elif ENABLED(PROBE_LAST_LEVELING_POINT)
+        float temp_z = ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER1][manual_level_index_] - ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][manual_level_index_];
+        for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+          for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+            extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][i][j] = ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][j * GRID_MAX_POINTS_X + i];
+            extruders_z_values[TOOLHEAD_3DP_EXTRUDER1][i][j] = extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][i][j] + temp_z;
+          }
+        }
+      #endif
+    }
+
     bed_level_virt_interpolate();
+    bed_level_virt_interpolate(TOOLHEAD_3DP_EXTRUDER0);
+    bed_level_virt_interpolate(TOOLHEAD_3DP_EXTRUDER1);
     settings.save();
     break;
 

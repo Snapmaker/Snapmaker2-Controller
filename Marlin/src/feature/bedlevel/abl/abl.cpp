@@ -345,8 +345,8 @@ void refresh_bed_level() {
   bilinear_grid_factor[Y_AXIS] = RECIPROCAL(bilinear_grid_spacing[Y_AXIS]);
   #if ENABLED(ABL_BILINEAR_SUBDIVISION)
     bed_level_virt_interpolate();
-    bed_level_virt_interpolate(0);
-    bed_level_virt_interpolate(1);
+    bed_level_virt_interpolate(TOOLHEAD_3DP_EXTRUDER0);
+    bed_level_virt_interpolate(TOOLHEAD_3DP_EXTRUDER1);
   #endif
 }
 
@@ -633,7 +633,6 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
         cur_y = new_y;
       }
     #elif ENABLED(PROBE_LAST_LEVELING_POINT)
-      //TODO
       z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE, 0, printer1->device_id() != MODULE_DEVICE_ID_3DP_DUAL);
       float temp_z = z - extruders_z_values[0][cur_x][cur_y];
       for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {

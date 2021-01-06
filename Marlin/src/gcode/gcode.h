@@ -441,6 +441,8 @@ private:
 
   static void G2029();
 
+  static void G3029();
+
   #if ENABLED(CALIBRATION_GCODE)
     static void G425();
   #endif

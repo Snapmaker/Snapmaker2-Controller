@@ -301,6 +301,8 @@ void GcodeSuite::execute_command(void) {
 
       case 2029: G2029(); break;
 
+      case 3029: G3029(); break;
+
       default: parser.unknown_command_error(); break;
     }
     break;

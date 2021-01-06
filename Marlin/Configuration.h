@@ -157,9 +157,9 @@
 #endif
 
 #define PROBE_LAST_LEVELING_POINT
-#if DISABLED(PROBE_LAST_LEVELING_POINTS)
-  #define PROBE_ALL_LEVELING_POINTS
-#endif
+// #if DISABLED(PROBE_LAST_LEVELING_POINTS)
+//   #define PROBE_ALL_LEVELING_POINTS
+// #endif
 
 // Generally expected filament diameter (1.75, 2.85, 3.0, ...). Used for Volumetric, Filament Width Sensor, etc.
 #define DEFAULT_NOMINAL_FILAMENT_DIA 3.0

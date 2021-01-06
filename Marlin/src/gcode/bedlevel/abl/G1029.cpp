@@ -139,8 +139,8 @@ void GcodeSuite::G1029() {
       compensate_offset();
     }
     else if (opt_s == 1) {
-      bed_level_virt_interpolate(0);
-      bed_level_virt_interpolate(1);
+      bed_level_virt_interpolate(TOOLHEAD_3DP_EXTRUDER0);
+      bed_level_virt_interpolate(TOOLHEAD_3DP_EXTRUDER1);
       goto EXIT;
     }
     else {

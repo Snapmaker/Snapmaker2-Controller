@@ -58,7 +58,7 @@ class ToolHead3DP: public ModuleBase {
     ErrCode SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time=0);
     ErrCode SetPID(uint8_t index, float value, uint8_t extrude_index=0);
     ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index=0);
-    ErrCode SwitchExtruder(uint8_t extrude_index, uint16_t motor_runtime);
+    ErrCode SwitchExtruder(uint8_t extrude_index, uint8_t motor_switching=0, uint16_t motor_runtime=0);
 
     void Process();
 
@@ -118,6 +118,5 @@ class ToolHead3DP: public ModuleBase {
 };
 
 extern ToolHead3DP *printer1;
-extern ToolHead3DP *printer2;
 
 #endif  // #ifndef TOOLHEAD_3DP_H_

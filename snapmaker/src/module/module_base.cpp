@@ -284,10 +284,15 @@ void ModuleBase::SetToolhead(ModuleToolHeadType toolhead) {
   if (toolhead != MODULE_TOOLHEAD_3DP) {
     for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
       for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
-        if (z_values[x][y] != DEFAUT_LEVELING_HEIGHT) {
-          z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
-          need_saved = true;
-        }
+        // if (z_values[x][y] != DEFAUT_LEVELING_HEIGHT) {
+        //   z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
+        //   need_saved = true;
+        // }
+
+        z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
+        extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][x][y] = DEFAUT_LEVELING_HEIGHT;
+        extruders_z_values[TOOLHEAD_3DP_EXTRUDER1][x][y] = DEFAUT_LEVELING_HEIGHT;
+        need_saved = true;
       }
   }
 

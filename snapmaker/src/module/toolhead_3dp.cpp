@@ -35,7 +35,6 @@ ToolHead3DP printer_single(MODULE_DEVICE_ID_3DP_SINGLE);
 ToolHead3DP printer_dual(MODULE_DEVICE_ID_3DP_DUAL);
 
 ToolHead3DP *printer1 = &printer_single;
-ToolHead3DP *printer2 = &printer_dual;
 
 static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
   printer1->SetProbeState(cmd.data);
@@ -319,9 +318,9 @@ ErrCode ToolHead3DP::SetHeater(uint16_t target_temp, uint8_t extrude_index) {
 }
 
 
-ErrCode ToolHead3DP::SwitchExtruder(uint8_t extrude_index, uint16_t motor_runtime) {
+ErrCode ToolHead3DP::SwitchExtruder(uint8_t extrude_index, uint8_t motor_switching/*=0*/, uint16_t motor_runtime/*=0*/) {
   CanStdFuncCmd_t cmd;
-  uint8_t can_buffer[3];
+  uint8_t can_buffer[4];
 
   switch (extrude_index) {
   case 0:
@@ -336,12 +335,26 @@ ErrCode ToolHead3DP::SwitchExtruder(uint8_t extrude_index, uint16_t motor_runtim
     return E_PARAM;
   }
 
+  switch (motor_switching) {
+  case 0:
+    motor_switching = 0;
+    break;
+
+  case 1:
+    motor_switching = 1;
+    break;
+
+  default:
+    return E_PARAM;
+  }
+
   can_buffer[0] = extrude_index;
-  can_buffer[1] = (motor_runtime >> 8) & 0xff;
-  can_buffer[2] = motor_runtime & 0xff;
+  can_buffer[1] = motor_switching;
+  can_buffer[2] = (motor_runtime >> 8) & 0xff;
+  can_buffer[3] = motor_runtime & 0xff;
   cmd.id        = MODULE_FUNC_SWITCH_EXTRUDER;
   cmd.data      = can_buffer;
-  cmd.length    = 3;
+  cmd.length    = 4;
 
   return canhost.SendStdCmdSync(cmd, 10000);
 }
