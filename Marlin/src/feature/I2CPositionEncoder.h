@@ -93,7 +93,7 @@
 #define LOOP_PE(VAR) LOOP_L_N(VAR, I2CPE_ENCODER_CNT)
 #define CHECK_IDX() do{ if (!WITHIN(idx, 0, I2CPE_ENCODER_CNT - 1)) return; }while(0)
 
-extern const char axis_codes[XYZE];
+extern const char axis_codes[X_TO_E];
 
 typedef union {
   volatile int32_t val = 0;

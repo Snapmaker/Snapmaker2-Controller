@@ -685,9 +685,9 @@
 /**
  * Default Axis Steps Per Unit (steps/mm)
  * Override with M92
- *                                      X, Y, Z, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
+ *                                      X, Y, Z, B, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
  */
-#define DEFAULT_AXIS_STEPS_PER_UNIT   { 400, 400, 400, 212.21 }
+#define DEFAULT_AXIS_STEPS_PER_UNIT   { 400, 400, 400, 888.89, 212.21 }
 
 #define MODULE_LINEAR_PITCH_20        160
 #define MODULE_LINEAR_PITCH_8         400
@@ -695,17 +695,17 @@
 /**
  * Default Max Feed Rate (mm/s)
  * Override with M203
- *                                      X, Y, Z, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
+ *                                      X, Y, Z, B, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
  */
-#define DEFAULT_MAX_FEEDRATE          { 120, 120, 40, 25 }
+#define DEFAULT_MAX_FEEDRATE          { 120, 120, 40, 45, 25 }
 
 /**
  * Default Max Acceleration (change/s) change = mm/s
  * (Maximum start speed for accelerated moves)
  * Override with M201
- *                                      X, Y, Z, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
+ *                                      X, Y, Z, B, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
  */
-#define DEFAULT_MAX_ACCELERATION      { 3000, 3000, 100, 10000 }
+#define DEFAULT_MAX_ACCELERATION      { 3000, 3000, 100, 3000, 10000 }
 
 /**
  * Default Acceleration (change/s) change = mm/s
@@ -938,6 +938,7 @@
 #define X_ENABLE_ON 0
 #define Y_ENABLE_ON 0
 #define Z_ENABLE_ON 0
+#define B_ENABLE_ON 0
 #define E_ENABLE_ON 0 // For all extruders
 
 // Disables axis stepper immediately when it's not being used.
@@ -945,6 +946,7 @@
 #define DISABLE_X false
 #define DISABLE_Y false
 #define DISABLE_Z false
+#define DISABLE_B false
 
 // Warn on display about possibly reduced accuracy
 //#define DISABLE_REDUCED_ACCURACY_WARNING
@@ -1018,10 +1020,12 @@
   extern bool X_DIR;
   extern bool Y_DIR;
   extern bool Z_DIR;
+  extern bool B_DIR;
   extern bool E_DIR;
   extern signed char X_HOME_DIR;
   extern signed char Y_HOME_DIR;
   extern signed char Z_HOME_DIR;
+  extern signed char B_HOME_DIR;
   extern float X_MAX_POS;
   extern float Y_MAX_POS;
   extern float Z_MAX_POS;
@@ -1040,13 +1044,13 @@
   extern float MAGNET_Y_SPAN;
 
   // homeoffset for S/M/L
-  extern float s_home_offset[XYZ];
-  extern float m_home_offset[XYZ];
-  extern float l_home_offset[XYZ];
+  extern float s_home_offset[XN];
+  extern float m_home_offset[XN];
+  extern float l_home_offset[XN];
 
-  #define S_HOME_OFFSET_DEFAULT {-7, -5, 0}
-  #define M_HOME_OFFSET_DEFAULT {-15.5, -7, 0}
-  #define L_HOME_OFFSET_DEFAULT {-19, -10, 0}
+#define S_HOME_OFFSET_DEFAULT {-7, -5, 0, 0}
+#define M_HOME_OFFSET_DEFAULT {-15.5, -7, 0, 0}
+#define L_HOME_OFFSET_DEFAULT {-19, -10, 0, 0}
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed
@@ -1340,6 +1344,7 @@
 // Homing speeds (mm/m)
 #define HOMING_FEEDRATE_XY (50*60)
 #define HOMING_FEEDRATE_Z  (10*60)
+#define HOMING_FEEDRATE_B  (30*60)
 
 // Validate that endstops are triggered on homing moves
 //#define VALIDATE_HOMING_ENDSTOPS

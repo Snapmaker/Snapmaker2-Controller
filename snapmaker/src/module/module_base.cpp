@@ -29,6 +29,7 @@
 #include "linear.h"
 #include "enclosure.h"
 #include "emergency_stop.h"
+#include "rotary_module.h"
 #include "toolhead_3dp.h"
 #include "toolhead_cnc.h"
 #include "toolhead_laser.h"
@@ -41,7 +42,7 @@
 
 extern ToolHead3DP printer_single;
 
-ModuleBase *static_modules[] = {&linear, &printer_single, &laser, &cnc, &enclosure, &emergency_stop, &linear_tmc, NULL};
+ModuleBase *static_modules[] = {&linear, &printer_single, &laser, &cnc, &enclosure, &emergency_stop, &linear_tmc, &rotaryModule, NULL};
 
 bool ModuleBase::lock_marlin_uart_ = false;
 LockMarlinUartSource ModuleBase::lock_marlin_source_ = LOCK_SOURCE_NONE;

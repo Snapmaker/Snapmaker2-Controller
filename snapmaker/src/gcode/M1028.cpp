@@ -59,8 +59,8 @@ enum SettingOpt : uint8_t {
   OPT_INVALID
 };
 
-float sm_homing_feedrate[XYZ] = {HOMING_FEEDRATE_XY/60, HOMING_FEEDRATE_XY/60, HOMING_FEEDRATE_Z/60};
-uint8_t sm_homing_bump_divisor[XYZ] = HOMING_BUMP_DIVISOR;
+float sm_homing_feedrate[XN] = {HOMING_FEEDRATE_XY/60, HOMING_FEEDRATE_XY/60, HOMING_FEEDRATE_Z/60, HOMING_FEEDRATE_B/60};
+uint8_t sm_homing_bump_divisor[XN] = HOMING_BUMP_DIVISOR;
 
 // speed in calibration
 float max_speed_in_calibration[XYZ] = {MAX_CALI_SPEED_XY, MAX_CALI_SPEED_XY, MAX_CALI_SPEED_Z};

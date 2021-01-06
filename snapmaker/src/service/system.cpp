@@ -254,9 +254,9 @@ ErrCode SystemService::StopTrigger(TriggerSource source, uint16_t event_opc) {
 #define RESUME_PROCESS_CMD_SIZE 40
 
 void inline SystemService::RestoreXYZ(void) {
-  LOG_I("restore ponit: X :%.3f, Y:%.3f, Z:%.3f, E:%.3f\n", pl_recovery.cur_data_.PositionData[X_AXIS],
+  LOG_I("restore ponit: X :%.3f, Y:%.3f, B:%.3f, Z:%.3f, E:%.3f\n", pl_recovery.cur_data_.PositionData[X_AXIS],
     pl_recovery.cur_data_.PositionData[Y_AXIS], pl_recovery.cur_data_.PositionData[Z_AXIS],
-    pl_recovery.cur_data_.PositionData[E_AXIS]);
+    pl_recovery.cur_data_.PositionData[B_AXIS], pl_recovery.cur_data_.PositionData[E_AXIS]);
 
   // the positions we recorded are logical positions, so cannot use native movement API
   // restore X, Y
@@ -1861,8 +1861,8 @@ ErrCode SystemService::RecoverFromPowerLoss(SSTP_Event_t &event) {
 
 
 ErrCode SystemService::SendHomeAndCoordinateStatus(SSTP_Event_t &event) {
-  uint8_t buff[16] = {0};
-  int32_t pos_shift[XYZ];
+  uint8_t buff[20] = {0};
+  int32_t pos_shift[XN];
 
   int i = 0;
 
@@ -1883,13 +1883,15 @@ ErrCode SystemService::SendHomeAndCoordinateStatus(SSTP_Event_t &event) {
     pos_shift[X_AXIS] = (int32_t)(position_shift[X_AXIS] * 1000);
     pos_shift[Y_AXIS] = (int32_t)(position_shift[Y_AXIS] * 1000);
     pos_shift[Z_AXIS] = (int32_t)(position_shift[Z_AXIS] * 1000);
+    pos_shift[B_AXIS] = (int32_t)(position_shift[B_AXIS] * 1000);
   }
   else {
     buff[i++] = gcode.active_coordinate_system + 1;
     // check state
     if ((position_shift[X_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS]) &&
         (position_shift[Y_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS]) &&
-        (position_shift[Z_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS])) {
+        (position_shift[Z_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS]) &&
+        (position_shift[B_AXIS] == gcode.coordinate_system[gcode.active_coordinate_system][B_AXIS])) {
       buff[i++] = 0;
     }
     else {
@@ -1898,11 +1900,13 @@ ErrCode SystemService::SendHomeAndCoordinateStatus(SSTP_Event_t &event) {
     pos_shift[X_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][X_AXIS] * 1000);
     pos_shift[Y_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][Y_AXIS] * 1000);
     pos_shift[Z_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][Z_AXIS] * 1000);
+    pos_shift[B_AXIS] = (int32_t)(gcode.coordinate_system[gcode.active_coordinate_system][B_AXIS] * 1000);
   }
 
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, pos_shift[X_AXIS], i);
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, pos_shift[Y_AXIS], i);
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, pos_shift[Z_AXIS], i);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, pos_shift[B_AXIS], i);
 
   event.length = i;
 

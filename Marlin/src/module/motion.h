@@ -36,9 +36,9 @@
 
 // Axis homed and known-position states
 extern uint8_t axis_homed, axis_known_position;
-constexpr uint8_t xyz_bits = _BV(X_AXIS) | _BV(Y_AXIS) | _BV(Z_AXIS);
-FORCE_INLINE bool all_axes_homed() { return (axis_homed & xyz_bits) == xyz_bits; }
-FORCE_INLINE bool all_axes_known() { return (axis_known_position & xyz_bits) == xyz_bits; }
+constexpr uint8_t xn_bits = _BV(X_AXIS) | _BV(Y_AXIS) | _BV(Z_AXIS) | _BV(B_AXIS);
+FORCE_INLINE bool all_axes_homed() { return (axis_homed & xn_bits) == xn_bits; }
+FORCE_INLINE bool all_axes_known() { return (axis_known_position & xn_bits) == xn_bits; }
 FORCE_INLINE void set_all_unhomed() { axis_homed = 0; }
 FORCE_INLINE void set_all_unknown() { axis_known_position = 0; }
 #define axes_homed(axis) (axis_homed & _BV(axis))
@@ -50,11 +50,11 @@ constexpr float slop = 0.0001;
 
 extern bool relative_mode;
 
-extern float current_position[XYZE],  // High-level current tool position
-             destination[XYZE];       // Destination for a move
+extern float current_position[X_TO_E],  // High-level current tool position
+             destination[X_TO_E];       // Destination for a move
 
 // Scratch space for a cartesian result
-extern float cartes[XYZ];
+extern float cartes[XN];
 
 // Until kinematics.cpp is created, declare this here
 #if IS_KINEMATIC
@@ -74,8 +74,8 @@ extern float cartes[XYZ];
  * Feed rates are often configured with mm/m
  * but the planner and stepper like mm/s units.
  */
-extern const float homing_feedrate_mm_s[XYZ];
-extern float sm_homing_feedrate[XYZ];
+extern const float homing_feedrate_mm_s[XN];
+extern float sm_homing_feedrate[XN];
 FORCE_INLINE float homing_feedrate(const AxisEnum a) { return sm_homing_feedrate[a]; }
 float get_homing_bump_feedrate(const AxisEnum axis);
 
@@ -106,6 +106,10 @@ FORCE_INLINE signed char pgm_read_any(const signed char *p) { return pgm_read_by
     extern type array##_P[XYZ]; \
     FORCE_INLINE type array(AxisEnum axis) { return (array##_P[axis]); } \
     typedef void __void_##CONFIG##__
+  #define XN_DEFS(type, array, CONFIG) \
+    extern type array##_P[XN]; \
+    FORCE_INLINE type array(AxisEnum axis) { return (array##_P[axis]); } \
+    typedef void __void_##CONFIG##__
   /*
   extern float base_min_pos_P[XYZ];
   extern float base_max_pos_P[XYZ];
@@ -118,10 +122,10 @@ FORCE_INLINE signed char pgm_read_any(const signed char *p) { return pgm_read_by
 
 XYZ_DEFS(float, base_min_pos,   MIN_POS);
 XYZ_DEFS(float, base_max_pos,   MAX_POS);
-XYZ_DEFS(float, base_home_pos,  HOME_POS);
+XN_DEFS(float, base_home_pos,  HOME_POS);
 XYZ_DEFS(float, max_length,     MAX_LENGTH);
-XYZ_DEFS(float, home_bump_mm,   HOME_BUMP_MM);
-XYZ_DEFS(signed char, home_dir, HOME_DIR);
+XN_DEFS(float, home_bump_mm,   HOME_BUMP_MM);
+XN_DEFS(signed char, home_dir, HOME_DIR);
 
 #if HAS_WORKSPACE_OFFSET
   void update_workspace_offset(const AxisEnum axis);
@@ -200,11 +204,11 @@ void do_blocking_move_to_logical_z(const float &rz, const float &fr_mm_s=0);
 void do_blocking_move_to_logical_xy(const float &rx, const float &ry, const float &fr_mm_s=0);
 
 
-FORCE_INLINE void do_blocking_move_to(const float (&raw)[XYZ], const float &fr_mm_s=0) {
+FORCE_INLINE void do_blocking_move_to(const float (&raw)[XN], const float &fr_mm_s=0) {
   do_blocking_move_to(raw[X_AXIS], raw[Y_AXIS], raw[Z_AXIS], fr_mm_s);
 }
 
-FORCE_INLINE void do_blocking_move_to(const float (&raw)[XYZE], const float &fr_mm_s=0) {
+FORCE_INLINE void do_blocking_move_to(const float (&raw)[X_TO_E], const float &fr_mm_s=0) {
   do_blocking_move_to(raw[X_AXIS], raw[Y_AXIS], raw[Z_AXIS], fr_mm_s);
 }
 
@@ -234,13 +238,13 @@ void homeaxis(const AxisEnum axis);
  */
 #if HAS_HOME_OFFSET || HAS_POSITION_SHIFT
   #if HAS_HOME_OFFSET
-    extern float home_offset[XYZ];
+    extern float home_offset[XN];
   #endif
   #if HAS_POSITION_SHIFT
-    extern float position_shift[XYZ];
+    extern float position_shift[XN];
   #endif
   #if HAS_HOME_OFFSET && HAS_POSITION_SHIFT
-    extern float workspace_offset[XYZ];
+    extern float workspace_offset[XN];
     #define WORKSPACE_OFFSET(AXIS) workspace_offset[AXIS]
   #elif HAS_HOME_OFFSET
     #define WORKSPACE_OFFSET(AXIS) home_offset[AXIS]
@@ -256,9 +260,11 @@ void homeaxis(const AxisEnum axis);
 #define LOGICAL_X_POSITION(POS) NATIVE_TO_LOGICAL(POS, X_AXIS)
 #define LOGICAL_Y_POSITION(POS) NATIVE_TO_LOGICAL(POS, Y_AXIS)
 #define LOGICAL_Z_POSITION(POS) NATIVE_TO_LOGICAL(POS, Z_AXIS)
+#define LOGICAL_B_POSITION(POS) NATIVE_TO_LOGICAL(POS, B_AXIS)
 #define RAW_X_POSITION(POS)     LOGICAL_TO_NATIVE(POS, X_AXIS)
 #define RAW_Y_POSITION(POS)     LOGICAL_TO_NATIVE(POS, Y_AXIS)
 #define RAW_Z_POSITION(POS)     LOGICAL_TO_NATIVE(POS, Z_AXIS)
+#define RAW_B_POSITION(POS)     LOGICAL_TO_NATIVE(POS, B_AXIS)
 
 /**
  * position_is_reachable family of functions
@@ -392,24 +398,24 @@ void homeaxis(const AxisEnum axis);
   void UpdateMachineDefines(void);
 #endif
 
-void  move_to_limited_position(const float  (&target)[XYZE], const float fr_mm_s);
+void  move_to_limited_position(const float  (&target)[X_TO_E], const float fr_mm_s);
 
 FORCE_INLINE void  move_to_limited_z(const float z, const float fr_mm_s) {
-  float target[XYZE] = {current_position[X_AXIS], current_position[Y_AXIS], z, current_position[E_AXIS]};
+  float target[X_TO_E] = {current_position[X_AXIS], current_position[Y_AXIS], z, current_position[B_AXIS], current_position[E_AXIS]};
   move_to_limited_position(target, fr_mm_s);
 }
 
 FORCE_INLINE void  move_to_limited_ze(const float z, const float e, const float fr_mm_s) {
-  float target[XYZE] = {current_position[X_AXIS], current_position[Y_AXIS], z, e};
+  float target[X_TO_E] = {current_position[X_AXIS], current_position[Y_AXIS], z, current_position[B_AXIS], e};
   move_to_limited_position(target, fr_mm_s);
 }
 
 FORCE_INLINE void  move_to_limited_xy(const float x, const float y, const float fr_mm_s) {
-  float target[XYZE] = {x, y, current_position[Z_AXIS], current_position[E_AXIS]};
+  float target[X_TO_E] = {x, y, current_position[Z_AXIS], current_position[B_AXIS], current_position[E_AXIS]};
   move_to_limited_position(target, fr_mm_s);
 }
 
 FORCE_INLINE void  move_to_limited_x(const float x, const float fr_mm_s) {
-  float target[XYZE] = {x, current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]};
+  float target[X_TO_E] = {x, current_position[Y_AXIS], current_position[Z_AXIS], current_position[B_AXIS], current_position[E_AXIS]};
   move_to_limited_position(target, fr_mm_s);
 }

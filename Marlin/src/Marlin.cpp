@@ -224,10 +224,12 @@ millis_t max_inactive_time, // = 0
   bool X_DIR = false;
   bool Y_DIR = false;
   bool Z_DIR = false;
+  bool B_DIR = true;
   bool E_DIR = false;
   signed char X_HOME_DIR = 1;
   signed char Y_HOME_DIR = 1;
   signed char Z_HOME_DIR = 1;
+  signed char B_HOME_DIR = -1;
   float X_MAX_POS = 150;
   float Y_MAX_POS = 150;
   float Z_MAX_POS = 150;
@@ -244,9 +246,9 @@ millis_t max_inactive_time, // = 0
   float MAGNET_X_SPAN = 114;
   float MAGNET_Y_SPAN = 114;
 
-  float s_home_offset[XYZ] = S_HOME_OFFSET_DEFAULT;
-  float m_home_offset[XYZ] = M_HOME_OFFSET_DEFAULT;
-  float l_home_offset[XYZ] = L_HOME_OFFSET_DEFAULT;
+  float s_home_offset[XN] = S_HOME_OFFSET_DEFAULT;
+  float m_home_offset[XN] = M_HOME_OFFSET_DEFAULT;
+  float l_home_offset[XN] = L_HOME_OFFSET_DEFAULT;
 #endif //ENABLED(SW_MACHINE_SIZE)
 
 uint32_t GRID_MAX_POINTS_X;
@@ -266,11 +268,11 @@ uint32_t ABL_TEMP_POINTS_Y;
  */
 
 void reset_homeoffset() {
-  float s_home_offset_def[XYZ] = S_HOME_OFFSET_DEFAULT;
-  float m_home_offset_def[XYZ] = M_HOME_OFFSET_DEFAULT;
-  float l_home_offset_def[XYZ] = L_HOME_OFFSET_DEFAULT;
+  float s_home_offset_def[XN] = S_HOME_OFFSET_DEFAULT;
+  float m_home_offset_def[XN] = M_HOME_OFFSET_DEFAULT;
+  float l_home_offset_def[XN] = L_HOME_OFFSET_DEFAULT;
 
-  LOOP_XYZ(i) {
+  LOOP_XN(i) {
     s_home_offset[i] = s_home_offset_def[i];
     m_home_offset[i] = m_home_offset_def[i];
     l_home_offset[i] = l_home_offset_def[i];
@@ -366,6 +368,7 @@ void enable_all_steppers() {
   enable_X();
   enable_Y();
   enable_Z();
+  enable_B();
   enable_E0();
   enable_E1();
   enable_E2();
@@ -398,6 +401,7 @@ void disable_all_steppers() {
   disable_X();
   disable_Y();
   disable_Z();
+  disable_B();
   disable_e_steppers();
 }
 

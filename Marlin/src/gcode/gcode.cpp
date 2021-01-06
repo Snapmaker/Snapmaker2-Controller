@@ -66,7 +66,7 @@ bool GcodeSuite::axis_relative_modes[] = AXIS_RELATIVE_MODES;
 
 #if ENABLED(CNC_COORDINATE_SYSTEMS)
   int8_t GcodeSuite::active_coordinate_system = -1; // machine space
-  float GcodeSuite::coordinate_system[MAX_COORDINATE_SYSTEMS][XYZ];
+  float GcodeSuite::coordinate_system[MAX_COORDINATE_SYSTEMS][XN];
 #endif
 
 /**
@@ -95,8 +95,8 @@ int8_t GcodeSuite::get_target_extruder_from_command() {
  *  - Set the feedrate, if included
  */
 void GcodeSuite::get_destination_from_command() {
-  bool seen[XYZE] = { false, false, false, false };
-  LOOP_XYZE(i) {
+  bool seen[X_TO_E] = { false, false, false, false, false };
+  LOOP_X_TO_E(i) {
     if ( (seen[i] = parser.seenval(axis_codes[i])) ) {
       const float v = parser.value_axis_units((AxisEnum)i);
       destination[i] = (axis_relative_modes[i] || relative_mode)

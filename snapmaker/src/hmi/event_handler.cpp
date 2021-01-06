@@ -28,6 +28,7 @@
 #include "../module/enclosure.h"
 #include "../module/emergency_stop.h"
 #include "../module/toolhead_laser.h"
+#include "../module/rotary_module.h"
 
 #include "../service/bed_level.h"
 #include "../service/upgrade.h"
@@ -559,6 +560,18 @@ static ErrCode GetAddonStopStatus(SSTP_Event_t &event) {
   return emergency_stop.ReportStatus();
 }
 
+static ErrCode GetRotateStatus(SSTP_Event_t &event) {
+  uint8_t state = rotaryModule.status();
+  LOG_I("SC req rotate sta:%d\n", state);
+  uint8_t buff[1];
+
+  buff[0] = state;
+  event.length = 1;
+  event.data = buff;
+
+  return hmi.Send(event);
+}
+
 EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* [ADDON_OPC_GET_CHAMBER_STATUS]    =  */{EVENT_ATTR_DEFAULT,  ReportEnclosureStatus},
@@ -568,6 +581,7 @@ EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
   /* [ADDON_OPC_GET_ADDON_LIST]        =  */{EVENT_ATTR_DEFAULT,  GetAddonList},
   /* [ADDON_OPC_GET_ADDON_INFO]        =  */{EVENT_ATTR_DEFAULT,  GetAddonInfo},
   /* [ADDON_OPC_GET_ADDON_STOP]        =  */{EVENT_ATTR_DEFAULT,  GetAddonStopStatus},
+  /* [ADDON_OPC_GET_ROTATE_STATE]        =  */{EVENT_ATTR_DEFAULT,  GetRotateStatus},
 };
 
 

@@ -62,13 +62,13 @@ void GcodeSuite::M92() {
   if (target_extruder < 0) return;
 
   // No arguments? Show M92 report.
-  if (!parser.seen("XYZE"
+  if (!parser.seen("XYZBE"
     #if ENABLED(MAGIC_NUMBERS_GCODE)
       "HL"
     #endif
   )) return report_M92(true, target_extruder);
 
-  LOOP_XYZE(i) {
+  LOOP_X_TO_E(i) {
     if (parser.seenval(axis_codes[i])) {
       if (i == E_AXIS) {
         const float value = parser.value_per_axis_units((AxisEnum)(E_AXIS_N(target_extruder)));

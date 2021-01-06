@@ -26,7 +26,7 @@
 
 #include "../../module/planner.h"
 
-float backlash_distance_mm[XYZ] = BACKLASH_DISTANCE_MM,
+float backlash_distance_mm[XN] = BACKLASH_DISTANCE_MM,
       backlash_correction = BACKLASH_CORRECTION;
 
 #ifdef BACKLASH_SMOOTHING_MM
@@ -57,7 +57,7 @@ float backlash_distance_mm[XYZ] = BACKLASH_DISTANCE_MM,
 void GcodeSuite::M425() {
   bool noArgs = true;
 
-  LOOP_XYZ(i) {
+  LOOP_XN(i) {
     if (parser.seen(axis_codes[i])) {
       planner.synchronize();
       const float measured_backlash = (
@@ -93,7 +93,7 @@ void GcodeSuite::M425() {
     SERIAL_ECHOPAIR("  Correction Amount/Fade-out:     F", backlash_correction);
     SERIAL_ECHOLNPGM("     (F1.0 = full, F0.0 = none)");
     SERIAL_ECHOPGM("  Backlash Distance (mm):        ");
-    LOOP_XYZ(a) {
+    LOOP_XN(a) {
       SERIAL_CHAR(' ');
       SERIAL_CHAR(axis_codes[a]);
       SERIAL_ECHO(backlash_distance_mm[a]);

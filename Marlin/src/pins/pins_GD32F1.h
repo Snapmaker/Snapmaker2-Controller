@@ -58,6 +58,10 @@
 #define Z_DIR_PIN          PB6
 #define Z_ENABLE_PIN       PA2
 
+#define B_STEP_PIN         PA1    // P6 - Add-on 2
+#define B_DIR_PIN          PC12
+#define B_ENABLE_PIN       PD2
+
 #define E0_STEP_PIN        PE14
 #define E0_DIR_PIN         PB10
 #define E0_ENABLE_PIN      PB11

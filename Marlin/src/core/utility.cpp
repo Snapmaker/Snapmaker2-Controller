@@ -25,7 +25,7 @@
 #include "../Marlin.h"
 #include "../module/temperature.h"
 
-char axis_codes[XYZE] = { 'X', 'Y', 'Z', 'E' };
+char axis_codes[X_TO_E] = { 'X', 'Y', 'Z', 'B', 'E' };
 
 void safe_delay(millis_t ms) {
   while (ms > 50) {

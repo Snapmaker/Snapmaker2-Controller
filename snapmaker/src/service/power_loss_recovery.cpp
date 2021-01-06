@@ -353,7 +353,7 @@ int PowerLossRecovery::SaveEnv(void) {
 
 	cur_data_.axes_relative_mode = relative_mode;
 
-	LOOP_XYZE(idx) cur_data_.axis_relative_modes[idx] = gcode.axis_relative_modes[idx];
+	LOOP_X_TO_E(idx) cur_data_.axis_relative_modes[idx] = gcode.axis_relative_modes[idx];
 
   cur_data_.toolhead = ModuleBase::toolhead();
 
@@ -554,10 +554,10 @@ void PowerLossRecovery::RestoreWorkspace() {
 	planner.synchronize();
 
 	LOG_I("position shift:\n");
-	LOG_I("X: %.2f, Y: %.2f, Z: %.2f\n", pre_data_.position_shift[0],
-						pre_data_.position_shift[1], pre_data_.position_shift[2]);
+	LOG_I("X: %.2f, Y: %.2f, Z: %.2f, B: %.2f\n", pre_data_.position_shift[0], pre_data_.position_shift[1],
+													pre_data_.position_shift[2],pre_data_.position_shift[3]);
 
-	LOOP_XYZ(i) {
+	LOOP_XN(i) {
 		position_shift[i] = pre_data_.position_shift[i];
 		update_workspace_offset((AxisEnum)i);
 	}
@@ -578,8 +578,8 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		return E_NO_RESRC;
 	}
 
-	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS],
-			pre_data_.PositionData[Y_AXIS], pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[E_AXIS]);
+	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, B: &.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS],
+			pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[B_AXIS], pre_data_.PositionData[E_AXIS]);
 
 	switch (pre_data_.toolhead) {
 	case MODULE_TOOLHEAD_3DP:
@@ -628,6 +628,9 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		break;
 	}
 
+	current_position[B_AXIS] = pre_data_.PositionData[B_AXIS];
+	sync_plan_position();
+
 	// resume stopwatch
 	print_job_timer.start();
 	Stopwatch::resume(pre_data_.accumulator);
@@ -636,7 +639,7 @@ ErrCode PowerLossRecovery::ResumeWork() {
 	saved_g1_feedrate_mm_s = pre_data_.PrintFeedRate;
 	saved_g0_feedrate_mm_s = pre_data_.TravelFeedRate;
 
-	LOOP_XYZE(idx) gcode.axis_relative_modes[idx] = pre_data_.axis_relative_modes[idx];
+	LOOP_X_TO_E(idx) gcode.axis_relative_modes[idx] = pre_data_.axis_relative_modes[idx];
 	relative_mode = pre_data_.axes_relative_mode;
 
 	return E_SUCCESS;

@@ -34,13 +34,13 @@
 bool GcodeSuite::select_coordinate_system(const int8_t _new) {
   if (active_coordinate_system == _new) return false;
   planner.synchronize();
-  float old_offset[XYZ] = { 0 }, new_offset[XYZ] = { 0 };
+  float old_offset[XN] = { 0 }, new_offset[XN] = { 0 };
   if (WITHIN(active_coordinate_system, 0, MAX_COORDINATE_SYSTEMS - 1))
     COPY(old_offset, coordinate_system[active_coordinate_system]);
   if (WITHIN(_new, 0, MAX_COORDINATE_SYSTEMS - 1))
     COPY(new_offset, coordinate_system[_new]);
   active_coordinate_system = _new;
-  LOOP_XYZ(i) {
+  LOOP_XN(i) {
     const float diff = new_offset[i] - old_offset[i];
     if (diff) {
       position_shift[i] += diff;
@@ -64,7 +64,7 @@ void GcodeSuite::G53() {
   active_coordinate_system = -1;
 
   // retore workspace to native space
-  LOOP_XYZ(i) {
+  LOOP_XN(i) {
     position_shift[i] = 0;
     update_workspace_offset((AxisEnum)i);
   }

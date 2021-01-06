@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V66"
+#define EEPROM_VERSION "V69"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -127,10 +127,10 @@ typedef struct SettingsDataStruct {
 
   planner_settings_t planner_settings;
 
-  float planner_max_jerk[XYZE],                         // M205 XYZE  planner.max_jerk[XYZE]
+  float planner_max_jerk[X_TO_E],                       // M205 XYZBE  planner.max_jerk[XYZBE]
         planner_junction_deviation_mm;                  // M205 J     planner.junction_deviation_mm
 
-  float home_offset[XYZ];                               // M206 XYZ / M665 TPZ
+  float home_offset[XN];                                // M206 XYZ / M665 TPZ
 
   #if HAS_HOTEND_OFFSET
     float hotend_offset[XYZ][HOTENDS - 1];              // M218 XYZ
@@ -265,7 +265,7 @@ typedef struct SettingsDataStruct {
   //
   // CNC_COORDINATE_SYSTEMS
   //
-  float coordinate_system[MAX_COORDINATE_SYSTEMS][XYZ]; // G54-G59.3
+  float coordinate_system[MAX_COORDINATE_SYSTEMS][XN]; // G54-G59.3
 
   //
   // SKEW_CORRECTION
@@ -288,9 +288,9 @@ typedef struct SettingsDataStruct {
   // Software machine resize
   //
   #if ENABLED(SW_MACHINE_SIZE)
-  float s_home_offset[XYZ];
-  float m_home_offset[XYZ];
-  float l_home_offset[XYZ];
+  float s_home_offset[XN];
+  float m_home_offset[XN];
+  float l_home_offset[XN];
   #endif
 
 
@@ -319,7 +319,7 @@ uint16_t MarlinSettings::datasize() { return sizeof(SettingsData); }
 #endif
 
 void MarlinSettings::postprocess() {
-  const float oldpos[XYZE] = { current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS] };
+  const float oldpos[X_TO_E] = { current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[B_AXIS], current_position[E_AXIS] };
 
   // steps per s2 needs to be updated to agree with units per s2
   planner.reset_acceleration_rates();
@@ -341,9 +341,11 @@ void MarlinSettings::postprocess() {
       planner.refresh_e_factor(i);
   #endif
 
+  LOOP_XN(i) {
+    update_workspace_offset((AxisEnum)i);
+  }
   // Software endstops depend on home_offset
   LOOP_XYZ(i) {
-    update_workspace_offset((AxisEnum)i);
     update_software_endstops((AxisEnum)i);
   }
 
@@ -478,7 +480,7 @@ void MarlinSettings::postprocess() {
 
     _FIELD_TEST(esteppers);
 
-    const uint8_t esteppers = COUNT(planner.settings.axis_steps_per_mm) - XYZ;
+    const uint8_t esteppers = COUNT(planner.settings.axis_steps_per_mm) - XN;
     EEPROM_WRITE(esteppers);
 
     //
@@ -494,7 +496,7 @@ void MarlinSettings::postprocess() {
           EEPROM_WRITE(dummy);
         #endif
       #else
-        const float planner_max_jerk[XYZE] = { float(DEFAULT_EJERK) };
+        const float planner_max_jerk[X_TO_E] = { float(DEFAULT_EJERK) };
         EEPROM_WRITE(planner_max_jerk);
       #endif
 
@@ -1117,7 +1119,7 @@ void MarlinSettings::postprocess() {
     //
     #if ENABLED(SW_MACHINE_SIZE)
     {
-      LOOP_XYZ(i) {
+      LOOP_XN(i) {
         _FIELD_TEST(s_home_offset[i]);
         EEPROM_WRITE(s_home_offset[i]);
         _FIELD_TEST(m_home_offset[i]);
@@ -1213,20 +1215,19 @@ void MarlinSettings::postprocess() {
         const uint32_t def1[] = DEFAULT_MAX_ACCELERATION;
         const float def2[] = DEFAULT_AXIS_STEPS_PER_UNIT, def3[] = DEFAULT_MAX_FEEDRATE;
 
-        uint32_t tmp1[XYZ + esteppers];
+        uint32_t tmp1[XN + esteppers];
         EEPROM_READ(tmp1);                         // max_acceleration_mm_per_s2
         EEPROM_READ(planner.settings.min_segment_time_us);
 
-        float tmp2[XYZ + esteppers], tmp3[XYZ + esteppers];
+        float tmp2[XN + esteppers], tmp3[XN + esteppers];
         EEPROM_READ(tmp2);                         // axis_steps_per_mm
         EEPROM_READ(tmp3);                         // max_feedrate_mm_s
-        if (!validating) LOOP_XYZE_N(i) {
-          const bool in = (i < esteppers + XYZ);
+        if (!validating) LOOP_X_TO_EN(i) {
+          const bool in = (i < esteppers + XN);
           planner.settings.max_acceleration_mm_per_s2[i] = in ? tmp1[i] : def1[ALIM(i, def1)];
           planner.settings.axis_steps_per_mm[i]          = in ? tmp2[i] : def2[ALIM(i, def2)];
           planner.settings.max_feedrate_mm_s[i]          = in ? tmp3[i] : def3[ALIM(i, def3)];
         }
-
         EEPROM_READ(planner.settings.acceleration);
         EEPROM_READ(planner.settings.retract_acceleration);
         EEPROM_READ(planner.settings.travel_acceleration);
@@ -1239,7 +1240,7 @@ void MarlinSettings::postprocess() {
             EEPROM_READ(dummy);
           #endif
         #else
-          for (uint8_t q = 4; q--;) EEPROM_READ(dummy);
+          for (uint8_t q = X_TO_E; q--;) EEPROM_READ(dummy);
         #endif
 
         #if ENABLED(JUNCTION_DEVIATION)
@@ -1856,7 +1857,7 @@ void MarlinSettings::postprocess() {
       //
       #if ENABLED(SW_MACHINE_SIZE)
       {
-        LOOP_XYZ(i) {
+        LOOP_XN(i) {
           _FIELD_TEST(s_home_offset[i]);
           EEPROM_READ(s_home_offset[i]);
           _FIELD_TEST(m_home_offset[i]);
@@ -2072,7 +2073,7 @@ void MarlinSettings::postprocess() {
 void MarlinSettings::reset() {
   static const float tmp1[] PROGMEM = DEFAULT_AXIS_STEPS_PER_UNIT, tmp2[] PROGMEM = DEFAULT_MAX_FEEDRATE;
   static const uint32_t tmp3[] PROGMEM = DEFAULT_MAX_ACCELERATION;
-  LOOP_XYZE_N(i) {
+  LOOP_X_TO_EN(i) {
     planner.settings.axis_steps_per_mm[i]          = pgm_read_float(&tmp1[ALIM(i, tmp1)]);
     planner.settings.max_feedrate_mm_s[i]          = pgm_read_float(&tmp2[ALIM(i, tmp2)]);
     planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);

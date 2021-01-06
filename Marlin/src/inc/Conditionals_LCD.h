@@ -437,7 +437,7 @@
   #define E_AXIS_N(E) (E_AXIS + E)
 #else
   #undef DISTINCT_E_FACTORS
-  #define XYZE_N XYZE
+  #define X_TO_EN X_TO_E
   #define E_AXIS_N(E) E_AXIS
 #endif
 
@@ -534,6 +534,9 @@
 #endif
 #ifndef INVERT_Z_DIR
   #define INVERT_Z_DIR false
+#endif
+#ifndef INVERT_B_DIR
+  #define INVERT_B_DIR false
 #endif
 #ifndef INVERT_E_DIR
   #define INVERT_E_DIR false
