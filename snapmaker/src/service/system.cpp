@@ -1630,13 +1630,21 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   tmp_i16 = (int16_t)tmp_f32;
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
-  // laser power
-  tmp_u32 = (uint32_t)(laser.power() * 1000);
-  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
+  if (ModuleBase::toolhead() == MACHINE_TYPE_LASER) {
+    // laser power
+    tmp_u32 = (uint32_t)(laser.power() * 1000);
+  } else if (ModuleBase::toolhead() == MACHINE_TYPE_CNC) {
 
-  // RPM of CNC
-  tmp_u32 = cnc.rpm();
+    // RPM of CNC
+    tmp_u32 = cnc.rpm();
+  } else {
+    // 3DPrint
+    tmp_u32 = 0;
+  }
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
+  // B axis current logical position
+  tmp_i32 = (int32_t) (NATIVE_TO_LOGICAL(current_position[B_AXIS], B_AXIS) * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
 
   // system status
   sta.system_state = (uint8_t)systemservice.MapCurrentStatusForSC();
