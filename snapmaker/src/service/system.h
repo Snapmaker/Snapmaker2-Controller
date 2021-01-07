@@ -195,8 +195,9 @@ typedef struct {
 
   uint16_t  feedrate;    // mm/min
 
-  uint32_t  laser_power; // (uint32_t)(float * 1000)
-  uint32_t  cnc_rpm;
+  uint32_t  laser_power_cnc_rpm; // laser_power (uint32_t)(float * 1000)
+ 
+  uint32_t b;  // B axis current logical position
 
   uint8_t system_state;
   uint8_t addon_state;
