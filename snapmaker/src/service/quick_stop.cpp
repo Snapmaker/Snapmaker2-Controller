@@ -315,6 +315,7 @@ void QuickStopService::EmergencyStop() {
       break;
     case MACHINE_TYPE_LASER:
       laser.SetCameraLight(0);
+      laser.SetFanPower(0);
       break;
     case MACHINE_TYPE_UNDEFINE:
       break;

@@ -181,11 +181,19 @@ void ToolHeadLaser::SetPowerLimit(float limit) {
     TurnOn();
 }
 
-
-void ToolHeadLaser::CheckFan(uint16_t pwm) {
+void ToolHeadLaser::SetFanPower(uint8_t power) {
   CanStdMesgCmd_t cmd;
   uint8_t         buffer[2];
+  buffer[0]  = 0;
+  buffer[1]  = power;
+  cmd.id     = msg_id_set_fan_;
+  cmd.data   = buffer;
+  cmd.length = 2;
 
+  canhost.SendStdCmd(cmd);
+}
+
+void ToolHeadLaser::CheckFan(uint16_t pwm) {
   switch (fan_state_) {
   case TOOLHEAD_LASER_FAN_STATE_OPEN:
     if (pwm == 0) {
@@ -204,24 +212,13 @@ void ToolHeadLaser::CheckFan(uint16_t pwm) {
   case TOOLHEAD_LASER_FAN_STATE_CLOSED:
     if (pwm > 0) {
       fan_state_ = TOOLHEAD_LASER_FAN_STATE_OPEN;
-      buffer[0]  = 0;
-      buffer[1]  = 255;
-
-      cmd.id     = msg_id_set_fan_;
-      cmd.data   = buffer;
-      cmd.length = 2;
-
-      canhost.SendStdCmd(cmd);
+      SetFanPower(255);
     }
     break;
   }
 }
 
-
 void ToolHeadLaser::TryCloseFan() {
-  CanStdMesgCmd_t cmd;
-  uint8_t         buffer[2];
-
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
     return;
 
@@ -229,14 +226,7 @@ void ToolHeadLaser::TryCloseFan() {
     if (++fan_tick_ > LASER_CLOSE_FAN_DELAY) {
       fan_tick_  = 0;
       fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
-
-      buffer[0]  = 0;
-      buffer[1]  = 0;
-      cmd.id     = msg_id_set_fan_;
-      cmd.data   = buffer;
-      cmd.length = 2;
-
-      canhost.SendStdCmd(cmd);
+      SetFanPower(0);
     }
   }
 }

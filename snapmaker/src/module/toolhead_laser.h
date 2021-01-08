@@ -106,6 +106,8 @@ class ToolHeadLaser: public ModuleBase {
 
     void TurnOn();
     void TurnOff();
+  
+    void SetFanPower(uint8_t power);  // power 0 - 100
 
     void SetPower(float power);       // change power_val_ and power_pwm_ but not change actual output
     void SetOutput(float power);      // change power_val_, power_pwm_ and actual output
