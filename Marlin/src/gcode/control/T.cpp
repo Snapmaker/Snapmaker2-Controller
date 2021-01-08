@@ -88,11 +88,11 @@ void GcodeSuite::T(const uint8_t tool_index) {
     }
 
     if (seen_l) {
-      lift_switch_left_position = (float)parser.floatval('L', (float)0);
+      lift_switch_left_position = (float)parser.floatval('L', (float)15);
     }
 
     if (seen_r) {
-      lift_switch_right_position = (float)parser.floatval('R', (float)0);
+      lift_switch_right_position = (float)parser.floatval('R', (float)355);
     }
 
     tool_change(

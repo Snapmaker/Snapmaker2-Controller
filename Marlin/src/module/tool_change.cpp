@@ -696,11 +696,11 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
 
         #if ENABLED(LIFT_SWITCH_NOZZLE)
           if (tmp_extruder == 0) {
-            current_position[X_AXIS] = 15;
+            current_position[X_AXIS] = lift_switch_left_position;
             //NOLESS(current_position[X_AXIS], soft_endstop[X_AXIS].max);
           }
           else if (tmp_extruder == 1) {
-            current_position[X_AXIS] = 350;
+            current_position[X_AXIS] = lift_switch_right_position;
             //NOMORE(current_position[X_AXIS], soft_endstop[X_AXIS].max);
           }
           planner.buffer_line(current_position, feedrate_mm_s, active_extruder);

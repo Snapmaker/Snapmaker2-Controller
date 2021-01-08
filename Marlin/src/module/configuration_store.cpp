@@ -3257,6 +3257,11 @@ void MarlinSettings::reset() {
       CONFIG_ECHO_START();
       M217_report(true);
     #endif
+
+    SERIAL_ECHOLNPAIR(
+        "  T0 L", LINEAR_UNIT(lift_switch_left_position)
+      , "  T1 R", LINEAR_UNIT(lift_switch_right_position)
+    );
   }
 
 #endif // !DISABLE_M503
