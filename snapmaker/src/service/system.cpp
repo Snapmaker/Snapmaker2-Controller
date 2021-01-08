@@ -764,6 +764,15 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
         thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
       break;
 
+    case EHOST_HOTEND1:
+      if (fault_flag_ & FAULT_FLAG_HOTEND_HEATFAIL)
+        return E_SAME_STATE;
+      new_fault_flag = FAULT_FLAG_HOTEND_HEATFAIL;
+      action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_HOTEND;
+      LOG_E("heating failed for hotend, please check heating module & sensor! temp: %.2f / %d\n",
+        thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+      break;
+
     case EHOST_BED:
       if (fault_flag_ & FAULT_FLAG_BED_HEATFAIL)
         return E_SAME_STATE;

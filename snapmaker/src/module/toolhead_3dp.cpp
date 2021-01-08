@@ -292,23 +292,42 @@ ErrCode ToolHead3DP::SetHeater(uint16_t target_temp, uint8_t extrude_index) {
     buffer[2*i + 1] = (uint8_t)target_temp_[i];
   }
 
-  if (target_temp >= 60) {
-    SetFan(1, 255);
-  }
+  uint8_t fan_index = 1;
+  uint8_t fan_speed = 0;
+  uint8_t fan_delay = 0;
 
-  // if we turn off heating
-  if (target_temp == 0) {
+  if (target_temp >= 60) {
+    fan_speed = 255;
+  }
+  else if (target_temp == 0) {
     // check if need to delay to turn off fan
     if (cur_temp_[extrude_index] >= 150) {
-      SetFan(1, 0, 120);
+      fan_speed = 0;
+      fan_delay = 120;
     }
     else if (cur_temp_[extrude_index] >= 60) {
-      SetFan(1, 0, 60);
+      fan_speed = 0;
+      fan_delay = 60;
     }
     else {
-      SetFan(1, 0);
+      fan_speed = 0;
+      fan_delay = 0;
     }
   }
+
+  if (printer1->device_id() == MODULE_DEVICE_ID_3DP_SINGLE) {
+    fan_index = 1;
+  }
+  else if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
+    if (extrude_index == TOOLHEAD_3DP_EXTRUDER0) {
+      fan_index = 0;
+    }
+    else if (extrude_index == TOOLHEAD_3DP_EXTRUDER1) {
+      fan_index = 1;
+    }
+  }
+
+  SetFan(fan_index, fan_speed, fan_delay);
 
   cmd.id     = MODULE_FUNC_SET_NOZZLE_TEMP;
   cmd.data   = buffer;

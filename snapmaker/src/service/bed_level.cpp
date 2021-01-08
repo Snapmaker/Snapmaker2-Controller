@@ -258,6 +258,8 @@ ErrCode BedLevelService::GetCurrentPointZValue(SSTP_Event_t &event) {
   MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
   ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][manual_level_index_] = MeshPointZ[manual_level_index_];
 
+  do_blocking_move_to_z(current_position[Z_AXIS] + 5, speed_in_calibration[Z_AXIS]);
+
   err = E_SUCCESS;
 
   event.data = &err;
