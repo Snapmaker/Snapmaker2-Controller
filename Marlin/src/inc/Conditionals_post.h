@@ -445,7 +445,7 @@
   #endif
 
   #ifndef DEFAULT_HOTEND_OFFSETS
-    #define DEFAULT_HOTEND_OFFSETS   { {0.0, 16.5}, {0.0, 0.0}, {0.0, 0.0}}   //extruder 0 offsets must be 0
+    #define DEFAULT_HOTEND_OFFSETS   { {0.0, 16.5}, {0.0, 0.0}, {0.0, -3}}   //extruder 0 offsets must be 0
   #endif
 #endif
 

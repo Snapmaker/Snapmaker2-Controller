@@ -258,8 +258,6 @@ ErrCode BedLevelService::GetCurrentPointZValue(SSTP_Event_t &event) {
   MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
   ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][manual_level_index_] = MeshPointZ[manual_level_index_];
 
-  do_blocking_move_to_z(current_position[Z_AXIS] + 5, speed_in_calibration[Z_AXIS]);
-
   err = E_SUCCESS;
 
   event.data = &err;
@@ -335,7 +333,6 @@ ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
       }
     }
 
-    // 假如开启了右喷嘴单点调平，需要计算差值，然后将此差值补偿到其它点
     if (printer1->device_id() == MODULE_DEVICE_ID_3DP_DUAL) {
       #if ENABLED(PROBE_ALL_LEVELING_POINTS)
         for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
@@ -345,13 +342,21 @@ ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
           }
         }
       #elif ENABLED(PROBE_LAST_LEVELING_POINT)
-        float temp_z = ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER1][manual_level_index_] - ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][manual_level_index_];
+        float temp_z = ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][manual_level_index_] - ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER1][manual_level_index_];
+        // for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
+        //   for (i = 0; i < GRID_MAX_POINTS_X; i++) {
+        //     extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][i][j] = ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][j * GRID_MAX_POINTS_X + i];
+        //     extruders_z_values[TOOLHEAD_3DP_EXTRUDER1][i][j] = extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][i][j] + temp_z;
+        //   }
+        // }
         for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
           for (i = 0; i < GRID_MAX_POINTS_X; i++) {
             extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][i][j] = ExtrudersMeshPointZ[TOOLHEAD_3DP_EXTRUDER0][j * GRID_MAX_POINTS_X + i];
-            extruders_z_values[TOOLHEAD_3DP_EXTRUDER1][i][j] = extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][i][j] + temp_z;
+            extruders_z_values[TOOLHEAD_3DP_EXTRUDER1][i][j] = extruders_z_values[TOOLHEAD_3DP_EXTRUDER0][i][j];
           }
         }
+        hotend_offset[Z_AXIS][TOOLHEAD_3DP_EXTRUDER1] = temp_z;
+        LOG_I("right nozzle higher than left nozzle by: %f\n", temp_z);
       #endif
     }
 
