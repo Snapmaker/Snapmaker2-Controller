@@ -448,7 +448,7 @@ void CanHost::EventHandler(void *parameter) {
     InitModules(mac);
   }
 
-  linear.UpdateMachineSize();
+  linear_p->UpdateMachineSize();
 
   // broadcase modules have been initialized
   xEventGroupSetBits(event_group, EVENT_GROUP_MODULE_READY);

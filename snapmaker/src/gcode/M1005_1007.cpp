@@ -63,7 +63,7 @@ void GcodeSuite::M1005() {
     laser.ReadBluetoothVer();
   }
   SERIAL_ECHO("Machine Size: ");
-  switch (linear.machine_size()) {
+  switch (linear_p->machine_size()) {
   case MACHINE_SIZE_A150:
     SERIAL_ECHOLN("S");
     break;

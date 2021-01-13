@@ -449,7 +449,7 @@ void _O2 Endstops::M119() {
   SERIAL_ECHOLNPGM(MSG_M119_REPORT);
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-    #define ES_REPORT_LINEAR(S) print_es_state(linear.GetEndstopBit(S) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
+    #define ES_REPORT_LINEAR(S) print_es_state(linear_p->GetEndstopBit(S) != S##_ENDSTOP_INVERTING, PSTR(MSG_##S))
 
     ES_REPORT_LINEAR(X_MIN);
     ES_REPORT_LINEAR(X_MAX);
@@ -909,7 +909,7 @@ void _O2 Endstops::M119() {
     #endif
 
     // #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (statefromcan & (1<<_ENDSTOP(AXIS, MINMAX)))?_READ_MODULE_BIT(AXIS, MINMAX) != _ENDSTOP_INVERTING(AXIS, MINMAX) : READ(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX))
-    // #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear.GetEndstopBit(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
+    // #define UPDATE_ENDSTOP_BIT(AXIS, MINMAX) SET_BIT_TO(live_state, _ENDSTOP(AXIS, MINMAX), (linear_p->GetEndstopBit(_ENDSTOP_PIN(AXIS, MINMAX)) != _ENDSTOP_INVERTING(AXIS, MINMAX)))
     #define COPY_LIVE_STATE(SRC_BIT, DST_BIT) SET_BIT_TO(live_state, DST_BIT, TEST(live_state, SRC_BIT))
 
     #if ENABLED(G38_PROBE_TARGET) && !(CORE_IS_XY || CORE_IS_XZ)
@@ -963,7 +963,7 @@ void _O2 Endstops::M119() {
         #endif
       #else
         if(X_HOME_DIR < 0)
-          SET_BIT_TO(live_state, X_MIN, (linear.GetEndstopBit(X_MIN) != X_MIN_ENDSTOP_INVERTING));
+          SET_BIT_TO(live_state, X_MIN, (linear_p->GetEndstopBit(X_MIN) != X_MIN_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -977,7 +977,7 @@ void _O2 Endstops::M119() {
         #endif
       #else
         if(X_HOME_DIR > 0)
-          SET_BIT_TO(live_state, X_MAX, (linear.GetEndstopBit(X_MAX) != X_MAX_ENDSTOP_INVERTING));
+          SET_BIT_TO(live_state, X_MAX, (linear_p->GetEndstopBit(X_MAX) != X_MAX_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -991,7 +991,7 @@ void _O2 Endstops::M119() {
         #endif
       #else
         if(Y_HOME_DIR < 0)
-          SET_BIT_TO(live_state, Y_MIN, (linear.GetEndstopBit(Y_MIN) != Y_MIN_ENDSTOP_INVERTING));
+          SET_BIT_TO(live_state, Y_MIN, (linear_p->GetEndstopBit(Y_MIN) != Y_MIN_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -1005,7 +1005,7 @@ void _O2 Endstops::M119() {
         #endif
       #else
         if(Y_HOME_DIR > 0)
-          SET_BIT_TO(live_state, Y_MAX, (linear.GetEndstopBit(Y_MAX) != Y_MAX_ENDSTOP_INVERTING));
+          SET_BIT_TO(live_state, Y_MAX, (linear_p->GetEndstopBit(Y_MAX) != Y_MAX_ENDSTOP_INVERTING));
       #endif
     #endif
 
@@ -1058,7 +1058,7 @@ void _O2 Endstops::M119() {
       #elif !USES_Z_MIN_PROBE_ENDSTOP || Z_MAX_PIN != Z_MIN_PROBE_PIN
         // If this pin isn't the bed probe it's the Z endstop
         if(Z_HOME_DIR > 0)
-          SET_BIT_TO(live_state, Z_MAX, (linear.GetEndstopBit(Z_MAX) != Z_MAX_ENDSTOP_INVERTING));
+          SET_BIT_TO(live_state, Z_MAX, (linear_p->GetEndstopBit(Z_MAX) != Z_MAX_ENDSTOP_INVERTING));
       #endif
     #endif
 

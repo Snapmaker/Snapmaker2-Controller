@@ -50,7 +50,7 @@ enum MachineSize {
 
 class Linear: public ModuleBase  {
   public:
-    Linear (): ModuleBase(MODULE_DEVICE_ID_LINEAR) {
+    Linear (ModuleDeviceID id): ModuleBase(id) {
       for (int i = 0; i < LINEAR_AXIS_MAX; i++) {
         mac_index_[i]   = MODULE_MAC_INDEX_INVALID;
         endstop_msg_[i] = MODULE_MESSAGE_ID_INVALID;
@@ -61,6 +61,8 @@ class Linear: public ModuleBase  {
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
+
+    ErrCode CheckModuleType();
 
     ErrCode PollEndstop(LinearAxisType axis);
 
@@ -115,7 +117,8 @@ class Linear: public ModuleBase  {
     MachineSize   machine_size_;
 };
 
-
 extern Linear linear;
+extern Linear linear_tmc;
+extern Linear *linear_p;
 
 #endif  // #ifndef SNAPMAKER_LINEAR_H_

@@ -28,9 +28,10 @@
 #include "src/inc/MarlinConfig.h"
 #include "src/module/endstops.h"
 
+Linear linear(MODULE_DEVICE_ID_LINEAR);
+Linear linear_tmc(MODULE_DEVICE_ID_LINEAR_TMC);
 
-Linear linear;
-
+Linear *linear_p = &linear;
 
 LinearAxisType Linear::DetectAxis(MAC_t &mac, uint8_t &endstop) {
   CanExtCmd_t cmd;
@@ -79,35 +80,35 @@ LinearAxisType Linear::DetectAxis(MAC_t &mac, uint8_t &endstop) {
 
 
 static void LinearCallbackEndstopX1(CanStdDataFrame_t &cmd) {
-  switch (linear.machine_size())
+  switch (linear_p->machine_size())
   {
   case MACHINE_SIZE_A250:
   case MACHINE_SIZE_A350:
-    linear.SetEndstopBit(X_MIN, cmd.data[0]);
+    linear_p->SetEndstopBit(X_MIN, cmd.data[0]);
     break;
 
   case MACHINE_SIZE_A150:
   default:
-    linear.SetEndstopBit(X_MAX, cmd.data[0]);
+    linear_p->SetEndstopBit(X_MAX, cmd.data[0]);
     break;
   }
 }
 
 
 static void LinearCallbackEndstopY1(CanStdDataFrame_t &cmd) {
-  linear.SetEndstopBit(Y_MAX, cmd.data[0]);
+  linear_p->SetEndstopBit(Y_MAX, cmd.data[0]);
 }
 
 static void LinearCallbackEndstopY2(CanStdDataFrame_t &cmd) {
-  linear.SetEndstopBit(Y_MAX, cmd.data[0]);
+  linear_p->SetEndstopBit(Y_MAX, cmd.data[0]);
 }
 
 static void LinearCallbackEndstopZ1(CanStdDataFrame_t &cmd) {
-  linear.SetEndstopBit(Z_MAX, cmd.data[0]);
+  linear_p->SetEndstopBit(Z_MAX, cmd.data[0]);
 }
 
 static void LinearCallbackEndstopZ2(CanStdDataFrame_t &cmd) {
-  linear.SetEndstopBit(Z_MAX, cmd.data[0]);
+  linear_p->SetEndstopBit(Z_MAX, cmd.data[0]);
 }
 
 
@@ -221,7 +222,83 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
     }
   }
 
+  linear_p = this;
+
   return canhost.BindMessageID(cmd, message_id);
+}
+
+ErrCode Linear::CheckModuleType() {
+  int32_t i;
+  uint32_t device_id = 0xffffffff;
+  uint32_t id;
+  MAC_t mac_t;
+
+  // check if all linear modules are the same generation
+  for (i = LINEAR_AXIS_X1; i < LINEAR_AXIS_MAX; i++) {
+    if (mac_index_[i] == 0xff) continue;
+
+    mac_t.val = canhost.mac(mac_index_[i]);
+    id = MODULE_GET_DEVICE_ID(mac_t.val);
+    if (device_id == 0xffffffff) {
+      device_id = id;
+    }
+    else if (device_id != id) {
+      LOG_I("device id error\n");
+      systemservice.ThrowException(EHOST_LINEAR, ETYPE_LINEAR_MODULE_DIFF_DRIVER);
+      return E_FAILURE;
+    }
+  }
+
+  float axis_steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
+
+  // if using 2.5 generation linear modules, check if the linear module lead is correct for each axis
+  if (device_id == MODULE_DEVICE_ID_LINEAR_TMC) {
+    for (i = LINEAR_AXIS_X1; i < LINEAR_AXIS_MAX; i++) {
+      if (mac_index_[i] == 0xff) continue;
+
+      switch (i) {
+        case LINEAR_AXIS_X1:
+        case LINEAR_AXIS_X2:
+        case LINEAR_AXIS_Y1:
+        case LINEAR_AXIS_Y2:
+          if (lead_[i] != MODULE_LINEAR_PITCH_20) {
+            systemservice.ThrowException(EHOST_LINEAR, ETYPE_LINEAR_MODULE_LEAD_ERROR);
+            return E_FAILURE;
+          }
+          break;
+        case LINEAR_AXIS_Z1:
+        case LINEAR_AXIS_Z2:
+        case LINEAR_AXIS_Z3:
+          if (lead_[i] != MODULE_LINEAR_PITCH_8) {
+            systemservice.ThrowException(EHOST_LINEAR, ETYPE_LINEAR_MODULE_LEAD_ERROR);
+            return E_FAILURE;
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  if ((mac_index_[LINEAR_AXIS_X1] != 0xff) || (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
+    axis_steps_per_unit[X_AXIS] = mac_index_[LINEAR_AXIS_X1] != 0xff ? lead_[LINEAR_AXIS_X1] : lead_[LINEAR_AXIS_X2];
+  }
+
+  if ((mac_index_[LINEAR_AXIS_Y1] != 0xff) || (mac_index_[LINEAR_AXIS_Y2] != 0xff)) {
+    axis_steps_per_unit[Y_AXIS] = mac_index_[LINEAR_AXIS_Y1] != 0xff ? lead_[LINEAR_AXIS_Y1] : lead_[LINEAR_AXIS_Y2];
+  }
+
+  if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff)) {
+    axis_steps_per_unit[Z_AXIS] = mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z1] : mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z2] : lead_[LINEAR_AXIS_Z3];
+  }
+
+  LOOP_XYZ(i) {
+    planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
+    SERIAL_ECHOLNPAIR("axis index:", i, "  pitch:", planner.settings.axis_steps_per_mm[i]);
+  }
+
+  planner.refresh_positioning();
+  return E_SUCCESS;
 }
 
 
@@ -253,6 +330,14 @@ MachineSize Linear::UpdateMachineSize() {
   if (length_[LINEAR_AXIS_X1] != length_[LINEAR_AXIS_Y1] ||
       length_[LINEAR_AXIS_Y1] != length_[LINEAR_AXIS_Z1]) {
 
+    systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
+    return (machine_size_ = MACHINE_SIZE_UNKNOWN);
+  }
+
+  if (CheckModuleType() != E_SUCCESS) {
+    X_MAX_POS = 0;
+    Y_MAX_POS = 0;
+    Z_MAX_POS = 0;
     systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
     return (machine_size_ = MACHINE_SIZE_UNKNOWN);
   }

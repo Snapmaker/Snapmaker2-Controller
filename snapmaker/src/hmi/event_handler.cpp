@@ -581,19 +581,19 @@ static ErrCode GetModuleMAC(SSTP_Event_t &event) {
 }
 
 static ErrCode SetLinearModuleLength(SSTP_Event_t &event) {
-  return linear.SetLength(event);
+  return linear_p->SetLength(event);
 }
 
 static ErrCode GetLinearModuleLength(SSTP_Event_t &event) {
-  return linear.GetLength(event);
+  return linear_p->GetLength(event);
 }
 
 static ErrCode SetLinearModuleLead(SSTP_Event_t &event) {
-  return linear.SetLead(event);
+  return linear_p->SetLead(event);
 }
 
 static ErrCode GetLinearModuleLead(SSTP_Event_t &event) {
-  return linear.GetLead(event);
+  return linear_p->GetLead(event);
 }
 
 EventCallback_t debug_event_cb[DEBUG_OPC_MAX] = {
