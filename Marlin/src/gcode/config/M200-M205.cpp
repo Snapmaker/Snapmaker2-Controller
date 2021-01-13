@@ -83,6 +83,9 @@ void GcodeSuite::M203() {
     if (parser.seen(axis_codes[i])) {
       const uint8_t a = (i == E_AXIS ? E_AXIS_N(target_extruder) : i);
       planner.settings.max_feedrate_mm_s[a] = parser.value_axis_units((AxisEnum)a);
+      if (i == Z_AXIS && planner.settings.max_feedrate_mm_s[a] > 40) {
+        planner.settings.max_feedrate_mm_s[a] = 40;
+      }
     }
 }
 

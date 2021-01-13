@@ -41,7 +41,7 @@ void GcodeSuite::M206() {
   LOOP_XYZ(i)
     if (parser.seen(axis_codes[i])) {
       set_home_offset((AxisEnum)i, parser.value_linear_units());
-      switch (linear.machine_size()) {
+      switch (linear_p->machine_size()) {
         case MACHINE_SIZE_A150:
           s_home_offset[i] = home_offset[i];
           break;

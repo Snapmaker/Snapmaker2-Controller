@@ -26,7 +26,7 @@
 #include "src/module/motion.h"
 
 #define MAX_CALI_SPEED_XY 100
-#define MAX_CALI_SPEED_Z  60
+#define MAX_CALI_SPEED_Z  40
 
 #define CALI_SPEED_XY   50
 #define CALI_SPEED_Z    30

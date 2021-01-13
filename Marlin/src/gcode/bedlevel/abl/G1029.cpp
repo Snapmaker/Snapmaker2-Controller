@@ -99,7 +99,7 @@ void GcodeSuite::G1029() {
     ABL_TEMP_POINTS_Y = (GRID_MAX_POINTS_Y + 2);
 
     bed_level_virt_interpolate();
-    
+
     set_bed_leveling_enabled(true);
     SERIAL_ECHOLNPAIR("Set grid size : ", size);
     return;
@@ -113,7 +113,7 @@ void GcodeSuite::G1029() {
     set_bed_leveling_enabled(false);
 
     // Set the Z max feedrate to 50mm/s
-    planner.settings.max_feedrate_mm_s[Z_AXIS] = 60;
+    planner.settings.max_feedrate_mm_s[Z_AXIS] = 40;
 
     endstops.enable_z_probe(true);
     auto_probing(false, false);

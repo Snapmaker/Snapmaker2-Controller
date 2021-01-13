@@ -2066,7 +2066,7 @@ ErrCode SystemService::GetMachineSize(SSTP_Event_t &event) {
   buffer[i++] = 0;
 
   //Machine size type
-  buffer[i++] = linear.machine_size();
+  buffer[i++] = linear_p->machine_size();
 
   //Size
   tmp_u32 = (uint32_t) (X_MAX_POS * 1000);

@@ -689,12 +689,15 @@
  */
 #define DEFAULT_AXIS_STEPS_PER_UNIT   { 400, 400, 400, 212.21 }
 
+#define MODULE_LINEAR_PITCH_20        160
+#define MODULE_LINEAR_PITCH_8         400
+
 /**
  * Default Max Feed Rate (mm/s)
  * Override with M203
  *                                      X, Y, Z, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
  */
-#define DEFAULT_MAX_FEEDRATE          { 150, 150, 50, 25 }
+#define DEFAULT_MAX_FEEDRATE          { 120, 120, 40, 25 }
 
 /**
  * Default Max Acceleration (change/s) change = mm/s
