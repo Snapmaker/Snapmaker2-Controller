@@ -1249,7 +1249,6 @@ void Stepper::set_directions() {
  *
  * Directly pulses the stepper motors at high frequency.
  */
-HAL_STEP_TIMER_ISR() AT_SNAP_SECTION;
 HAL_STEP_TIMER_ISR() {
   HAL_timer_isr_prologue(STEP_TIMER_NUM);
 

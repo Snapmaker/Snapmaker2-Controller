@@ -61,8 +61,6 @@ SECTIONS
          */
         *(.stm32.interrupt_vector)
 
-        *(.snap)
-
         /*
          * Program code and vague linking
          */

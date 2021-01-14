@@ -409,4 +409,3 @@ void protected_pin_err();
 #define UInt32ToBytes(u32V, pBuff) do{pBuff[0] = (uint8_t)(u32V >> 24); pBuff[1] = (uint8_t)(u32V >> 16); pBuff[2] = (uint8_t)(u32V >> 8); pBuff[3] = (uint8_t)(u32V); }while(0)
 #define UInt16ToBytes(u16V, pBuff) do{pBuff[0] = (uint8_t)(u16V >> 8); pBuff[1] = (uint8_t)(u16V);}while(0)
 
-#define AT_SNAP_SECTION   __attribute__((section(".snap")))
