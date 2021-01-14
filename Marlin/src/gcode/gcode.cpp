@@ -912,7 +912,8 @@ void GcodeSuite::process_next_command() {
       switch (busy_state) {
         case IN_HANDLER:
         case IN_PROCESS:
-          SERIAL_ECHO_MSG(MSG_BUSY_PROCESSING);
+          // no longer output string, will read the section .rodata, that may block stepper ISR
+          // SERIAL_ECHO_MSG(MSG_BUSY_PROCESSING);
           break;
         case PAUSED_FOR_USER:
           SERIAL_ECHO_MSG(MSG_BUSY_PAUSED_FOR_USER);

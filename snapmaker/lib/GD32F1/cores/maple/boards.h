@@ -56,7 +56,7 @@ enum {
  * @brief Maps each Maple pin to a corresponding stm32_pin_info.
  * @see stm32_pin_info
  */
-extern const stm32_pin_info PIN_MAP[];
+extern stm32_pin_info PIN_MAP[];
 
 /**
  * @brief Pins capable of PWM output.

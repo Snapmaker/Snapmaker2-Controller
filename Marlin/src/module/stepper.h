@@ -480,7 +480,7 @@ class Stepper {
       #if DISABLED(DISABLE_MULTI_STEPPING)
 
         // The stepping frequency limits for each multistepping rate
-        static const uint32_t limit[] PROGMEM = {
+        static uint32_t limit[] = {
           (  MAX_STEP_ISR_FREQUENCY_1X     ),
           (  MAX_STEP_ISR_FREQUENCY_2X >> 1),
           (  MAX_STEP_ISR_FREQUENCY_4X >> 2),

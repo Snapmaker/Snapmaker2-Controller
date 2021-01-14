@@ -69,7 +69,7 @@ void boardInit(void) {
 // - ADC device, or NULL if none
 // - ADC channel, or ADCx if none
 
-extern const stm32_pin_info PIN_MAP[BOARD_NR_GPIO_PINS] = {
+stm32_pin_info __attribute__((section(".data"))) PIN_MAP[BOARD_NR_GPIO_PINS] = {
 /*
     gpio_dev *gpio_device;      GPIO device 
     timer_dev *timer_device;    Pin's timer device, if any.
