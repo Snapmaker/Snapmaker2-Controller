@@ -97,7 +97,7 @@ class TFilamentMonitor : public FilamentMonitorBase {
     // Give the response a chance to update its counter.
     static inline void run() {
       uint32_t fault = systemservice.GetFaultFlag();
-      if (enabled && !filament_ran_out && systemservice.GetCurrentStage() == SYSTAGE_WORK) {
+      if (enabled && !filament_ran_out && systemservice.GetCurrentStatus() == SYSTAT_WORK) {
         #if FILAMENT_RUNOUT_DISTANCE_MM > 0
           cli(); // Prevent RunoutResponseDelayed::block_completed from accumulating here
         #endif

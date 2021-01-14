@@ -174,53 +174,56 @@ bool HAL_timer_interrupt_enabled(const uint8_t timer_num) {
   return false;
 }
 
-timer_dev* get_timer_dev(int number) {
-  switch (number) {
+static __attribute__((section(".data"))) timer_dev *timer_devs[] = {
+    NULL,
+
     #if STM32_HAVE_TIMER(1)
-      case 1: return &timer1;
+      &timer1,
     #endif
     #if STM32_HAVE_TIMER(2)
-      case 2: return &timer2;
+      &timer2,
     #endif
     #if STM32_HAVE_TIMER(3)
-      case 3: return &timer3;
+      &timer3,
     #endif
     #if STM32_HAVE_TIMER(4)
-      case 4: return &timer4;
+      &timer4,
     #endif
     #if STM32_HAVE_TIMER(5)
-      case 5: return &timer5;
+      &timer5,
     #endif
     #if STM32_HAVE_TIMER(6)
-      case 6: return &timer6;
+      &timer6,
     #endif
     #if STM32_HAVE_TIMER(7)
-      case 7: return &timer7;
+      &timer7,
     #endif
     #if STM32_HAVE_TIMER(8)
-      case 8: return &timer8;
+      &timer8,
     #endif
     #if STM32_HAVE_TIMER(9)
-      case 9: return &timer9;
+      &timer9,
     #endif
     #if STM32_HAVE_TIMER(10)
-      case 10: return &timer10;
+      &timer10,
     #endif
     #if STM32_HAVE_TIMER(11)
-      case 11: return &timer11;
+      &timer11,
     #endif
     #if STM32_HAVE_TIMER(12)
-      case 12: return &timer12;
+      &timer12,
     #endif
     #if STM32_HAVE_TIMER(13)
-      case 13: return &timer14;
+      &timer13,
     #endif
     #if STM32_HAVE_TIMER(14)
-      case 14: return &timer14;
+      &timer14,
     #endif
-      default:
-      return 0;
-  }
+};
+
+timer_dev* get_timer_dev(int number) {
+  if (number < sizeof(timer_devs))
+    return timer_devs[number];
 }
 
 #endif // __STM32F1__

@@ -44,7 +44,7 @@ ToolHeadLaser laser;
 extern void Tim1SetCCR4(uint16_t pwm);
 extern void Tim1PwmInit();
 
-static const uint8_t power_table[]= {
+static __attribute__((section(".data"))) uint8_t power_table[]= {
   0,
   20,22,24,26,28,30,31,33,35,37,39,41,43,45,47,49,51,53,54,56,58,60,63,65,67,69,71,73,75,77,79,82,84,86,88,90,93,95,97,
   100,102,103,106,109,111,113,116,119,121,123,125,128,130,133,135,138,140,143,145,148,150,153,156,158,161,164,166,169,
