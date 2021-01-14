@@ -115,7 +115,7 @@ class Endstops {
      * If abort_enabled() and moving towards a triggered switch, abort the current move.
      * Called from ISR contexts.
      */
-    static void update() AT_SNAP_SECTION;
+    static void update();
 
     /**
      * Get Endstop hit state.

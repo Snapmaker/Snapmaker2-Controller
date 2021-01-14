@@ -730,7 +730,7 @@ class Planner {
     static void quick_stop();
 
     // Called when an endstop is triggered. Causes the machine to stop inmediately
-    static void endstop_triggered(const AxisEnum axis) AT_SNAP_SECTION;
+    static void endstop_triggered(const AxisEnum axis);
 
     // Triggered position of an axis in mm (not core-savvy)
     static float triggered_position_mm(const AxisEnum axis);
@@ -762,7 +762,7 @@ FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != bloc
      * This also marks the block as busy.
      * WARNING: Called from Stepper ISR context!
      */
-    static block_t* get_current_block() AT_SNAP_SECTION;
+    static block_t* get_current_block();
 
     /**
      * "Discard" the block and "release" the memory.
@@ -842,8 +842,8 @@ FORCE_INLINE static bool has_blocks_queued() { return (block_buffer_head != bloc
     /**
      * Get the index of the next / previous block in the ring buffer
      */
-    static constexpr uint8_t next_block_index(const uint8_t block_index)  AT_SNAP_SECTION { return BLOCK_MOD(block_index + 1); }
-    static constexpr uint8_t prev_block_index(const uint8_t block_index)  AT_SNAP_SECTION { return BLOCK_MOD(block_index - 1); }
+    static constexpr uint8_t next_block_index(const uint8_t block_index) { return BLOCK_MOD(block_index + 1); }
+    static constexpr uint8_t prev_block_index(const uint8_t block_index) { return BLOCK_MOD(block_index - 1); }
 
     /**
      * Calculate the distance (not time) it takes to accelerate
