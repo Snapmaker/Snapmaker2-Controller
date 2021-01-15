@@ -230,6 +230,10 @@ class Stepper {
 
   public:
 
+    #if ENABLED(DEBUG_ISR_LATENCY)
+      static uint16_t pre_isr_ticks;
+    #endif
+
     #if HAS_EXTRA_ENDSTOPS || ENABLED(Z_STEPPER_AUTO_ALIGN)
       static bool separate_multi_axis;
     #endif
