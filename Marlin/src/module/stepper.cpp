@@ -137,6 +137,10 @@ block_t* Stepper::current_block; // (= NULL) A pointer to the block currently be
 uint8_t Stepper::last_direction_bits, // = 0
         Stepper::axis_did_move; // = 0
 
+#if ENABLED(DEBUG_ISR_LATENCY)
+  uint16_t Stepper::pre_isr_ticks;
+#endif
+
 bool Stepper::abort_current_block;
 
 #if DISABLED(MIXING_EXTRUDER) && EXTRUDERS > 1
@@ -1249,7 +1253,18 @@ void Stepper::set_directions() {
  *
  * Directly pulses the stepper motors at high frequency.
  */
+#if ENABLED(DEBUG_ISR_LATENCY)
+static char latency_str[] = "lty:";
+static char pre_inter_str[] = ", ";
+#endif
 HAL_STEP_TIMER_ISR() {
+  #if ENABLED(DEBUG_ISR_LATENCY)
+    hal_timer_t latency = HAL_timer_get_count(STEP_TIMER_NUM);
+    if (latency > 4) {
+      SERIAL_ECHOLNPAIR(latency_str, latency, pre_inter_str, Stepper::pre_isr_ticks);
+    }
+  #endif
+
   HAL_timer_isr_prologue(STEP_TIMER_NUM);
 
   Stepper::isr();
@@ -1409,6 +1424,10 @@ void Stepper::isr() {
 
   // Set the next ISR to fire at the proper time
   HAL_timer_set_compare(STEP_TIMER_NUM, hal_timer_t(next_isr_ticks));
+
+  #if ENABLED(DEBUG_ISR_LATENCY)
+    pre_isr_ticks = next_isr_ticks;
+  #endif
 
   // Don't forget to finally reenable interrupts
   ENABLE_ISRS();
