@@ -113,6 +113,24 @@ void GcodeSuite::G1029() {
     return;
   }
 
+  const bool seen_c = parser.seen("C");
+  if (seen_c) {
+    SSTP_Event_t event;
+    int32_t z_offset = (int32_t)parser.intval('C', (int32_t)0);
+    uint8_t buff[5];
+    buff[0] = 4;
+    buff[1] = ((uint8_t *)&z_offset)[3];
+    buff[2] = ((uint8_t *)&z_offset)[2];
+    buff[3] = ((uint8_t *)&z_offset)[1];
+    buff[4] = ((uint8_t *)&z_offset)[0];
+
+    event.op_code = 0x0f;
+    event.data = buff;
+    event.length = 5;
+    event.id = 9;
+    systemservice.ChangeRuntimeEnv(event);
+  }
+
   const bool seen_a = parser.seen("A");
   if (seen_a) {
 

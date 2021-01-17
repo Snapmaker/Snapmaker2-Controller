@@ -227,7 +227,7 @@ void GcodeSuite::G28(const bool always_home_all) {
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
     // External Module only reply when switch status changed.
-    // Force sync status here to avoid hitting boundary because of the limit switch out of sync. 
+    // Force sync status here to avoid hitting boundary because of the limit switch out of sync.
     //linear.PollEndstop(LINEAR_AXIS_ALL);
   #endif
 
@@ -290,8 +290,8 @@ void GcodeSuite::G28(const bool always_home_all) {
     #else
       if (Z_HOME_DIR > 0)
         if (home_all || homeZ) homeaxis(Z_AXIS);
-    #endif // DISABLED(SW_MACHINE_SIZE) 
-    
+    #endif // DISABLED(SW_MACHINE_SIZE)
+
     const float z_homing_height = (
       #if ENABLED(UNKNOWN_Z_NO_RAISE)
         !TEST(axis_known_position, Z_AXIS) ? 0 :

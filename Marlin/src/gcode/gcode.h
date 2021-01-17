@@ -443,6 +443,10 @@ private:
 
   static void G3029();
 
+  static void G1040();
+
+  static void G1041();
+
   #if ENABLED(CALIBRATION_GCODE)
     static void G425();
   #endif

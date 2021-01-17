@@ -1712,3 +1712,9 @@ void  move_to_limited_position(const float (&target)[XYZE], const float fr_mm_s)
     line_to_current_position(z_feedrate);
   }
 }
+
+void get_destination_from_logic(float (&logic_position)[XYZE]) {
+    LOOP_XYZE(i) {
+      destination[i] = (relative_mode || relative_mode) ? current_position[i] + logic_position[i] : (i == E_AXIS) ? logic_position[i] : LOGICAL_TO_NATIVE(logic_position[i], i);
+    }
+}

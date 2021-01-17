@@ -303,6 +303,10 @@ void GcodeSuite::execute_command(void) {
 
       case 3029: G3029(); break;
 
+      case 1040: G1040(); break;
+
+      case 1041: G1041(); break;
+
       default: parser.unknown_command_error(); break;
     }
     break;

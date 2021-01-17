@@ -42,6 +42,8 @@ enum LevelMode: uint8_t {
 
 class BedLevelService {
   public:
+    ErrCode DoXCalibration(SSTP_Event_t &event);
+    ErrCode DoYCalibration(SSTP_Event_t &event);
     ErrCode DoAutoLeveling(SSTP_Event_t &event);
     ErrCode DoManualLeveling(SSTP_Event_t &event);
     ErrCode SetManualLevelingPoint(SSTP_Event_t &event);

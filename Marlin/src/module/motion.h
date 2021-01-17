@@ -413,3 +413,5 @@ FORCE_INLINE void  move_to_limited_x(const float x, const float fr_mm_s) {
   float target[XYZE] = {x, current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]};
   move_to_limited_position(target, fr_mm_s);
 }
+
+void get_destination_from_logic(float (&logic_position)[XYZE]);
