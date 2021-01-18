@@ -214,13 +214,14 @@ void CanChannel::Irq(CanChannelNumber ch,  uint8_t fifo_index) {
 
       // if no callback, enqueue the data just received
       if (std_cmd_in_q_ < CAN_STD_CMD_QUEUE_SIZE) {
+        std_cmd_[std_cmd_w_].id = std_data_frame.id;
         // save data field
         for (i = 0; i < length; i++) {
-          std_cmd_[std_cmd_w_] = std_data_frame;
-          if (++std_cmd_w_ >= CAN_STD_CMD_QUEUE_SIZE)
-            std_cmd_w_ = 0;
-          std_cmd_in_q_++;
+          std_cmd_[std_cmd_w_].data[i] = std_data_frame.data[i];
         }
+        if (++std_cmd_w_ >= CAN_STD_CMD_QUEUE_SIZE)
+          std_cmd_w_ = 0;
+        std_cmd_in_q_++;
       }
     }
 
