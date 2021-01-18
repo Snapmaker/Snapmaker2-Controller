@@ -773,6 +773,7 @@ void GcodeSuite::execute_command(void) {
       case 1007: M1007(); break;
 
       case 1010: M1010(); break;                                  // M1010 control/query chamber status, compatible with Snapmaker1
+      case 1011: M1011(); break;                                  // M1011 control/query purifier status
 
       case 1026:
         enable_wait = !enable_wait;
