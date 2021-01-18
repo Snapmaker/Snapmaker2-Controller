@@ -26,6 +26,7 @@
 #include "../module/can_host.h"
 #include "../module/linear.h"
 #include "../module/enclosure.h"
+#include "../module/purifier.h"
 #include "../module/emergency_stop.h"
 #include "../module/toolhead_laser.h"
 #include "../module/rotary_module.h"
@@ -580,6 +581,65 @@ static ErrCode GetRotateStatus(SSTP_Event_t &event) {
   return hmi.Send(event);
 }
 
+static ErrCode GetPurifierStatus(SSTP_Event_t &event) {
+  purifier.GetInfo(PURIFIER_INFO_ERR, 500);
+  return purifier.ReportStatus();
+}
+
+static ErrCode GetPurifierFanStatus(SSTP_Event_t &event) {
+  PURIFIER_INFO_T info =purifier.GetInfo(PURIFIER_INFO_FAN_STA, 500);
+  uint8_t buff[2];
+
+  buff[0] = info.is_work;
+  buff[1] = info.fan_gears;
+  event.length = 2;
+  event.data = buff;
+  LOG_I("SC req purifier fan sta:%d, gears%d\n", buff[0], buff[1]);
+
+  return hmi.Send(event);
+}
+
+static ErrCode SetPurifierFanStatus(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+  uint16_t delay_close_s = 0;
+  if (event.length < 1) {
+    LOG_E("must specify fan status!\n");
+    err = E_FAILURE;
+    goto OUT;
+  } else if (event.length == 3) {
+    delay_close_s = (event.data[1] << 8) | event.data[2];
+  }
+  purifier.SetFanStatus(event.data[0], delay_close_s);
+
+OUT:
+  event.data = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+
+static ErrCode GetPurifierTimelifeStatus(SSTP_Event_t &event) {
+  purifier.GetInfo(PURIFIER_INFO_LIFETIME, 500);
+  return purifier.ReportLifetimeStatus();
+}
+
+static ErrCode SetPurifierGearsStatus(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  if (event.length < 1) {
+    LOG_E("must specify fan gears!\n");
+    err = E_FAILURE;
+    goto OUT;
+  }
+  purifier.SetFanGears(event.data[0]);
+
+OUT:
+  event.data = &err;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+
 EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* [ADDON_OPC_GET_CHAMBER_STATUS]    =  */{EVENT_ATTR_DEFAULT,  ReportEnclosureStatus},
@@ -590,6 +650,11 @@ EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
   /* [ADDON_OPC_GET_ADDON_INFO]        =  */{EVENT_ATTR_DEFAULT,  GetAddonInfo},
   /* [ADDON_OPC_GET_ADDON_STOP]        =  */{EVENT_ATTR_DEFAULT,  GetAddonStopStatus},
   /* [ADDON_OPC_GET_ROTATE_STATE]        =  */{EVENT_ATTR_DEFAULT,  GetRotateStatus},
+  /* [ADDON_OPC_GET_PURIFIER_STATE]          = */{EVENT_ATTR_DEFAULT, GetPurifierStatus},
+  /* [ADDON_OPC_GET_PURIFIER_FAN_STATE]      = */{EVENT_ATTR_DEFAULT, GetPurifierFanStatus},        
+  /* [ADDON_OPC_SET_PURIFIER_FAN_STATE]      = */{EVENT_ATTR_DEFAULT, SetPurifierFanStatus},        
+  /* [ADDON_OPC_SET_PURIFIER_GEARS_STATE]    = */{EVENT_ATTR_DEFAULT, SetPurifierGearsStatus},      
+  /* [ADDON_OPC_GET_PURIFIER_TIMELIFE_STATE] = */{EVENT_ATTR_DEFAULT, GetPurifierTimelifeStatus},
 };
 
 

@@ -33,6 +33,7 @@
 #include "toolhead_3dp.h"
 #include "toolhead_cnc.h"
 #include "toolhead_laser.h"
+#include "purifier.h"
 
 // marlin headers
 #include "src/inc/MarlinConfig.h"
@@ -42,7 +43,18 @@
 
 extern ToolHead3DP printer_single;
 
-ModuleBase *static_modules[] = {&linear, &printer_single, &laser, &cnc, &enclosure, &emergency_stop, &linear_tmc, &rotaryModule, NULL};
+ModuleBase *static_modules[] = {
+  &linear,
+  &printer_single,
+  &laser,
+  &cnc,
+  &enclosure,
+  &emergency_stop,
+  &linear_tmc,
+  &rotaryModule,
+  &purifier,
+  NULL
+};
 
 bool ModuleBase::lock_marlin_uart_ = false;
 LockMarlinUartSource ModuleBase::lock_marlin_source_ = LOCK_SOURCE_NONE;
