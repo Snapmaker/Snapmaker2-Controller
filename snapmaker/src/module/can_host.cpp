@@ -412,7 +412,7 @@ void CanHost::ReceiveHandler(void *parameter) {
       }
     }
 
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(receiver_speed_));
   }
 }
 
@@ -481,7 +481,7 @@ void CanHost::EventHandler(void *parameter) {
     for (int i = 0; static_modules[i] != NULL; i++)
       static_modules[i]->Process();
 
-    vTaskDelay(pdMS_TO_TICKS(10));
+    vTaskDelay(pdMS_TO_TICKS(receiver_speed_));
   }
 }
 
