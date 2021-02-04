@@ -116,7 +116,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     * next case to save env and write flash
     */
     case QS_SOURCE_POWER_LOSS:
-      TurnOffPower(state_);
+      TurnOffPower();
 
     /*
     * triggered by PAUSE, just save env and switch to next state
@@ -189,7 +189,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
    */
   case QS_STA_PARKING:
     if ((source_ == QS_SOURCE_POWER_LOSS) && (pre_source_ == QS_SOURCE_PAUSE) && !wrote_flash_) {
-      TurnOffPower(state_);
+      TurnOffPower();
       pl_recovery.WriteFlash();
       wrote_flash_ = true;
     }
@@ -202,7 +202,6 @@ bool QuickStopService::CheckInISR(block_t *blk) {
   return ret;
 }
 
-
 void QuickStopService::Park() {
   bool leveling_active = planner.leveling_active;
   float retract = 0;
@@ -212,6 +211,9 @@ void QuickStopService::Park() {
   // we need to move to Z max
   if (leveling_active)
     set_bed_leveling_enabled(false);
+
+  Y_enable;
+  Z_enable;
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
@@ -231,13 +233,7 @@ void QuickStopService::Park() {
       move_to_limited_z(Z_MAX_POS, 20);
     }
 
-    // move X to max position of home dir
-    // move Y to max position
-    if (X_HOME_DIR > 0)
-      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 60);
-    else
-      move_to_limited_xy(0, Y_MAX_POS, 60);
-    break;
+    move_to_limited_y(Y_MAX_POS, 60);
 
   case MODULE_TOOLHEAD_LASER:
     // In the case of laser, we don't raise Z.
@@ -251,10 +247,16 @@ void QuickStopService::Park() {
       move_to_limited_z(Z_MAX_POS, 30);
       cnc.SetOutput(0);
     } else {
+      cnc.SetOutput(cnc.power());
       move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 30);
       while (planner.has_blocks_queued()) {
-        if (source_ != QS_SOURCE_POWER_LOSS)
+        if (source_ != QS_SOURCE_POWER_LOSS) {
           idle();
+        }
+        else {
+          cnc.SetOutput(0);
+          return;
+        }
       }
       cnc.SetOutput(0);
       move_to_limited_z(Z_MAX_POS, 30);
@@ -277,27 +279,13 @@ void QuickStopService::Park() {
 /*
  * disable other unused peripherals in ISR
  */
-void QuickStopService::TurnOffPower(QuickStopState sta) {
-	if (sta  > QS_STA_TRIGGERED) {
-		BreathLightClose();
-
-		// disble timer except the stepper's
-		rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
-		rcc_clk_disable(TIMER7->clk_id);
-
-		// disalbe ADC
-		rcc_clk_disable(ADC1->clk_id);
-		rcc_clk_disable(ADC2->clk_id);
-
-		// turn off hot end and FAN
-		if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
-			printer1->SetHeater(0, 0);
-		}
-	}
-  else {
-    // these 2 statement will disable power supply for
-    // HMI, BED, and all addones except steppers
-    disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+void QuickStopService::TurnOffPower() {
+  disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+  if (this->source_ == QS_SOURCE_POWER_LOSS) {
+    BreathLightClose();
+    X_disable;
+    Y_disable;
+    Z_disable;
   }
 }
 
@@ -324,6 +312,20 @@ void QuickStopService::EmergencyStop() {
   enclosure.SetLightBar(0);
 }
 
+void QuickStopService::PreProcessQSTriggered() {
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+    laser.TurnOff();
+  }
+  else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      thermalManager.setTargetBed(0);
+      thermalManager.setTargetHotend(0, 0);
+      printer1->SetHeater(0, 0);
+  }
+  else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC) {
+    cnc.SetOutput(0);
+  }
+}
+
 void QuickStopService::Process() {
   if (state_ == QS_STA_IDLE)
     return;
@@ -333,6 +335,8 @@ void QuickStopService::Process() {
   while (state_ <= QS_STA_CLEAN_MOVES) {
     idle();
   }
+
+  PreProcessQSTriggered();
 
   // tell system manager we start to handle QS in Non-ISR
   systemservice.CallbackPreQS(source_);

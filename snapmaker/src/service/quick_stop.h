@@ -59,6 +59,7 @@ class QuickStopService {
 
     void Trigger(QuickStopSource new_source, bool from_isr=false);
     void EmergencyStop();
+    void PreProcessQSTriggered();
     void Process();
 
     bool inline isTriggered() { return source_ != QS_SOURCE_IDLE; }
@@ -66,7 +67,7 @@ class QuickStopService {
 
   private:
     void Park();
-    void TurnOffPower(QuickStopState sta);
+    void TurnOffPower();
 
   private:
     QuickStopState state_ = QS_STA_IDLE;

@@ -41,7 +41,7 @@
 #define X_STOP_PIN        PE12
 #define Y_STOP_PIN        PE12
 #define Z_STOP_PIN        PE12
-#define Z_MIN_PROBE_PIN   -1 
+#define Z_MIN_PROBE_PIN   -1
 
 //
 // Steppers

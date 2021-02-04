@@ -419,3 +419,8 @@ FORCE_INLINE void  move_to_limited_x(const float x, const float fr_mm_s) {
   float target[X_TO_E] = {x, current_position[Y_AXIS], current_position[Z_AXIS], current_position[B_AXIS], current_position[E_AXIS]};
   move_to_limited_position(target, fr_mm_s);
 }
+
+FORCE_INLINE void  move_to_limited_y(const float y, const float fr_mm_s) {
+  float target[X_TO_E] = {current_position[X_AXIS], y, current_position[Z_AXIS], current_position[B_AXIS], current_position[E_AXIS]};
+  move_to_limited_position(target, fr_mm_s);
+}

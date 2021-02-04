@@ -134,24 +134,10 @@ ErrCode SystemService::PreProcessStop() {
   // recover scaling
   feedrate_percentage = 100;
 
-  // set temp to 0
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
-    thermalManager.setTargetBed(0);
-    HOTEND_LOOP() { thermalManager.setTargetHotend(0, e); }
-
-    // if user abort the work, FAN0 will not be closed
-    // set target temp to 0 only make FAN1 be closed
-    printer1->SetFan(0, 0);
-  }
-
   // diable power panic data
   pl_recovery.cur_data_.Valid = 0;
 
   print_job_timer.stop();
-
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
-    laser.TurnOff();
-  }
 
   return E_SUCCESS;
 }
@@ -275,6 +261,41 @@ void inline SystemService::RestoreXYZ(void) {
 }
 
 void inline SystemService::resume_3dp(void) {
+	// enable hotend
+	if(pl_recovery.cur_data_.BedTamp > BED_MAXTEMP - 15) {
+		LOG_W("recorded bed temp [%f] is larger than %f, limited it.\n",
+						pl_recovery.cur_data_.BedTamp, BED_MAXTEMP - 15);
+		pl_recovery.cur_data_.BedTamp = BED_MAXTEMP - 15;
+	}
+
+	if (pl_recovery.cur_data_.HeaterTemp[0] > HEATER_0_MAXTEMP - 15) {
+		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
+						pl_recovery.cur_data_.BedTamp, HEATER_0_MAXTEMP - 15);
+		pl_recovery.cur_data_.HeaterTemp[0] = HEATER_0_MAXTEMP - 15;
+	}
+
+	if (pl_recovery.cur_data_.HeaterTemp[0] < 180)
+		pl_recovery.cur_data_.HeaterTemp[0] = 180;
+
+	/* when recover 3DP from power-loss, maybe the filament is freezing because
+	 * nozzle has been cooling. If we raise Z in this condition, the model will
+	 * be pulled up, sometimes it will break the model.
+	 * So we heating the hotend to 150 celsius degree before raising Z
+	 */
+	thermalManager.setTargetBed(pl_recovery.cur_data_.BedTamp);
+	thermalManager.setTargetHotend(pl_recovery.cur_data_.HeaterTemp[0], 0);
+
+  	while (thermalManager.degHotend(0) < 150) idle();
+
+	// waiting temperature reach target
+	thermalManager.wait_for_bed(true);
+	thermalManager.wait_for_hotend(0, true);
+
+  	// recover FAN speed after heating to save time
+	for (int i = 0; i < PP_FAN_COUNT; i++) {
+		printer1->SetFan(i, pl_recovery.cur_data_.FanSpeed[i]);
+	}
+
 	current_position[E_AXIS] += 20;
 	line_to_current_position(5);
 	planner.synchronize();
@@ -2127,13 +2148,6 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
 
     // reset the status of filament monitor
     runout.reset();
-
-    // make sure laser is off
-    // won't turn off laser in pl_recovery.SaveEnv(), it's call by stepper ISR
-    // because it may call CAN transmisson function
-    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
-      laser.TurnOff();
-    }
     break;
 
   case QS_SOURCE_STOP:
