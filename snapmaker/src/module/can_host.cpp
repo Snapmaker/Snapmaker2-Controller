@@ -232,13 +232,13 @@ out:
 ErrCode CanHost::SendExtCmd(CanExtCmd_t &cmd) {
   CanPacket_t packet;
   ErrCode     ret = E_FAILURE;
-
+  uint16_t length = cmd.length;
   packet.data = package_buffer_;
 
-  if (proto_sstp_.Package(cmd.data, packet.data, cmd.length) != E_SUCCESS)
+  if (proto_sstp_.Package(cmd.data, packet.data, length) != E_SUCCESS)
     return E_FAILURE;
 
-  packet.length = cmd.length;
+  packet.length = length;
   packet.id     = cmd.mac.bits.id;
   packet.ch     = (CanChannelNumber)cmd.mac.bits.channel;
   packet.ft     = CAN_FRAME_EXT_DATA;
