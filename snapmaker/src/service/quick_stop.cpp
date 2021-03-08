@@ -293,25 +293,6 @@ void QuickStopService::TurnOffPower() {
   Z_disable;
 
   BreathLightClose();
-
-  // disble timer except the stepper's
-  rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
-  rcc_clk_disable(TIMER7->clk_id);
-
-  // disalbe ADC
-  rcc_clk_disable(ADC1->clk_id);
-  rcc_clk_disable(ADC2->clk_id);
-
-  // turn off hot end and FAN
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
-    printer1->SetHeater(0, 0);
-  }
-  else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
-    laser.TurnOff();
-  }
-  else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC) {
-    cnc.SetOutput(0);
-  }
 }
 
 void QuickStopService::EmergencyStop() {
@@ -346,6 +327,8 @@ void QuickStopService::Process() {
   while (state_ <= QS_STA_CLEAN_MOVES) {
     idle();
   }
+
+  LOG_I("process1\n");
 
   // tell system manager we start to handle QS in Non-ISR
   systemservice.CallbackPreQS(source_);
