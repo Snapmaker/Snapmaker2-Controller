@@ -116,7 +116,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     * next case to save env and write flash
     */
     case QS_SOURCE_POWER_LOSS:
-      TurnOffPower(state_);
+      TurnOffPower();
 
     /*
     * triggered by PAUSE, just save env and switch to next state
@@ -189,7 +189,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
    */
   case QS_STA_PARKING:
     if ((source_ == QS_SOURCE_POWER_LOSS) && (pre_source_ == QS_SOURCE_PAUSE) && !wrote_flash_) {
-      TurnOffPower(state_);
+      TurnOffPower();
       pl_recovery.WriteFlash();
       wrote_flash_ = true;
     }
@@ -222,6 +222,7 @@ void QuickStopService::Park() {
     if (source_ == QS_SOURCE_POWER_LOSS) {
       current_position[E_AXIS] -= 2;
       line_to_current_position(60);
+      Z_enable;
       move_to_limited_ze(current_position[Z_AXIS] + 5, current_position[E_AXIS] - retract + 1, 20);
     }
     else {
@@ -247,17 +248,24 @@ void QuickStopService::Park() {
     break;
 
   case MODULE_TOOLHEAD_CNC:
-    if (current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF > Z_MAX_POS) {
+    if (source_ == QS_SOURCE_POWER_LOSS) {
+
+    }
+    else {
+      Z_enable;
+      if (current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF < Z_MAX_POS) {
+        move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 30);
+        while (planner.has_blocks_queued()) {
+          idle();
+        }
+        cnc.SetOutput(0);
+      }
+
       move_to_limited_z(Z_MAX_POS, 30);
-      cnc.SetOutput(0);
-    } else {
-      move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 30);
       while (planner.has_blocks_queued()) {
-        if (source_ != QS_SOURCE_POWER_LOSS)
           idle();
       }
       cnc.SetOutput(0);
-      move_to_limited_z(Z_MAX_POS, 30);
     }
     break;
 
@@ -277,27 +285,32 @@ void QuickStopService::Park() {
 /*
  * disable other unused peripherals in ISR
  */
-void QuickStopService::TurnOffPower(QuickStopState sta) {
-	if (sta  > QS_STA_TRIGGERED) {
-		BreathLightClose();
+void QuickStopService::TurnOffPower() {
+  disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
 
-		// disble timer except the stepper's
-		rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
-		rcc_clk_disable(TIMER7->clk_id);
+  X_disable;
+  Y_disable;
+  Z_disable;
 
-		// disalbe ADC
-		rcc_clk_disable(ADC1->clk_id);
-		rcc_clk_disable(ADC2->clk_id);
+  BreathLightClose();
 
-		// turn off hot end and FAN
-		if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
-			printer1->SetHeater(0, 0);
-		}
-	}
-  else {
-    // these 2 statement will disable power supply for
-    // HMI, BED, and all addones except steppers
-    disable_power_domain(POWER_DOMAIN_0 | POWER_DOMAIN_2);
+  // disble timer except the stepper's
+  rcc_clk_disable(TEMP_TIMER_DEV->clk_id);
+  rcc_clk_disable(TIMER7->clk_id);
+
+  // disalbe ADC
+  rcc_clk_disable(ADC1->clk_id);
+  rcc_clk_disable(ADC2->clk_id);
+
+  // turn off hot end and FAN
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+    printer1->SetHeater(0, 0);
+  }
+  else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+    laser.TurnOff();
+  }
+  else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC) {
+    cnc.SetOutput(0);
   }
 }
 
