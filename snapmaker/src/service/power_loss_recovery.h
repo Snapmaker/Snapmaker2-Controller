@@ -37,7 +37,7 @@ typedef enum {
 #define PP_HEATER         1
 
 // delay for debounce, uint: ms, for now we use 10ms
-#define POWERPANIC_DEBOUNCE	6
+#define POWERPANIC_DEBOUNCE	10
 typedef struct __attribute__((aligned (4))) {
 	// checksum of this section
 	uint32_t CheckSum;
