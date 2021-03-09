@@ -248,11 +248,7 @@ void QuickStopService::Park() {
     break;
 
   case MODULE_TOOLHEAD_CNC:
-    if (source_ == QS_SOURCE_POWER_LOSS) {
-
-    }
-    else {
-      Z_enable;
+    if (source_ != QS_SOURCE_POWER_LOSS) {
       if (current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF < Z_MAX_POS) {
         move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 30);
         while (planner.has_blocks_queued()) {
