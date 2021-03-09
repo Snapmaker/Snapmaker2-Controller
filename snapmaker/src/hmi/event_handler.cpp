@@ -218,6 +218,13 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
   if (line > systemservice.current_line() || systemservice.current_line() == 0) {
     systemservice.current_line(line);
 
+    if (systemservice.is_waiting_gcode) {
+      if (systemservice.is_laser_on) {
+        systemservice.is_laser_on = false;
+        laser.TurnOn();
+      }
+    }
+
     if (cur_sta == SYSTAT_RESUME_WAITING) {
       if (systemservice.ResumeOver() == E_SUCCESS) {
         LOG_I("cmd: %s\n\n", (char *)(event_buff + 5));
