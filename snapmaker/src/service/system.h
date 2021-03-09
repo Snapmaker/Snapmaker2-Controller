@@ -279,6 +279,7 @@ public:
 
   uint32_t current_line() { return current_line_; }
   void     current_line(uint32_t line) { current_line_ = line; }
+  ErrCode CheckIfSendWaitEvent();
 
 private:
   void inline resume_3dp(void);
@@ -290,10 +291,11 @@ private:
 
   void MapFaultFlagToException(uint32_t flag, ExceptionHost &host, ExceptionType &type);
 
-  ErrCode CheckIfSendWaitEvent();
-
 public:
   uint32_t PeriphDeviceStatus;
+
+  bool is_waiting_gcode = false;
+  bool is_laser_on = false;
 
 private:
   uint8_t TriggleStat;

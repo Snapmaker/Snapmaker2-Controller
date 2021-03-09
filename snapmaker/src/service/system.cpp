@@ -151,6 +151,8 @@ ErrCode SystemService::PreProcessStop() {
 
   if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
     laser.TurnOff();
+    is_waiting_gcode = false;
+    is_laser_on = false;
   }
 
   return E_SUCCESS;
@@ -590,6 +592,8 @@ ErrCode SystemService::StartWork(TriggerSource s) {
     break;
 
   case MODULE_TOOLHEAD_LASER:
+    is_laser_on = false;
+    is_waiting_gcode = false;
   case MODULE_TOOLHEAD_CNC:
     if (enclosure.DoorOpened()) {
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
@@ -1494,22 +1498,33 @@ ErrCode SystemService::CheckIfSendWaitEvent() {
   SSTP_Event_t event;
   ErrCode err;
 
-  // make sure we are working
   if (systemservice.GetCurrentStatus() == SYSTAT_WORK) {
     // and no movement planned
     if(!planner.movesplanned()) {
       // and we have replied screen
-      if (current_line_ && current_line_ == debug.GetSCGcodeLine()) {
+      if (systemservice.current_line() && systemservice.current_line() == debug.GetSCGcodeLine()) {
         // then we known maybe screen lost out last reply
         LOG_I("waiting HMI command, current line: %u\n", current_line_);
         event.id = EID_SYS_CTRL_ACK;
         event.op_code = SYSCTL_OPC_WAIT_EVENT;
         event.data = &err;
         event.length = 1;
-        err = E_FAILURE;
-
-        return hmi.Send(event);
+        err = 1;
+        hmi.Send(event);
+        if (!is_waiting_gcode) {
+          is_waiting_gcode = true;
+          if (laser.power_pwm() > 0) {
+            is_laser_on = true;
+            laser.TurnOff();
+          }
+        }
       }
+      else {
+        is_waiting_gcode = false;
+      }
+    }
+    else {
+      is_waiting_gcode = false;
     }
   }
 
@@ -1592,8 +1607,6 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   int16_t   tmp_i16;
   uint32_t  tmp_u32;
   float     tmp_f32;
-
-  CheckIfSendWaitEvent();
 
   // save to use original event to construct new event
   event.data = buff;
