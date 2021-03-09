@@ -66,6 +66,7 @@
 
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../core/debug_out.h"
+#include <math.h>
 
 
 #if DISABLED(SW_MACHINE_SIZE)
@@ -1454,7 +1455,11 @@ void homeaxis(const AxisEnum axis) {
   float maxlen;
   if (axis == B_AXIS) {
     maxlen = planner.get_axis_position_mm(B_AXIS);
-    do_homing_move(axis, maxlen * axis_home_dir);
+    maxlen = fmod(maxlen, 360) * axis_home_dir;
+    if (maxlen > 180) {
+      maxlen -= 360;
+    }
+    do_homing_move(axis, maxlen);
   } else {
     #if ENABLED(DELTA)
       maxlen = 1.5f * max_length(Z_AXIS);
