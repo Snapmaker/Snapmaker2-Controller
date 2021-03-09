@@ -293,6 +293,10 @@ void QuickStopService::TurnOffPower() {
   Z_disable;
 
   BreathLightClose();
+
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+      laser.TurnOff();
+  }
 }
 
 void QuickStopService::EmergencyStop() {
