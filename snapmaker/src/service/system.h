@@ -280,6 +280,8 @@ public:
   uint32_t current_line() { return current_line_; }
   void     current_line(uint32_t line) { current_line_ = line; }
   ErrCode CheckIfSendWaitEvent();
+  uint32_t hmi_cmd_timeout() {return hmi_cmd_timeout_;}
+  void hmi_cmd_timeout(uint32_t time) {hmi_cmd_timeout_ = time;}
 
 private:
   void inline resume_3dp(void);
@@ -314,6 +316,7 @@ private:
   WorkingPort work_port_;    // indicates we are handling Gcode from which UART
 
   uint32_t  current_line_;
+  uint32_t hmi_cmd_timeout_;
 };
 
 

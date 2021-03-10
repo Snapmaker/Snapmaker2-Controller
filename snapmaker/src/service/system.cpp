@@ -1498,11 +1498,15 @@ ErrCode SystemService::CheckIfSendWaitEvent() {
   SSTP_Event_t event;
   ErrCode err;
 
-  if (systemservice.GetCurrentStatus() == SYSTAT_WORK) {
+  if (GetCurrentStatus() == SYSTAT_WORK) {
     // and no movement planned
     if(!planner.movesplanned()) {
+      if ((hmi_cmd_timeout() + 1000) > millis()) {
+        return E_SUCCESS;
+      }
+      hmi_cmd_timeout(millis());
       // and we have replied screen
-      if (systemservice.current_line() && systemservice.current_line() == debug.GetSCGcodeLine()) {
+      if (current_line() && current_line() == debug.GetSCGcodeLine()) {
         // then we known maybe screen lost out last reply
         LOG_I("waiting HMI command, current line: %u\n", current_line_);
         event.id = EID_SYS_CTRL_ACK;
@@ -1513,7 +1517,7 @@ ErrCode SystemService::CheckIfSendWaitEvent() {
         hmi.Send(event);
         if (!is_waiting_gcode) {
           is_waiting_gcode = true;
-          if (laser.power_pwm() > 0) {
+          if (laser.tim_pwm() > 0) {
             is_laser_on = true;
             laser.TurnOff();
           }
