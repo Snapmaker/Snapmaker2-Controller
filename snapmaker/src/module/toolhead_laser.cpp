@@ -39,10 +39,12 @@
 #define LASER_CLOSE_FAN_DELAY     (120)
 
 #define TimSetPwm(n)  Tim1SetCCR4(n)
+#define TimGetPwm()  Tim1GetCCR4()
 
 ToolHeadLaser laser;
 
 extern void Tim1SetCCR4(uint16_t pwm);
+extern uint16_t Tim1GetCCR4();
 extern void Tim1PwmInit();
 
 static __attribute__((section(".data"))) uint8_t power_table[]= {
@@ -120,6 +122,12 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   return E_SUCCESS;
 }
 
+uint16_t ToolHeadLaser::tim_pwm() {
+  return TimGetPwm();
+}
+void ToolHeadLaser::tim_pwm(uint16_t pwm) {
+  TimSetPwm(pwm);
+}
 
 void ToolHeadLaser::TurnOn() {
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
@@ -127,7 +135,7 @@ void ToolHeadLaser::TurnOn() {
 
   state_ = TOOLHEAD_LASER_STATE_ON;
   CheckFan(power_pwm_);
-  TimSetPwm(power_pwm_);
+  tim_pwm(power_pwm_);
 }
 
 
@@ -137,7 +145,7 @@ void ToolHeadLaser::TurnOff() {
 
   state_ = TOOLHEAD_LASER_STATE_OFF;
   CheckFan(0);
-  TimSetPwm(0);
+  tim_pwm(0);
 }
 
 

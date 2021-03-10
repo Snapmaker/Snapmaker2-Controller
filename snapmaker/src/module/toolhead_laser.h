@@ -136,6 +136,8 @@ class ToolHeadLaser: public ModuleBase {
 
     uint16_t power_pwm() { return power_pwm_; };
     void power_pwm(uint16_t pwm) { power_pwm_ = pwm; }
+    uint16_t tim_pwm();
+    void tim_pwm(uint16_t pwm);
 
     uint16_t focus() { return focus_; }
     void focus(uint16_t focus) {

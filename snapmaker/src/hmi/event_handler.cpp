@@ -217,6 +217,7 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
 
   if (line > systemservice.current_line() || systemservice.current_line() == 0) {
     systemservice.current_line(line);
+    systemservice.hmi_cmd_timeout(millis());
 
     if (systemservice.is_waiting_gcode) {
       if (systemservice.is_laser_on) {

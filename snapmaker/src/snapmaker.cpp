@@ -186,7 +186,6 @@ static void hmi_task(void *param) {
   ErrCode ret = E_FAILURE;
 
   uint8_t  count = 0;
-  uint16_t count_1s = 0;
 
   configASSERT(param);
   task_param = (SnapmakerHandle_t)param;
@@ -219,10 +218,7 @@ static void hmi_task(void *param) {
 
     ret = hmi.CheckoutCmd(dispather_param.event_buff, dispather_param.size);
 
-    if (++count_1s > 200) {
-      count_1s = 0;
-      systemservice.CheckIfSendWaitEvent();
-    }
+    systemservice.CheckIfSendWaitEvent();
 
     if (ret != E_SUCCESS) {
       // no command, sleep 10ms for next command
