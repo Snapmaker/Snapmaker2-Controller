@@ -140,10 +140,6 @@ class ProtocolSSTP {
 
     uint16_t CalcChecksum(SSTP_Event_t &event);
 
-  public:
-    bool is_waiting_gcode = false;
-    bool is_laser_on = false;
-
   private:
     uint16_t CalcChecksum(uint8_t *buffer, uint16_t length);
 

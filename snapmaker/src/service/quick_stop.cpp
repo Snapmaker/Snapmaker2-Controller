@@ -328,6 +328,8 @@ void QuickStopService::Process() {
     idle();
   }
 
+  LOG_I("process1\n");
+
   // tell system manager we start to handle QS in Non-ISR
   systemservice.CallbackPreQS(source_);
 
