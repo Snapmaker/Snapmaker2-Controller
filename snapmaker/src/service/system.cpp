@@ -1995,7 +1995,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     if (param > 100 || param < 0)
       ret = E_PARAM;
     else {
-      if (laser.power_pwm() > 0)
+      if (laser.tim_pwm() > 0)
         laser.SetOutput(param);
       else
         laser.SetPower(param);
