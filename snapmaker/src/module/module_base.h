@@ -260,6 +260,7 @@ class ModuleBase {
     static ErrCode GetMAC(SSTP_Event_t &event);
 
     virtual ErrCode Init(MAC_t &mac, uint8_t mac_index) { return E_SUCCESS; }
+    virtual ErrCode PostInit() { return E_SUCCESS; }  // Called after all modules are initialized
     virtual void Process() { return; }
 
     virtual bool IsOnline(uint8_t sub_index = 0) { return false; }

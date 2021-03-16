@@ -75,6 +75,12 @@ ErrCode Enclosure::Init(MAC_t &mac, uint8_t mac_index) {
   return ret;
 }
 
+ErrCode Enclosure::PostInit() {
+  if (IsOnline() && ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+    Disable();
+  }
+  return E_SUCCESS; 
+}
 
 ErrCode Enclosure::SetLightBar(uint8_t brightness) {
   CanStdFuncCmd_t cmd;
