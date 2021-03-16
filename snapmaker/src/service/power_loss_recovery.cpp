@@ -347,7 +347,7 @@ int PowerLossRecovery::SaveEnv(void) {
   int     i = 0;
   uint8_t *pBuff;
 
-	LOOP_XYZ(idx) cur_data_.position_shift[idx] = position_shift[idx];
+	LOOP_XN(idx) cur_data_.position_shift[idx] = position_shift[idx];
 
 	cur_data_.FilePosition = last_line_;
 
