@@ -54,11 +54,12 @@ class Enclosure: public ModuleBase {
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
+    ErrCode PostInit();
     ErrCode SetLightBar(uint8_t brightness);
     ErrCode SetFanSpeed(uint8_t speed);
 
     bool IsOnline(uint8_t sub_index = 0) { return (mac_index_ != MODULE_MAC_INDEX_INVALID); }
-    bool DoorOpened() { return door_state_ == ENCLOSURE_DOOR_STATE_OPEN; }
+    bool DoorOpened() { return door_state_ == ENCLOSURE_DOOR_STATE_OPEN && enabled_; }
 
     void Disable();
     void Enable();

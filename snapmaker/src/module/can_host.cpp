@@ -450,6 +450,9 @@ void CanHost::EventHandler(void *parameter) {
 
   linear_p->UpdateMachineSize();
 
+  for (int i = 0; static_modules[i] != NULL; i++) {
+      static_modules[i]->PostInit();
+  }
   // broadcase modules have been initialized
   xEventGroupSetBits(event_group, EVENT_GROUP_MODULE_READY);
 
