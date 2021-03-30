@@ -658,6 +658,8 @@ void GcodeSuite::execute_command(void) {
       #if ENABLED(ADVANCED_PAUSE_FEATURE)
         case 600: M600(); break;                                  // M600: Pause for Filament Change
         case 603: M603(); break;                                  // M603: Configure Filament Change
+      #else
+        case 600: M600(); break;
       #endif
 
       #if HAS_DUPLICATION_MODE

@@ -769,6 +769,8 @@ private:
   #if ENABLED(ADVANCED_PAUSE_FEATURE)
     static void M600();
     static void M603();
+  #else
+    static void M600();
   #endif
 
   #if HAS_DUPLICATION_MODE
