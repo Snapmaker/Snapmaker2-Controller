@@ -95,7 +95,8 @@ class PowerLossRecovery {
     void MaskPowerPanicData(void);
     int  SaveEnv(void);
     ErrCode ResumeWork();
-
+	void enable(bool onoff);
+	bool enable() {return enabled_;}
     /*
     * when a block is output ended, save it's line number
     * this function is called by stepper isr()

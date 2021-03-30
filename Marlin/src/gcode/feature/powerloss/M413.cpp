@@ -20,14 +20,11 @@
  *
  */
 
-#include "../../../inc/MarlinConfig.h"
-
-#if ENABLED(POWER_LOSS_RECOVERY)
+// #if ENABLED(POWER_LOSS_RECOVERY)
 
 #include "../../gcode.h"
-#include "../../../feature/power_loss_recovery.h"
-#include "../../../module/motion.h"
-#include "../../../lcd/ultralcd.h"
+#include "../../../module/configuration_store.h"
+#include "../../snapmaker/src/service/power_loss_recovery.h"
 
 /**
  * M413: Enable / Disable power-loss recovery
@@ -38,12 +35,14 @@
  */
 void GcodeSuite::M413() {
 
-  if (parser.seen('S'))
-    recovery.enable(parser.value_bool());
+  if (parser.seen('S')) {
+    pl_recovery.enable(parser.value_bool());
+    settings.save();
+  }
   else {
     SERIAL_ECHO_START();
     SERIAL_ECHOPGM("Power-loss recovery ");
-    serialprintln_onoff(recovery.enabled);
+    serialprintln_onoff(pl_recovery.enable());
   }
 
   #if ENABLED(DEBUG_POWER_LOSS_RECOVERY)
@@ -55,4 +54,4 @@ void GcodeSuite::M413() {
   #endif
 }
 
-#endif // POWER_LOSS_RECOVERY
+// #endif // POWER_LOSS_RECOVERY

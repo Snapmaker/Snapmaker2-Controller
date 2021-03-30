@@ -875,6 +875,8 @@ private:
   #if ENABLED(POWER_LOSS_RECOVERY)
     static void M413();
     static void M1000();
+  #else
+    static void M413();
   #endif
 
   static void M1005();
