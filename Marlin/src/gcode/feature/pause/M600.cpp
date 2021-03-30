@@ -156,5 +156,11 @@ void GcodeSuite::M600() {
       tool_change(active_extruder_before_filament_change, 0, false);
   #endif
 }
+#else
+#include "../../../gcode/gcode.h"
+#include "../snapmaker/src/module/toolhead_3dp.h"
+void GcodeSuite::M600() {
+  printer1->filament_state(0, 0);
+}
 
 #endif // ADVANCED_PAUSE_FEATURE

@@ -51,6 +51,11 @@ static void CallbackAckFilamentState(CanStdDataFrame_t &cmd) {
   printer1->filament_state(cmd.data[0], 0);
 }
 
+void ToolHead3DP::GetFilamentState() {
+  CanStdFuncCmd_t fun_cmd = {MODULE_FUNC_RUNOUT_SENSOR_STATE, 0, NULL};
+  canhost.SendStdCmd(fun_cmd);
+  vTaskDelay(pdMS_TO_TICKS(20));
+}
 
 void ToolHead3DP::IOInit(void) {
   SET_OUTPUT(E0_STEP_PIN);

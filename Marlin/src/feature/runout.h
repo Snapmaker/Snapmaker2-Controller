@@ -131,8 +131,10 @@ class TFilamentMonitor : public FilamentMonitorBase {
     // return true -> no filament
     // return false -> filament is exist
     static bool is_filament_runout() {
-      if (enabled)
+      if (enabled) {
+        printer1->GetFilamentState();
         return sensor.poll_runout_states();
+      }
       else
         return enabled;
     }
