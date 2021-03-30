@@ -65,15 +65,12 @@ PowerLossRecovery pl_recovery;
 void PowerLossRecovery::Init(void) {
   int ret;
 
-	SET_INPUT(POWER_DETECT_PIN);
+  SET_INPUT(POWER_DETECT_PIN);
 
   if (READ(POWER_DETECT_PIN) == POWER_LOSS_STATE) {
     LOG_E("PL: power-loss signal triggerred!\n");
     enabled_ = false;
     systemservice.SetSystemFaultBit(FAULT_FLAG_POWER_DETECT_ERR);
-  }
-  else {
-    enabled_ = true;
   }
 
   ret = Load();
@@ -657,6 +654,10 @@ void PowerLossRecovery::Reset() {
 	for (i=0; i<size; i++) {
 		*ptr++ = 0;
 	}
+}
+
+void PowerLossRecovery::enable(bool onoff) {
+	enabled_ = onoff;
 }
 
 void PowerLossRecovery::Check(void) {

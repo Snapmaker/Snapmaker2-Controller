@@ -763,6 +763,8 @@ void GcodeSuite::execute_command(void) {
       #if ENABLED(POWER_LOSS_RECOVERY)
         case 413: M413(); break;                                  // M413: Enable/disable/query Power-Loss Recovery
         case 1000: M1000(); break;                                // M1000: Resume from power-loss
+      #else
+        case 413: M413(); break;
       #endif
       case 1005: M1005(); break;
       case 1006: M1006(); break;

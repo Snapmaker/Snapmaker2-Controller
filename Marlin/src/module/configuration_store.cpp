@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V69"
+#define EEPROM_VERSION "V70"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -84,6 +84,7 @@
 #if ENABLED(POWER_LOSS_RECOVERY)
   #include "../feature/power_loss_recovery.h"
 #endif
+#include "../../../snapmaker/src/service/power_loss_recovery.h"
 
 #include "../feature/pause.h"
 
@@ -783,7 +784,7 @@ void MarlinSettings::postprocess() {
         #if ENABLED(POWER_LOSS_RECOVERY)
           recovery.enabled
         #else
-          true
+          pl_recovery.enable()
         #endif
       ;
       EEPROM_WRITE(recovery_enabled);
@@ -1523,6 +1524,7 @@ void MarlinSettings::postprocess() {
         #else
           bool recovery_enabled;
           EEPROM_READ(recovery_enabled);
+          pl_recovery.enable(recovery_enabled);
         #endif
       }
 
@@ -2279,6 +2281,8 @@ void MarlinSettings::reset() {
 
   #if ENABLED(POWER_LOSS_RECOVERY)
     recovery.enable(true);
+  #else
+    pl_recovery.enable(true);
   #endif
 
   //
