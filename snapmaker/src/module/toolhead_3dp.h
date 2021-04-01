@@ -50,6 +50,8 @@ class ToolHead3DP: public ModuleBase {
 
     ErrCode SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time=0);
     ErrCode SetPID(uint8_t index, float value, uint8_t extrude_index=0);
+    float * GetPID(uint8_t extrude_index=0);
+    void UpdatePID(uint8_t index, float val) {if (index < 3) pid_[index]=val;};
     ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index=0);
 
     void Process();
@@ -120,6 +122,7 @@ class ToolHead3DP: public ModuleBase {
     // 1 bit indicates one sensor
     uint8_t probe_state_;
     uint8_t filament_state_;
+    float pid_[3];
 };
 
 extern ToolHead3DP *printer1;

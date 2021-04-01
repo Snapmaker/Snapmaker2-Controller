@@ -50,6 +50,7 @@ void GcodeSuite::M301() {
   const uint8_t e = parser.byteval('E'); // extruder being updated
 
   if (e < HOTENDS) { // catch bad input value
+    thermalManager.getHeaterPID();
     if (parser.seen('P')) PID_PARAM(Kp, e) = parser.value_float();
     if (parser.seen('I')) PID_PARAM(Ki, e) = scalePID_i(parser.value_float());
     if (parser.seen('D')) PID_PARAM(Kd, e) = scalePID_d(parser.value_float());
