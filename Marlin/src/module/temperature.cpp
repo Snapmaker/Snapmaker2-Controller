@@ -329,6 +329,12 @@ temp_range_t Temperature::temp_range[HOTENDS] = ARRAY_BY_HOTENDS(sensor_heater_0
 
   inline void say_default_() { SERIAL_ECHOPGM("#define DEFAULT_"); }
 
+void Temperature::getHeaterPID() {
+  float * pid = printer1->GetPID();
+  PID_PARAM(Kp, 0) = pid[0];
+  PID_PARAM(Ki, 0) = pid[1];
+  PID_PARAM(Kd, 0) = pid[2];
+}
   /**
    * PID Autotuning (M303)
    *
@@ -567,6 +573,9 @@ temp_range_t Temperature::temp_range[HOTENDS] = ARRAY_BY_HOTENDS(sensor_heater_0
           PID_PARAM(Kp, heater) = tune_pid.Kp; \
           PID_PARAM(Ki, heater) = scalePID_i(tune_pid.Ki); \
           PID_PARAM(Kd, heater) = scalePID_d(tune_pid.Kd); \
+          printer1->SetPID(0, PID_PARAM(Kp, heater)); \
+          printer1->SetPID(1, PID_PARAM(Ki, heater)); \
+          printer1->SetPID(2, PID_PARAM(Kd, heater)); \
           updatePID(); }while(0)
 
         // Use the result? (As with "M303 U1")

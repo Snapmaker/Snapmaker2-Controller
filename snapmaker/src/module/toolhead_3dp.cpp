@@ -45,6 +45,11 @@ static void CallbackAckNozzleTemp(CanStdDataFrame_t &cmd) {
   printer1->SetTemp(cmd.data[0]<<8 | cmd.data[1], 0);
 }
 
+static void CallbackAckReportPidTemp(CanStdDataFrame_t &cmd) {
+  // PID from module, was
+  float val = (float)((cmd.data[1] << 24) | (cmd.data[2] << 16) | (cmd.data[3] << 8) | cmd.data[4]) / 1000;
+  printer1->UpdatePID(cmd.data[0], val);
+}
 
 static void CallbackAckFilamentState(CanStdDataFrame_t &cmd) {
   // temperature from module, was
@@ -125,6 +130,9 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
       cb = CallbackAckNozzleTemp;
       break;
 
+    case MODULE_FUNC_REPORT_3DP_PID:
+      cb = CallbackAckReportPidTemp;
+      break;
     default:
       cb = NULL;
       break;
@@ -213,6 +221,13 @@ ErrCode ToolHead3DP::SetPID(uint8_t index, float value, uint8_t extrude_index) {
   cmd.length = 5;
 
   return canhost.SendStdCmd(cmd, 0);
+}
+
+float * ToolHead3DP::GetPID(uint8_t extrude_index) {
+  CanStdFuncCmd_t cmd = {MODULE_FUNC_REPORT_3DP_PID, 0, NULL};
+  canhost.SendStdCmd(cmd, 0);
+  vTaskDelay(pdMS_TO_TICKS(200));
+  return pid_;
 }
 
 

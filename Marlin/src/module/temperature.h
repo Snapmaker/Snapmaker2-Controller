@@ -148,10 +148,14 @@ enum ADCSensorState : char {
   #define PID_dT ((OVERSAMPLENR * float(ACTUAL_ADC_SAMPLES)) / TEMP_TIMER_FREQUENCY)
 
   // Apply the scale factors to the PID values
-  #define scalePID_i(i)   ( float(i) * PID_dT )
-  #define unscalePID_i(i) ( float(i) / PID_dT )
-  #define scalePID_d(d)   ( float(d) / PID_dT )
-  #define unscalePID_d(d) ( float(d) * PID_dT )
+  // #define scalePID_i(i)   ( float(i) * PID_dT )
+  // #define unscalePID_i(i) ( float(i) / PID_dT )
+  // #define scalePID_d(d)   ( float(d) / PID_dT )
+  // #define unscalePID_d(d) ( float(d) * PID_dT )
+  #define scalePID_i(i) (float(i))
+  #define unscalePID_i(i) (float(i))
+  #define scalePID_d(d)  (float(d))
+  #define unscalePID_d(d) (float(d))
 #endif
 
 #define G26_CLICK_CAN_CANCEL (HAS_LCD_MENU && ENABLED(G26_MESH_VALIDATION))
@@ -726,6 +730,7 @@ class Temperature {
      * The software PWM power for a heater
      */
     static int getHeaterPower(const int heater);
+    void getHeaterPID();
 
     /**
      * Switch off all heaters, set all target temperatures to 0
