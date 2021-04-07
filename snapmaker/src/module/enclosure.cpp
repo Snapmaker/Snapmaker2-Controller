@@ -84,14 +84,17 @@ ErrCode Enclosure::PostInit() {
 
 ErrCode Enclosure::SetLightBar(uint8_t brightness) {
   CanStdFuncCmd_t cmd;
+  brightness = (brightness > 100) ? 100 : brightness;
+  uint8_t out = brightness * 255 / 100;
+
   uint8_t         buffer[4];
 
   buffer[0] = 1;
-  buffer[1] = brightness;
-  buffer[2] = brightness;
-  buffer[3] = brightness;
+  buffer[1] = out;
+  buffer[2] = out;
+  buffer[3] = out;
 
-  LOG_I("Eclosure: set FAN speed %u\n", brightness);
+  LOG_I("Eclosure: set LIGHT power %u\n", brightness);
 
   cmd.id     = MODULE_FUNC_SET_ENCLOSURE_LIGHT;
   cmd.data   = buffer;
@@ -106,9 +109,11 @@ ErrCode Enclosure::SetLightBar(uint8_t brightness) {
 ErrCode Enclosure::SetFanSpeed(uint8_t speed) {
   CanStdFuncCmd_t cmd;
   uint8_t         buffer[2];
+  speed = (speed > 100) ? 100 : speed;
+  uint8_t out = speed * 255 / 100;
 
   buffer[0] = 0;
-  buffer[1] = speed;
+  buffer[1] = out;
 
   LOG_I("Eclosure: set FAN speed %u\n", speed);
 
