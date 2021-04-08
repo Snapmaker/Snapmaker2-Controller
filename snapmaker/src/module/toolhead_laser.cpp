@@ -262,14 +262,15 @@ ErrCode ToolHeadLaser::GetFocus(SSTP_Event_t &event) {
   LoadFocus();
   vTaskDelay(pdMS_TO_TICKS(20));
 
-  LOG_I("SC get Focus: %.2f mm\n", focus_ / 1000.0f);
+  LOG_I("SC get Focus: %.2f mm\n", focus_);
+  uint16_t focus = focus_ * 1000;
 
   buff[0] = 0;
 
   buff[1] = 0;
   buff[2] = 0;
-  buff[3] = (uint8_t)(focus_>>8);
-  buff[4] = (uint8_t)focus_;
+  buff[3] = (uint8_t)(focus>>8);
+  buff[4] = (uint8_t)focus;
 
   event.length = 5;
   event.data   = buff;

@@ -28,7 +28,7 @@
 
 #define TOOLHEAD_LASER_POWER_SAFE_LIMIT   (0.5)
 #define TOOLHEAD_LASER_POWER_NORMAL_LIMIT (100)
-#define TOOLHEAD_LASER_CAMERA_FOCUS_MAX   (65000)
+#define TOOLHEAD_LASER_CAMERA_FOCUS_MAX   (65000)  // mm*1000
 
 enum ToolheadLaserFanState {
   TOOLHEAD_LASER_FAN_STATE_OPEN,
@@ -91,7 +91,7 @@ class ToolHeadLaser: public ModuleBase {
       mac_index_   = MODULE_MAC_INDEX_INVALID;
 
       state_ = TOOLHEAD_LASER_STATE_OFFLINE;
-      focus_ = TOOLHEAD_LASER_CAMERA_FOCUS_MAX;
+      focus_ = TOOLHEAD_LASER_CAMERA_FOCUS_MAX / 1000;
 
       fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
       fan_tick_  = 0;
@@ -142,9 +142,9 @@ class ToolHeadLaser: public ModuleBase {
     uint16_t focus() { return focus_; }
     void focus(uint16_t focus) {
       if(focus > TOOLHEAD_LASER_CAMERA_FOCUS_MAX)
-        focus_ = TOOLHEAD_LASER_CAMERA_FOCUS_MAX;
+        focus_ = TOOLHEAD_LASER_CAMERA_FOCUS_MAX / 1000;
       else
-        focus_ = focus;
+        focus_ = focus / 1000;
     }
 
     ToolHeadLaserState state() { return state_; }
