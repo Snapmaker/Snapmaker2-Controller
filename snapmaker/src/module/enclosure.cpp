@@ -187,7 +187,7 @@ void Enclosure::HandleDoorOpened() {
 
 
 void Enclosure::HandleDoorClosed() {
-  LOG_I("closed opened!\n");
+  LOG_I("door closed!\n");
   systemservice.ClearSystemFaultBit(FAULT_FLAG_DOOR_OPENED);
 
   if (laser.IsOnline())
