@@ -516,8 +516,8 @@ ErrCode CanHost::AssignMessageRegion() {
   message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0]   += (MODULE_SPARE_MESSAGE_ID_MEDIUM + message_region_[MODULE_FUNC_PRIORITY_HIGH][0]);
   message_region_[MODULE_FUNC_PRIORITY_LOW][0]      = MODULE_SUPPORT_MESSAGE_ID_MAX;
   SERIAL_ECHOLN("Message ID region:");
-  SERIAL_ECHOLNPAIR("emergent: ", 0, " - ", message_region_[MODULE_SPARE_MESSAGE_ID_EMERGENT][0]-1);
-  SERIAL_ECHOLNPAIR("high    : ", message_region_[MODULE_SPARE_MESSAGE_ID_EMERGENT][0], " - ", message_region_[MODULE_FUNC_PRIORITY_HIGH][0]-1);
+  SERIAL_ECHOLNPAIR("emergent: ", 0, " - ", message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0]-1);
+  SERIAL_ECHOLNPAIR("high    : ", message_region_[MODULE_FUNC_PRIORITY_EMERGENT][0], " - ", message_region_[MODULE_FUNC_PRIORITY_HIGH][0]-1);
   SERIAL_ECHOLNPAIR("medium  : ", message_region_[MODULE_FUNC_PRIORITY_HIGH][0], " - ", message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0]-1);
   SERIAL_ECHOLNPAIR("low     : ", message_region_[MODULE_FUNC_PRIORITY_MEDIUM][0], " - ", message_region_[MODULE_FUNC_PRIORITY_LOW][0]-1);
   SERIAL_EOL();
