@@ -31,8 +31,8 @@
 // marlin headers
 #include "src/module/endstops.h"
 #include "src/feature/runout.h"
-
 #include "flash_stm32.h"
+#include "hmi/gcode_result_handler.h"
 
 SnapmakerHandle_t sm2_handle;
 

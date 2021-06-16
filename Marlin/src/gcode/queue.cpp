@@ -249,7 +249,7 @@ void ok_to_send() {
   if(Screen_send_ok[cmd_queue_index_r]) {
     ack_gcode_event(Screen_send_ok_opcode[cmd_queue_index_r], CommandLine[cmd_queue_index_r]);
     SNAP_DEBUG_SET_GCODE_LINE(CommandLine[cmd_queue_index_r]);
-    Screen_send_ok[cmd_queue_index_r] = false;
+    // Screen_send_ok[cmd_queue_index_r] = false;
   }
 }
 
