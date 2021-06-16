@@ -48,8 +48,8 @@
  * the documentation accordingly.
  */
 
- 
- 
+
+
 // Define constants and variables for buffering incoming serial data.  We're
 // using a ring buffer (I think), in which head is the index of the location
 // to which to write the next incoming character and tail is the index of the
@@ -73,12 +73,12 @@ typedef uint16_t rx_buffer_index_t;
 #else
 typedef uint8_t rx_buffer_index_t;
 #endif
- 
+
 struct usart_dev;
 
 /* Roger Clark
  *
- * Added config defines from AVR 
+ * Added config defines from AVR
  * Note. The values will need to be changed to match STM32 USART config register values, these are just place holders.
  */
 // Define config for Serial.begin(baud, config);
@@ -88,7 +88,7 @@ struct usart_dev;
 #define SERIAL_8N1	0B00000000
 #define SERIAL_8N2	0B00100000
 #define SERIAL_9N1	0B00001000
-#define SERIAL_9N2	0B00101000	
+#define SERIAL_9N2	0B00101000
 
 #define SERIAL_8E1	0B00001010
 #define SERIAL_8E2	0B00101010
@@ -103,10 +103,10 @@ struct usart_dev;
 #define SERIAL_9O2	0B00101011
 */
 
-/* Roger Clark 
+/* Roger Clark
  * Moved macros from hardwareSerial.cpp
  */
- 
+
 #define DEFINE_HWSERIAL(name, n)                                   \
 	HardwareSerial name(USART##n,                                  \
 						BOARD_USART##n##_TX_PIN,                   \
@@ -115,7 +115,7 @@ struct usart_dev;
 #define DEFINE_HWSERIAL_UART(name, n)                             \
 	HardwareSerial name(UART##n,                                  \
 						BOARD_USART##n##_TX_PIN,                   \
-						BOARD_USART##n##_RX_PIN)				
+						BOARD_USART##n##_RX_PIN)
 
 
 /* Roger clark. Changed class inheritance from Print to Stream.
@@ -145,10 +145,13 @@ public:
     inline size_t write(int n) { return write((uint8_t)n); }
     using Print::write;
 
+    virtual size_t write_directly(uint8_t ch);
+    void print_directly(const char str[]);
+
     /* Pin accessors */
     int txPin(void) { return this->tx_pin; }
     int rxPin(void) { return this->rx_pin; }
-	
+
 	operator bool() { return true; }
 
     /* Escape hatch into libmaple */
@@ -159,7 +162,7 @@ private:
     uint8 tx_pin;
     uint8 rx_pin;
   protected:
-#if 0  
+#if 0
     volatile uint8_t * const _ubrrh;
     volatile uint8_t * const _ubrrl;
     volatile uint8_t * const _ucsra;
@@ -172,16 +175,16 @@ private:
     volatile rx_buffer_index_t _rx_buffer_head;
     volatile rx_buffer_index_t _rx_buffer_tail;
     volatile tx_buffer_index_t _tx_buffer_head;
-    volatile tx_buffer_index_t _tx_buffer_tail;	
+    volatile tx_buffer_index_t _tx_buffer_tail;
     // Don't put any members after these buffers, since only the first
     // 32 bytes of this struct can be accessed quickly using the ldd
     // instruction.
     unsigned char _rx_buffer[SERIAL_RX_BUFFER_SIZE];
-    unsigned char _tx_buffer[SERIAL_TX_BUFFER_SIZE];	
+    unsigned char _tx_buffer[SERIAL_TX_BUFFER_SIZE];
 #endif
 };
 
-#ifdef SERIAL_USB 
+#ifdef SERIAL_USB
 	#if BOARD_HAVE_USART1
 	extern HardwareSerial Serial1;
 	#endif

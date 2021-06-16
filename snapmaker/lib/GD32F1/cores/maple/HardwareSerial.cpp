@@ -37,6 +37,8 @@
 #include <libmaple/timer.h>
 #include <libmaple/usart.h>
 
+#include "../../../../src/hmi/gcode_result_handler.h"
+
 HardwareSerial::HardwareSerial(usart_dev *usart_device,
                                uint8 tx_pin,
                                uint8 rx_pin) {
@@ -64,18 +66,18 @@ static void disable_timer_if_necessary(timer_dev *dev, uint8 ch) {
 #warning "Unsupported STM32 series; timer conflicts are possible"
 #endif
 
-void HardwareSerial::begin(uint32 baud) 
+void HardwareSerial::begin(uint32 baud)
 {
 	begin(baud,SERIAL_8N1);
 }
 /*
  * Roger Clark.
- * Note. The config parameter is not currently used. This is a work in progress.  
+ * Note. The config parameter is not currently used. This is a work in progress.
  * Code needs to be written to set the config of the hardware serial control register in question.
  *
 */
 
-void HardwareSerial::begin(uint32 baud, uint8_t config) 
+void HardwareSerial::begin(uint32 baud, uint8_t config)
 {
  //   ASSERT(baud <= this->usart_device->max_baud);// Roger Clark. Assert doesn't do anything useful, we may as well save the space in flash and ram etc
 
@@ -130,13 +132,29 @@ int HardwareSerial::availableForWrite(void)
 }
 
 size_t HardwareSerial::write(unsigned char ch) {
+    gcode_result_handler.GcodeResultCheck(ch);
 
     usart_putc(this->usart_device, ch);
 	return 1;
 }
 
+size_t HardwareSerial::write_directly(unsigned char ch) {
+    usart_putc(this->usart_device, ch);
+	return 1;
+}
+
+void HardwareSerial::print_directly(const char str[]) {
+    if (str == NULL) return;
+
+    uint32_t size = strlen(str);
+    uint8_t *ch   = (uint8_t *)str;
+    while (size--) {
+        usart_putc(this->usart_device, *ch++);
+    }
+}
+
 /* edogaldo: Waits for the transmission of outgoing serial data to complete (Arduino 1.0 api specs) */
 void HardwareSerial::flush(void) {
     while(!rb_is_empty(this->usart_device->wb)); // wait for TX buffer empty
-    while(!((this->usart_device->regs->SR) & (1<<USART_SR_TC_BIT))); // wait for TC (Transmission Complete) flag set 
+    while(!((this->usart_device->regs->SR) & (1<<USART_SR_TC_BIT))); // wait for TC (Transmission Complete) flag set
 }

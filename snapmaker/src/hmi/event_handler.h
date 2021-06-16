@@ -187,6 +187,17 @@ enum UpgradeOpc: uint8_t {
   UPGRADE_OPC_MAX
 };
 
+// gcode result
+#define EID_GCODE_RESULT_ACK  0x06
+
+enum GcodeResultOpc: uint8_t {
+  GCODE_RESULT_OPC_SOF = 0,
+  GCODE_RESULT_OPC_DATA,
+  GCODE_RESULT_OPC_EOF,
+
+  GCODE_RESULT_OPC_MAX
+};
+
 
 #define EVENT_IDX_EVENT_ID  0
 #define EVENT_IDX_OP_CODE   1
@@ -213,6 +224,8 @@ typedef struct DispatcherParam* DispatcherParam_t;
 ErrCode DispatchEvent(DispatcherParam_t param);
 void clear_hmi_gcode_queue();
 void ack_gcode_event(uint8_t event_id, uint32_t line);
+
+extern bool Screen_send_ok[];
 
 extern UartHost hmi;
 
