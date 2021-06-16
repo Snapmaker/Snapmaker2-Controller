@@ -129,10 +129,10 @@ ErrCode UartHost::Send(SSTP_Event_t &event) {
     }
   }
   for (j = 0; j < i; j++)
-    serial_->write(pdu_header[j]);
+    serial_->write_directly(pdu_header[j]);
 
   for (j = 0; j < event.length; j++)
-    serial_->write(event.data[j]);
+    serial_->write_directly(event.data[j]);
 
   if (ret == pdPASS)
     xSemaphoreGive(mlock_uart_);

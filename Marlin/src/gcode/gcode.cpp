@@ -50,6 +50,7 @@ GcodeSuite gcode;
 #endif
 
 #include "../Marlin.h" // for idle() and suspend_auto_report
+#include "../../../snapmaker/src/hmi/gcode_result_handler.h"
 
 millis_t GcodeSuite::previous_move_ms;
 
@@ -842,6 +843,8 @@ void GcodeSuite::process_parsed_command(
     ok_to_send();
 }
 
+#include "../../snapmaker/src/common/debug.h"
+
 /**
  * Process a single command and dispatch it to its handler
  * This is called from the main loop()
@@ -863,6 +866,9 @@ void GcodeSuite::process_next_command() {
   // Parse the next command in the queue
   parser.parse(current_command);
   process_parsed_command();
+
+  gcode_result_handler.GcodeResultFlush();
+  Screen_send_ok[cmd_queue_index_r] = false;
 }
 
 #if USE_EXECUTE_COMMANDS_IMMEDIATE
