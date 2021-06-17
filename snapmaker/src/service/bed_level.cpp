@@ -87,7 +87,7 @@ ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
     // move quicky firstly to decrease the time
     // move to the first calibration mesh point allow the sensor to detect the bed if the bed
     // is on an unexpected height
-    do_blocking_move_to_logical_xy(_GET_MESH_X(0) - (X_PROBE_OFFSET_FROM_EXTRUDER),
+    do_blocking_move_to_xy(_GET_MESH_X(0) - (X_PROBE_OFFSET_FROM_EXTRUDER),
                                    _GET_MESH_Y(0) - (Y_PROBE_OFFSET_FROM_EXTRUDER),
                                    speed_in_calibration[X_AXIS]);
     do_blocking_move_to_z(z_position_before_calibration, speed_in_calibration[Z_AXIS]);
@@ -217,7 +217,7 @@ ErrCode BedLevelService::SetManualLevelingPoint(SSTP_Event_t &event) {
 
     // move to new point
     manual_level_index_ = index -1;
-    do_blocking_move_to_logical_xy(_GET_MESH_X(manual_level_index_ % GRID_MAX_POINTS_X),
+    do_blocking_move_to_xy(_GET_MESH_X(manual_level_index_ % GRID_MAX_POINTS_X),
                     _GET_MESH_Y(manual_level_index_ / GRID_MAX_POINTS_Y), speed_in_calibration[X_AXIS]);
   }
 

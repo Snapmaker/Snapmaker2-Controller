@@ -152,8 +152,8 @@ void GcodeSuite::G1029() {
     uint8_t  i = parser.byteval('I', GRID_MAX_POINTS_X / 2);
     uint8_t  j = parser.byteval('J', GRID_MAX_POINTS_Y / 2);
 
-    do_blocking_move_to_logical_xy(_GET_MESH_X(i), _GET_MESH_Y(j), 50);
-    do_blocking_move_to_logical_z(13, 50);
+    do_blocking_move_to_xy(_GET_MESH_X(i), _GET_MESH_Y(j), 50);
+    do_blocking_move_to_z(13, 50);
     return;
   }
 
