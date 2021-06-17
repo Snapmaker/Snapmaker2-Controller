@@ -444,8 +444,8 @@ void bilinear_grid_manual()
 
   bilinear_grid_spacing[X_AXIS] = (endx - startx) / (GRID_MAX_POINTS_X - 1);
   bilinear_grid_spacing[Y_AXIS] = (endy - starty) / (GRID_MAX_POINTS_Y - 1);
-  bilinear_start[X_AXIS] = startx;
-  bilinear_start[Y_AXIS] = starty;
+  bilinear_start[X_AXIS] = RAW_X_POSITION(startx);
+  bilinear_start[Y_AXIS] = RAW_Y_POSITION(starty);
   SERIAL_ECHOLNPAIR("X:", bilinear_start[X_AXIS], " - ", bilinear_grid_spacing[X_AXIS]);
   SERIAL_ECHOLNPAIR("Y:", bilinear_start[Y_AXIS], " - ", bilinear_grid_spacing[Y_AXIS]);
 }
@@ -470,9 +470,9 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
     LOG_I("Probing No. %d\n", k);
 
     if (k < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y - 1))
-      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_RAISE); // raw position
+      z = probe_pt(_GET_MESH_X(cur_x), _GET_MESH_Y(cur_y), PROBE_PT_RAISE); // raw position
     else
-      z = probe_pt(RAW_X_POSITION(_GET_MESH_X(cur_x)), RAW_Y_POSITION(_GET_MESH_Y(cur_y)), PROBE_PT_NONE); // raw position
+      z = probe_pt(_GET_MESH_X(cur_x), _GET_MESH_Y(cur_y), PROBE_PT_NONE); // raw position
     z_values[cur_x][cur_y] = z;
     visited[cur_x][cur_y] = true;
     if (isnan(z)) {
@@ -505,7 +505,7 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   if (!fast_leveling) {
     do_blocking_move_to_z(current_position[Z_AXIS] + 1, speed_in_calibration[Z_AXIS]);
     // position recorded in leveling grid is logical coordinate, so need to use relative API
-    do_blocking_move_to_logical_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
+    do_blocking_move_to_xy(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), speed_in_calibration[X_AXIS]);
   }
 
   return ret;
