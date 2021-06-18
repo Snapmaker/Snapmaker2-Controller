@@ -126,24 +126,17 @@ PURIFIER_INFO_T Purifier::GetInfo(PURIFIER_INFO_E info, uint16_t timeout_ms) {
   uint32_t timeout = millis() + timeout_ms;
   volatile uint8_t flag = 0;
   update_info_flag_ = 0;
-  if (info == PURIFIER_INFO_ALL) {
-    for (uint8_t i = 0; i < PURIFIER_INFO_ALL; i++) {
-      SendCmd(MODULE_FUNC_REPORT_PURIFIER, &i, 1);
-      flag |= 1 << i;
-    }
-  } else if (info < PURIFIER_INFO_ALL) {
-    uint8_t data = info;
-    SendCmd(MODULE_FUNC_REPORT_PURIFIER, &data, 1);
-    flag |= 1 << info;
-  }
+  uint8_t data = info;
+  SendCmd(MODULE_FUNC_REPORT_PURIFIER, &data, 1);
+  flag = (info == PURIFIER_INFO_ALL) ? ~(0xff<<PURIFIER_INFO_ALL) : (1 << info);
   while (timeout > millis()) {
     vTaskDelay(pdMS_TO_TICKS(10));
-    if (update_info_flag_ == flag) {
+    if ((update_info_flag_&flag) == flag) {
       break;
     }
   }
-  if (update_info_flag_ != flag){
-    LOG_E("purifier info update timeout:%u - %u!\n", update_info_flag_, flag);
+  if ((update_info_flag_&flag) != flag){
+    LOG_E("purifier info update timeout:%x - %x!\n", update_info_flag_, flag);
   }
   return info_;
 }
