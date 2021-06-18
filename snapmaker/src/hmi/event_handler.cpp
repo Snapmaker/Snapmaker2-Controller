@@ -587,7 +587,7 @@ static ErrCode GetPurifierStatus(SSTP_Event_t &event) {
 }
 
 static ErrCode GetPurifierFanStatus(SSTP_Event_t &event) {
-  PURIFIER_INFO_T info =purifier.GetInfo(PURIFIER_INFO_FAN_STA, 500);
+  PurifierInfo_t info =purifier.GetInfo(PURIFIER_INFO_FAN_STA, 500);
   uint8_t buff[2];
 
   buff[0] = info.is_work;
