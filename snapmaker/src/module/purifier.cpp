@@ -126,7 +126,7 @@ void Purifier::SendCmd(uint16_t funcid, uint8_t *data, uint8_t len) {
   canhost.SendStdCmd(cmd, 0);
 }
 
-PURIFIER_INFO_T Purifier::GetInfo(PURIFIER_INFO_E info, uint16_t timeout_ms) {
+PurifierInfo_t Purifier::GetInfo(PURIFIER_INFO_E info, uint16_t timeout_ms) {
   uint32_t timeout = millis() + timeout_ms;
   volatile uint8_t flag = 0;
   update_info_flag_ = 0;

@@ -79,7 +79,7 @@ typedef struct {
   uint8_t  is_work;
   uint8_t  sys_status_encode;
   uint8_t  err;
-} PURIFIER_INFO_T;
+} PurifierInfo_t;
 
 class Purifier : public ModuleBase{
  public:
@@ -87,7 +87,7 @@ class Purifier : public ModuleBase{
     online_ = PURIFIER_OFFLINE;
   }
   ErrCode Init(MAC_t &mac, uint8_t mac_index);
-  PURIFIER_INFO_T GetInfo(PURIFIER_INFO_E info, uint16_t timeout_ms=200);
+  PurifierInfo_t GetInfo(PURIFIER_INFO_E info, uint16_t timeout_ms=200);
   void UpdateInfo(uint8_t data[8]);
   void UpdateLifetime(uint8_t lifetime) {info_.lifetime = (PURIFIER_LIFETIME_E)lifetime;}
   void UpdateFanStatus(uint8_t is_work, uint16_t speed, uint8_t fan_out, uint8_t gears) {
@@ -114,7 +114,7 @@ class Purifier : public ModuleBase{
   void Process();
 
  private:
-  PURIFIER_INFO_T info_= {0};
+  PurifierInfo_t info_= {0};
   uint8_t online_;
   volatile uint8_t update_info_flag_ = 0;
   uint8_t last_err_ = 0;
