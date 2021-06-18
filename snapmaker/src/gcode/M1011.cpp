@@ -68,6 +68,12 @@ void GcodeSuite::M1011() {
     return;
   }
 
+  if (parser.seen('W')) {
+    purifier.GetInfo(PURIFIER_INFO_ALL, 500);
+    SERIAL_ECHOLN("Set purifier Fan power");
+    return;
+  }
+
   if (parser.seen('R')) {
     rgb[0] = parser.byteval('R', 0);
     rgb_flag = 1;

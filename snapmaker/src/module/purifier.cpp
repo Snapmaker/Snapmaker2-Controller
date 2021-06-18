@@ -62,6 +62,10 @@ void Purifier::DisplayInfo() {
   DisplayErrInfo(info_.err);
 }
 
+void Purifier::DisplaySysStatus() {
+  LOG_I("%s system status:%d\n", TAG, info_.sys_status_encode);
+}
+
 static void CallbackReportInfo(CanStdDataFrame_t &cmd) {
   purifier.UpdateInfo(cmd.data);
 }
@@ -157,6 +161,9 @@ void Purifier::UpdateInfo(uint8_t data[8]) {
       break;
     case PURIFIER_REPORT_POWER:
       UpdatePower(data[1] << 8 | data[2], data[3] << 8 | data[4]);
+      break;
+    case PURIFIER_REPORT_STATUS:
+      info_.sys_status_encode = data[1];
       break;
     case PURIFIER_INFO_ALL:
       break;

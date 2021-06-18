@@ -77,6 +77,7 @@ typedef struct {
   uint8_t  fan_cur_out;  // Actual Output
   uint8_t  fan_gears;
   uint8_t  is_work;
+  uint8_t  sys_status_encode;
   uint8_t  err;
 } PURIFIER_INFO_T;
 
@@ -106,6 +107,7 @@ class Purifier : public ModuleBase{
   void SetLightColor(uint8_t rgb[3]);
   void DisplayInfo();
   void DisplayErrInfo(uint8_t err);
+  void DisplaySysStatus();
   bool IsOnline() {return online_ == PURIFIER_ONLINE;}
   void ErrCheckLoop();
   void SendCmd(uint16_t funcid, uint8_t *data, uint8_t len);
