@@ -181,6 +181,9 @@ void Purifier::SetFanStatus(uint8_t is_open, uint16_t delay_close_s, uint8_t is_
     delay_close_ = 0;
     LOG_I("Set purifier fan open:%u, forced:%u\n", is_open, is_forced);
   }
+  if (is_open) {
+    ReportStatus();
+  }
 }
 
 void Purifier::SetFanGears(uint8_t gears) {
@@ -205,6 +208,7 @@ ErrCode Purifier::ReportStatus() {
   uint8_t buff[2];
   SSTP_Event_t event;
   if (IsOnline()) {
+    GetInfo(PURIFIER_INFO_ERR, 200);
     if (!info_.err) {
       buff[0] = 0;  // online and normal
     } else if (TEST(info_.err, ERR_EXTEND_POWER)) {
