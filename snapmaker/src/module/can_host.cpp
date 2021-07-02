@@ -534,6 +534,7 @@ void CanHost::ShowModuleVersion(MAC_t mac) {
 
   // version of modules
   LOG_I("Module 0x%08X:", mac.bits.id);
+  SERIAL_ECHOPAIR("Module 0x", mac.bits.id, "\n");
   cmd.data = (uint8_t *)buffer;
   cmd.mac     = mac;
   cmd.data[0] = MODULE_EXT_CMD_VERSION_REQ;
@@ -765,7 +766,7 @@ assign_message_id:
 
 ErrCode CanHost::UpgradeModules(uint32_t fw_addr, uint32_t length) {
   int   i;
-  
+
   SetReceiverSpeed(RECEIVER_SPEED_HIGH);
   // upgrade dynamic modules
   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
