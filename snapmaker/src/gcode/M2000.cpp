@@ -52,14 +52,22 @@ void GcodeSuite::M2000() {
   case 0:
     // show current snapmaker info
     SNAP_DEBUG_SHOW_INFO();
-    LOG_I("position_shift:\n");
-    LOG_I("X: %f, Y:%f, Z:%f, B:%f\n", position_shift[X_AXIS], position_shift[Y_AXIS], position_shift[Z_AXIS], position_shift[B_AXIS]);
-    LOG_I("home_offset:\n");
-    LOG_I("X: %f, Y:%f, Z:%f, B:%f\n", home_offset[X_AXIS], home_offset[Y_AXIS], home_offset[Z_AXIS], home_offset[B_AXIS]);
-    LOG_I("workspace_offset:\n");
-    LOG_I("X: %f, Y:%f, Z:%f, B:%f\n", workspace_offset[X_AXIS], workspace_offset[Y_AXIS], workspace_offset[Z_AXIS], workspace_offset[B_AXIS]);
-    LOG_I("cur position:\n");
-    LOG_I("X: %f, Y:%f, Z:%f, B:%f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[B_AXIS]);
+    // LOG_I("position_shift:\n");
+    SERIAL_ECHOLN("position_shift:\n");
+    // LOG_I("X: %f, Y:%f, Z:%f, B:%f\n", position_shift[X_AXIS], position_shift[Y_AXIS], position_shift[Z_AXIS], position_shift[B_AXIS]);
+    SERIAL_ECHOPAIR("X: ", position_shift[X_AXIS], "Y: ", position_shift[Y_AXIS], "Z: ", position_shift[Z_AXIS], "B: ", position_shift[B_AXIS], "\n");
+    // LOG_I("home_offset:\n");
+    SERIAL_ECHOLN("home_offset:\n");
+    // LOG_I("X: %f, Y:%f, Z:%f, B:%f\n", home_offset[X_AXIS], home_offset[Y_AXIS], home_offset[Z_AXIS], home_offset[B_AXIS]);
+    SERIAL_ECHOPAIR("X: ", home_offset[X_AXIS], "Y: ", home_offset[Y_AXIS], "Z: ", home_offset[Z_AXIS], "B: ", home_offset[B_AXIS], "\n");
+    // LOG_I("workspace_offset:\n");
+    SERIAL_ECHOLN("workspace_offset:\n");
+    // LOG_I("X: %f, Y:%f, Z:%f, B:%f\n", workspace_offset[X_AXIS], workspace_offset[Y_AXIS], workspace_offset[Z_AXIS], workspace_offset[B_AXIS]);
+    SERIAL_ECHOPAIR("X: ", workspace_offset[X_AXIS], "Y: ", workspace_offset[Y_AXIS], "Z: ", workspace_offset[Z_AXIS], "B: ", workspace_offset[B_AXIS], "\n");
+    // LOG_I("cur position:\n");
+    SERIAL_ECHOLN("cur position:\n");
+    // LOG_I("X: %f, Y:%f, Z:%f, B:%f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[B_AXIS]);
+    SERIAL_ECHOPAIR("X: ", current_position[X_AXIS], "Y: ", current_position[Y_AXIS], "Z: ", current_position[Z_AXIS], "B: ", current_position[B_AXIS], "\n");
     break;
 
   case 1:

@@ -44,12 +44,22 @@ void GcodeSuite::M1005() {
   LOG_I("%s %s\n", MSG_MARLIN, SHORT_BUILD_VERSION);
   LOG_I("Compiled: %s, %s\n", __DATE__, __TIME__);
 
+  // SERIAL_ECHOLN(MSG_MARLIN);
+  // SERIAL_ECHOLN(SHORT_BUILD_VERSION);
+  // SERIAL_ECHOLN("\n");
+  SERIAL_ECHOPAIR(MSG_MARLIN, SHORT_BUILD_VERSION, "\n");
+  SERIAL_ECHOPAIR("Compiled: ", __DATE__, ", ", __TIME__, "\n");
+
   // version in package
   memcpy(buffer, (char*)(FLASH_BOOT_PARA + 2048), 30);
-  LOG_I("%s: %s\n", MSG_MARLIN_PACK, buffer);
+  // LOG_I("%s: %s\n", MSG_MARLIN_PACK, buffer);
+
+  SERIAL_ECHOPAIR(MSG_MARLIN_PACK, buffer, "\n");
+
 
   // version of modules
-  LOG_I("Module Ver:\n");
+  // LOG_I("Module Ver:\n");
+  SERIAL_ECHOPAIR("Module Ver:\n");
   for (i = 0; i < MODULE_SUPPORT_CONNECTED_MAX; i++) {
     mac.val = canhost.mac(i);
 
