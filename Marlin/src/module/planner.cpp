@@ -1576,7 +1576,8 @@ void Planner::synchronize() {
  */
 #if ENABLED(BACKLASH_COMPENSATION)
   #if ENABLED(BACKLASH_GCODE)
-    extern float backlash_distance_mm[], backlash_correction;
+    float backlash_distance_mm[XN] = BACKLASH_DISTANCE_MM,
+      backlash_correction = BACKLASH_CORRECTION;
     #ifdef BACKLASH_SMOOTHING_MM
       extern float backlash_smoothing_mm;
     #endif
