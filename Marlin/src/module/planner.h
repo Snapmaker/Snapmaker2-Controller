@@ -176,7 +176,9 @@ typedef struct {
         min_feedrate_mm_s,                      // (mm/s) M205 S - Minimum linear feedrate
         min_travel_feedrate_mm_s;               // (mm/s) M205 T - Minimum travel feedrate
 } planner_settings_t;
-
+#if ENABLED(BACKLASH_GCODE)
+  extern float backlash_distance_mm[XN], backlash_correction;
+#endif
 #if DISABLED(SKEW_CORRECTION)
   #define XY_SKEW_FACTOR 0
   #define XZ_SKEW_FACTOR 0

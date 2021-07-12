@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V70"
+#define EEPROM_VERSION "V71"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -127,6 +127,11 @@ typedef struct SettingsDataStruct {
   uint8_t   esteppers;                                  // XYZE_N - XYZ
 
   planner_settings_t planner_settings;
+  #if ENABLED(BACKLASH_GCODE)
+    float backlash_distance_mm[XN],
+      backlash_correction;
+  #endif
+
 
   float planner_max_jerk[X_TO_E],                       // M205 XYZBE  planner.max_jerk[XYZBE]
         planner_junction_deviation_mm;                  // M205 J     planner.junction_deviation_mm
@@ -489,6 +494,8 @@ void MarlinSettings::postprocess() {
     //
     {
       EEPROM_WRITE(planner.settings);
+      EEPROM_WRITE(backlash_distance_mm);
+      EEPROM_WRITE(backlash_correction);
 
       #if HAS_CLASSIC_JERK
         EEPROM_WRITE(planner.max_jerk);
@@ -1234,6 +1241,12 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(planner.settings.travel_acceleration);
         EEPROM_READ(planner.settings.min_feedrate_mm_s);
         EEPROM_READ(planner.settings.min_travel_feedrate_mm_s);
+        
+        #if ENABLED(BACKLASH_GCODE)
+          // M425
+          EEPROM_READ(backlash_distance_mm);
+          EEPROM_READ(backlash_correction);
+        #endif
 
         #if HAS_CLASSIC_JERK
           EEPROM_READ(planner.max_jerk);
@@ -2087,7 +2100,12 @@ void MarlinSettings::reset() {
   planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
   planner.settings.min_feedrate_mm_s = DEFAULT_MINIMUMFEEDRATE;
   planner.settings.min_travel_feedrate_mm_s = DEFAULT_MINTRAVELFEEDRATE;
-
+  #if ENABLED(BACKLASH_GCODE)
+    LOOP_XN(i) {
+      backlash_distance_mm[i] = 0;
+    }
+    backlash_correction = BACKLASH_CORRECTION;
+  #endif
   #if HAS_CLASSIC_JERK
     #ifndef DEFAULT_XJERK
       #define DEFAULT_XJERK 0

@@ -26,9 +26,6 @@
 
 #include "../../module/planner.h"
 
-float backlash_distance_mm[XN] = BACKLASH_DISTANCE_MM,
-      backlash_correction = BACKLASH_CORRECTION;
-
 #ifdef BACKLASH_SMOOTHING_MM
   float backlash_smoothing_mm = BACKLASH_SMOOTHING_MM;
 #endif
