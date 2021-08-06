@@ -785,6 +785,7 @@ void GcodeSuite::execute_command(void) {
         break;
 
       case 1028: M1028(); break;
+      case 1029: M1029(); break;
 
       case 1999: M1999(); break;
 

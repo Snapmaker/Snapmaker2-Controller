@@ -31,6 +31,30 @@
 // Ignore temp readings during develpment.
 #define BOGUS_TEMPERATURE_FAILSAFE_OVERRIDE
 
+#define SM2_8PIN_PORT_COUNT 6
+
+enum {
+  PORT_8PIN_1,
+  PORT_8PIN_2,
+  PORT_8PIN_3,
+  PORT_8PIN_4,
+  PORT_8PIN_5,
+  PORT_8PIN_6,
+  PORT_8PIN_INVALID
+};
+
+// 8 PIN port from top to bottom
+#define PORT_TO_STEP_PIN { /*STEP  DIR   ENABLE*/ \
+  /* PORT_8PIN_1 */         {PE14, PB10, PB11}, \
+  /* PORT_8PIN_2 */         {PE13, PC10, PC11}, \
+  /* PORT_8PIN_3 */         {PC6 , PD15, PA3 }, \
+  /* PORT_8PIN_4 */         {PB4 , PB3,  PB5 }, \
+  /* PORT_8PIN_5 */         {PB7 , PB6,  PA2 }, \
+  /* PORT_8PIN_6 */         {PA1 , PC12, PD2 }, \
+  }
+
+//                             X            Y            Z            B               E
+#define DEFAULT_AXIS_TO_PORT {PORT_8PIN_3, PORT_8PIN_4, PORT_8PIN_5, PORT_8PIN_6, PORT_8PIN_1}
 
 //
 // Limit Switches
@@ -46,25 +70,30 @@
 //
 // Steppers
 //
-#define X_STEP_PIN         PC6
-#define X_DIR_PIN          PD15
-#define X_ENABLE_PIN       PA3
+extern uint8_t x_step_pin, x_dir_pin, x_enable_pin;
+extern uint8_t y_step_pin, y_dir_pin, y_enable_pin;
+extern uint8_t z_step_pin, z_dir_pin, z_enable_pin;
+extern uint8_t b_step_pin, b_dir_pin, b_enable_pin;
+extern uint8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
+#define X_STEP_PIN         x_step_pin
+#define X_DIR_PIN          x_dir_pin
+#define X_ENABLE_PIN       x_enable_pin
 
-#define Y_STEP_PIN         PB4
-#define Y_DIR_PIN          PB3
-#define Y_ENABLE_PIN       PB5
+#define Y_STEP_PIN         y_step_pin
+#define Y_DIR_PIN          y_dir_pin
+#define Y_ENABLE_PIN       y_enable_pin
 
-#define Z_STEP_PIN         PB7
-#define Z_DIR_PIN          PB6
-#define Z_ENABLE_PIN       PA2
+#define Z_STEP_PIN         z_step_pin
+#define Z_DIR_PIN          z_dir_pin
+#define Z_ENABLE_PIN       z_enable_pin
 
-#define B_STEP_PIN         PA1    // P6 - Add-on 2
-#define B_DIR_PIN          PC12
-#define B_ENABLE_PIN       PD2
+#define B_STEP_PIN         b_step_pin    // P6 - Add-on 2
+#define B_DIR_PIN          b_dir_pin
+#define B_ENABLE_PIN       b_enable_pin
 
-#define E0_STEP_PIN        PE14
-#define E0_DIR_PIN         PB10
-#define E0_ENABLE_PIN      PB11
+#define E0_STEP_PIN        e0_step_pin
+#define E0_DIR_PIN         e0_dir_pin
+#define E0_ENABLE_PIN      e0_enable_pin
 
 /**
  * TODO: Currently using same Enable pin to all steppers.

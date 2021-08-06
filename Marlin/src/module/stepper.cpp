@@ -130,6 +130,7 @@ Stepper stepper; // Singleton
   uint32_t Stepper::motor_current_setting[3]; // Initialized by settings.load()
 #endif
 
+uint8_t axis_to_port[X_TO_E] = DEFAULT_AXIS_TO_PORT;
 // private:
 
 block_t* Stepper::current_block; // (= NULL) A pointer to the block currently being traced
@@ -2045,6 +2046,54 @@ bool Stepper::is_block_busy(const block_t* const block) {
   return block == vnew;
 }
 
+uint8_t x_step_pin, x_dir_pin, x_enable_pin;
+uint8_t y_step_pin, y_dir_pin, y_enable_pin;
+uint8_t z_step_pin, z_dir_pin, z_enable_pin;
+uint8_t b_step_pin, b_dir_pin, b_enable_pin;
+uint8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
+
+void Stepper::StepperPinRemap() {
+  uint8_t port_to_pin[][STEP_PIN_COUNT] = PORT_TO_STEP_PIN;
+  #define SET_AXIS_VALUE(axis, AXIS) \
+    if (axis_to_port[AXIS##_AXIS] < PORT_8PIN_INVALID) { \
+      axis##_step_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEP_STEP]; \
+      axis##_dir_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEP_DIR]; \
+      axis##_enable_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEP_ENABLE]; \
+      SET_OUTPUT(axis##_step_pin); SET_OUTPUT(axis##_dir_pin); SET_OUTPUT(axis##_enable_pin);\
+    } else { \
+      axis##_step_pin = axis##_dir_pin = axis##_enable_pin = -1; \
+    }
+  SET_AXIS_VALUE(x,X);
+  SET_AXIS_VALUE(y,Y);
+  SET_AXIS_VALUE(z,Z);
+  SET_AXIS_VALUE(b,B);
+  SET_AXIS_VALUE(e0,E);
+}
+
+void Stepper::StepperBind8PinPort(uint8_t axis, uint8_t port) {
+  if (axis > E_AXIS || port >= PORT_8PIN_INVALID) {
+    LOG_I("Bind fail: Parameter out of range\n");
+  }
+  LOOP_X_TO_E(i) {
+    if (axis_to_port[i] == port) {
+      // Disable the port that is already in use
+      axis_to_port[i] = PORT_8PIN_INVALID;
+    }
+  }
+  axis_to_port[axis] = port;
+}
+
+void Stepper::PrintStepperBind() {
+  LOG_I("AXIS MAP: ");
+  LOOP_X_TO_E(i) {
+    if (axis_to_port[i] < PORT_8PIN_INVALID)
+      LOG_I("%c-%d ", axis_codes[i], axis_to_port[i] + 1);
+    else
+      LOG_I("%c-NULL ", axis_codes[i]);
+  }
+  LOG_I("\n");
+}
+
 void Stepper::init() {
 
   #if MB(ALLIGATOR)
@@ -2060,6 +2109,8 @@ void Stepper::init() {
   #if HAS_MICROSTEPS
     microstep_init();
   #endif
+
+  StepperPinRemap();
 
   // Init Dir Pins
   #if HAS_X_DIR

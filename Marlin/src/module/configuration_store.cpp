@@ -125,7 +125,7 @@ typedef struct SettingsDataStruct {
   // DISTINCT_E_FACTORS
   //
   uint8_t   esteppers;                                  // XYZE_N - XYZ
-
+  uint8_t axis_to_port[X_TO_E];
   planner_settings_t planner_settings;
   #if ENABLED(BACKLASH_GCODE)
     float backlash_distance_mm[XN],
@@ -489,6 +489,7 @@ void MarlinSettings::postprocess() {
     const uint8_t esteppers = COUNT(planner.settings.axis_steps_per_mm) - XN;
     EEPROM_WRITE(esteppers);
 
+    EEPROM_WRITE(axis_to_port);
     //
     // Planner Motion
     //
@@ -1213,6 +1214,7 @@ void MarlinSettings::postprocess() {
       // Number of esteppers may change
       uint8_t esteppers;
       EEPROM_READ_ALWAYS(esteppers);
+      EEPROM_READ_ALWAYS(axis_to_port);
 
       //
       // Planner Motion
@@ -2088,6 +2090,10 @@ void MarlinSettings::postprocess() {
 void MarlinSettings::reset() {
   static const float tmp1[] PROGMEM = DEFAULT_AXIS_STEPS_PER_UNIT, tmp2[] PROGMEM = DEFAULT_MAX_FEEDRATE;
   static const uint32_t tmp3[] PROGMEM = DEFAULT_MAX_ACCELERATION;
+  uint8_t temp_axis_to_port[X_TO_E] = DEFAULT_AXIS_TO_PORT;
+  LOOP_X_TO_EN(i) {
+    axis_to_port[i] = temp_axis_to_port[i];
+  }
   LOOP_X_TO_EN(i) {
     planner.settings.axis_steps_per_mm[i]          = pgm_read_float(&tmp1[ALIM(i, tmp1)]);
     planner.settings.max_feedrate_mm_s[i]          = pgm_read_float(&tmp2[ALIM(i, tmp2)]);
