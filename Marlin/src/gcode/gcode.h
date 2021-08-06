@@ -885,10 +885,11 @@ private:
   static void M1006();
   static void M1007();
 
-  static void M1028();
-
   static void M1010();
   static void M1011();
+
+  static void M1028();
+  static void M1029();
 
   static void M1999();
 

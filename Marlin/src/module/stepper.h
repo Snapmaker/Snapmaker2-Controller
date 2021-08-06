@@ -226,6 +226,15 @@
 #include "planner.h"
 #include "../core/language.h"
 
+enum {
+  STEP_STEP,
+  STEP_DIR,
+  STEP_ENABLE,
+  STEP_PIN_COUNT
+};
+
+extern uint8_t axis_to_port[X_TO_E];
+
 class Stepper {
 
   public:
@@ -345,7 +354,9 @@ class Stepper {
 
     // Initialize stepper hardware
     static void init();
-
+    static void StepperPinRemap();
+    static void StepperBind8PinPort(uint8_t axis, uint8_t port);
+    static void PrintStepperBind();
     // Interrupt Service Routines
 
     // The ISR scheduler
