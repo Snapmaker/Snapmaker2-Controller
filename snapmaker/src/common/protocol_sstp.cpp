@@ -29,13 +29,13 @@
 #include "src/libs/hex_print_routines.h"
 
 #define LOG_HEAD  "SSTP: "
-#define TIMEOUT_FOR_HEADER      (2)
-#define TIMEOUT_FOR_NEXT_BYTE   (1)
+#define TIMEOUT_FOR_HEADER      (5)
+#define TIMEOUT_FOR_NEXT_BYTE   (5)
 
 // min br = 115200bps, = 14.4 bytes/ms
 // max data length = 516 bytes in transferring FW
 // so, max MS to wait = 516 / 14.4 = 36ms
-#define DELAY_MS_FOR_DATA       (5)
+#define DELAY_MS_FOR_DATA       (1)
 #define TIMEOUT_COUNT_FOR_DATA  (100/DELAY_MS_FOR_DATA)
 
 /* checkout event from UART RX ring buffer

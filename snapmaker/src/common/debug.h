@@ -77,6 +77,7 @@ struct SnapDebugInfo {
   uint32_t  pc_cmd_checksum_err;      // chceksum error for command from screen
 
   uint32_t last_line_num_of_sc_gcode; // line number of last gcode acked to screen
+  uint32_t current_line_num_of_sc_gcode;
 };
 
 class SnapDebug {
@@ -88,7 +89,9 @@ class SnapDebug {
     SnapDebugLevel GetLevel();
     void CmdChecksumError(bool screen);
     void SetSCGcodeLine(uint32_t l);
+    void SetSCProCurGcodeLine(uint32_t l);
     uint32_t GetSCGcodeLine() { return info.last_line_num_of_sc_gcode; }
+    uint32_t GetSCProCurGcodeLine() { return info.current_line_num_of_sc_gcode; }
 
     void ShowException();
 
@@ -118,6 +121,7 @@ extern SnapDebug debug;
 #define SNAP_DEBUG_SET_LEVEL(p, l)        debug.SetLevel(p, l);
 #define SNAP_DEBUG_CMD_CHECKSUM_ERROR(s)  debug.CmdChecksumError(s);
 #define SNAP_DEBUG_SET_GCODE_LINE(l)      debug.SetSCGcodeLine(l);
+#define SNAP_DEBUG_SET_CUR_GCODE_LINE(l)  debug.SetSCProCurGcodeLine(l);
 
 #else
 

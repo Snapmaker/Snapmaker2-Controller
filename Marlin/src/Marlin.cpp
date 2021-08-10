@@ -808,9 +808,6 @@ void idle(
   #if ENABLED(PRUSA_MMU2)
     mmu2.mmuLoop();
   #endif
-
-  if (xTaskGetSchedulerState() == taskSCHEDULER_RUNNING)
-    vTaskDelay(pdMS_TO_TICKS(1));
 }
 
 /**

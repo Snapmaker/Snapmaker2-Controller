@@ -1183,7 +1183,7 @@
 
 // The ASCII buffer for serial input
 #define MAX_CMD_SIZE 96
-#define BUFSIZE 4
+#define BUFSIZE 64
 #define HMI_BUFSIZE 8
 #define INVALID_CMD_LINE  0xFFFFFFFFU
 

@@ -69,9 +69,6 @@ UartHost hmi;
 
 uint8_t hmi_commands_in_queue = 0, hmi_cmd_queue_index_r = 0,
         hmi_cmd_queue_index_w = 0;
-char hmi_command_queue[HMI_BUFSIZE][MAX_CMD_SIZE];
-uint8_t hmi_send_opcode_queue[HMI_BUFSIZE];
-uint32_t hmi_commandline_queue[HMI_BUFSIZE];
 
 extern bool send_ok[BUFSIZE];
 bool   Screen_send_ok[BUFSIZE];
@@ -81,79 +78,67 @@ uint32_t CommandLine[BUFSIZE] = { INVALID_CMD_LINE };
 extern uint8_t cmd_queue_index_w; // Ring buffer write position
 
 
-/**
- *SC20 queue the gcdoe
- *para pgcode:the pointer to the gcode
- *para Lines:the line position of the gcode in the file
- *para Opcode:operation code
- * execution guaranteed
- */
-void enqueue_hmi_to_marlin() {
-  // guaranteed buffer available, shouldn't be missed, or screen status won't
-  // sync. fetch as much command as possible
-  while (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0) {
-    // fetch from buffer queue
-    strcpy(command_queue[cmd_queue_index_w],
-           hmi_command_queue[hmi_cmd_queue_index_r]);
-    Screen_send_ok[cmd_queue_index_w] = true;
-    Screen_send_ok_opcode[cmd_queue_index_w] =
-        hmi_send_opcode_queue[hmi_cmd_queue_index_r];
-    CommandLine[cmd_queue_index_w] =
-        hmi_commandline_queue[hmi_cmd_queue_index_r];
-    send_ok[cmd_queue_index_w] = false;
-    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
-
-    hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
-    hmi_commands_in_queue--;
-    commands_in_queue++;
-  }
-}
-
-
 void Screen_enqueue_and_echo_commands(char *pgcode, uint32_t line,
                                       uint8_t opcode) {
-  int i;
-
-  // we put HMI command to Marlin queue firstly
-  // to avoid jumping directly, we check the condition before call it
-  if (commands_in_queue < BUFSIZE && hmi_commands_in_queue > 0)
-    enqueue_hmi_to_marlin();
-
-  if (hmi_commands_in_queue >= HMI_BUFSIZE) {
-    LOG_E("HMI gcode buffer is full, losing line: %u\n", line);
-    return;
-  }
-
+  int len;
   // ignore comment
   if (pgcode[0] == ';') {
     ack_gcode_event(opcode, line);
     return;
   }
 
-  // won't put comment part to queue, and limit cmd size to MAX_CMD_SIZE
-  for (i = 0; i < MAX_CMD_SIZE; i++) {
-    if (pgcode[i] == '\n' || pgcode[i] == '\r' || pgcode[i] == 0 ||
-        pgcode[i] == ';') {
-      hmi_command_queue[hmi_cmd_queue_index_w][i] = 0;
-      break;
-    }
-    hmi_command_queue[hmi_cmd_queue_index_w][i] = pgcode[i];
+  //lock
+  take_command_queue_lock();
+  if (commands_in_queue >= BUFSIZE) {
+    LOG_E("command_queue buffer is full, losing line: %u\n", line);
+    give_command_queue_lock();
+    return;
   }
-
-  if (i >= MAX_CMD_SIZE) {
-    hmi_command_queue[hmi_cmd_queue_index_w][MAX_CMD_SIZE - 1] = 0;
-    LOG_E("line[%u] too long: %s\n", line,
-          hmi_command_queue[hmi_cmd_queue_index_w]);
+  
+  len = strlen(pgcode);
+  if (len >= MAX_CMD_SIZE) {
+    LOG_E("line[%u] too long: %s\n", line, pgcode);
     ack_gcode_event(opcode, line);
+    //unlock
+    give_command_queue_lock();
     return;
   }
 
-  hmi_commandline_queue[hmi_cmd_queue_index_w] = line;
-  hmi_send_opcode_queue[hmi_cmd_queue_index_w] = opcode;
-  hmi_cmd_queue_index_w = (hmi_cmd_queue_index_w + 1) % HMI_BUFSIZE;
-  hmi_commands_in_queue++;
+  strncpy((char*)(command_queue + cmd_queue_index_w), pgcode, len);
+  command_queue[cmd_queue_index_w][len] = '\0';
+  
+  Screen_send_ok[cmd_queue_index_w] = true;
+  Screen_send_ok_opcode[cmd_queue_index_w] = opcode;
+  CommandLine[cmd_queue_index_w] = line;
+  send_ok[cmd_queue_index_w] = false;
+  cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
+  commands_in_queue++;
+  //unlock
+  give_command_queue_lock();
 }
 
+/**
+ * Send Ok to the screen in advance
+ */
+void send_ahead_hmi_ok(void) {
+  if (commands_in_queue && commands_in_queue < BUFSIZE - 1) {
+    int size = commands_in_queue;
+    int index = cmd_queue_index_r;
+    for (int i = 0; i < size; i++) {
+      if (Screen_send_ok[(index + i) % BUFSIZE] && Screen_send_ok_opcode[(index + i) % BUFSIZE] == EID_FILE_GCODE_ACK) {
+        take_send_hmi_ok_lock();
+        if (commands_in_queue && commands_in_queue < BUFSIZE - 1 && systemservice.GetCurrentStatus() == SYSTAT_WORK) {
+          if(Screen_send_ok[(index + i) % BUFSIZE] && Screen_send_ok_opcode[(index + i) % BUFSIZE] == EID_FILE_GCODE_ACK) {
+            ack_gcode_event(Screen_send_ok_opcode[(index + i) % BUFSIZE], CommandLine[(index + i) % BUFSIZE]);
+            SNAP_DEBUG_SET_GCODE_LINE(CommandLine[(index + i) % BUFSIZE]);
+            Screen_send_ok[(index + i) % BUFSIZE] = false;
+          }
+        }
+        give_send_hmi_ok_lock();  
+      }
+    }
+  }
+}
 
 /**
  * Check if the command came from HMI
@@ -241,7 +226,7 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
     }
   }
   else if (line == systemservice.current_line()) {
-    if (line == debug.GetSCGcodeLine())
+    if (line == debug.GetSCProCurGcodeLine())
       ack_gcode_event(EID_FILE_GCODE_ACK, line);
   }
   else {
@@ -766,19 +751,11 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
 
   switch (event.id) {
   case EID_GCODE_REQ:
-    if (param->owner == TASK_OWN_MARLIN) {
       return HandleGcode(param->event_buff, param->size);
-    }
-    else
-      send_to_marlin = true;
     break;
 
   case EID_FILE_GCODE_REQ:
-    if (param->owner == TASK_OWN_MARLIN) {
       return HandleFileGcode(param->event_buff, param->size);
-    }
-    else
-      send_to_marlin = true;
     break;
 
   case EID_SYS_CTRL_REQ:

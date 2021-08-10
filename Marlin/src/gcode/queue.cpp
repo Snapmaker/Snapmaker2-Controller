@@ -104,7 +104,9 @@ void queue_setup() {
  * Clear the Marlin command queue
  */
 void clear_command_queue() {
+  take_command_queue_lock();
   cmd_queue_index_r = cmd_queue_index_w = commands_in_queue = 0;
+  give_command_queue_lock();
 }
 
 /**
@@ -158,12 +160,14 @@ bool enqueue_and_echo_command(const char* cmd) {
     //SERIAL_ECHOLNPGM("Null command found...   Did not queue!");
     return true;
   }
-
+  take_command_queue_lock();
   if (_enqueuecommand(cmd)) {
+    give_command_queue_lock();
     SERIAL_ECHO_START();
     SERIAL_ECHOLNPAIR(MSG_ENQUEUEING, cmd, "\"");
     return true;
   }
+  give_command_queue_lock();
   return false;
 }
 
@@ -247,9 +251,13 @@ void ok_to_send() {
   }
 
   if(Screen_send_ok[cmd_queue_index_r]) {
-    ack_gcode_event(Screen_send_ok_opcode[cmd_queue_index_r], CommandLine[cmd_queue_index_r]);
-    SNAP_DEBUG_SET_GCODE_LINE(CommandLine[cmd_queue_index_r]);
-    Screen_send_ok[cmd_queue_index_r] = false;
+    take_send_hmi_ok_lock();
+    if (Screen_send_ok[cmd_queue_index_r]) {
+      ack_gcode_event(Screen_send_ok_opcode[cmd_queue_index_r], CommandLine[cmd_queue_index_r]);
+      SNAP_DEBUG_SET_GCODE_LINE(CommandLine[cmd_queue_index_r]);
+      Screen_send_ok[cmd_queue_index_r] = false;
+    }
+    give_send_hmi_ok_lock();
   }
 }
 
@@ -684,11 +692,13 @@ inline void get_serial_commands() {
         #endif
 
         // Add the command to the queue
+        take_command_queue_lock();
         _enqueuecommand(serial_line_buffer[i], true
           #if NUM_SERIAL > 1
             , i
           #endif
         );
+        give_command_queue_lock();
       }
       else if (serial_count[i] >= MAX_CMD_SIZE - 1) {
         // Keep fetching, but ignore normal characters beyond the max length
@@ -745,14 +755,20 @@ void get_available_commands() {
  */
 void advance_command_queue() {
 
-  if (!commands_in_queue) return;
-
+  if (!commands_in_queue) {
+    vTaskDelay(1);
+    return;
+  }
   gcode.process_next_command();
 
+  if (systemservice.GetCurrentStatus() == SYSTAT_WORK && Screen_send_ok_opcode[cmd_queue_index_r] == EID_FILE_GCODE_ACK) {
+    SNAP_DEBUG_SET_CUR_GCODE_LINE(CommandLine[cmd_queue_index_r]);
+  }
   // The queue may be reset by a command handler or by code invoked by idle() within a handler
+  take_command_queue_lock();
   if (commands_in_queue) {
     --commands_in_queue;
     if (++cmd_queue_index_r >= BUFSIZE) cmd_queue_index_r = 0;
   }
-
+  give_command_queue_lock();
 }

@@ -40,6 +40,9 @@ struct SnapmakerHandle {
 
   MessageBufferHandle_t event_queue;
   EventGroupHandle_t    event_group;
+
+  SemaphoreHandle_t mlock_send_ok = NULL;
+  SemaphoreHandle_t mlock_command_queue = NULL;
 };
 typedef struct SnapmakerHandle* SnapmakerHandle_t;
 
@@ -83,6 +86,9 @@ void SnapmakerSetupEarly();
 
 void SnapmakerSetupPost();
 
-
+void take_send_hmi_ok_lock(void);
+void give_send_hmi_ok_lock(void);
+void take_command_queue_lock(void);
+void give_command_queue_lock(void);
 
 #endif  // #ifndef SNAPMAKER_H_

@@ -188,6 +188,10 @@ void SnapDebug::SetSCGcodeLine(uint32_t l) {
   info.last_line_num_of_sc_gcode = l;
 }
 
+void SnapDebug::SetSCProCurGcodeLine(uint32_t l) {
+  info.current_line_num_of_sc_gcode = l;
+}
+
 // error count of uncorrect checksum of commands from screen
 void SnapDebug::CmdChecksumError(bool screen) {
   if (screen)
@@ -202,6 +206,7 @@ void SnapDebug::ShowInfo() {
   Log(SNAP_DEBUG_LEVEL_INFO, "SC chksum error: %u\n", info.screen_cmd_checksum_err);
   Log(SNAP_DEBUG_LEVEL_INFO, "Last recv line: %d\n", systemservice.current_line());
   Log(SNAP_DEBUG_LEVEL_INFO, "Last ack line: %d\n", info.last_line_num_of_sc_gcode);
+  Log(SNAP_DEBUG_LEVEL_INFO, "Last process line: %d\n", info.current_line_num_of_sc_gcode);
   Log(SNAP_DEBUG_LEVEL_INFO, "Last st line: %d\n", pl_recovery.LastLine());
   Log(SNAP_DEBUG_LEVEL_INFO, "Fault: 0x%08X, action ban: 0x%X, power ban: 0x%X\n",
         systemservice.GetFaultFlag(), action_ban, power_ban);

@@ -213,6 +213,7 @@ typedef struct DispatcherParam* DispatcherParam_t;
 ErrCode DispatchEvent(DispatcherParam_t param);
 void clear_hmi_gcode_queue();
 void ack_gcode_event(uint8_t event_id, uint32_t line);
+void send_ahead_hmi_ok(void);
 
 extern UartHost hmi;
 

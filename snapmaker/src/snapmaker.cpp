@@ -36,7 +36,6 @@
 
 SnapmakerHandle_t sm2_handle;
 
-extern void enqueue_hmi_to_marlin();
 
 
 uint8_t action_ban = 0;
@@ -158,7 +157,7 @@ static void main_loop(void *param) {
     // receive and execute one command, or push Gcode into Marlin queue
     DispatchEvent(&dispather_param);
 
-    enqueue_hmi_to_marlin();
+    send_ahead_hmi_ok();
     if (commands_in_queue < BUFSIZE) get_available_commands();
 
     advance_command_queue();
@@ -220,16 +219,17 @@ static void hmi_task(void *param) {
 
     systemservice.CheckIfSendWaitEvent();
 
+    send_ahead_hmi_ok();
+
     if (ret != E_SUCCESS) {
-      // no command, sleep 10ms for next command
-      vTaskDelay(pdMS_TO_TICKS(10));
       continue;
     }
 
     // execute or send out one command
     DispatchEvent(&dispather_param);
+    
+    send_ahead_hmi_ok();
 
-    vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 
@@ -338,6 +338,19 @@ void SnapmakerSetupPost() {
   sm2_handle->event_group = xEventGroupCreate();
   configASSERT(sm2_handle->event_group);
 
+  // creat mutex locks
+  sm2_handle->mlock_send_ok = xSemaphoreCreateMutex();
+  if (!sm2_handle->mlock_send_ok) {
+    LOG_E("creat mlock_send_ok fail\r\n");
+  }
+  configASSERT(sm2_handle->mlock_send_ok);
+
+  sm2_handle->mlock_command_queue = xSemaphoreCreateMutex();
+  if (!sm2_handle->mlock_send_ok) {
+    LOG_E("creat mlock_command_queue fail\r\n");
+  }
+  configASSERT(sm2_handle->mlock_command_queue);
+
   // create marlin task
   BaseType_t ret;
   ret = xTaskCreate((TaskFunction_t)main_loop, "Marlin_task", MARLIN_LOOP_STACK_DEPTH,
@@ -394,6 +407,29 @@ void SnapmakerSetupPost() {
   vTaskStartScheduler();
 }
 
+void take_send_hmi_ok_lock(void) {
+  if (sm2_handle && sm2_handle->mlock_send_ok) {
+    xSemaphoreTake(sm2_handle->mlock_send_ok, portMAX_DELAY);
+  }
+}
+
+void give_send_hmi_ok_lock(void) {
+  if (sm2_handle && sm2_handle->mlock_send_ok) {
+    xSemaphoreGive(sm2_handle->mlock_send_ok);
+  }
+}
+
+void take_command_queue_lock(void) {
+  if (sm2_handle && sm2_handle->mlock_command_queue) {
+    xSemaphoreTake(sm2_handle->mlock_command_queue, portMAX_DELAY);
+  }
+}
+
+void give_command_queue_lock(void) {
+  if (sm2_handle && sm2_handle->mlock_command_queue) {
+    xSemaphoreGive(sm2_handle->mlock_command_queue);
+  }
+}
 
 extern "C" {
 

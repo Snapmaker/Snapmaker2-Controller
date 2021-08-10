@@ -1506,7 +1506,7 @@ ErrCode SystemService::CheckIfSendWaitEvent() {
       }
       hmi_cmd_timeout(millis());
       // and we have replied screen
-      if (current_line() && current_line() == debug.GetSCGcodeLine()) {
+      if (current_line() && current_line() == debug.GetSCProCurGcodeLine()) {
         // then we known maybe screen lost out last reply
         LOG_I("waiting HMI command, current line: %u\n", current_line_);
         event.id = EID_SYS_CTRL_ACK;
@@ -1529,6 +1529,7 @@ ErrCode SystemService::CheckIfSendWaitEvent() {
     }
     else {
       is_waiting_gcode = false;
+      hmi_cmd_timeout(millis());
     }
   }
 
@@ -1736,6 +1737,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
         }
 
         SNAP_DEBUG_SET_GCODE_LINE(current_line_);
+        SNAP_DEBUG_SET_CUR_GCODE_LINE(current_line_);
         LOG_I("RESUME over\n");
         return E_SUCCESS;
       }
@@ -1872,6 +1874,7 @@ ErrCode SystemService::RecoverFromPowerLoss(SSTP_Event_t &event) {
       else
         current_line_ = 0;
       SNAP_DEBUG_SET_GCODE_LINE(current_line_);
+      SNAP_DEBUG_SET_CUR_GCODE_LINE(current_line_);
       pl_recovery.SaveCmdLine(pl_recovery.cur_data_.FilePosition);
       LOG_I("trigger RESTORE: ok\n");
     }
