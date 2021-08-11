@@ -2053,21 +2053,21 @@ uint8_t b_step_pin, b_dir_pin, b_enable_pin;
 uint8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
 
 void Stepper::StepperPinRemap() {
-  uint8_t port_to_pin[][STEP_PIN_COUNT] = PORT_TO_STEP_PIN;
+  uint8_t port_to_pin[][STEPPER_PIN_COUNT] = PORT_TO_STEP_PIN;
   #define SET_AXIS_VALUE(axis, AXIS) \
     if (axis_to_port[AXIS##_AXIS] < PORT_8PIN_INVALID) { \
-      axis##_step_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEP_STEP]; \
-      axis##_dir_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEP_DIR]; \
-      axis##_enable_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEP_ENABLE]; \
+      axis##_step_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEPPER_STEP]; \
+      axis##_dir_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEPPER_DIR]; \
+      axis##_enable_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEPPER_ENABLE]; \
       SET_OUTPUT(axis##_step_pin); SET_OUTPUT(axis##_dir_pin); SET_OUTPUT(axis##_enable_pin);\
     } else { \
       axis##_step_pin = axis##_dir_pin = axis##_enable_pin = -1; \
     }
-  SET_AXIS_VALUE(x,X);
-  SET_AXIS_VALUE(y,Y);
-  SET_AXIS_VALUE(z,Z);
-  SET_AXIS_VALUE(b,B);
-  SET_AXIS_VALUE(e0,E);
+  SET_AXIS_VALUE(x, X);
+  SET_AXIS_VALUE(y, Y);
+  SET_AXIS_VALUE(z, Z);
+  SET_AXIS_VALUE(b, B);
+  SET_AXIS_VALUE(e0, E);
 }
 
 void Stepper::StepperBind8PinPort(uint8_t axis, uint8_t port) {

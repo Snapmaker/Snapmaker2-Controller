@@ -227,10 +227,10 @@
 #include "../core/language.h"
 
 enum {
-  STEP_STEP,
-  STEP_DIR,
-  STEP_ENABLE,
-  STEP_PIN_COUNT
+  STEPPER_STEP,
+  STEPPER_DIR,
+  STEPPER_ENABLE,
+  STEPPER_PIN_COUNT
 };
 
 extern uint8_t axis_to_port[X_TO_E];
