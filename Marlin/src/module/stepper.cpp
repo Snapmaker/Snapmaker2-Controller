@@ -2072,7 +2072,8 @@ void Stepper::StepperPinRemap() {
 
 void Stepper::StepperBind8PinPort(uint8_t axis, uint8_t port) {
   if (axis > E_AXIS || port >= PORT_8PIN_INVALID) {
-    LOG_I("Bind fail: Parameter out of range\n");
+    LOG_E("Bind fail: Parameter out of range\n");
+    return;
   }
   LOOP_X_TO_E(i) {
     if (axis_to_port[i] == port) {
