@@ -28,6 +28,9 @@
 #include "src/core/boards.h"
 #include "Configuration.h"
 #include "src/pins/pins.h"
+#include "src/module/stepper.h"
+
+// marlin headers
 
 ToolHeadCNC cnc;
 
@@ -45,6 +48,11 @@ ErrCode ToolHeadCNC::Init(MAC_t &mac, uint8_t mac_index) {
 
   Function_t    function;
   message_id_t  message_id[4];
+
+  if (axis_to_port[E_AXIS] != PORT_8PIN_1) {
+    LOG_E("toolhead CNC failed: Please use the <M1029 E1> set E port\n");
+    return E_HARDWARE;
+  }
 
   ret = ModuleBase::InitModule8p(mac, E0_DIR_PIN, 0);
   if (ret != E_SUCCESS)

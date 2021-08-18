@@ -34,6 +34,7 @@
 #include "src/module/motion.h"
 #include "src/module/planner.h"
 #include "rotary_module.h"
+#include "src/module/stepper.h"
 
 
 #define LASER_CLOSE_FAN_DELAY     (120)
@@ -68,6 +69,11 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
 
   Function_t    function;
   message_id_t  message_id[4];
+
+  if (axis_to_port[E_AXIS] != PORT_8PIN_1) {
+    LOG_E("toolhead Laser failed: Please use the <M1029 E1> set E port\n");
+    return E_HARDWARE;
+  }
 
   ret = ModuleBase::InitModule8p(mac, E0_DIR_PIN, 0);
   if (ret != E_SUCCESS)
