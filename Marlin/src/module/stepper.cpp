@@ -2059,7 +2059,6 @@ void Stepper::StepperPinRemap() {
       axis##_step_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEPPER_STEP]; \
       axis##_dir_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEPPER_DIR]; \
       axis##_enable_pin = port_to_pin[axis_to_port[AXIS##_AXIS]][STEPPER_ENABLE]; \
-      SET_OUTPUT(axis##_step_pin); SET_OUTPUT(axis##_dir_pin); SET_OUTPUT(axis##_enable_pin);\
     } else { \
       axis##_step_pin = axis##_dir_pin = axis##_enable_pin = -1; \
     }
