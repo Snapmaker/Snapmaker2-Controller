@@ -1881,6 +1881,7 @@ void MarlinSettings::postprocess() {
           EEPROM_READ(l_home_offset[i]);
         }
       }
+      reset_homeoffset();
       #endif //ENABLED(SW_MACHINE_SIZE)
 
       //
