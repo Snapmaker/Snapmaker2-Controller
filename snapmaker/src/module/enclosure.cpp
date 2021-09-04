@@ -79,7 +79,7 @@ ErrCode Enclosure::PostInit() {
   if (IsOnline() && ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
     Disable();
   }
-  return E_SUCCESS; 
+  return E_SUCCESS;
 }
 
 ErrCode Enclosure::SetLightBar(uint8_t brightness) {
@@ -179,8 +179,8 @@ void Enclosure::Enable() {
 void Enclosure::HandleDoorOpened() {
   LOG_I("door opened!\n");
   systemservice.PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
-  if (laser.IsOnline())
-    laser.SetPowerLimit(TOOLHEAD_LASER_POWER_SAFE_LIMIT);
+  if (laser->IsOnline())
+    laser->SetPowerLimit(TOOLHEAD_LASER_POWER_SAFE_LIMIT);
 
   event_state_ = ENCLOSURE_EVENT_STATE_OPENED;
 }
@@ -190,8 +190,8 @@ void Enclosure::HandleDoorClosed() {
   LOG_I("door closed!\n");
   systemservice.ClearSystemFaultBit(FAULT_FLAG_DOOR_OPENED);
 
-  if (laser.IsOnline())
-    laser.SetPowerLimit(TOOLHEAD_LASER_POWER_NORMAL_LIMIT);
+  if (laser->IsOnline())
+    laser->SetPowerLimit(TOOLHEAD_LASER_POWER_NORMAL_LIMIT);
 }
 
 void Enclosure::Process() {

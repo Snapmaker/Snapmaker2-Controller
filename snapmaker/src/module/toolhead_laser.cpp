@@ -35,6 +35,8 @@
 #include "src/module/planner.h"
 #include "rotary_module.h"
 #include "src/module/stepper.h"
+#include "../service/system.h"
+#include "toolhead_3dp.h"
 
 
 #define LASER_CLOSE_FAN_DELAY     (120)
@@ -42,7 +44,9 @@
 #define TimSetPwm(n)  Tim1SetCCR4(n)
 #define TimGetPwm()  Tim1GetCCR4()
 
-ToolHeadLaser laser;
+ToolHeadLaser laser_low_power(MODULE_DEVICE_ID_LASER);
+ToolHeadLaser laser_10w(MODULE_DEVICE_ID_HIGH_POWER_LASER);
+ToolHeadLaser *laser = &laser_low_power;
 
 extern void Tim1SetCCR4(uint16_t pwm);
 extern uint16_t Tim1GetCCR4();
@@ -57,18 +61,31 @@ static __attribute__((section(".data"))) uint8_t power_table[]= {
 };
 
 static void CallbackAckLaserFocus(CanStdDataFrame_t &cmd) {
-  laser.focus(cmd.data[0]<<8 | cmd.data[1]);
+  laser->focus(cmd.data[0]<<8 | cmd.data[1]);
 }
 
+static void CallbackAckReportSecurity(CanStdDataFrame_t &cmd) {
+  laser->security_status_ = cmd.data[0];
+  laser->pitch_ = (cmd.data[1] << 8) | cmd.data[2];
+  laser->roll_ = (cmd.data[3] << 8) | cmd.data[4];
+  laser->laser_temperature_ = cmd.data[5];
+
+  if (laser->security_status_ != 0) {
+    laser->need_to_turnoff_laser_ = true;
+    if (systemservice.GetCurrentStage() == SYSTAGE_WORK || systemservice.GetCurrentStage() == SYSTAGE_PAUSE) {
+      quickstop.Trigger(QS_SOURCE_SECURITY, true);
+    }
+  }
+}
 
 ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   ErrCode ret;
 
   CanExtCmd_t cmd;
-  uint8_t     func_buffer[16];
+  uint8_t     func_buffer[2*7+2];
 
   Function_t    function;
-  message_id_t  message_id[4];
+  message_id_t  message_id[7];
 
   if (axis_to_port[E_AXIS] != PORT_8PIN_1) {
     LOG_E("toolhead Laser failed: Please use the <M1029 E1> set E port\n");
@@ -106,9 +123,11 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
     if (function.id == MODULE_FUNC_GET_LASER_FOCUS) {
       message_id[i]     = canhost.RegisterFunction(function, CallbackAckLaserFocus);
       msg_id_get_focus_ = message_id[i];
-    }
-    else
+    } else if (function.id == MODULE_FUNC_REPORT_SECURITY_STATUS) {
+      message_id[i] = canhost.RegisterFunction(function, CallbackAckReportSecurity);
+    } else {
       message_id[i] = canhost.RegisterFunction(function, NULL);
+    }
 
     if (function.id == MODULE_FUNC_SET_FAN1)
       msg_id_set_fan_ = message_id[i];
@@ -128,6 +147,13 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   return E_SUCCESS;
 }
 
+void ToolHeadLaser::TurnoffLaserIfNeeded() {
+  if (laser->need_to_turnoff_laser_) {
+    laser->need_to_turnoff_laser_ = false;
+    TurnOff();
+  }
+}
+
 uint16_t ToolHeadLaser::tim_pwm() {
   return TimGetPwm();
 }
@@ -136,8 +162,12 @@ void ToolHeadLaser::tim_pwm(uint16_t pwm) {
 }
 
 void ToolHeadLaser::TurnOn() {
-  if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
+  // if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
+  //   return;
+
+  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER && laser->security_status_ != 0) {
     return;
+  }    
 
   state_ = TOOLHEAD_LASER_STATE_ON;
   CheckFan(power_pwm_);
@@ -146,8 +176,8 @@ void ToolHeadLaser::TurnOn() {
 
 
 void ToolHeadLaser::TurnOff() {
-  if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
-    return;
+  // if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
+  //   return;
 
   state_ = TOOLHEAD_LASER_STATE_OFF;
   CheckFan(0);
@@ -156,6 +186,10 @@ void ToolHeadLaser::TurnOff() {
 
 
 void ToolHeadLaser::SetOutput(float power) {
+  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER && laser->security_status_ != 0) {
+    return;
+  }
+
   SetPower(power);
   TurnOn();
 }
@@ -165,8 +199,8 @@ void ToolHeadLaser::SetPower(float power) {
   int   integer;
   float decimal;
 
-  if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
-    return;
+  // if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
+  //   return;
 
   power_val_ = power;
 
@@ -683,10 +717,101 @@ void ToolHeadLaser::SetCameraLight(uint8_t state) {
   LOG_I("set Laser Camera light:%d!\n", state);
 }
 
+ErrCode ToolHeadLaser::SetAutoFocusLight(SSTP_Event_t &event) {
+  CanStdFuncCmd_t cmd;
+  uint8_t can_buffer[1];
+
+  switch (event.data[0]) {
+  case 0:
+    state = 0;
+    break;
+
+  case 1:
+    state = 1;
+    break;
+
+  default:
+    return E_PARAM;
+  }
+
+  can_buffer[0] = state;
+  cmd.id        = MODULE_FUNC_SET_AUTOFOCUS_LIGHT;
+  cmd.data      = can_buffer;
+  cmd.length    = 1;
+
+  return canhost.SendStdCmdSync(cmd, 2000);
+}
+
+ErrCode ToolHeadLaser::SendSecurityStatus() {
+  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_SECURITY_STATUS};
+  uint8_t buff[6];
+
+  buff[0] = laser->security_status_;
+  buff[1] = laser->laser_temperature_;
+  buff[2] = laser->roll_ >> 8;
+  buff[3] = laser->roll_ & 0xff;
+  buff[4] = laser->pitch_ >> 8;
+  buff[5] = laser->pitch_ & 0xff;
+
+  event.length = 6;
+  event.data = buff;
+
+  return hmi.Send(event);
+}
+
+void ToolHeadLaser::SetOnlineSyncId(SSTP_Event_t &event) {
+  CanStdFuncCmd_t cmd;
+  uint8_t can_buffer[5];
+
+  can_buffer[0] = 1;
+  can_buffer[1] = event.data[0];
+  can_buffer[2] = event.data[1];
+  can_buffer[3] = event.data[2];
+  can_buffer[4] = event.data[3];
+  cmd.id        = MODULE_FUNC_ONLINE_SYNC;
+  cmd.data      = can_buffer;
+  cmd.length    = 5;
+
+  return canhost.SendStdCmd(cmd);
+}
+
+void ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
+  CanStdFuncCmd_t cmd;
+  uint8_t can_buffer[1];
+
+  can_buffer[0] = 0;
+  can_buffer[1] = event.data[0];
+  can_buffer[2] = event.data[1];
+  can_buffer[3] = event.data[2];
+  can_buffer[4] = event.data[3];
+  cmd.id        = MODULE_FUNC_ONLINE_SYNC;
+  cmd.data      = can_buffer;
+  cmd.length    = 5;
+
+  ErrCode ret;
+  ret = canhost.SendStdCmdSync(cmd, 2000);
+  if (ret != E_SUCCESS) {
+    return;
+  }
+
+  SSTP_Event_t event = {EID_SETTING_ACK, SETTINGS_OPC_SET_ONLINE_SYNC_ID};
+  uint8_t buff[4];
+
+  buff[0] = cmd.data[0];
+  buff[1] = cmd.data[1];
+  buff[2] = cmd.data[2];
+  buff[3] = cmd.data[3];
+
+  event.length = 4;
+  event.data = buff;
+
+  hmi.Send(event);
+}
+
 void ToolHeadLaser::Process() {
   if (++timer_in_process_ < 100) return;
-
   timer_in_process_ = 0;
 
+  TurnoffLaserIfNeeded();
   TryCloseFan();
 }

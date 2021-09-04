@@ -149,7 +149,7 @@ ErrCode SystemService::PreProcessStop() {
   print_job_timer.stop();
 
   if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
-    laser.TurnOff();
+    laser->TurnOff();
     is_waiting_gcode = false;
     is_laser_on = false;
   }
@@ -450,7 +450,7 @@ ErrCode SystemService::ResumeOver() {
 
     if (MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) {
       if (pl_recovery.cur_data_.laser_pwm > 0)
-        laser.TurnOn();
+        laser->TurnOn();
     }
     break;
 
@@ -1518,9 +1518,9 @@ ErrCode SystemService::CheckIfSendWaitEvent() {
         hmi.Send(event);
         if (!is_waiting_gcode) {
           is_waiting_gcode = true;
-          if (laser.tim_pwm() > 0) {
+          if (laser->tim_pwm() > 0) {
             is_laser_on = true;
-            laser.TurnOff();
+            laser->TurnOff();
           }
         }
       }
@@ -1583,7 +1583,7 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   hmi.ToPDUBytes((uint8_t *)&sta.feedrate, (uint8_t *)&tmp_i16, 2);
 
   // laser power
-  tmp_u32 = laser.power();
+  tmp_u32 = laser->power();
   hmi.ToPDUBytes((uint8_t *)&sta.laser_power, (uint8_t *)&tmp_u32, 2);
 
   // RPM of CNC
@@ -1650,7 +1650,7 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
 
   if (ModuleBase::toolhead() == MACHINE_TYPE_LASER) {
     // laser power
-    tmp_u32 = (uint32_t)(laser.power() * 1000);
+    tmp_u32 = (uint32_t)(laser->power() * 1000);
   } else if (ModuleBase::toolhead() == MACHINE_TYPE_CNC) {
 
     // RPM of CNC
@@ -1697,6 +1697,13 @@ ErrCode SystemService::SendException(uint32_t fault) {
   return hmi.Send(event);
 }
 
+ErrCode SystemService::SendSecurityStatus () {
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+    laser->SendSecurityStatus();
+  }
+
+  return E_SUCCESS;
+}
 
 ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
@@ -1999,10 +2006,10 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     if (param > 100 || param < 0)
       ret = E_PARAM;
     else {
-      if (laser.tim_pwm() > 0)
-        laser.SetOutput(param);
+      if (laser->tim_pwm() > 0)
+        laser->SetOutput(param);
       else
-        laser.SetPower(param);
+        laser->SetPower(param);
     }
     break;
 
@@ -2153,11 +2160,15 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
     // won't turn off laser in pl_recovery.SaveEnv(), it's call by stepper ISR
     // because it may call CAN transmisson function
     if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
-      laser.TurnOff();
+      laser->TurnOff();
     }
     break;
 
   case QS_SOURCE_STOP:
+    PreProcessStop();
+    break;
+
+  case QS_SOURCE_SECURITY:
     PreProcessStop();
     break;
 
@@ -2200,6 +2211,14 @@ ErrCode SystemService::CallbackPostQS(QuickStopSource source) {
     cur_status_ = SYSTAT_IDLE;
 
     LOG_I("Finish stop\n\n");
+    break;
+
+  case QS_SOURCE_SECURITY:
+    // ack HMI
+    SendException(fault_flag_);
+    SendSecurityStatus();
+
+    LOG_I("Finish handle protection\n");
     break;
 
   default:

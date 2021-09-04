@@ -84,29 +84,30 @@ enum LaserCameraCommand {
 
 class ToolHeadLaser: public ModuleBase {
   public:
-		ToolHeadLaser(): ModuleBase(MODULE_DEVICE_ID_LASER) {
+		ToolHeadLaser(ModuleDeviceID id): ModuleBase(id) {
       power_limit_ = 100;
       power_pwm_   = 0;
       power_val_   = 0;
       mac_index_   = MODULE_MAC_INDEX_INVALID;
-
       state_ = TOOLHEAD_LASER_STATE_OFFLINE;
       focus_ = TOOLHEAD_LASER_CAMERA_FOCUS_MAX / 1000;
-
       fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
       fan_tick_  = 0;
-
       msg_id_set_fan_   = MODULE_MESSAGE_ID_INVALID;
       msg_id_get_focus_ = MODULE_MESSAGE_ID_INVALID;
-
       timer_in_process_ = 0;
+
+      security_status_ = 0;
+      laser_temperature_ = 0;
+      need_to_turnoff_laser_ = false;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
+    void TurnoffLaserIfNeeded();
 
     void TurnOn();
     void TurnOff();
-  
+
     void SetFanPower(uint8_t power);  // power 0 - 100
 
     void SetPower(float power);       // change power_val_ and power_pwm_ but not change actual output
@@ -128,6 +129,10 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode ReadBluetoothVer();
     void SetCameraLight(uint8_t state);
 
+    ErrCode SendSecurityStatus();
+    ErrCode SetAutoFocusLight(SSTP_Event_t &event);
+    void SetOnlineSyncId(SSTP_Event_t &event);
+    void GetOnlineSyncId(SSTP_Event_t &event);
     void Process();
 
     uint32_t mac(uint8_t sub_index = 0) { return canhost.mac(mac_index_); }
@@ -177,9 +182,18 @@ class ToolHeadLaser: public ModuleBase {
     message_id_t msg_id_get_focus_;
 
     UartHost esp32_;
+
+  public:
+    uint8_t security_status_;
+    uint16_t roll_;
+    uint16_t pitch_;
+    uint8_t laser_temperature_;
+    bool need_to_turnoff_laser_;
 };
 
 
-extern ToolHeadLaser laser;
+extern ToolHeadLaser *laser;
+extern ToolHeadLaser laser_low_power;
+extern ToolHeadLaser laser_10w;
 
 #endif  // #ifndef TOOLHEAD_LASER_H_

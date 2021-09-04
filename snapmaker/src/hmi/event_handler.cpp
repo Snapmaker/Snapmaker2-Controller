@@ -334,7 +334,7 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
     if (systemservice.is_waiting_gcode) {
       if (systemservice.is_laser_on) {
         systemservice.is_laser_on = false;
-        laser.TurnOn();
+        laser->TurnOn();
       }
     }
 
@@ -553,19 +553,19 @@ static ErrCode ExitLeveling(SSTP_Event_t &event) {
 }
 
 static ErrCode GetFocalLength(SSTP_Event_t &event) {
-  return laser.GetFocus(event);
+  return laser->GetFocus(event);
 }
 
 static ErrCode SetFocalLength(SSTP_Event_t &event) {
-  return laser.SetFocus(event);
+  return laser->SetFocus(event);
 }
 
 static ErrCode DoManualFocusing(SSTP_Event_t &event) {
-  return laser.DoManualFocusing(event);
+  return laser->DoManualFocusing(event);
 }
 
 static ErrCode DoAutoFocusing(SSTP_Event_t &event) {
-  return laser.DoAutoFocusing(event);
+  return laser->DoAutoFocusing(event);
 }
 
 static ErrCode IsLeveled(SSTP_Event_t &event) {
@@ -582,6 +582,18 @@ static ErrCode GetRuntimeEnv(SSTP_Event_t &event) {
 
 static ErrCode GetMachineSize(SSTP_Event_t &event) {
   return systemservice.GetMachineSize(event);
+}
+
+static ErrCode SetAutoFocusLight(SSTP_Event_t &event) {
+  return laser->SetAutoFocusLight(event);
+}
+
+static ErrCode SetOnlineSyncId(SSTP_Event_t &event) {
+  return laser->SetOnlineSyncId(event);
+}
+
+static ErrCode GetOnlineSyncId(SSTP_Event_t &event) {
+  return laser->GetOnlineSyncId(event);
 }
 
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
@@ -607,6 +619,10 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize},
   /* [SETTINGS_OPC_GET_IS_LEVELED]         =  */{EVENT_ATTR_DEFAULT,      IsLeveled},
+  /* [SETTINGS_OPC_SET_AUTOFOCUS_LIGHT]    =  */{EVENT_ATTR_DEFAULT,      SetAutoFocusLight},
+  /* [SETTINGS_OPC_GET_ONLINE_SYNC_ID]     =  */{EVENT_ATTR_DEFAULT,      SetOnlineSyncId},
+  /* [SETTINGS_OPC_SET_ONLINE_SYNC_ID]     =  */{EVENT_ATTR_DEFAULT,      GetOnlineSyncId},
+  /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize}
 };
 
 
@@ -729,15 +745,15 @@ EventCallback_t motion_event_cb[MOTION_OPC_MAX] = {
 
 
 static ErrCode SetCameraBtName(SSTP_Event_t &event) {
-  return laser.SetCameraBtName(event);
+  return laser->SetCameraBtName(event);
 }
 
 static ErrCode GetCameraBtName(SSTP_Event_t &event) {
-  return laser.GetCameraBtName(event);
+  return laser->GetCameraBtName(event);
 }
 
 static ErrCode GetCameraBtMAC(SSTP_Event_t &event) {
-  return laser.GetCameraBtMAC(event);
+  return laser->GetCameraBtMAC(event);
 }
 
 EventCallback_t camera_event_cb[CAMERA_OPC_MAX] = {
@@ -867,9 +883,9 @@ EventCallback_t addon_event_cb[ADDON_OPC_MAX] = {
   /* [ADDON_OPC_GET_ADDON_STOP]        =  */{EVENT_ATTR_DEFAULT,  GetAddonStopStatus},
   /* [ADDON_OPC_GET_ROTATE_STATE]        =  */{EVENT_ATTR_DEFAULT,  GetRotateStatus},
   /* [ADDON_OPC_GET_PURIFIER_STATE]          = */{EVENT_ATTR_DEFAULT, GetPurifierStatus},
-  /* [ADDON_OPC_GET_PURIFIER_FAN_STATE]      = */{EVENT_ATTR_DEFAULT, GetPurifierFanStatus},        
-  /* [ADDON_OPC_SET_PURIFIER_FAN_STATE]      = */{EVENT_ATTR_DEFAULT, SetPurifierFanStatus},        
-  /* [ADDON_OPC_SET_PURIFIER_GEARS_STATE]    = */{EVENT_ATTR_DEFAULT, SetPurifierGearsStatus},      
+  /* [ADDON_OPC_GET_PURIFIER_FAN_STATE]      = */{EVENT_ATTR_DEFAULT, GetPurifierFanStatus},
+  /* [ADDON_OPC_SET_PURIFIER_FAN_STATE]      = */{EVENT_ATTR_DEFAULT, SetPurifierFanStatus},
+  /* [ADDON_OPC_SET_PURIFIER_GEARS_STATE]    = */{EVENT_ATTR_DEFAULT, SetPurifierGearsStatus},
   /* [ADDON_OPC_GET_PURIFIER_TIMELIFE_STATE] = */{EVENT_ATTR_DEFAULT, GetPurifierTimelifeStatus},
 };
 
