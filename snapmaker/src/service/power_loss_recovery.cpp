@@ -378,8 +378,8 @@ int PowerLossRecovery::SaveEnv(void) {
 		break;
 
 	case MODULE_TOOLHEAD_LASER:
-		cur_data_.laser_percent = laser.power();
-		cur_data_.laser_pwm = laser.power_pwm();
+		cur_data_.laser_percent = laser->power();
+		cur_data_.laser_pwm = laser->power_pwm();
 	break;
 
   case MODULE_TOOLHEAD_3DP:
@@ -518,7 +518,7 @@ void PowerLossRecovery::ResumeCNC() {
 
 void PowerLossRecovery::ResumeLaser() {
 	// make sure laser is disable
-	laser.TurnOff();
+	laser->TurnOff();
 
 	// homing and restore workspace
 	RestoreWorkspace();
@@ -537,7 +537,7 @@ void PowerLossRecovery::ResumeLaser() {
 	cur_data_.laser_pwm = pre_data_.laser_pwm;
 
 	// just change laser power but not enable output
-	laser.SetPower(pre_data_.laser_percent);
+	laser->SetPower(pre_data_.laser_percent);
 }
 
 

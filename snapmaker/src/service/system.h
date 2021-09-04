@@ -196,7 +196,7 @@ typedef struct {
   uint16_t  feedrate;    // mm/min
 
   uint32_t  laser_power_cnc_rpm; // laser_power (uint32_t)(float * 1000)
- 
+
   uint32_t b;  // B axis current logical position
 
   uint8_t system_state;
@@ -264,6 +264,7 @@ public:
   ErrCode GetRuntimeEnv(SSTP_Event_t &event);
   ErrCode SendStatus(SSTP_Event_t &event);
   ErrCode SendException(SSTP_Event_t &event);
+  ErrCode SendSecurityStatus();
   ErrCode ChangeSystemStatus(SSTP_Event_t &event);
   ErrCode SendLastLine(SSTP_Event_t &event);
   ErrCode ClearException(SSTP_Event_t &event);

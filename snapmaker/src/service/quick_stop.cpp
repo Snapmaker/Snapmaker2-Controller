@@ -119,6 +119,9 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     case QS_SOURCE_POWER_LOSS:
       TurnOffPower();
 
+    case QS_SOURCE_SECURITY:
+      HandleProtection();
+
     /*
     * triggered by PAUSE, just save env and switch to next state
     */
@@ -189,7 +192,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
    * if power loss happened when parking for PAUSE, we need to write env into flash
    */
   case QS_STA_PARKING:
-    if ((source_ == QS_SOURCE_POWER_LOSS) && (pre_source_ == QS_SOURCE_PAUSE) && !wrote_flash_) {
+    if ((source_ == QS_SOURCE_POWER_LOSS) && ((pre_source_ == QS_SOURCE_PAUSE) || (pre_source_ == QS_SOURCE_SECURITY)) && !wrote_flash_) {
       TurnOffPower();
       pl_recovery.WriteFlash();
       wrote_flash_ = true;
@@ -292,7 +295,15 @@ void QuickStopService::TurnOffPower() {
   BreathLightClose();
 
   if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
-      laser.TurnOff();
+      laser->TurnOff();
+  }
+}
+
+void QuickStopService::HandleProtection() {
+  if (source_ != QS_SOURCE_SECURITY) return;
+
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+      // don't do nothing
   }
 }
 
@@ -309,8 +320,8 @@ void QuickStopService::EmergencyStop() {
       printer1->SetFan(0, 0);
       break;
     case MACHINE_TYPE_LASER:
-      laser.SetCameraLight(0);
-      laser.SetFanPower(0);
+      laser->SetCameraLight(0);
+      laser->SetFanPower(0);
       break;
     case MACHINE_TYPE_UNDEFINE:
       break;
