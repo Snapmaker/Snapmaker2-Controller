@@ -762,6 +762,15 @@ ErrCode ToolHeadLaser::SendSecurityStatus() {
   return hmi.Send(event);
 }
 
+ErrCode ToolHeadLaser::SendPauseStatus() {
+  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_PAUSE};
+
+  event.length = 0;
+  event.data = NULL;
+
+  return hmi.Send(event);
+}
+
 ErrCode ToolHeadLaser::SetOnlineSyncId(SSTP_Event_t &event) {
   CanStdFuncCmd_t cmd;
   uint8_t can_buffer[5];
@@ -783,13 +792,9 @@ ErrCode ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
   uint8_t can_buffer[1];
 
   can_buffer[0] = 0;
-  can_buffer[1] = event.data[0];
-  can_buffer[2] = event.data[1];
-  can_buffer[3] = event.data[2];
-  can_buffer[4] = event.data[3];
   cmd.id        = MODULE_FUNC_ONLINE_SYNC;
   cmd.data      = can_buffer;
-  cmd.length    = 5;
+  cmd.length    = 1;
 
   ErrCode ret;
   ret = canhost.SendStdCmdSync(cmd, 2000);
