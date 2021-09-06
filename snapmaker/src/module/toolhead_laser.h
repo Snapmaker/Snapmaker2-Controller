@@ -130,6 +130,7 @@ class ToolHeadLaser: public ModuleBase {
     void SetCameraLight(uint8_t state);
 
     ErrCode SendSecurityStatus();
+    ErrCode SendPauseStatus();
     ErrCode SetAutoFocusLight(SSTP_Event_t &event);
     ErrCode SetOnlineSyncId(SSTP_Event_t &event);
     ErrCode GetOnlineSyncId(SSTP_Event_t &event);

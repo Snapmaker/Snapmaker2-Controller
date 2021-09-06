@@ -148,7 +148,7 @@ ErrCode SystemService::PreProcessStop() {
 
   print_job_timer.stop();
 
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+  if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W)) {
     laser->TurnOff();
     is_waiting_gcode = false;
     is_laser_on = false;
@@ -2214,9 +2214,8 @@ ErrCode SystemService::CallbackPostQS(QuickStopSource source) {
     break;
 
   case QS_SOURCE_SECURITY:
-    // ack HMI
-    SendException(fault_flag_);
-    SendSecurityStatus();
+    // notify HMI
+    laser->SendPauseStatus();
 
     LOG_I("Finish handle protection\n");
     break;
