@@ -171,7 +171,7 @@ void ToolHeadLaser::TurnOn() {
 
   if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER && laser->security_status_ != 0) {
     return;
-  }    
+  }
 
   state_ = TOOLHEAD_LASER_STATE_ON;
   CheckFan(power_pwm_);
@@ -727,18 +727,17 @@ ErrCode ToolHeadLaser::SetAutoFocusLight(SSTP_Event_t &event) {
 
   switch (event.data[0]) {
   case 0:
-    state = 0;
+    can_buffer[0] = 0;
     break;
 
   case 1:
-    state = 1;
+    can_buffer[0] = 1;
     break;
 
   default:
     return E_PARAM;
   }
 
-  can_buffer[0] = state;
   cmd.id        = MODULE_FUNC_SET_AUTOFOCUS_LIGHT;
   cmd.data      = can_buffer;
   cmd.length    = 1;
@@ -763,7 +762,7 @@ ErrCode ToolHeadLaser::SendSecurityStatus() {
   return hmi.Send(event);
 }
 
-void ToolHeadLaser::SetOnlineSyncId(SSTP_Event_t &event) {
+ErrCode ToolHeadLaser::SetOnlineSyncId(SSTP_Event_t &event) {
   CanStdFuncCmd_t cmd;
   uint8_t can_buffer[5];
 
@@ -779,7 +778,7 @@ void ToolHeadLaser::SetOnlineSyncId(SSTP_Event_t &event) {
   return canhost.SendStdCmd(cmd);
 }
 
-void ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
+ErrCode ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
   CanStdFuncCmd_t cmd;
   uint8_t can_buffer[1];
 
@@ -795,10 +794,10 @@ void ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
   ErrCode ret;
   ret = canhost.SendStdCmdSync(cmd, 2000);
   if (ret != E_SUCCESS) {
-    return;
+    return ret;
   }
 
-  SSTP_Event_t event = {EID_SETTING_ACK, SETTINGS_OPC_SET_ONLINE_SYNC_ID};
+  SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_SET_ONLINE_SYNC_ID};
   uint8_t buff[4];
 
   buff[0] = cmd.data[0];
@@ -806,10 +805,12 @@ void ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
   buff[2] = cmd.data[2];
   buff[3] = cmd.data[3];
 
-  event.length = 4;
-  event.data = buff;
+  event_tmp.length = 4;
+  event_tmp.data = buff;
 
-  hmi.Send(event);
+  hmi.Send(event_tmp);
+
+  return E_SUCCESS;
 }
 
 void ToolHeadLaser::Process() {

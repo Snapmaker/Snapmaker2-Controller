@@ -131,8 +131,8 @@ class ToolHeadLaser: public ModuleBase {
 
     ErrCode SendSecurityStatus();
     ErrCode SetAutoFocusLight(SSTP_Event_t &event);
-    void SetOnlineSyncId(SSTP_Event_t &event);
-    void GetOnlineSyncId(SSTP_Event_t &event);
+    ErrCode SetOnlineSyncId(SSTP_Event_t &event);
+    ErrCode GetOnlineSyncId(SSTP_Event_t &event);
     void Process();
 
     uint32_t mac(uint8_t sub_index = 0) { return canhost.mac(mac_index_); }
