@@ -1648,7 +1648,7 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   tmp_i16 = (int16_t)tmp_f32;
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
-  if (ModuleBase::toolhead() == MACHINE_TYPE_LASER) {
+  if (ModuleBase::toolhead() == MACHINE_TYPE_LASER || ModuleBase::toolhead() == MACHINE_TYPE_LASER_10W) {
     // laser power
     tmp_u32 = (uint32_t)(laser->power() * 1000);
   } else if (ModuleBase::toolhead() == MACHINE_TYPE_CNC) {
