@@ -142,7 +142,11 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   state_     = TOOLHEAD_LASER_STATE_OFF;
 
   // set toolhead
-  SetToolhead(MODULE_TOOLHEAD_LASER);
+  if (laser->device_id_ == MODULE_DEVICE_ID_LASER) {
+    SetToolhead(MODULE_TOOLHEAD_LASER);
+  } else if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER) {
+    SetToolhead(MODULE_TOOLHEAD_LASER_10W);
+  }
 
   return E_SUCCESS;
 }
