@@ -811,7 +811,14 @@ ErrCode ToolHeadLaser::SetOnlineSyncId(SSTP_Event_t &event) {
   cmd.data      = can_buffer;
   cmd.length    = 5;
 
-  return canhost.SendStdCmd(cmd);
+  canhost.SendStdCmd(cmd);
+
+  SSTP_Event_t event_hmi = {EID_SETTING_ACK, SETTINGS_OPC_SET_ONLINE_SYNC_ID};
+  uint8_t buff[1] = {0};
+  event_hmi.length = 1;
+  event_hmi.data = buff;
+
+  return hmi.Send(event_hmi);
 }
 
 ErrCode ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
