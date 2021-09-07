@@ -237,15 +237,19 @@ int PowerLossRecovery::Load(void)
 		WriteIndex = (tmpIndex + 1) % TotalCount;
 		LOG_I("PL: next write index: %u\n", WriteIndex);
 
+        // NOTE that: Used to calculate whether to clear the next pages.
+        // The next page needs to be emptied in advance,
+        // otherwise the empty block will not be found when the machine restarts after the last block is used.
+		tmpIndex = (WriteIndex + 1) % TotalCount;
 		// check if need to erase flash page
-		if ((WriteIndex % RECORD_COUNT_PER_PAGE) == 0)
+		if (((tmpIndex) % RECORD_COUNT_PER_PAGE) == 0)
 		{
 			// NOTE that: when WriteIndex point to the 2nd or 3rd pages firstly, this will be executed at every power-on.
 			// Because its previous block is not free, that is to say, the start flag is not 0xffffffff
 			// Though this may be executed many times, the flash is only erased when it is not empty.
 			// So it's no need to check if we need to erase flash at every power-on. Just do it.
 			FLASH_Unlock();
-			addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+			addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
 			FLASH_ErasePage(addr);
 			FLASH_Lock();
 
