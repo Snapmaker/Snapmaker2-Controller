@@ -70,6 +70,8 @@ static void CallbackAckReportSecurity(CanStdDataFrame_t &cmd) {
   laser->roll_ = (cmd.data[3] << 8) | cmd.data[4];
   laser->laser_temperature_ = cmd.data[5];
 
+  laser->need_to_tell_hmi_ = true;
+
   if (laser->security_status_ != 0) {
     laser->need_to_turnoff_laser_ = true;
     if (systemservice.GetCurrentStage() == SYSTAGE_WORK || systemservice.GetCurrentStage() == SYSTAGE_PAUSE) {
@@ -745,6 +747,16 @@ ErrCode ToolHeadLaser::SetAutoFocusLight(SSTP_Event_t &event) {
   return canhost.SendStdCmdSync(cmd, 2000);
 }
 
+ErrCode ToolHeadLaser::GetSecurityStatus() {
+  CanStdFuncCmd_t cmd;
+
+  cmd.id        = MODULE_FUNC_REPORT_SECURITY_STATUS;
+  cmd.data      = NULL;
+  cmd.length    = 0;
+
+  return canhost.SendStdCmd(cmd);
+}
+
 ErrCode ToolHeadLaser::SendSecurityStatus() {
   SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_SECURITY_STATUS};
   uint8_t buff[6];
@@ -822,6 +834,15 @@ void ToolHeadLaser::Process() {
   if (++timer_in_process_ < 100) return;
   timer_in_process_ = 0;
 
-  TurnoffLaserIfNeeded();
+  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER) {
+    if (need_to_tell_hmi_) {
+      need_to_tell_hmi_ = false;
+      SendSecurityStatus();
+      LOG_I("security_state: %x, temp: %d, roll: %d, pitch: %d", laser->security_status_,     laser->laser_temperature_, laser->roll_, laser->pitch_);
+    }
+
+    TurnoffLaserIfNeeded();
+  }
+
   TryCloseFan();
 }
