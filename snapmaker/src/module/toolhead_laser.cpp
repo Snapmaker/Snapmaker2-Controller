@@ -836,6 +836,8 @@ ErrCode ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
     return ret;
   }
 
+  LOG_I("get online sync id: 0x%x\n", (cmd.data[0] | cmd.data[1] << 8 | cmd.data[2] << 16 | cmd.data[3] << 24));
+
   SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_SET_ONLINE_SYNC_ID};
   uint8_t buff[4];
 
