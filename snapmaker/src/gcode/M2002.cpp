@@ -25,5 +25,20 @@
 #include "../module/toolhead_laser.h"
 
 void GcodeSuite::M2002() {
-  laser->GetSecurityStatus();
+  const bool seen_s = parser.seenval('S');
+  if (seen_s) {
+    laser->GetSecurityStatus();
+  }
+
+  const bool seen_l = parser.seenval('L');
+  if (seen_l) {
+    uint8_t state = (uint8_t)parser.byteval('L', (uint8_t)0);;
+    SSTP_Event_t event;
+    event.op_code = 2;
+    event.data = &state;
+    event.length = 1;
+    event.id = 9;
+
+    laser->SetAutoFocusLight(event);
+  }
 }
