@@ -187,9 +187,9 @@ class ToolHeadLaser: public ModuleBase {
 
   public:
     uint8_t security_status_;
-    uint16_t roll_;
-    uint16_t pitch_;
-    uint8_t laser_temperature_;
+    int16_t roll_;
+    int16_t pitch_;
+    int8_t laser_temperature_;
     bool need_to_turnoff_laser_;
     bool need_to_tell_hmi_;
 };
