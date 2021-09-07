@@ -41,4 +41,27 @@ void GcodeSuite::M2002() {
 
     laser->SetAutoFocusLight(event);
   }
+
+  const bool seen_y = parser.seenval('Y');
+  if (seen_y) {
+    uint32_t id = (uint32_t)parser.byteval('Y', (uint32_t)0);
+    SSTP_Event_t event;
+    event.op_code = 2;
+    event.data = (uint8_t *)&id;
+    event.length = 4;
+    event.id = 9;
+
+    laser->SetOnlineSyncId(event);
+  }
+
+  const bool seen_g = parser.seenval('G');
+  if (seen_g) {
+    SSTP_Event_t event;
+    event.op_code = 2;
+    event.data = NULL;
+    event.length = 0;
+    event.id = 9;
+
+    laser->GetOnlineSyncId(event);
+  }
 }
