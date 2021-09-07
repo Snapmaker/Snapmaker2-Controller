@@ -49,8 +49,11 @@
 
 
 #define FLASH_PAGE_SIZE				2048
+#define RECORD_SIZE (sizeof(PowerLossRecoveryData_t) + 8)  // size of one record, prefix 8 bytes
 #define FLASH_RECORD_PAGES		(MARLIN_POWERPANIC_SIZE / 2048)
-#define RECORD_COUNT_PER_PAGE	(FLASH_PAGE_SIZE / (sizeof(PowerLossRecoveryData_t) + 8))
+#define RECORD_COUNT_PER_PAGE	(FLASH_PAGE_SIZE / (RECORD_SIZE))
+
+#define RECORD_START_ADDR(index) ((index / RECORD_COUNT_PER_PAGE) * 2048 + (index % RECORD_COUNT_PER_PAGE) * RECORD_SIZE + FLASH_MARLIN_POWERPANIC)
 
 PowerLossRecovery pl_recovery;
 
@@ -121,13 +124,11 @@ int PowerLossRecovery::Load(void)
 	uint32_t i;
 	uint32_t tmpIndex;
 	uint32_t addr;
-	uint32_t RecordSize;
 	uint32_t TotalCount;
 	uint32_t Flag;
   int ret = 0;
 
 	// size of one record, prefix 8 bytes
-	RecordSize = (sizeof(PowerLossRecoveryData_t) + 8);
 
 	// total records which can be saved
 	TotalCount = RECORD_COUNT_PER_PAGE * FLASH_RECORD_PAGES;
@@ -136,7 +137,7 @@ int PowerLossRecovery::Load(void)
 	// find the first free block
 	for (i = 0; i < TotalCount; i++) {
 		// start addr for every record
-		addr = (i / RECORD_COUNT_PER_PAGE) * 2048 + (i % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+		addr = RECORD_START_ADDR(i);
 
 		// read the start flag
 		Flag = *((uint32_t*)addr);
@@ -154,7 +155,7 @@ int PowerLossRecovery::Load(void)
 	for (i = 0; i < TotalCount; i++)
 	{
 		// start address of one block
-		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+		addr = RECORD_START_ADDR(tmpIndex);
 		Flag = *((uint32_t*)addr);
 
 		// if its start flag is not 0xffffffff, it is a non-free block
@@ -184,7 +185,7 @@ int PowerLossRecovery::Load(void)
 		// arrive here we may have avalible power-loss data
 
 		// check firstly whether this block is masked
-		addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 4 + FLASH_MARLIN_POWERPANIC;
+		addr = RECORD_START_ADDR(tmpIndex) + 4;
 		Flag = *((uint32_t*)addr);
 		if(Flag != 0x5555) {
 			// alright, this block has been masked by Screen
@@ -196,7 +197,7 @@ int PowerLossRecovery::Load(void)
 		else {
 			// Good, it seems we have new power-loss data, have a look at whether it is available
 			// read the data to buffer
-			addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 8 + FLASH_MARLIN_POWERPANIC;
+			addr = RECORD_START_ADDR(tmpIndex) + 8;
 			pSrcBuff = (uint8_t*)addr;
 			pDstBuff = (uint8_t*)&pre_data_;
 			for (i = 0; i < sizeof(PowerLossRecoveryData_t); i++)
@@ -220,7 +221,7 @@ int PowerLossRecovery::Load(void)
 
 				// anyway, we mask this block
 				FLASH_Unlock();
-				addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 4 + FLASH_MARLIN_POWERPANIC;
+				addr = RECORD_START_ADDR(tmpIndex) + 4;
 				FLASH_ProgramWord(addr, 0);
 				FLASH_Lock();
 				// make data to be invalid
@@ -249,7 +250,7 @@ int PowerLossRecovery::Load(void)
 			// Though this may be executed many times, the flash is only erased when it is not empty.
 			// So it's no need to check if we need to erase flash at every power-on. Just do it.
 			FLASH_Unlock();
-			addr = (tmpIndex / RECORD_COUNT_PER_PAGE) * 2048 + (tmpIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+			addr = RECORD_START_ADDR(tmpIndex);
 			FLASH_ErasePage(addr);
 			FLASH_Lock();
 
@@ -266,22 +267,19 @@ int PowerLossRecovery::Load(void)
 void PowerLossRecovery::WriteFlash(void)
 {
   uint32_t addr;
-	uint32_t RecordSize;
 	uint32_t u32data;
 	uint8_t *pBuff;
 
-  //记录大小
-  RecordSize = (sizeof(PowerLossRecoveryData_t) + 8);
   pBuff = (uint8_t *)&cur_data_;
 
 	//写一半标识
-	addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC;
+	addr = RECORD_START_ADDR(WriteIndex);
 	u32data = 0x5555;
 	FLASH_Unlock();
 	FLASH_ProgramWord(addr, u32data);
 
 	//地址
-	addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + 8 + FLASH_MARLIN_POWERPANIC;
+	addr = RECORD_START_ADDR(WriteIndex) + 8;
 
 	for(uint32_t i=0;i<sizeof(PowerLossRecoveryData_t);i=i+4)
 	{
@@ -291,7 +289,7 @@ void PowerLossRecovery::WriteFlash(void)
 	}
 
 	//写完整标识
-	addr = (WriteIndex / RECORD_COUNT_PER_PAGE) * 2048 + (WriteIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC + 4;
+	addr = RECORD_START_ADDR(WriteIndex) + 4;
 	u32data = 0x5555;
 	FLASH_ProgramWord(addr, u32data);
 	FLASH_Lock();
@@ -319,20 +317,17 @@ void PowerLossRecovery::ClearPowerPanicData(void)
  */
 void PowerLossRecovery::MaskPowerPanicData(void)
 {
-	uint32_t RecordSize;
 	uint32_t TotalCount;
 	uint32_t addr;
 	uint16_t preIndex;
 
-	//记录大小
-	RecordSize = (sizeof(PowerLossRecoveryData_t) + 8);
 	//记录总空间
 	TotalCount = RECORD_COUNT_PER_PAGE * FLASH_RECORD_PAGES;
 
 	preIndex = (WriteIndex + TotalCount - 1) % TotalCount;
 
 	//计算地址
-	addr = (preIndex / RECORD_COUNT_PER_PAGE) * 2048 + (preIndex % RECORD_COUNT_PER_PAGE) * RecordSize + FLASH_MARLIN_POWERPANIC + 4;
+	addr = RECORD_START_ADDR(preIndex) + 4;
 	FLASH_Unlock();
 	FLASH_ProgramWord(addr, 0);
 	FLASH_Lock();
