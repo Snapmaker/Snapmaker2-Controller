@@ -745,7 +745,20 @@ ErrCode ToolHeadLaser::SetAutoFocusLight(SSTP_Event_t &event) {
   cmd.data      = can_buffer;
   cmd.length    = 1;
 
-  return canhost.SendStdCmdSync(cmd, 2000);
+
+  uint8_t buff[1];
+
+  if (canhost.SendStdCmdSync(cmd, 2000) == E_SUCCESS) {
+    buff[0] = 0;
+  } else {
+    buff[0] = 1;
+  }
+
+  SSTP_Event_t event_hmi = {EID_SETTING_ACK, SETTINGS_OPC_SET_AUTOFOCUS_LIGHT};
+  event_hmi.length = 1;
+  event_hmi.data = buff;
+
+  return hmi.Send(event_hmi);
 }
 
 ErrCode ToolHeadLaser::GetSecurityStatus() {
