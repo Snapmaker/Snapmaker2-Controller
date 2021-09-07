@@ -100,6 +100,7 @@ class ToolHeadLaser: public ModuleBase {
       security_status_ = 0;
       laser_temperature_ = 0;
       need_to_turnoff_laser_ = false;
+      need_to_tell_hmi_ = false;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -129,6 +130,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode ReadBluetoothVer();
     void SetCameraLight(uint8_t state);
 
+    ErrCode GetSecurityStatus();
     ErrCode SendSecurityStatus();
     ErrCode SendPauseStatus();
     ErrCode SetAutoFocusLight(SSTP_Event_t &event);
@@ -165,7 +167,6 @@ class ToolHeadLaser: public ModuleBase {
     uint8_t  mac_index_;
 
     uint16_t timer_in_process_;
-
     ToolHeadLaserState  state_;
 
     float power_val_;
@@ -190,6 +191,7 @@ class ToolHeadLaser: public ModuleBase {
     uint16_t pitch_;
     uint8_t laser_temperature_;
     bool need_to_turnoff_laser_;
+    bool need_to_tell_hmi_;
 };
 
 

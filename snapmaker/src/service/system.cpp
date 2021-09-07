@@ -152,6 +152,9 @@ ErrCode SystemService::PreProcessStop() {
     laser->TurnOff();
     is_waiting_gcode = false;
     is_laser_on = false;
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
+      SendSecurityStatus();
+    }
   }
   gocde_pack_start_line(0);
   return E_SUCCESS;
@@ -1698,11 +1701,20 @@ ErrCode SystemService::SendException(uint32_t fault) {
 }
 
 ErrCode SystemService::SendSecurityStatus () {
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
     laser->SendSecurityStatus();
   }
 
   return E_SUCCESS;
+}
+
+ErrCode SystemService::SendPause() {
+  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_PAUSE};
+
+  event.length = 0;
+  event.data = NULL;
+
+  return hmi.Send(event);
 }
 
 ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
@@ -2215,7 +2227,7 @@ ErrCode SystemService::CallbackPostQS(QuickStopSource source) {
 
   case QS_SOURCE_SECURITY:
     // notify HMI
-    laser->SendPauseStatus();
+    SendPause();
 
     LOG_I("Finish handle protection\n");
     break;

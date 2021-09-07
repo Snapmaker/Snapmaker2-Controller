@@ -265,6 +265,7 @@ public:
   ErrCode SendStatus(SSTP_Event_t &event);
   ErrCode SendException(SSTP_Event_t &event);
   ErrCode SendSecurityStatus();
+  ErrCode SendPause();
   ErrCode ChangeSystemStatus(SSTP_Event_t &event);
   ErrCode SendLastLine(SSTP_Event_t &event);
   ErrCode ClearException(SSTP_Event_t &event);

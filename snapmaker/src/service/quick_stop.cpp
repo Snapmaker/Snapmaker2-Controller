@@ -320,6 +320,7 @@ void QuickStopService::EmergencyStop() {
       printer1->SetFan(0, 0);
       break;
     case MACHINE_TYPE_LASER:
+    case MACHINE_TYPE_LASER_10W:
       laser->SetCameraLight(0);
       laser->SetFanPower(0);
       break;
