@@ -898,6 +898,8 @@ private:
 
   static void M2001();
 
+  static void M2002();
+
   static void T(const uint8_t tool_index);
 
 };
