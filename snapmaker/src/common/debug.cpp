@@ -198,17 +198,6 @@ void SnapDebug::CmdChecksumError(bool screen) {
 
 // show system debug info
 void SnapDebug::ShowInfo() {
-  // Log(SNAP_DEBUG_LEVEL_INFO, "systat: %d\n", systemservice.GetCurrentStatus());
-  // Log(SNAP_DEBUG_LEVEL_INFO, "SC chksum error: %u\n", info.screen_cmd_checksum_err);
-  // Log(SNAP_DEBUG_LEVEL_INFO, "Last recv line: %d\n", systemservice.current_line());
-  // Log(SNAP_DEBUG_LEVEL_INFO, "Last ack line: %d\n", info.last_line_num_of_sc_gcode);
-  // Log(SNAP_DEBUG_LEVEL_INFO, "Last st line: %d\n", pl_recovery.LastLine());
-  // Log(SNAP_DEBUG_LEVEL_INFO, "Fault: 0x%08X, action ban: 0x%X, power ban: 0x%X\n",
-  //       systemservice.GetFaultFlag(), action_ban, power_ban);
-  // Log(SNAP_DEBUG_LEVEL_INFO, "Homing: 0x%X, axes_known: 0x%X\n", axis_homed, axis_known_position);
-  // Log(SNAP_DEBUG_LEVEL_INFO, "active coordinate: %d\n", gcode.active_coordinate_system);
-  // Log(SNAP_DEBUG_LEVEL_INFO, "coordinate 1: X: %.3f, Y: %.3f, Z: %.3f, B: %.3f\n",
-  //     gcode.coordinate_system[0][X_AXIS], gcode.coordinate_system[0][Y_AXIS], gcode.coordinate_system[0][Z_AXIS], gcode.coordinate_system[0][B_AXIS]);
 
   SERIAL_ECHOPAIR("systat: ", systemservice.GetCurrentStatus(), "\n");
   SERIAL_ECHOPAIR("SC checksum error: ", info.screen_cmd_checksum_err, "\n");

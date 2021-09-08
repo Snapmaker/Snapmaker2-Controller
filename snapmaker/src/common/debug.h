@@ -56,8 +56,6 @@ enum GcodeState : uint8_t {
 #if (SNAP_DEBUG)
 
 // massage will output to this interface
-// #define CONSOLE_OUTPUT(log) MYSERIAL0.print(log)
-// #define CONSOLE_OUTPUT(log) MYSERIAL0.print(log)
 #define CONSOLE_OUTPUT(log) MYSERIAL0.print_directly(log)
 
 // log buffer size, max length for one debug massage
