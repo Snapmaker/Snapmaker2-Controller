@@ -92,6 +92,7 @@ void GcodeSuite::M1006() {
     break;
 
   case MODULE_TOOLHEAD_LASER:
+  case MODULE_TOOLHEAD_LASER_10W:
     SERIAL_ECHOLN("LASER");
     SERIAL_ECHO("Current Status: ");
     SERIAL_ECHOLN((laser->state() == TOOLHEAD_LASER_STATE_ON)? "ON" : "OFF");

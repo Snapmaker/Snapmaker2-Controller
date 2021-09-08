@@ -351,6 +351,7 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
 
   case MODULE_TOOLHEAD_CNC:
   case MODULE_TOOLHEAD_LASER:
+  case MODULE_TOOLHEAD_LASER_10W:
     if (enclosure.DoorOpened()) {
       LOG_E("Door is opened!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
@@ -384,6 +385,7 @@ ErrCode SystemService::ResumeProcess() {
     break;
 
   case MODULE_TOOLHEAD_LASER:
+  case MODULE_TOOLHEAD_LASER_10W:
     resume_laser();
     break;
 
@@ -445,13 +447,14 @@ ErrCode SystemService::ResumeOver() {
 
   case MODULE_TOOLHEAD_CNC:
   case MODULE_TOOLHEAD_LASER:
+  case MODULE_TOOLHEAD_LASER_10W:
     if (enclosure.DoorOpened()) {
       LOG_E("Door is opened, please close the door!\n");
       PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
       return E_DOOR_OPENED;
     }
 
-    if (MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) {
+    if ((MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) || (MODULE_TOOLHEAD_LASER_10W == ModuleBase::toolhead())) {
       if (pl_recovery.cur_data_.laser_pwm > 0)
         laser->TurnOn();
     }
@@ -594,6 +597,7 @@ ErrCode SystemService::StartWork(TriggerSource s) {
     break;
 
   case MODULE_TOOLHEAD_LASER:
+  case MODULE_TOOLHEAD_LASER_10W:
     is_laser_on = false;
     is_waiting_gcode = false;
   case MODULE_TOOLHEAD_CNC:
@@ -1710,9 +1714,10 @@ ErrCode SystemService::SendSecurityStatus () {
 
 ErrCode SystemService::SendPause() {
   SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_PAUSE};
+  uint8_t buff[1] = {0};
 
-  event.length = 0;
-  event.data = NULL;
+  event.length = 1;
+  event.data = buff;
 
   return hmi.Send(event);
 }
@@ -2010,7 +2015,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 
   case RENV_TYPE_LASER_POWER:
     LOG_I("new laser power: %.2f\n", param);
-    if (MODULE_TOOLHEAD_LASER != ModuleBase::toolhead()) {
+    if ((MODULE_TOOLHEAD_LASER != ModuleBase::toolhead()) && (MODULE_TOOLHEAD_LASER_10W != ModuleBase::toolhead())) {
       ret = E_INVALID_STATE;
       break;
     }
@@ -2171,7 +2176,7 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
     // make sure laser is off
     // won't turn off laser in pl_recovery.SaveEnv(), it's call by stepper ISR
     // because it may call CAN transmisson function
-    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+    if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W)) {
       laser->TurnOff();
     }
     break;
@@ -2226,8 +2231,13 @@ ErrCode SystemService::CallbackPostQS(QuickStopSource source) {
     break;
 
   case QS_SOURCE_SECURITY:
+    FinishSystemStatusChange(SYSCTL_OPC_PAUSE, 0);
+    pause_source_ = TRIGGER_SOURCE_NONE;
+
+    LOG_I("Finish pause\n\n");
+    cur_status_ = SYSTAT_PAUSE_FINISH;
     // notify HMI
-    SendPause();
+    // SendPause();
 
     LOG_I("Finish handle protection\n");
     break;

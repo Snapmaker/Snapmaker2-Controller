@@ -27,7 +27,12 @@
 void GcodeSuite::M2002() {
   const bool seen_s = parser.seenval('S');
   if (seen_s) {
-    laser->GetSecurityStatus();
+    SSTP_Event_t event;
+    event.op_code = 2;
+    event.data = NULL;
+    event.length = 0;
+    event.id = 9;
+    laser->GetSecurityStatus(event);
   }
 
   const bool seen_l = parser.seenval('L');

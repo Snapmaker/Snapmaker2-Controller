@@ -761,14 +761,12 @@ ErrCode ToolHeadLaser::SetAutoFocusLight(SSTP_Event_t &event) {
   return hmi.Send(event_hmi);
 }
 
-ErrCode ToolHeadLaser::GetSecurityStatus() {
+ErrCode ToolHeadLaser::GetSecurityStatus(SSTP_Event_t &event) {
   CanStdFuncCmd_t cmd;
 
   cmd.id        = MODULE_FUNC_REPORT_SECURITY_STATUS;
   cmd.data      = NULL;
   cmd.length    = 0;
-
-  LOG_I("get security status\n");
   return canhost.SendStdCmd(cmd);
 }
 
@@ -838,7 +836,7 @@ ErrCode ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
 
   LOG_I("get online sync id: 0x%x\n", (cmd.data[0] | cmd.data[1] << 8 | cmd.data[2] << 16 | cmd.data[3] << 24));
 
-  SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_SET_ONLINE_SYNC_ID};
+  SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_GET_ONLINE_SYNC_ID};
   uint8_t buff[4];
 
   buff[0] = cmd.data[0];

@@ -493,6 +493,10 @@ static ErrCode SetGcodeToPackMode(SSTP_Event_t &event) {
   return E_SUCCESS;
 }
 
+static ErrCode GetSecurityStatus(SSTP_Event_t &event) {
+  return laser->GetSecurityStatus(event);
+}
+
 EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* [SYSCTL_OPC_GET_STATUES]        =  */{EVENT_ATTR_DEFAULT,      SendStatus},
@@ -513,6 +517,7 @@ EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
   /* [SYSCTL_OPC_SET_GCODE_PACK_MODE]     =  */{EVENT_ATTR_DEFAULT,      SetGcodeToPackMode},
+  /* [SYSCTL_OPC_GET_SECURITY_STATUS] = */{EVENT_ATTR_DEFAULT,      GetSecurityStatus},
 };
 
 
@@ -620,8 +625,8 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize},
   /* [SETTINGS_OPC_GET_IS_LEVELED]         =  */{EVENT_ATTR_DEFAULT,      IsLeveled},
   /* [SETTINGS_OPC_SET_AUTOFOCUS_LIGHT]    =  */{EVENT_ATTR_DEFAULT,      SetAutoFocusLight},
-  /* [SETTINGS_OPC_GET_ONLINE_SYNC_ID]     =  */{EVENT_ATTR_DEFAULT,      SetOnlineSyncId},
-  /* [SETTINGS_OPC_SET_ONLINE_SYNC_ID]     =  */{EVENT_ATTR_DEFAULT,      GetOnlineSyncId},
+  /* [SETTINGS_OPC_GET_ONLINE_SYNC_ID]     =  */{EVENT_ATTR_DEFAULT,      GetOnlineSyncId},
+  /* [SETTINGS_OPC_SET_ONLINE_SYNC_ID]     =  */{EVENT_ATTR_DEFAULT,      SetOnlineSyncId},
   /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize}
 };
 
