@@ -378,6 +378,7 @@ int PowerLossRecovery::SaveEnv(void) {
 		break;
 
 	case MODULE_TOOLHEAD_LASER:
+	case MODULE_TOOLHEAD_LASER_10W:
 		cur_data_.laser_percent = laser->power();
 		cur_data_.laser_pwm = laser->power_pwm();
 	break;
@@ -607,6 +608,7 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		break;
 
 	case MODULE_TOOLHEAD_LASER:
+	case MODULE_TOOLHEAD_LASER_10W:
 		if (enclosure.DoorOpened()) {
 			LOG_E("trigger RESTORE: failed, door is open\n");
 			return E_DOOR_OPENED;

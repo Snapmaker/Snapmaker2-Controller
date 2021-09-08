@@ -130,7 +130,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode ReadBluetoothVer();
     void SetCameraLight(uint8_t state);
 
-    ErrCode GetSecurityStatus();
+    ErrCode GetSecurityStatus(SSTP_Event_t &event);
     ErrCode SendSecurityStatus();
     ErrCode SendPauseStatus();
     ErrCode SetAutoFocusLight(SSTP_Event_t &event);

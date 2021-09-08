@@ -370,7 +370,7 @@ void Stepper::set_directions() {
     else {                                      \
       A##_APPLY_DIR(!INVERT_## A##_DIR, false); \
       count_direction[_AXIS(A)] = 1;            \
-    } 
+    }
 
   #else
   #define SET_STEP_DIR(A)                       \
@@ -381,7 +381,7 @@ void Stepper::set_directions() {
     else {                                      \
       A##_APPLY_DIR(!A##_DIR, false); \
       count_direction[_AXIS(A)] = 1;            \
-    } 
+    }
   #endif // DISABLED(SW_MACHINE_SIZE)
 
   #if HAS_X_DIR
@@ -2076,7 +2076,7 @@ void Stepper::StepperBind8PinPort(uint8_t axis, uint8_t port) {
   }
 
   if ((axis == E_AXIS && port != PORT_8PIN_1) &&
-       (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER ||
+       (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER || ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W ||
        ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC)) {
       LOG_E("Failed: CNC and Laser E axis must be bind at 1 port\n");
     return;
@@ -2177,7 +2177,7 @@ void Stepper::init() {
   #if HAS_B_ENABLE
     B_ENABLE_INIT;
   #endif
-  
+
 
   #define _STEP_INIT(AXIS) AXIS ##_STEP_INIT
   #define _WRITE_STEP(AXIS, HIGHLOW) AXIS ##_STEP_WRITE(HIGHLOW)

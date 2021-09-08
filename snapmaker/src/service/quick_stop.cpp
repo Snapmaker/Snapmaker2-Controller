@@ -161,6 +161,7 @@ bool QuickStopService::CheckInISR(block_t *blk) {
       break;
 
     case QS_SOURCE_POWER_LOSS:
+    case QS_SOURCE_SECURITY:
     case QS_SOURCE_PAUSE:
       state_ = QS_STA_SAVED_ENV;
       break;
@@ -245,6 +246,7 @@ void QuickStopService::Park() {
     break;
 
   case MODULE_TOOLHEAD_LASER:
+  case MODULE_TOOLHEAD_LASER_10W:
     // In the case of laser, we don't raise Z.
     if (source_ == QS_SOURCE_STOP) {
       move_to_limited_z(Z_MAX_POS, 30);
@@ -294,7 +296,7 @@ void QuickStopService::TurnOffPower() {
 
   BreathLightClose();
 
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+  if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W)) {
       laser->TurnOff();
   }
 }
@@ -302,7 +304,7 @@ void QuickStopService::TurnOffPower() {
 void QuickStopService::HandleProtection() {
   if (source_ != QS_SOURCE_SECURITY) return;
 
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) {
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
       // don't do nothing
   }
 }

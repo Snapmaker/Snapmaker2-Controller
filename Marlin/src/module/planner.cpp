@@ -1711,7 +1711,7 @@ bool Planner::_buffer_steps(const int32_t (&target)[X_TO_E]
     // As there are no queued movements, the Stepper ISR will not touch this
     // variable, so there is no risk setting this here (but it MUST be done
     // before the following line!!)
-    if (MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) {
+    if ((MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) || (MODULE_TOOLHEAD_LASER_10W == ModuleBase::toolhead())) {
       // Laser greyscale is special case that queue only have one item is normal.
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;
@@ -2666,7 +2666,7 @@ void Planner::buffer_sync_block() {
     // As there are no queued movements, the Stepper ISR will not touch this
     // variable, so there is no risk setting this here (but it MUST be done
     // before the following line!!)
-    if (MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) {
+    if ((MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) || (MODULE_TOOLHEAD_LASER_10W == ModuleBase::toolhead())) {
       // Laser greyscale is special case that queue only have one item is normal.
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;
