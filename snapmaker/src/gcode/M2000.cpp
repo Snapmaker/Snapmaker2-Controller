@@ -51,14 +51,14 @@ void GcodeSuite::M2000() {
   switch (s) {
   case 0:
     SNAP_DEBUG_SHOW_INFO();
-    SERIAL_ECHOLN("position_shift:\n");
-    SERIAL_ECHOPAIR("X: ", position_shift[X_AXIS], "Y: ", position_shift[Y_AXIS], "Z: ", position_shift[Z_AXIS], "B: ", position_shift[B_AXIS], "\n");
-    SERIAL_ECHOLN("home_offset:\n");
-    SERIAL_ECHOPAIR("X: ", home_offset[X_AXIS], "Y: ", home_offset[Y_AXIS], "Z: ", home_offset[Z_AXIS], "B: ", home_offset[B_AXIS], "\n");
-    SERIAL_ECHOLN("workspace_offset:\n");
-    SERIAL_ECHOPAIR("X: ", workspace_offset[X_AXIS], "Y: ", workspace_offset[Y_AXIS], "Z: ", workspace_offset[Z_AXIS], "B: ", workspace_offset[B_AXIS], "\n");
-    SERIAL_ECHOLN("cur position:\n");
-    SERIAL_ECHOPAIR("X: ", current_position[X_AXIS], "Y: ", current_position[Y_AXIS], "Z: ", current_position[Z_AXIS], "B: ", current_position[B_AXIS], "\n");
+    SERIAL_ECHOPAIR("position_shift:\n");
+    SERIAL_ECHOPAIR("X: ", position_shift[X_AXIS], ", Y: ", position_shift[Y_AXIS], ", Z: ", position_shift[Z_AXIS], ", B: ", position_shift[B_AXIS], "\n");
+    SERIAL_ECHOPAIR("home_offset:\n");
+    SERIAL_ECHOPAIR("X: ", home_offset[X_AXIS], ", Y: ", home_offset[Y_AXIS], ", Z: ", home_offset[Z_AXIS], ", B: ", home_offset[B_AXIS], "\n");
+    SERIAL_ECHOPAIR("workspace_offset:\n");
+    SERIAL_ECHOPAIR("X: ", workspace_offset[X_AXIS], ", Y: ", workspace_offset[Y_AXIS], ", Z: ", workspace_offset[Z_AXIS], ", B: ", workspace_offset[B_AXIS], "\n");
+    SERIAL_ECHOPAIR("cur position:\n");
+    SERIAL_ECHOPAIR("X: ", current_position[X_AXIS], ", Y: ", current_position[Y_AXIS], ", Z: ", current_position[Z_AXIS], ", B: ", current_position[B_AXIS], "\n");
     break;
 
   case 1:

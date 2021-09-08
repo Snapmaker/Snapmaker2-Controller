@@ -198,14 +198,18 @@ void SnapDebug::CmdChecksumError(bool screen) {
 
 // show system debug info
 void SnapDebug::ShowInfo() {
+  char tmp_buf[100];
 
   SERIAL_ECHOPAIR("systat: ", systemservice.GetCurrentStatus(), "\n");
   SERIAL_ECHOPAIR("SC checksum error: ", info.screen_cmd_checksum_err, "\n");
   SERIAL_ECHOPAIR("Last recv line: ", systemservice.current_line(), "\n");
   SERIAL_ECHOPAIR("Last ack line: ", info.last_line_num_of_sc_gcode, "\n");
   SERIAL_ECHOPAIR("Last st line: ", pl_recovery.LastLine(), "\n");
-  SERIAL_ECHOPAIR("Fault: 0x", systemservice.GetFaultFlag(), "action ban: 0x", action_ban, "power ban: 0x", power_ban, "\n");
-  SERIAL_ECHOPAIR("Homing: 0x", axis_homed, "axes_known: 0x", axis_known_position, "\n");
+  sprintf(tmp_buf, "Fault: 0x%08X, action ban: 0x%X, power ban: 0x%X\n",
+        (int)systemservice.GetFaultFlag(), (int)action_ban, (int)power_ban);
+  SERIAL_ECHOPAIR(tmp_buf);
+  sprintf(tmp_buf, "Homing: 0x%X, axes_known: 0x%X\n", axis_homed, axis_known_position);
+  SERIAL_ECHOPAIR(tmp_buf);
   SERIAL_ECHOPAIR("active coordinate: ", gcode.active_coordinate_system, "\n");
   SERIAL_ECHOPAIR("coordinate 1: X: ", gcode.coordinate_system[0][X_AXIS], "Y: ", gcode.coordinate_system[0][Y_AXIS], "Z: ", gcode.coordinate_system[0][Z_AXIS], "B: ", gcode.coordinate_system[0][B_AXIS], "\n");
 }
