@@ -41,16 +41,12 @@ void GcodeSuite::M1005() {
   int  i;
 
   // version in code
-  LOG_I("%s %s\n", MSG_MARLIN, SHORT_BUILD_VERSION);
-  LOG_I("Compiled: %s, %s\n", __DATE__, __TIME__);
-
-  SERIAL_ECHOPAIR(MSG_MARLIN, SHORT_BUILD_VERSION, "\n");
+  SERIAL_ECHOPAIR(MSG_MARLIN," ", SHORT_BUILD_VERSION, "\n");
   SERIAL_ECHOPAIR("Compiled: ", __DATE__, ", ", __TIME__, "\n");
 
   // version in package
   memcpy(buffer, (char*)(FLASH_BOOT_PARA + 2048), 30);
-
-  SERIAL_ECHOPAIR(MSG_MARLIN_PACK, buffer, "\n");
+  SERIAL_ECHOPAIR(MSG_MARLIN_PACK, ": ", buffer, "\n");
 
 
   // version of modules

@@ -533,17 +533,17 @@ void CanHost::ShowModuleVersion(MAC_t mac) {
     return;
 
   // version of modules
-  LOG_I("Module 0x%08X:", mac.bits.id);
-  SERIAL_ECHOPAIR("Module 0x", mac.bits.id, "\n");
+  sprintf(buffer, "Module 0x%08X: ", (int)mac.bits.id);
+  SERIAL_ECHOPAIR(buffer);
   cmd.data = (uint8_t *)buffer;
   cmd.mac     = mac;
   cmd.data[0] = MODULE_EXT_CMD_VERSION_REQ;
   cmd.length  = 1;
   if (canhost.SendExtCmdSync(cmd, 500) != E_SUCCESS) {
-    LOG_I("failed or failed to get ver\n");
+    SERIAL_ECHOPAIR("failed or failed to get ver\n");
   } else {
     buffer[cmd.length] = 0;
-    LOG_I(" %s\n",  buffer+2);
+    SERIAL_ECHOPAIR(buffer+2, "\n");
   }
 }
 
