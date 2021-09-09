@@ -57,7 +57,6 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
   // ok, we have enough bytes, now find SOF
   // if no SOF in all available bytes, return with same state
   do {
-    c = rb_safe_remove(rb);
       if (c == SSTP_PDU_SOF_H) {
         c = rb_safe_remove(rb);
         if (c == SSTP_PDU_SOF_L) {
@@ -66,6 +65,9 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
         else {
           continue;
         }
+      }
+      else {
+        c = rb_safe_remove(rb);
       }
   } while (c != -1);
 
