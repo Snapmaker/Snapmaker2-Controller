@@ -356,6 +356,9 @@ static ErrCode DoAutoFocusing(SSTP_Event_t &event) {
   return laser.DoAutoFocusing(event);
 }
 
+static ErrCode IsLeveled(SSTP_Event_t &event) {
+  return levelservice.IsLeveled(event);
+}
 
 static ErrCode ChangeRuntimeEnv(SSTP_Event_t &event) {
   return systemservice.ChangeRuntimeEnv(event);
@@ -390,7 +393,8 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
-  /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize}
+  /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize},
+  /* [SETTINGS_OPC_GET_IS_LEVELED]         =  */{EVENT_ATTR_DEFAULT,      IsLeveled},
 };
 
 

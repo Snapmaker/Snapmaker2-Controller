@@ -45,6 +45,7 @@ class BedLevelService {
     ErrCode AdjustZOffsetInLeveling(SSTP_Event_t &event);
     ErrCode SaveAndExitLeveling(SSTP_Event_t &event);
     ErrCode ExitLeveling(SSTP_Event_t &event);
+    ErrCode IsLeveled(SSTP_Event_t &event);
     ErrCode SyncPointIndex(uint8_t index);
 
     ErrCode UpdateLiveZOffset(float offset);

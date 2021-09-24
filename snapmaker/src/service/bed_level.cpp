@@ -353,6 +353,17 @@ ErrCode BedLevelService::ExitLeveling(SSTP_Event_t &event) {
   return hmi.Send(event);
 }
 
+ErrCode BedLevelService::IsLeveled(SSTP_Event_t &event) {
+  uint8_t level_status = z_values[0][0] != DEFAUT_LEVELING_HEIGHT;;
+
+  LOG_I("SC req is leveled:%d\n", level_status);
+
+  event.data = &level_status;
+  event.length = 1;
+
+  return hmi.Send(event);
+}
+
 
 ErrCode BedLevelService::SyncPointIndex(uint8_t index) {
   SSTP_Event_t event = {EID_SETTING_ACK, SETTINGS_OPC_SYNC_LEVEL_POINT};
