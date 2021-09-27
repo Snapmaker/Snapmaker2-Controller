@@ -37,6 +37,7 @@ class RingBuffer {
     size_ = size;
     head_ = 0;
     tail_ = 0;
+    is_full_ = false;
     data = buffer;
   }
 
@@ -49,6 +50,10 @@ class RingBuffer {
     if (++tail_ >= size_)
       tail_ = 0;
 
+    if (tail_ == head_) {
+      is_full_ = true;
+    }
+
     return 1;
   }
 
@@ -60,7 +65,18 @@ class RingBuffer {
     val = data[head_];
     if (++head_ >= size_)
       head_ = 0;
+    is_full_ = false;
+    return 1;
+  }
 
+  int32_t RemoveOne() {
+    if (IsEmpty()) {
+      return 0;
+    }
+
+    if (++head_ >= size_)
+      head_ = 0;
+    is_full_ = false;
     return 1;
   }
 
@@ -78,6 +94,9 @@ class RingBuffer {
         tail_ = 0;
     }
 
+    if (tail_ == size_) {
+      is_full_ = true;
+    }
     return to_insert;
   }
 
@@ -100,38 +119,46 @@ class RingBuffer {
         head_ = 0;
       }
     }
-
+    is_full_ = false;
     return to_remove;
   }
 
   // compiler will treat the functions who have body defined
   // in Class as inline function by default
   bool IsFull() {
-    return (tail_ + 1 == head_) || ((tail_ + 1) == size_ && head_ == 0);
+    return is_full_;
   }
 
   bool IsEmpty() {
-    return head_ == tail_;
+    return (head_ == tail_) && (!is_full_);
   }
 
   int32_t Available() {
     int32_t delta = (int32_t)(tail_ - head_);
+    if (delta == 0 && is_full_) {
+      return size_;
+    }
     return (delta < 0)? (delta + size_) : delta;
   }
 
   int32_t Free() {
     int32_t delta = (int32_t)(tail_ - head_);
+    if (is_full_) {
+      return 0;
+    }
     return (delta >= 0)? (size_ - delta) : -delta;
   }
 
   void Reset() {
     head_ = tail_ = 0;
+    is_full_ = false;
   }
 
  private:
   int32_t size_;
   int32_t head_;
   int32_t tail_;
+  bool is_full_;
   T *data;
 };
 
