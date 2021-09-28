@@ -746,7 +746,10 @@ void get_available_commands() {
  */
 void advance_command_queue() {
 
-  if (!commands_in_queue) return;
+  if (!commands_in_queue) {
+    vTaskDelay(pdMS_TO_TICKS(1));
+    return;
+  }
 
   gcode.process_next_command();
 
