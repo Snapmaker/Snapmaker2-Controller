@@ -22,7 +22,7 @@
 #define SNAPMAKER_EVENT_HANDLER_H_
 
 #include "../common/error.h"
-
+#include "src/Marlin.h"
 #include "uart_host.h"
 
 // event IDs
@@ -38,6 +38,10 @@
 // status query
 #define EID_SYS_CTRL_REQ      7
 #define EID_SYS_CTRL_ACK      8
+
+// gcode pack from file
+#define EID_FILE_GCODE_PACK_REQ    0x13
+#define EID_FILE_GCODE_PACK_ACK    0x14
 
 enum SysControlOpc: uint8_t {
   SYSCTL_OPC_UNUSED_0 = 0,
@@ -56,6 +60,7 @@ enum SysControlOpc: uint8_t {
   SYSCTL_OPC_SET_LOG_LEVEL = 0xF,
 
   SYSCTL_OPC_TRANS_LOG,
+  SYSCTL_OPC_SET_GCODE_PACK_MODE = 0x12,
 
   SYSCTL_OPC_MAX
 };
@@ -221,12 +226,23 @@ struct DispatcherParam {
   MessageBufferHandle_t event_queue;
 };
 
-typedef struct DispatcherParam* DispatcherParam_t;
+typedef struct {
+  uint16_t length;
+  uint16_t cursor;
+  uint32_t start_line_num;
+  uint32_t end_line_num;
+  char buf[HMI_GCODE_PACK_SIZE];
+} HmiGcodeBufNode_t;
 
+typedef struct DispatcherParam* DispatcherParam_t;
+void event_handler_init();
 ErrCode DispatchEvent(DispatcherParam_t param);
 void clear_hmi_gcode_queue();
 void ack_gcode_event(uint8_t event_id, uint32_t line);
-
+void gocde_pack_start_line(uint32_t line);
+uint32_t gocde_pack_start_line();
+bool hmi_gcode_pack_mode();
+void check_and_request_gcode_again();
 extern bool Screen_send_ok[];
 
 extern UartHost hmi;

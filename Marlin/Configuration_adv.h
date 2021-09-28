@@ -1187,6 +1187,10 @@
 #define HMI_BUFSIZE 8
 #define INVALID_CMD_LINE  0xFFFFFFFFU
 
+// The cache size used when transferring Gcode in bulk
+#define HMI_GCODE_PACK_SIZE 512
+#define HMI_GCODE_PACK_BUF_COUNT 2
+
 // Transmission to Host Buffer Size
 // To save 386 bytes of PROGMEM (and TX_BUFFER_SIZE+3 bytes of RAM) set to 0.
 // To buffer a simple "ok" you need 4 bytes.

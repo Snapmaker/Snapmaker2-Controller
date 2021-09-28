@@ -154,7 +154,7 @@ ErrCode SystemService::PreProcessStop() {
     is_waiting_gcode = false;
     is_laser_on = false;
   }
-
+  gocde_pack_start_line(0);
   return E_SUCCESS;
 }
 
@@ -1499,8 +1499,10 @@ ErrCode SystemService::CheckIfSendWaitEvent() {
   ErrCode err;
 
   if (GetCurrentStatus() == SYSTAT_WORK) {
-    // and no movement planned
-    if(!planner.movesplanned()) {
+    if (hmi_gcode_pack_mode()) {
+      check_and_request_gcode_again();
+    }
+    else if(!planner.movesplanned()) { // and no movement planned
       if ((hmi_cmd_timeout() + 1000) > millis()) {
         return E_SUCCESS;
       }
@@ -1734,7 +1736,8 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
         else {
           current_line_ = 0;
         }
-
+        // Batch sending requires the controller to actively request the next line
+        gocde_pack_start_line(current_line_ + 1);
         SNAP_DEBUG_SET_GCODE_LINE(current_line_);
         LOG_I("RESUME over\n");
         return E_SUCCESS;
@@ -1871,6 +1874,8 @@ ErrCode SystemService::RecoverFromPowerLoss(SSTP_Event_t &event) {
         current_line_ =  pl_recovery.cur_data_.FilePosition - 1;
       else
         current_line_ = 0;
+      // Batch sending requires the controller to actively request the next line
+      gocde_pack_start_line(current_line_ + 1);
       SNAP_DEBUG_SET_GCODE_LINE(current_line_);
       pl_recovery.SaveCmdLine(pl_recovery.cur_data_.FilePosition);
       LOG_I("trigger RESTORE: ok\n");
