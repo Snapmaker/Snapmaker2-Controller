@@ -40,6 +40,9 @@
 
 void reset_homeoffset();
 
+void set_min_planner_speed();
+void reset_min_planner_speed();
+
 void stop();
 
 void idle(
