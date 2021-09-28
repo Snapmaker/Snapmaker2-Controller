@@ -80,6 +80,75 @@ uint32_t CommandLine[BUFSIZE] = { INVALID_CMD_LINE };
 
 extern uint8_t cmd_queue_index_w; // Ring buffer write position
 
+//
+// Gcode is the variable used for bulk transfer
+//
+RingBuffer<HmiGcodeBufNode_t> hmi_gcode_pack_buffer;
+bool wait_req_next_pack = false;  // Wait for the buffer to be free before requesting the next packet
+bool is_wait_gcode_pack = false;
+bool is_hmi_gcode_pack_mode = false;
+uint32_t next_pack_start_line_num = 0;
+uint32_t gcode_pack_req_timeout = 0;
+
+
+void hmi_gcode_pack_mode(bool mode) {
+  is_hmi_gcode_pack_mode = mode;
+}
+
+bool hmi_gcode_pack_mode() {
+  return is_hmi_gcode_pack_mode;
+}
+
+void event_handler_init() {
+  HmiGcodeBufNode_t *tmp = (HmiGcodeBufNode_t *)pvPortMalloc(HMI_GCODE_PACK_BUF_COUNT * sizeof(HmiGcodeBufNode_t));
+  if (!tmp) {
+    LOG_E("Failed to apply for gcode buf\n");
+    return;
+  }
+  memset(tmp, 0, sizeof(HMI_GCODE_PACK_BUF_COUNT * sizeof(HmiGcodeBufNode_t)));
+  hmi_gcode_pack_buffer.Init(HMI_GCODE_PACK_BUF_COUNT, tmp);
+}
+
+void releas_current_buffer() {
+  hmi_gcode_pack_buffer.RemoveOne();
+  if (wait_req_next_pack) {
+    wait_req_next_pack = false;
+    ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+  }
+}
+
+char * get_command_from_pack(uint32_t &line_num) {
+  if (hmi_gcode_pack_buffer.IsEmpty()) {
+    return NULL;
+  }
+  HmiGcodeBufNode_t *head = hmi_gcode_pack_buffer.HeadAddress();
+  char *ret = &head->buf[head->cursor];
+  // Remove '\n' and ';'
+  while ( (((*ret) == '\n') || ((*ret) == ';')) && (head->cursor < head->length) ) {
+    ret++;
+    head->cursor++;
+    if (((*ret) == '\n')) {
+      head->start_line_num++;
+    }
+  }
+
+  if (head->cursor == head->length) {
+    releas_current_buffer();
+    return NULL;
+  }
+
+  while (head->cursor < head->length) {
+    if (head->buf[++head->cursor] == '\n') {
+      head->buf[head->cursor++] = 0;
+      break;
+    }
+  }
+  line_num = head->start_line_num++;
+  if (head->cursor == head->length) {
+    releas_current_buffer();
+  }
+  return ret;
+}
 
 /**
  *SC20 queue the gcdoe
@@ -105,6 +174,20 @@ void enqueue_hmi_to_marlin() {
 
     hmi_cmd_queue_index_r = (hmi_cmd_queue_index_r + 1) % HMI_BUFSIZE;
     hmi_commands_in_queue--;
+    commands_in_queue++;
+  }
+
+  uint32_t line_num = 0;
+  while (commands_in_queue < BUFSIZE && (!hmi_gcode_pack_buffer.IsEmpty())) {
+    char *cmd = get_command_from_pack(line_num);
+    if (!cmd) {
+      continue;
+    }
+    strcpy(command_queue[cmd_queue_index_w], cmd);
+    Screen_send_ok[cmd_queue_index_w] = false;
+    CommandLine[cmd_queue_index_w] = line_num;
+    send_ok[cmd_queue_index_w] = false;
+    cmd_queue_index_w = (cmd_queue_index_w + 1) % BUFSIZE;
     commands_in_queue++;
   }
 }
@@ -163,12 +246,22 @@ bool ok_to_HMI() {
   return Screen_send_ok[cmd_queue_index_r];
 }
 
+// The line number requested when transferring Gcode in bulk
+void gocde_pack_start_line(uint32_t line) {
+  next_pack_start_line_num = line;
+}
+uint32_t gocde_pack_start_line() {
+  return next_pack_start_line_num;
+}
+
 
 /**
  * Clear the Marlin command queue
  */
 void clear_hmi_gcode_queue() {
   hmi_cmd_queue_index_r = hmi_cmd_queue_index_w = hmi_commands_in_queue = 0;
+  hmi_gcode_pack_buffer.Reset();
+  is_wait_gcode_pack = false;
 }
 
 
@@ -182,10 +275,27 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
   WORD_TO_PDU_BYTES(buffer, line);
 
   SNAP_DEBUG_SET_GCODE_LINE(line);
-
+  is_wait_gcode_pack = true;
+  gcode_pack_req_timeout = millis();
   hmi.Send(event);
 }
 
+void check_and_request_gcode_again() {
+  if (is_wait_gcode_pack) {
+    if ((gcode_pack_req_timeout + 1000) > millis()) {
+      return;
+    }
+    gcode_pack_req_timeout = millis();
+    LOG_E("wait gcode pack timeout and req:%d\n", gocde_pack_start_line());
+    ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+    if(!planner.movesplanned()) { // and no movement planned
+      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && laser.tim_pwm() > 0) {
+        systemservice.is_laser_on = true;
+        laser.TurnOff();
+      }
+    }
+  }
+}
 
 static ErrCode HandleGcode(uint8_t *event_buff, uint16_t size) {
   event_buff[size] = 0;
@@ -251,6 +361,79 @@ static ErrCode HandleFileGcode(uint8_t *event_buff, uint16_t size) {
   return E_SUCCESS;
 }
 
+static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
+  uint32_t start_line, end_line;
+  uint16_t recv_line_count = 0, line_count = 0;
+
+  SysStatus   cur_sta = systemservice.GetCurrentStatus();
+  WorkingPort port = systemservice.GetWorkingPort();
+
+  if (port != WORKING_PORT_SC) {
+    LOG_E("working port is not SC for file gcode!\n");
+    return E_INVALID_STATE;
+  }
+
+  if (cur_sta != SYSTAT_WORK && cur_sta != SYSTAT_RESUME_WAITING) {
+    LOG_E("not handle file Gcode in this status: %u\n", cur_sta);
+    return E_INVALID_STATE;
+  }
+
+  // checkout the line number
+  #define LINE_TYPE_SIZE 4
+  PDU_TO_LOCAL_WORD(start_line, event_buff+1);
+  PDU_TO_LOCAL_WORD(end_line, event_buff+1+LINE_TYPE_SIZE);
+  line_count = end_line - start_line + 1;
+  if (start_line != next_pack_start_line_num) {
+    LOG_E("request line[%u],but recv[%d]\n", next_pack_start_line_num, start_line);
+    return E_INVALID_STATE;
+  }
+  uint16_t data_head_index = (1 + 2*LINE_TYPE_SIZE);
+  event_buff[size] = 0;
+  for (uint16_t i = data_head_index; i < size; i++) {
+    if (event_buff[i] == '\n') {
+      recv_line_count++;
+    }
+  }
+  if (recv_line_count != line_count) {
+    LOG_E("Lines number check fail:%u - %u\n", line_count, recv_line_count);
+    return E_INVALID_STATE;
+  }
+
+  if ((size - data_head_index) > HMI_GCODE_PACK_SIZE) {
+    LOG_E("The package size should be less than %u!\n", HMI_GCODE_PACK_SIZE);
+    return E_INVALID_STATE;
+  }
+
+  if (hmi_gcode_pack_buffer.IsFull()) {
+    LOG_E("Gcode pack buf full!\n");
+    return E_INVALID_STATE;
+  }
+
+  // Avoid defining large local variables, so request space directly from the queue
+  HmiGcodeBufNode_t *gcode_buf = hmi_gcode_pack_buffer.TailAddress();
+  gcode_buf->start_line_num = start_line;
+  gcode_buf->end_line_num = end_line;
+  gcode_buf->length = size - data_head_index;
+  gcode_buf->cursor = 0;
+  memcpy(gcode_buf->buf, event_buff+data_head_index, gcode_buf->length);
+  //  The memory data has been modified so no more assignment is required
+  hmi_gcode_pack_buffer.InsertOne();
+  gocde_pack_start_line(end_line + 1);
+  if (hmi_gcode_pack_buffer.IsFull()) {
+    wait_req_next_pack = true;
+  } else {
+    wait_req_next_pack = false;
+    ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+  }
+  is_wait_gcode_pack = false;
+  if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && systemservice.is_laser_on) {
+    systemservice.is_laser_on = false;
+    laser.TurnOn();
+  }
+
+  return E_SUCCESS;
+}
+
 
 static ErrCode SendStatus(SSTP_Event_t &event) {
   // won't send status to HMI while upgrading external module
@@ -294,6 +477,17 @@ static ErrCode SetLogLevel(SSTP_Event_t &event) {
   return debug.SetLogLevel(event);
 }
 
+static ErrCode SetGcodeToPackMode(SSTP_Event_t &event) {
+  uint8_t status = 0;
+  event.data = &status;
+  event.length = 1;
+  hmi.Send(event);
+  hmi_gcode_pack_mode(true);
+  // The controller is required to actively request the line number
+  ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+  return E_SUCCESS;
+}
+
 EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* [SYSCTL_OPC_GET_STATUES]        =  */{EVENT_ATTR_DEFAULT,      SendStatus},
@@ -311,7 +505,9 @@ EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* [SYSCTL_OPC_GET_HOME_STATUS]    =  */{EVENT_ATTR_DEFAULT,      SendHomeAndCoordinateStatus},
   /* [SYSCTL_OPC_SET_LOG_LEVEL]      =  */{EVENT_ATTR_DEFAULT,      SetLogLevel},
-  UNDEFINED_CALLBACK
+  UNDEFINED_CALLBACK,
+  UNDEFINED_CALLBACK,
+  /* [SYSCTL_OPC_SET_GCODE_PACK_MODE]     =  */{EVENT_ATTR_DEFAULT,      SetGcodeToPackMode},
 };
 
 
@@ -329,7 +525,18 @@ static ErrCode SetManualLevelingPoint(SSTP_Event_t &event) {
 }
 
 static ErrCode AdjustZOffsetInLeveling(SSTP_Event_t &event) {
-  return levelservice.AdjustZOffsetInLeveling(event);
+  ErrCode ret;
+  if (is_hmi_gcode_pack_mode) {
+    clear_hmi_gcode_queue();
+    planner.synchronize();
+    gocde_pack_start_line(systemservice.current_line() + 1);
+    ret = levelservice.AdjustZOffsetInLeveling(event);
+    ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+  } else {
+    ret = levelservice.AdjustZOffsetInLeveling(event);
+  }
+
+  return ret;
 }
 
 static ErrCode SaveAndExitLeveling(SSTP_Event_t &event) {
@@ -783,6 +990,10 @@ ErrCode DispatchEvent(DispatcherParam_t param) {
     }
     else
       send_to_marlin = true;
+    break;
+
+  case EID_FILE_GCODE_PACK_REQ:
+    return HandleFileGcodePack(param->event_buff, param->size);
     break;
 
   case EID_SYS_CTRL_REQ:

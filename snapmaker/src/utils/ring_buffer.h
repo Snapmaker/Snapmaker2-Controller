@@ -57,6 +57,46 @@ class RingBuffer {
     return 1;
   }
 
+  int32_t InsertOne() {
+    if (IsFull()) {
+      return 0;
+    }
+
+    if (++tail_ >= size_)
+      tail_ = 0;
+
+    if (tail_ == head_) {
+      is_full_ = true;
+    }
+
+    return 1;
+  }
+
+  int32_t ReadOne(T &val) {
+    if (IsEmpty()) {
+      return 0;
+    }
+
+    val = data[head_];
+    return 1;
+  }
+
+  T * HeadAddress() {
+    if (IsEmpty()) {
+      return NULL;
+    }
+
+    return &data[head_];
+  }
+
+  T * TailAddress() {
+    if (IsFull()) {
+      return NULL;
+    }
+
+    return &data[tail_];
+  }
+
   int32_t RemoveOne(T &val) {
     if (IsEmpty()) {
       return 0;

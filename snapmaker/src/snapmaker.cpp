@@ -196,6 +196,7 @@ static void hmi_task(void *param) {
   configASSERT(dispather_param.event_buff);
 
   dispather_param.event_queue = task_param->event_queue;
+  event_handler_init();
 
   for (;;) {
     if(READ(SCREEN_DET_PIN)) {
