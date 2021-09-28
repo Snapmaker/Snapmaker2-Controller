@@ -271,6 +271,23 @@ uint32_t ABL_TEMP_POINTS_Y;
  * ******************************** FUNCTIONS ********************************
  * ***************************************************************************
  */
+void set_homeoffset() {
+  LOOP_XYZ(i) {
+    switch (linear_p->machine_size()) {
+      case MACHINE_SIZE_A150:
+        home_offset[i] = s_home_offset[i];
+        break;
+      case MACHINE_SIZE_A250:
+        home_offset[i] = m_home_offset[i];
+        break;
+      case MACHINE_SIZE_A350:
+        home_offset[i] = l_home_offset[i];
+        break;
+      default:
+        break;
+    }
+  }
+}
 
 void reset_homeoffset() {
   float s_home_offset_def[XN] = S_HOME_OFFSET_DEFAULT;
@@ -283,6 +300,8 @@ void reset_homeoffset() {
     l_home_offset[i] = l_home_offset_def[i];
   }
 
+  set_homeoffset();
+}
 
 void set_min_planner_speed() {
   switch (ModuleBase::toolhead()) {

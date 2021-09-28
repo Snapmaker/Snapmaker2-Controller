@@ -1895,7 +1895,8 @@ void MarlinSettings::postprocess() {
           EEPROM_READ(l_home_offset[i]);
         }
       }
-      reset_homeoffset();
+      set_homeoffset();
+
       _FIELD_TEST(print_min_planner_speed);
       EEPROM_READ(print_min_planner_speed);
       _FIELD_TEST(laser_min_planner_speed);
