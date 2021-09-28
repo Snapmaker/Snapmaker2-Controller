@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V71"
+#define EEPROM_VERSION "V72"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -298,6 +298,12 @@ typedef struct SettingsDataStruct {
   float m_home_offset[XN];
   float l_home_offset[XN];
   #endif
+
+  float print_min_planner_speed;
+  float laser_min_planner_speed;
+  float cnc_min_planner_speed;
+
+
 
 
   //
@@ -1138,6 +1144,12 @@ void MarlinSettings::postprocess() {
       }
     }
     #endif //ENABLED(SW_MACHINE_SIZE)
+    _FIELD_TEST(print_min_planner_speed);
+    EEPROM_WRITE(print_min_planner_speed);
+    _FIELD_TEST(laser_min_planner_speed);
+    EEPROM_WRITE(laser_min_planner_speed);
+    _FIELD_TEST(cnc_min_planner_speed);
+    EEPROM_WRITE(cnc_min_planner_speed);
 
     // save brightness of light bar
     //uint32_t lb_brightness = (uint32_t)lightbar.get_brightness();
@@ -1884,6 +1896,13 @@ void MarlinSettings::postprocess() {
         }
       }
       reset_homeoffset();
+      _FIELD_TEST(print_min_planner_speed);
+      EEPROM_READ(print_min_planner_speed);
+      _FIELD_TEST(laser_min_planner_speed);
+      EEPROM_READ(laser_min_planner_speed);
+      _FIELD_TEST(cnc_min_planner_speed);
+      EEPROM_READ(cnc_min_planner_speed);
+      set_min_planner_speed();
       #endif //ENABLED(SW_MACHINE_SIZE)
 
       //
@@ -2402,6 +2421,8 @@ void MarlinSettings::reset() {
   reset_homeoffset();
   #endif //ENABLED(SW_MACHINE_SIZE)
 
+  reset_min_planner_speed();
+
   GRID_MAX_POINTS_X = 3;
   GRID_MAX_POINTS_Y = 3;
 
@@ -2614,6 +2635,9 @@ void MarlinSettings::reset() {
         "  M205 B", LINEAR_UNIT(planner.settings.min_segment_time_us)
       , " S", LINEAR_UNIT(planner.settings.min_feedrate_mm_s)
       , " T", LINEAR_UNIT(planner.settings.min_travel_feedrate_mm_s)
+      , " P", print_min_planner_speed
+      , " L", laser_min_planner_speed
+      , " C", cnc_min_planner_speed
       #if ENABLED(JUNCTION_DEVIATION)
         , " J", LINEAR_UNIT(planner.junction_deviation_mm)
       #endif

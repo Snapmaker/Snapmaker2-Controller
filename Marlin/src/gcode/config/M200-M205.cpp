@@ -118,6 +118,9 @@ void GcodeSuite::M204() {
  *    B = Min Segment Time (µs)
  *    S = Min Feed Rate (units/s)
  *    T = Min Travel Feed Rate (units/s)
+ *    P = Min print planner speed (mm/s)
+ *    L = Min laser planner speed (mm/s)
+ *    C = Min cnc planner speed (mm/s)
  *    X = Max X Jerk (units/sec^2)
  *    Y = Max Y Jerk (units/sec^2)
  *    Z = Max Z Jerk (units/sec^2)
@@ -135,6 +138,13 @@ void GcodeSuite::M205() {
   #else
     #define XYZE_PARAM
   #endif
+  if (parser.seen("PLC" J_PARAM XYZE_PARAM)) {
+    if (parser.seen('P')) print_min_planner_speed = parser.value_float();
+    if (parser.seen('L')) laser_min_planner_speed = parser.value_float();
+    if (parser.seen('C')) cnc_min_planner_speed = parser.value_float();
+    set_min_planner_speed();
+  }
+
   if (!parser.seen("BST" J_PARAM XYZE_PARAM)) return;
 
   //planner.synchronize();

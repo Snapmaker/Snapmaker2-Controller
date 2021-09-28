@@ -36,6 +36,7 @@
 #include "purifier.h"
 
 // marlin headers
+#include "src/Marlin.h"
 #include "src/inc/MarlinConfig.h"
 #include "src/feature/bedlevel/abl/abl.h"
 #include "src/module/configuration_store.h"
@@ -312,6 +313,7 @@ void ModuleBase::SetToolhead(ModuleToolHeadType toolhead) {
   }
 
   toolhead_ = toolhead;
+  set_min_planner_speed();
   if (need_saved)
     settings.save();
 }
