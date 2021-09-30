@@ -22,6 +22,7 @@
 
 #include "../gcode.h"
 #include "../../module/printcounter.h"
+#include "../../../../snapmaker/src/service/system.h"
 
 #if ENABLED(EXTENSIBLE_UI)
   #include "../../lcd/extensible_ui/ui_api.h"
@@ -41,10 +42,12 @@ void GcodeSuite::M75() {
  * M76: Pause print timer
  */
 void GcodeSuite::M76() {
-  print_job_timer.pause();
-  #if ENABLED(EXTENSIBLE_UI)
-    ExtUI::onPrintTimerPaused();
-  #endif
+  SSTP_Event_t event;
+  event.id = EID_SYS_CTRL_REQ;
+  event.op_code = SYSCTL_OPC_PAUSE;
+  event.length = 0;
+  SERIAL_ECHOPAIR("MC REQ PAUSE\n");
+  systemservice.ChangeSystemStatus(event);
 }
 
 /**
