@@ -73,6 +73,7 @@ class QuickStopService {
     QuickStopSource source_ = QS_SOURCE_IDLE;
     QuickStopSource pre_source_ = QS_SOURCE_IDLE;
     bool wrote_flash_ = false;
+    bool  homing_is_interrupted_ = false;  // Homing process triggers stop
 };
 
 extern QuickStopService quickstop;

@@ -32,6 +32,7 @@
 #include "src/module/temperature.h"
 #include "src/module/printcounter.h"
 #include "src/feature/bedlevel/bedlevel.h"
+#include <src/gcode/gcode.h>
 #include HAL_PATH(src/HAL, HAL_watchdog_STM32F1.h)
 
 #define CNC_SAFE_HIGH_DIFF 30  // Bed to CNC head height. mm
@@ -57,7 +58,7 @@ void QuickStopService::Trigger(QuickStopSource new_source, bool from_isr /*=fals
     taskENTER_CRITICAL();
     DISABLE_TEMPERATURE_INTERRUPT();
   }
-
+  homing_is_interrupted_ = is_homing();
   if (new_source == QS_SOURCE_STOP_BUTTON) {
     source_ = new_source;
     state_ = QS_STA_STOPPED;
@@ -360,6 +361,9 @@ void QuickStopService::Process() {
     EmergencyStop();
   } else {
     // parking
+    if (homing_is_interrupted_) {
+      process_cmd_imd("G28");
+    }
     Park();
   }
 
@@ -379,7 +383,7 @@ void QuickStopService::Process() {
 
   // tell system controller we have parked
   systemservice.CallbackPostQS(source_);
-
+  homing_is_interrupted_ = false;
   state_ = QS_STA_IDLE;
   source_ = QS_SOURCE_IDLE;
   pre_source_ = QS_SOURCE_IDLE;

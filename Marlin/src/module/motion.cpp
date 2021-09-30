@@ -97,7 +97,7 @@ signed char home_dir_P[XN];
  *   Cleared whenever a stepper powers off, potentially losing its position.
  */
 uint8_t axis_homed, axis_known_position; // = 0
-
+bool axis_is_homing = false;
 // Relative Mode. Enable with G91, disable with G90.
 bool relative_mode; // = false;
 
@@ -1044,6 +1044,10 @@ void prepare_move_to_destination() {
   ) return;
 
   set_current_from_destination();
+}
+
+bool is_homing() {
+  return axis_is_homing;
 }
 
 bool axis_unhomed_error(const bool x/*=true*/, const bool y/*=true*/, const bool z/*=true*/) {

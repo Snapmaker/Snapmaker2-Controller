@@ -36,6 +36,7 @@
 
 // Axis homed and known-position states
 extern uint8_t axis_homed, axis_known_position;
+extern bool axis_is_homing;
 constexpr uint8_t xn_bits = _BV(X_AXIS) | _BV(Y_AXIS) | _BV(Z_AXIS) | _BV(B_AXIS);
 FORCE_INLINE bool all_axes_homed() { return (axis_homed & xn_bits) == xn_bits; }
 FORCE_INLINE bool all_axes_known() { return (axis_known_position & xn_bits) == xn_bits; }
@@ -69,6 +70,8 @@ extern float cartes[XN];
 #else
   #define XY_PROBE_FEEDRATE_MM_S PLANNER_XY_FEEDRATE()
 #endif
+
+bool is_homing();
 
 /**
  * Feed rates are often configured with mm/m
