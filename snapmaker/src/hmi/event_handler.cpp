@@ -290,9 +290,9 @@ void check_and_request_gcode_again() {
     LOG_E("wait gcode pack timeout and req:%d\n", gocde_pack_start_line());
     ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
     if(!planner.movesplanned()) { // and no movement planned
-      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && laser.tim_pwm() > 0) {
+      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && laser->tim_pwm() > 0) {
         systemservice.is_laser_on = true;
-        laser.TurnOff();
+        laser->TurnOff();
       }
     }
   }
@@ -429,7 +429,7 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
   is_wait_gcode_pack = false;
   if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && systemservice.is_laser_on) {
     systemservice.is_laser_on = false;
-    laser.TurnOn();
+    laser->TurnOn();
   }
 
   return E_SUCCESS;
@@ -515,9 +515,8 @@ EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   /* [SYSCTL_OPC_GET_HOME_STATUS]    =  */{EVENT_ATTR_DEFAULT,      SendHomeAndCoordinateStatus},
   /* [SYSCTL_OPC_SET_LOG_LEVEL]      =  */{EVENT_ATTR_DEFAULT,      SetLogLevel},
   UNDEFINED_CALLBACK,
-  UNDEFINED_CALLBACK,
-  /* [SYSCTL_OPC_SET_GCODE_PACK_MODE]     =  */{EVENT_ATTR_DEFAULT,      SetGcodeToPackMode},
   /* [SYSCTL_OPC_GET_SECURITY_STATUS] = */{EVENT_ATTR_DEFAULT,      GetSecurityStatus},
+  /* [SYSCTL_OPC_SET_GCODE_PACK_MODE]     =  */{EVENT_ATTR_DEFAULT,      SetGcodeToPackMode},
 };
 
 
@@ -619,15 +618,11 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_DO_FAST_CALIBRATION]    =  */{EVENT_ATTR_HAVE_MOTION,  DoAutoLeveling},
   /* [SETTINGS_OPC_SET_RUNTIME_ENV]        =  */{EVENT_ATTR_HAVE_MOTION,  ChangeRuntimeEnv},
   /* [SETTINGS_OPC_GET_RUNTIME_ENV]        =  */{EVENT_ATTR_DEFAULT,      GetRuntimeEnv},
-  UNDEFINED_CALLBACK,
-  UNDEFINED_CALLBACK,
-  UNDEFINED_CALLBACK,
-  /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize},
-  /* [SETTINGS_OPC_GET_IS_LEVELED]         =  */{EVENT_ATTR_DEFAULT,      IsLeveled},
   /* [SETTINGS_OPC_SET_AUTOFOCUS_LIGHT]    =  */{EVENT_ATTR_DEFAULT,      SetAutoFocusLight},
   /* [SETTINGS_OPC_GET_ONLINE_SYNC_ID]     =  */{EVENT_ATTR_DEFAULT,      GetOnlineSyncId},
   /* [SETTINGS_OPC_SET_ONLINE_SYNC_ID]     =  */{EVENT_ATTR_DEFAULT,      SetOnlineSyncId},
-  /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize}
+  /* [SETTINGS_OPC_GET_MACHINE_SIZE]       =  */{EVENT_ATTR_HAVE_MOTION,  GetMachineSize},
+  /* [SETTINGS_OPC_GET_IS_LEVELED]         =  */{EVENT_ATTR_DEFAULT,      IsLeveled},
 };
 
 

@@ -37,7 +37,7 @@
 #define EID_FILE_OP_ACK       6
 // status query
 #define EID_SYS_CTRL_REQ      7
-#define EID_SYS_CTRL_ACK      8      
+#define EID_SYS_CTRL_ACK      8
 
 // gcode pack from file
 #define EID_FILE_GCODE_PACK_REQ    0x13
@@ -58,9 +58,8 @@ enum SysControlOpc: uint8_t {
   SYSCTL_OPC_WAIT_EVENT = 0xC,
   SYSCTL_OPC_GET_HOME_STATUS = 0xE,
   SYSCTL_OPC_SET_LOG_LEVEL = 0xF,
+  SYSCTL_OPC_TRANS_LOG = 0x10,
   SYSCTL_OPC_SECURITY_STATUS = 0x11,
-
-  SYSCTL_OPC_TRANS_LOG,
   SYSCTL_OPC_SET_GCODE_PACK_MODE = 0x12,
 
   SYSCTL_OPC_MAX
