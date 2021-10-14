@@ -62,6 +62,21 @@
  */
 
 void GcodeSuite::M3_M4(const bool is_M4) {
+  float power = NAN; // nullable power
+  if (parser.seen('P'))
+    power = parser.value_float();
+  else if (parser.seen('S'))
+    power = parser.value_float() * 100.0f / 255.0f;
+  
+  if (laser->IsOnline()) {
+    // If no power given treat as non-inline
+    if (parser.seen('I') && !isnan(power)) {
+      laser->SetOutputInline(power);
+      return;
+    }
+
+    laser->InlineDisable();   // Disable planner laser control
+  }
 
   planner.synchronize();   // wait until previous movement commands (G0/G0/G2/G3) have completed before playing with the spindle
   if (quickstop.isPowerLoss()) {
@@ -74,16 +89,16 @@ void GcodeSuite::M3_M4(const bool is_M4) {
    */
 
   if(laser->IsOnline()) {
-    if(parser.seen('P')) {
-      laser->SetOutput(parser.value_float());
+    if(!isnan(power)) {
+      laser->SetOutput(power);
     }
     else {
       laser->TurnOn();
     }
   }
   else if(cnc.IsOnline()) {
-    if(parser.seen('P'))
-      cnc.SetOutput(parser.value_float());
+    if(!isnan(power))
+      cnc.SetOutput(power);
     else
       cnc.TurnOn();
   }
@@ -93,6 +108,15 @@ void GcodeSuite::M3_M4(const bool is_M4) {
  * M5 turn off spindle
  */
 void GcodeSuite::M5() {
+  if (laser->IsOnline()) {
+    if (parser.seen('I')) {
+        laser->SetOutputInline(0);
+        return;
+    }
+
+    laser->InlineDisable();   // Disable planner laser control
+  }
+  
   planner.synchronize();
   //set_spindle_laser_enabled(false);
   if(laser->IsOnline()) {

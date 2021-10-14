@@ -345,6 +345,17 @@ class Stepper {
     //
     static int8_t count_direction[NUM_AXIS];
 
+    //
+    // Laser Inline Power Trapezoids
+    //
+    typedef struct {
+      bool enabled;        // Trapezoid needed flag (i.e., laser on, planner in control)
+      uint16_t cur_power;  // Current laser power
+      bool cruise_set;     // Power set up for cruising?
+    } stepper_laser_t;
+
+    static stepper_laser_t laser_trap;
+
   public:
 
     //

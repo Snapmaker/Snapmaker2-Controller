@@ -255,13 +255,13 @@ void ToolHeadLaser::SetPower(float power) {
 
   power_val_ = power;
 
-  if (power > power_limit_)
-    power = power_limit_;
-
   integer = (int)power;
   decimal = power - integer;
 
   power_pwm_ = (uint16_t)(power_table_[integer] + (power_table_[integer + 1] - power_table_[integer]) * decimal);
+
+  if (power_pwm_ > power_limit_pwm_)
+    power_pwm_ = power_limit_pwm_;
 }
 
 
@@ -271,10 +271,12 @@ void ToolHeadLaser::SetPowerLimit(float limit) {
   if (limit > TOOLHEAD_LASER_POWER_NORMAL_LIMIT)
     limit = TOOLHEAD_LASER_POWER_NORMAL_LIMIT;
 
-  power_limit_ = limit;
+  // Compute limit PWM value
+  power_limit_pwm_ = 255;
+  SetPower(limit);
+  power_limit_pwm_ = power_pwm_;
 
-  SetPower(power_val_);
-  power_val_ = cur_power;
+  SetPower(cur_power);
 
   // check if we need to change current output
   if (state_ == TOOLHEAD_LASER_STATE_ON)
@@ -1009,4 +1011,26 @@ void ToolHeadLaser::Process() {
   }
 
   TryCloseFan();
+}
+
+
+void ToolHeadLaser::InlineDisable() {
+  planner.laser_inline.status.isEnabled = false;
+}
+
+
+void ToolHeadLaser::SetOutputInline(float power) {
+  CheckFan(power);
+  planner.laser_inline.status.isEnabled = true;
+
+  SetPower(power);
+  planner.laser_inline.power = power_pwm_;
+}
+
+
+void ToolHeadLaser::TurnOn_ISR(uint16_t power_pwm) {
+  if (power_pwm > power_limit_pwm_)
+    power_pwm = power_limit_pwm_;
+
+  TimSetPwm(power_pwm);
 }

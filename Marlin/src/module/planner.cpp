@@ -114,6 +114,8 @@ uint8_t Planner::delay_before_delivering;       // This counter delays delivery 
 
 planner_settings_t Planner::settings;           // Initialized by settings.load()
 
+laser_state_t Planner::laser_inline;            // Planner laser power for blocks
+
 uint32_t Planner::max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
 
 float Planner::steps_to_mm[X_TO_EN];           // (mm) Millimeters per step
@@ -765,6 +767,11 @@ void Planner::calculate_trapezoid_for_block(block_t* const block, const float &e
     block->cruise_rate = cruise_rate;
   #endif
   block->final_rate = final_rate;
+
+  /**
+   * Laser trapezoid: set entry power
+   */
+  block->laser.power_entry = block->laser.power * entry_factor;
 }
 
 /*                            PLANNER SPEED DEFINITION
@@ -1830,6 +1837,9 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
 
   // Clear all flags, including the "busy" bit
   block->flag = 0x00;
+
+  block->laser.status = laser_inline.status;
+  block->laser.power = laser_inline.power;
 
   // Set direction bits
   block->direction_bits = dm;

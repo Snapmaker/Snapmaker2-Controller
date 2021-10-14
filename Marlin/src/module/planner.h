@@ -74,6 +74,16 @@ enum BlockFlag : char {
   BLOCK_FLAG_SYNC_POSITION        = _BV(BLOCK_BIT_SYNC_POSITION)
 };
 
+typedef struct {
+  bool isEnabled:1;
+} laser_power_status_t;
+
+typedef struct {
+  laser_power_status_t status;
+  uint16_t power;            // When in trapezoid mode this is nominal power
+  uint16_t power_entry;      // Entry power for the laser
+} block_inline_laser_t;
+
 /**
  * struct block_t
  *
@@ -159,11 +169,25 @@ typedef struct block_t {
 
   uint32_t filePos;                       // position of gcode of this block in the file
 
+  block_inline_laser_t laser;
+
 } block_t;
 
 #define HAS_POSITION_FLOAT ANY(LIN_ADVANCE, SCARA_FEEDRATE_SCALING, GRADIENT_MIX)
 
 #define BLOCK_MOD(n) ((n)&(BLOCK_BUFFER_SIZE-1))
+
+typedef struct {
+  /**
+  uint32_t max_acceleration_mm_per_s2[X_TO_EN],  // (mm/s^2) M201 XYZE
+   * Laser status flags
+   */
+  laser_power_status_t status;
+  /**
+   * Laser power: 0 to 255;
+   */
+  uint16_t power;
+} laser_state_t;
 
 typedef struct {
   uint32_t max_acceleration_mm_per_s2[X_TO_EN],  // (mm/s^2) M201 XYZE
@@ -240,6 +264,8 @@ class Planner {
     #endif
     static bool is_user_set_lead;                        // M92 Specifies whether to use a user-defined value
     static planner_settings_t settings;
+    
+    static laser_state_t laser_inline;
 
     static uint32_t max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
     static float steps_to_mm[X_TO_EN];          // Millimeters per step
