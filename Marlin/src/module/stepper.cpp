@@ -99,6 +99,7 @@ Stepper stepper; // Singleton
 #include "../HAL/shared/Delay.h"
 #include "../../../snapmaker/src/module/emergency_stop.h"
 #include "../../../snapmaker/src/snapmaker.h"
+#include "../../../snapmaker/src/module/toolhead_laser.h"
 
 #if MB(ALLIGATOR)
   #include "../feature/dac/dac_dac084s085.h"
@@ -222,6 +223,12 @@ volatile int32_t Stepper::endstops_trigsteps[XYZ];
 
 volatile int32_t Stepper::count_position[NUM_AXIS] = { 0 };
 int8_t Stepper::count_direction[NUM_AXIS] = { 0, 0, 0, 0, 0 };
+
+Stepper::stepper_laser_t Stepper::laser_trap = {
+  .enabled = false,
+  .cur_power = 0,
+  .cruise_set = false
+};
 
 #define DUAL_ENDSTOP_APPLY_STEP(A,V)                                                                                        \
   if (separate_multi_axis) {                                                                                                \
@@ -1643,6 +1650,12 @@ uint32_t Stepper::stepper_block_phase_isr() {
           }
           else if (LA_steps) nextAdvanceISR = 0;
         #endif // LIN_ADVANCE
+
+        // Update laser - Accelerating
+        if (laser_trap.enabled) {
+          laser_trap.cur_power = (current_block->laser.power * acc_step_rate) / current_block->nominal_rate;
+          laser->TurnOn_ISR(laser_trap.cur_power);
+        }
       }
       // Are we in Deceleration phase ?
       else if (step_events_completed > decelerate_after) {
@@ -1691,6 +1704,12 @@ uint32_t Stepper::stepper_block_phase_isr() {
           }
           else if (LA_steps) nextAdvanceISR = 0;
         #endif // LIN_ADVANCE
+        
+        // Update laser - Decelerating
+        if (laser_trap.enabled) {
+          laser_trap.cur_power = (current_block->laser.power * step_rate) / current_block->nominal_rate;
+          laser->TurnOn_ISR(laser_trap.cur_power);
+        }
       }
       // We must be in cruise phase otherwise
       else {
@@ -1708,6 +1727,15 @@ uint32_t Stepper::stepper_block_phase_isr() {
 
         // The timer interval is just the nominal value for the nominal speed
         interval = ticks_nominal;
+
+        // Update laser - Cruising
+        if (laser_trap.enabled) {
+          if (!laser_trap.cruise_set) {
+            laser_trap.cur_power = current_block->laser.power;
+            laser->TurnOn_ISR(laser_trap.cur_power);
+            laser_trap.cruise_set = true;
+          }
+        }
       }
     }
   }
@@ -1888,6 +1916,13 @@ uint32_t Stepper::stepper_block_phase_isr() {
         #endif
         set_directions();
       }
+
+      // Set up inline laser power
+      laser_trap.enabled = current_block->laser.status.isEnabled;
+      laser_trap.cur_power = current_block->laser.power_entry; // RESET STATE
+      laser_trap.cruise_set = false;
+      if (laser_trap.enabled)
+        laser->TurnOn_ISR(laser_trap.cur_power);
 
       // At this point, we must ensure the movement about to execute isn't
       // trying to force the head against a limit switch. If using interrupt-

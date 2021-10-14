@@ -47,6 +47,7 @@ GcodeSuite gcode;
 
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
   #include "../../../snapmaker/src/module/module_base.h"
+  #include "../snapmaker/src/module/toolhead_laser.h"
 #endif
 
 #include "../Marlin.h" // for idle() and suspend_auto_report
@@ -125,6 +126,17 @@ void GcodeSuite::get_destination_from_command() {
   #if BOTH(MIXING_EXTRUDER, DIRECT_MIXING_IN_G1)
     M165();
   #endif
+
+  // Set the laser power in the planner to configure this move
+  float power = NAN; // nullable power
+  if (parser.seen('P'))
+    power = parser.value_float();
+  else if (parser.seen('S'))
+    power = parser.value_float() * 100.0f / 255.0f;
+  
+  // If no power given treat as non-inline
+  if (laser->IsOnline() && !isnan(power))
+    laser->SetOutputInline(power);
 }
 
 /**
@@ -315,6 +327,11 @@ void GcodeSuite::execute_command(void) {
         case 4: M3_M4(true ); break;                              // M4: turn spindle/laser on, set laser/spindle power/speed, set rotation direction CCW
         case 5: M5(); break;                                      // M5 - turn spindle/laser off
       #endif
+
+      // Coolant controls: Ignore silently
+      // case 7:
+      // case 8:
+      // case 9: break;
 
       #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
         case 12: M12(); break;                                    // M12: Synchronize and optionally force a CLC set

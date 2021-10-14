@@ -60,6 +60,7 @@
   #include "../snapmaker/src/module/toolhead_3dp.h"
   #include "../snapmaker/src/service/bed_level.h"
   #include "../snapmaker/src/module/linear.h"
+  #include "../snapmaker/src/module/toolhead_laser.h"
 #endif
 
 #if ENABLED(QUICK_HOME)
@@ -192,6 +193,10 @@ void GcodeSuite::G28(const bool always_home_all) {
   if (DEBUGGING(LEVELING)) {
     DEBUG_ECHOLNPGM(">>> G28");
     log_machine_info();
+  }
+  if (laser->IsOnline()) {
+    laser->InlineDisable();
+    laser->TurnOff();
   }
 
   #if ENABLED(DUAL_X_CARRIAGE)
