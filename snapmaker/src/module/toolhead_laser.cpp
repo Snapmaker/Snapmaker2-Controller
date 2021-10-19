@@ -852,6 +852,19 @@ ErrCode ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
   return E_SUCCESS;
 }
 
+ErrCode ToolHeadLaser::SetProtectTemp(SSTP_Event_t &event) {
+  CanStdFuncCmd_t cmd;
+  int8_t can_buffer[2];
+
+  can_buffer[0] = event.data[0];
+  can_buffer[1] = event.data[1];
+  cmd.id        = MODULE_FUNC_SET_PROTECT_TEMP;
+  cmd.data      = (uint8_t *)can_buffer;
+  cmd.length    = 2;
+
+  return canhost.SendStdCmd(cmd);
+}
+
 void ToolHeadLaser::Process() {
   if (++timer_in_process_ < 100) return;
   timer_in_process_ = 0;
