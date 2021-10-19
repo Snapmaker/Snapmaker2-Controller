@@ -37,7 +37,7 @@ void GcodeSuite::M2002() {
 
   const bool seen_l = parser.seenval('L');
   if (seen_l) {
-    uint8_t state = (uint8_t)parser.byteval('L', (uint8_t)0);;
+    uint8_t state = (uint8_t)parser.byteval('L', (uint8_t)0);
     SSTP_Event_t event;
     event.op_code = 2;
     event.data = &state;
@@ -68,5 +68,17 @@ void GcodeSuite::M2002() {
     event.id = 9;
 
     laser->GetOnlineSyncId(event);
+  }
+
+  const bool seen_t = parser.seenval('T');
+  if (seen_t) {
+    int8_t temp = (int8_t)parser.byteval('T', (int8_t)55);
+    SSTP_Event_t event;
+    event.op_code = 0x16;
+    event.data = (uint8_t *)&temp;
+    event.length = 1;
+    event.id = 9;
+
+    laser->SetProtectTemp(event);
   }
 }
