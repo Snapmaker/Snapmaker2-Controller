@@ -72,11 +72,12 @@ void GcodeSuite::M2002() {
 
   const bool seen_t = parser.seenval('T');
   if (seen_t) {
-    int8_t temp = (int8_t)parser.byteval('T', (int8_t)55);
+    int8_t buf[2] = {50, 20};
+    buf[0] = (int8_t)parser.byteval('T', (int8_t)55);
     SSTP_Event_t event;
     event.op_code = 0x16;
-    event.data = (uint8_t *)&temp;
-    event.length = 1;
+    event.data = (uint8_t *)buf;
+    event.length = 2;
     event.id = 9;
 
     laser->SetProtectTemp(event);
