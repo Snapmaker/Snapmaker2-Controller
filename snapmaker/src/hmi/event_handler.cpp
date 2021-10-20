@@ -143,7 +143,8 @@ char * get_command_from_pack(uint32_t &line_num) {
       break;
     }
   }
-  line_num = head->start_line_num++;
+  // The request line number starts at 0, and the file line starts from 1
+  line_num = ++head->start_line_num;
   if (head->cursor == head->length) {
     releas_current_buffer();
   }
