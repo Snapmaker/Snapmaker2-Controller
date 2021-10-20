@@ -126,6 +126,7 @@ typedef struct SettingsDataStruct {
   //
   uint8_t   esteppers;                                  // XYZE_N - XYZ
   uint8_t axis_to_port[X_TO_E];
+  bool is_user_set_lead;
   planner_settings_t planner_settings;
   #if ENABLED(BACKLASH_GCODE)
     float backlash_distance_mm[XN],
@@ -496,6 +497,7 @@ void MarlinSettings::postprocess() {
     EEPROM_WRITE(esteppers);
 
     EEPROM_WRITE(axis_to_port);
+    EEPROM_WRITE(planner.is_user_set_lead);
     //
     // Planner Motion
     //
@@ -1228,6 +1230,7 @@ void MarlinSettings::postprocess() {
       EEPROM_READ_ALWAYS(esteppers);
       EEPROM_READ_ALWAYS(axis_to_port);
 
+      EEPROM_READ(planner.is_user_set_lead);
       //
       // Planner Motion
       //
@@ -2115,6 +2118,7 @@ void MarlinSettings::reset() {
   LOOP_X_TO_EN(i) {
     axis_to_port[i] = temp_axis_to_port[i];
   }
+  planner.is_user_set_lead = false;
   LOOP_X_TO_EN(i) {
     planner.settings.axis_steps_per_mm[i]          = pgm_read_float(&tmp1[ALIM(i, tmp1)]);
     planner.settings.max_feedrate_mm_s[i]          = pgm_read_float(&tmp2[ALIM(i, tmp2)]);

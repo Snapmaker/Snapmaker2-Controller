@@ -85,6 +85,7 @@ void GcodeSuite::M92() {
       else {
         planner.settings.axis_steps_per_mm[i] = parser.value_per_axis_units((AxisEnum)i);
       }
+      planner.is_user_set_lead = true;
     }
   }
   planner.refresh_positioning();

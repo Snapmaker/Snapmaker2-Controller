@@ -293,7 +293,9 @@ ErrCode Linear::CheckModuleType() {
   }
 
   LOOP_XYZ(i) {
-    planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
+    if (!planner.is_user_set_lead) {
+      planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
+    }
     SERIAL_ECHOLNPAIR("axis index:", i, "  pitch:", planner.settings.axis_steps_per_mm[i]);
   }
 
