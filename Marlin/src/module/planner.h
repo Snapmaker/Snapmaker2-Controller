@@ -238,7 +238,7 @@ class Planner {
                    volumetric_multiplier[EXTRUDERS];  // Reciprocal of cross-sectional area of filament (in mm^2). Pre-calculated to reduce computation in the planner
                                                       // May be auto-adjusted by a filament width sensor
     #endif
-
+    static bool is_user_set_lead;                        // M92 Specifies whether to use a user-defined value
     static planner_settings_t settings;
 
     static uint32_t max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2

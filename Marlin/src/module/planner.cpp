@@ -117,7 +117,7 @@ planner_settings_t Planner::settings;           // Initialized by settings.load(
 uint32_t Planner::max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
 
 float Planner::steps_to_mm[X_TO_EN];           // (mm) Millimeters per step
-
+bool Planner::is_user_set_lead; 
 #if ENABLED(JUNCTION_DEVIATION)
   float Planner::junction_deviation_mm;       // (mm) M205 J
   #if ENABLED(LIN_ADVANCE)
