@@ -46,6 +46,7 @@ void GcodeSuite::M76() {
   event.id = EID_SYS_CTRL_REQ;
   event.op_code = SYSCTL_OPC_PAUSE;
   event.length = 0;
+  planner.synchronize();
   SERIAL_ECHOPAIR("MC REQ PAUSE\n");
   systemservice.ChangeSystemStatus(event);
 }

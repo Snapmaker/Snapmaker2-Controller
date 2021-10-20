@@ -116,10 +116,9 @@ ErrCode SystemService::PauseTrigger(TriggerSource type)
     // if we are waiting for heatup, abort the waiting
     wait_for_heatup = false;
     // save the command line of heating Gcode
-    pl_recovery.SaveCmdLine(CommandLine[cmd_queue_index_r]);
-
     taskEXIT_CRITICAL();
   }
+  pl_recovery.SaveCmdLine(CommandLine[cmd_queue_index_r]);
 
   // clear event in queue to marlin
   xMessageBufferReset(sm2_handle->event_queue);
