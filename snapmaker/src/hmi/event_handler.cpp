@@ -480,12 +480,16 @@ static ErrCode SetLogLevel(SSTP_Event_t &event) {
 
 static ErrCode SetGcodeToPackMode(SSTP_Event_t &event) {
   uint8_t status = 0;
+  uint8_t is_work = event.data[0];
   event.data = &status;
   event.length = 1;
   hmi.Send(event);
-  hmi_gcode_pack_mode(true);
-  // The controller is required to actively request the line number
-  ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+  if (is_work) {
+    hmi_gcode_pack_mode(true);
+    // The controller is required to actively request the line number
+    ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+  }
+
   return E_SUCCESS;
 }
 
