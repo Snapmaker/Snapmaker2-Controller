@@ -84,10 +84,10 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   ErrCode ret;
 
   CanExtCmd_t cmd;
-  uint8_t     func_buffer[2*7+2];
+  uint8_t     func_buffer[2*8+2];
 
   Function_t    function;
-  message_id_t  message_id[7];
+  message_id_t  message_id[8];
 
   if (axis_to_port[E_AXIS] != PORT_8PIN_1) {
     LOG_E("toolhead Laser failed: Please use the <M1029 E1> set E port\n");
