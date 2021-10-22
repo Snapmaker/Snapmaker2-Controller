@@ -152,9 +152,6 @@ ErrCode SystemService::PreProcessStop() {
     laser->TurnOff();
     is_waiting_gcode = false;
     is_laser_on = false;
-    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
-      SendSecurityStatus();
-    }
   }
   gocde_pack_start_line(0);
   return E_SUCCESS;
@@ -2187,6 +2184,7 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
 
   case QS_SOURCE_SECURITY:
     PreProcessStop();
+    SendSecurityStatus();
     break;
 
   default:
