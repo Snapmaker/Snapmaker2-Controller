@@ -33,9 +33,9 @@ def pack_minor_image(image_type, start_id, end_id, version, input, output):
 
     # Construct full version
     if image_type == MINOR_IMAGE_TYPE_CONTROLLER:
-        full_version = 'Snapmaker_{}'.format(version.upper()).encode('UTF-8')
+        full_version = 'Snapmaker_{}'.format(version).encode('UTF-8')
     else:
-        full_version = 'Snapmaker_{}_{}'.format(version.upper(), date).encode('UTF-8')
+        full_version = 'Snapmaker_{}_{}'.format(version, date).encode('UTF-8')
     if len(full_version) >= 32:
         version = version[:32]
     else:
