@@ -137,6 +137,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode SetOnlineSyncId(SSTP_Event_t &event);
     ErrCode GetOnlineSyncId(SSTP_Event_t &event);
     ErrCode SetProtectTemp(SSTP_Event_t &event);
+    ErrCode LaserControl(uint8_t state);
     void Process();
 
     uint32_t mac(uint8_t sub_index = 0) { return canhost.mac(mac_index_); }
