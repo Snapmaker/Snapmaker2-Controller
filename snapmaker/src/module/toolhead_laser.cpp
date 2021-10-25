@@ -84,10 +84,10 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   ErrCode ret;
 
   CanExtCmd_t cmd;
-  uint8_t     func_buffer[2*9+2];
+  uint8_t     func_buffer[2*10+2];
 
   Function_t    function;
-  message_id_t  message_id[9];
+  message_id_t  message_id[10];
 
   if (axis_to_port[E_AXIS] != PORT_8PIN_1) {
     LOG_E("toolhead Laser failed: Please use the <M1029 E1> set E port\n");
@@ -881,6 +881,29 @@ ErrCode ToolHeadLaser::LaserControl(uint8_t state) {
   if (ret != E_SUCCESS) {
     return ret;
   }
+}
+
+ErrCode ToolHeadLaser::LaserGetHWVersion() {
+  CanStdFuncCmd_t cmd;
+  uint8_t buff[1] = {0};
+
+  cmd.id        = MODULE_FUNC_GET_LASER_HW_VERSION;
+  cmd.data      = buff;
+  cmd.length    = 1;
+
+  ErrCode ret;
+  ret = canhost.SendStdCmdSync(cmd, 2000);
+  if (ret != E_SUCCESS) {
+    return ret;
+  }
+
+  SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_GET_LASER_HW_VERSION};
+  buff[0] = cmd.data[0];
+  event_tmp.length = 1;
+  event_tmp.data = buff;
+  hmi.Send(event_tmp);
+
+  return E_SUCCESS;
 }
 
 void ToolHeadLaser::Process() {
