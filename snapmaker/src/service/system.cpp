@@ -485,6 +485,8 @@ SysStage SystemService::GetCurrentStage() {
       break;
 
     case SYSTAT_PAUSE_TRIG:
+      return SYSTAGE_PAUSEING;
+      break;
     case SYSTAT_PAUSE_STOPPED:
     case SYSTAT_PAUSE_FINISH:
       return SYSTAGE_PAUSE;
@@ -519,6 +521,10 @@ SysStage SystemService::GetCurrentStage() {
 uint8_t SystemService::MapCurrentStatusForSC() {
   SysStage stage = GetCurrentStage();
   uint8_t status;
+
+  if (stage == SYSTAGE_RESUMING || stage == SYSTAGE_PAUSEING) {
+    stage = SYSTAGE_WORK;
+  }
 
   // idle for neither working and pause to screen
   if (stage != SYSTAGE_PAUSE && stage != SYSTAGE_WORK)
