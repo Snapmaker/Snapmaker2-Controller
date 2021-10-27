@@ -215,6 +215,12 @@ enum GcodeResultOpc: uint8_t {
 #define UNDEFINED_CALLBACK  {0, NULL}
 
 
+enum GcodeRequestStatus: uint8_t {
+  GCODE_REQ_NORMAL = 0,
+  GCODE_REQ_WAITING = 1,
+  GCODE_REQ_WAIT_FINISHED = 2
+};
+
 enum TaskOwner: uint8_t {
   TASK_OWN_MARLIN = 0,
   TASK_OWN_HMI,
@@ -233,6 +239,7 @@ typedef struct {
   uint16_t cursor;
   uint32_t start_line_num;
   uint32_t end_line_num;
+  bool is_finish_packet;
   char buf[HMI_GCODE_PACK_SIZE];
 } HmiGcodeBufNode_t;
 

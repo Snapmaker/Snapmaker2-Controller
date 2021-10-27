@@ -85,7 +85,7 @@ extern uint8_t cmd_queue_index_w; // Ring buffer write position
 //
 RingBuffer<HmiGcodeBufNode_t> hmi_gcode_pack_buffer;
 bool wait_req_next_pack = false;  // Wait for the buffer to be free before requesting the next packet
-bool is_wait_gcode_pack = false;
+GcodeRequestStatus gcode_request_status = GCODE_REQ_NORMAL;
 bool is_hmi_gcode_pack_mode = false;
 uint32_t next_pack_start_line_num = 0;
 uint32_t gcode_pack_req_timeout = 0;
@@ -123,6 +123,12 @@ char * get_command_from_pack(uint32_t &line_num) {
   }
   HmiGcodeBufNode_t *head = hmi_gcode_pack_buffer.HeadAddress();
   char *ret = &head->buf[head->cursor];
+
+  if (head->is_finish_packet) {
+    gcode_request_status = GCODE_REQ_WAIT_FINISHED;
+    releas_current_buffer();
+    return NULL;
+  }
   // Remove '\n' and ';'
   while ( (((*ret) == '\n') || ((*ret) == ';')) && (head->cursor < head->length) ) {
     ret++;
@@ -262,7 +268,7 @@ uint32_t gocde_pack_start_line() {
 void clear_hmi_gcode_queue() {
   hmi_cmd_queue_index_r = hmi_cmd_queue_index_w = hmi_commands_in_queue = 0;
   hmi_gcode_pack_buffer.Reset();
-  is_wait_gcode_pack = false;
+  gcode_request_status = GCODE_REQ_NORMAL;
 }
 
 
@@ -276,13 +282,13 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
   WORD_TO_PDU_BYTES(buffer, line);
 
   SNAP_DEBUG_SET_GCODE_LINE(line);
-  is_wait_gcode_pack = true;
+  gcode_request_status = GCODE_REQ_WAITING;
   gcode_pack_req_timeout = millis();
   hmi.Send(event);
 }
 
 void check_and_request_gcode_again() {
-  if (is_wait_gcode_pack) {
+  if (gcode_request_status == GCODE_REQ_WAITING) {
     if ((gcode_pack_req_timeout + 1000) > millis()) {
       return;
     }
@@ -294,6 +300,12 @@ void check_and_request_gcode_again() {
         systemservice.is_laser_on = true;
         laser->TurnOff();
       }
+    }
+  } else if (gcode_request_status == GCODE_REQ_WAIT_FINISHED) {
+    // File execution ends, and printing ends after motion is stopped
+    if ((commands_in_queue == 0) && (hmi_gcode_pack_buffer.IsEmpty()) && (!planner.movesplanned())) {
+      LOG_I("End of the print\n");
+      systemservice.StopTrigger(TRIGGER_SOURCE_SC, SYSCTL_OPC_FINISH);
     }
   }
 }
@@ -404,7 +416,9 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
       recv_line_count++;
     }
   }
-  if (recv_line_count != line_count) {
+
+  // line_count is 0 file transfer end
+  if (recv_line_count && (recv_line_count != line_count)) {
     LOG_E("Lines number check fail:%u - %u\n", line_count, recv_line_count);
     return E_INVALID_STATE;
   }
@@ -425,17 +439,25 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
   gcode_buf->end_line_num = end_line;
   gcode_buf->length = size - data_head_index;
   gcode_buf->cursor = 0;
-  memcpy(gcode_buf->buf, event_buff+data_head_index, gcode_buf->length);
-  //  The memory data has been modified so no more assignment is required
-  hmi_gcode_pack_buffer.InsertOne();
-  gocde_pack_start_line(end_line + 1);
-  if (hmi_gcode_pack_buffer.IsFull()) {
-    wait_req_next_pack = true;
-  } else {
+  if (gcode_buf->length == 0) {
+    gcode_buf->is_finish_packet = true;
+    hmi_gcode_pack_buffer.InsertOne();
     wait_req_next_pack = false;
-    ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+    gcode_request_status = GCODE_REQ_NORMAL;
+  } else {
+    memcpy(gcode_buf->buf, event_buff+data_head_index, gcode_buf->length);
+    //  The memory data has been modified so no more assignment is required
+    hmi_gcode_pack_buffer.InsertOne();
+    gocde_pack_start_line(end_line + 1);
+    if (hmi_gcode_pack_buffer.IsFull()) {
+      wait_req_next_pack = true;
+    } else {
+      wait_req_next_pack = false;
+      ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+    }
+    gcode_buf->is_finish_packet = false;
   }
-  is_wait_gcode_pack = false;
+  gcode_request_status = GCODE_REQ_NORMAL;
   if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && systemservice.is_laser_on) {
     systemservice.is_laser_on = false;
     laser->TurnOn();
