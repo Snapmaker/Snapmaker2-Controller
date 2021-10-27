@@ -176,7 +176,9 @@ void ToolHeadLaser::TurnOn() {
     return;
   }
 
-  LaserControl(1);
+  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER) {
+    LaserControl(1);
+  }
   state_ = TOOLHEAD_LASER_STATE_ON;
   CheckFan(power_pwm_);
   tim_pwm(power_pwm_);
@@ -187,7 +189,9 @@ void ToolHeadLaser::TurnOff() {
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
     return;
 
-  LaserControl(0);
+  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER) {
+    LaserControl(0);
+  }
   state_ = TOOLHEAD_LASER_STATE_OFF;
   CheckFan(0);
   tim_pwm(0);
