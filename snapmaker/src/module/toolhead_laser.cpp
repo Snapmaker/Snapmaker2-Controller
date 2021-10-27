@@ -169,8 +169,8 @@ void ToolHeadLaser::tim_pwm(uint16_t pwm) {
 }
 
 void ToolHeadLaser::TurnOn() {
-  // if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
-  //   return;
+  if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
+    return;
 
   if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER && laser->security_status_ != 0) {
     return;
@@ -184,8 +184,8 @@ void ToolHeadLaser::TurnOn() {
 
 
 void ToolHeadLaser::TurnOff() {
-  // if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
-  //   return;
+  if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
+    return;
 
   LaserControl(0);
   state_ = TOOLHEAD_LASER_STATE_OFF;
@@ -208,8 +208,8 @@ void ToolHeadLaser::SetPower(float power) {
   int   integer;
   float decimal;
 
-  // if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
-  //   return;
+  if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
+    return;
 
   power_val_ = power;
 
