@@ -250,6 +250,7 @@ void gocde_pack_start_line(uint32_t line);
 uint32_t gocde_pack_start_line();
 bool hmi_gcode_pack_mode();
 void check_and_request_gcode_again();
+void check_is_need_recover_laser();
 extern bool Screen_send_ok[];
 
 extern UartHost hmi;

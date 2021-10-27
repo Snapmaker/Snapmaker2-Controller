@@ -287,6 +287,15 @@ void ack_gcode_event(uint8_t event_id, uint32_t line) {
   hmi.Send(event);
 }
 
+void check_is_need_recover_laser() {
+  if(!planner.movesplanned()) { // and no movement planned
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && laser.tim_pwm() > 0) {
+      systemservice.is_laser_on = true;
+      laser.TurnOff();
+    }
+  }
+}
+
 void check_and_request_gcode_again() {
   if (gcode_request_status == GCODE_REQ_WAITING) {
     if ((gcode_pack_req_timeout + 1000) > millis()) {
@@ -295,12 +304,7 @@ void check_and_request_gcode_again() {
     gcode_pack_req_timeout = millis();
     LOG_E("wait gcode pack timeout and req:%d\n", gocde_pack_start_line());
     ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
-    if(!planner.movesplanned()) { // and no movement planned
-      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && laser.tim_pwm() > 0) {
-        systemservice.is_laser_on = true;
-        laser.TurnOff();
-      }
-    }
+    check_is_need_recover_laser();
   } else if (gcode_request_status == GCODE_REQ_WAIT_FINISHED) {
     // File execution ends, and printing ends after motion is stopped
     if ((commands_in_queue == 0) && (hmi_gcode_pack_buffer.IsEmpty()) && (!planner.movesplanned())) {

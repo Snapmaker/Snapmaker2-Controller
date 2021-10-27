@@ -1713,6 +1713,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
 
   case SYSCTL_OPC_PAUSE:
     LOG_I("SC req PAUSE\n");
+    check_is_need_recover_laser();
     err = PauseTrigger(TRIGGER_SOURCE_SC);
     if (err == E_SUCCESS)
       need_ack = false;
