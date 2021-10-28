@@ -379,6 +379,15 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
     return E_INVALID_STATE;
   }
 
+  if (cur_sta == SYSTAT_RESUME_WAITING) {
+    ErrCode err = systemservice.ResumeOver();
+    if (err != E_SUCCESS) {
+      LOG_I("Resume over failed:%d\n", err);
+      ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
+      return err;
+    }
+  }
+
   // checkout the line number
   #define LINE_TYPE_SIZE 4
   PDU_TO_LOCAL_WORD(start_line, event_buff+1);
