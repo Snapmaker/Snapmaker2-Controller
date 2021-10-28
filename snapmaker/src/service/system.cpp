@@ -520,17 +520,27 @@ SysStage SystemService::GetCurrentStage() {
  * 4 - pause with port
  */
 uint8_t SystemService::MapCurrentStatusForSC() {
-  SysStage stage = GetCurrentStage();
-  uint8_t status;
+  uint8_t status = 0;
 
-  // idle for neither working and pause to screen
-  if (stage != SYSTAGE_PAUSE && stage != SYSTAGE_WORK)
-    return 0;
+  switch (cur_status_) {
 
-  if (stage == SYSTAGE_WORK)
+  case SYSTAT_WORK:
+  case SYSTAT_RESUME_TRIG:
+  case SYSTAT_RESUME_MOVING:
+  case SYSTAT_RESUME_WAITING:
+  case SYSTAT_PAUSE_TRIG:
     status = 3;
-  else
+    break;
+
+  case SYSTAT_PAUSE_STOPPED:
+  case SYSTAT_PAUSE_FINISH:
     status = 4;
+    break;
+
+  default:
+    status = 0;
+    break;
+  }
 
   return status;
 }
