@@ -44,9 +44,9 @@
 #define TimSetPwm(n)  Tim1SetCCR4(n)
 #define TimGetPwm()  Tim1GetCCR4()
 
-ToolHeadLaser laser_low_power(MODULE_DEVICE_ID_LASER);
-ToolHeadLaser laser_10w(MODULE_DEVICE_ID_HIGH_POWER_LASER);
-ToolHeadLaser *laser = &laser_low_power;
+ToolHeadLaser laser_1_6_w(MODULE_DEVICE_ID_1_6_W_LASER);
+ToolHeadLaser laser_10w(MODULE_DEVICE_ID_10W_LASER);
+ToolHeadLaser *laser = &laser_1_6_w;
 
 extern void Tim1SetCCR4(uint16_t pwm);
 extern uint16_t Tim1GetCCR4();
@@ -145,9 +145,9 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
 
   laser = this;
   // set toolhead
-  if (laser->device_id_ == MODULE_DEVICE_ID_LASER) {
+  if (laser->device_id_ == MODULE_DEVICE_ID_1_6_W_LASER) {
     SetToolhead(MODULE_TOOLHEAD_LASER);
-  } else if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER) {
+  } else if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
     SetToolhead(MODULE_TOOLHEAD_LASER_10W);
   }
 
@@ -172,11 +172,11 @@ void ToolHeadLaser::TurnOn() {
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
     return;
 
-  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER && laser->security_status_ != 0) {
+  if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER && laser->security_status_ != 0) {
     return;
   }
 
-  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER) {
+  if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
     LaserControl(1);
   }
   state_ = TOOLHEAD_LASER_STATE_ON;
@@ -189,7 +189,7 @@ void ToolHeadLaser::TurnOff() {
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
     return;
 
-  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER) {
+  if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
     LaserControl(0);
   }
   state_ = TOOLHEAD_LASER_STATE_OFF;
@@ -199,7 +199,7 @@ void ToolHeadLaser::TurnOff() {
 
 
 void ToolHeadLaser::SetOutput(float power) {
-  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER && laser->security_status_ != 0) {
+  if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER && laser->security_status_ != 0) {
     return;
   }
 
@@ -914,7 +914,7 @@ void ToolHeadLaser::Process() {
   if (++timer_in_process_ < 100) return;
   timer_in_process_ = 0;
 
-  if (laser->device_id_ == MODULE_DEVICE_ID_HIGH_POWER_LASER) {
+  if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
     if (need_to_tell_hmi_) {
       need_to_tell_hmi_ = false;
       SendSecurityStatus();

@@ -199,7 +199,7 @@ class ToolHeadLaser: public ModuleBase {
 
 
 extern ToolHeadLaser *laser;
-extern ToolHeadLaser laser_low_power;
+extern ToolHeadLaser laser_1_6_w;
 extern ToolHeadLaser laser_10w;
 
 #endif  // #ifndef TOOLHEAD_LASER_H_
