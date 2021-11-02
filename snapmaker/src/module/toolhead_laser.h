@@ -81,6 +81,12 @@ enum LaserCameraCommand {
   S_RECV_FAIL = 0xff,
 };
 
+enum LASER_10W_STATUS {
+  LASER_10W_ENABLE,
+  LASER_10W_WAIT_DISABLE,
+  LASER_10W_DISABLE,
+};
+
 
 class ToolHeadLaser: public ModuleBase {
   public:
@@ -179,6 +185,8 @@ class ToolHeadLaser: public ModuleBase {
 
     uint8_t  fan_state_;
     uint16_t fan_tick_;
+    LASER_10W_STATUS laser_10w_status_ = LASER_10W_ENABLE;
+    uint16_t laser_10w_tick_ = 0;
 
     // save orignal value from module
     uint16_t focus_;
