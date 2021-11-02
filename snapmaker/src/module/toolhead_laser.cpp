@@ -40,6 +40,7 @@
 
 
 #define LASER_CLOSE_FAN_DELAY     (120)
+#define LASER_10W_DISABLE_DELAY     (2)
 
 #define TimSetPwm(n)  Tim1SetCCR4(n)
 #define TimGetPwm()  Tim1GetCCR4()
@@ -149,15 +150,22 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
     SetToolhead(MODULE_TOOLHEAD_LASER);
   } else if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
     SetToolhead(MODULE_TOOLHEAD_LASER_10W);
+    LaserControl(0);
   }
 
   return E_SUCCESS;
 }
 
 void ToolHeadLaser::TurnoffLaserIfNeeded() {
+  bool is_disable_laser = (laser_10w_status_ == LASER_10W_WAIT_DISABLE) && (++laser_10w_tick_ > LASER_10W_DISABLE_DELAY);
   if (laser->need_to_turnoff_laser_) {
+    // The module is exception and needs to be turn off
     laser->need_to_turnoff_laser_ = false;
     TurnOff();
+    is_disable_laser = true;
+  }
+  if (is_disable_laser) {
+    LaserControl(0);
   }
 }
 
@@ -177,7 +185,12 @@ void ToolHeadLaser::TurnOn() {
   }
 
   if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
-    LaserControl(1);
+    if (laser_10w_status_ == LASER_10W_DISABLE) {
+      // Send the enable command only when the power is disabled
+      LaserControl(1);
+    }
+    // Stop waiting disable
+    laser_10w_status_ = LASER_10W_ENABLE;
   }
   state_ = TOOLHEAD_LASER_STATE_ON;
   CheckFan(power_pwm_);
@@ -190,7 +203,10 @@ void ToolHeadLaser::TurnOff() {
     return;
 
   if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
-    LaserControl(0);
+    if (laser_10w_status_ != LASER_10W_DISABLE) {
+      laser_10w_status_ = LASER_10W_WAIT_DISABLE;
+      laser_10w_tick_ = 0;
+    }
   }
   state_ = TOOLHEAD_LASER_STATE_OFF;
   CheckFan(0);
@@ -885,6 +901,8 @@ ErrCode ToolHeadLaser::LaserControl(uint8_t state) {
   if (ret != E_SUCCESS) {
     return ret;
   }
+  laser_10w_status_ = state ? LASER_10W_ENABLE : LASER_10W_DISABLE;
+  return E_SUCCESS;
 }
 
 ErrCode ToolHeadLaser::LaserGetHWVersion() {
