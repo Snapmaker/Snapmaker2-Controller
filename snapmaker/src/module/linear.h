@@ -51,18 +51,19 @@ enum MachineSize {
 class Linear: public ModuleBase  {
   public:
     Linear (ModuleDeviceID id): ModuleBase(id) {
-      for (int i = 0; i < LINEAR_AXIS_MAX; i++) {
-        mac_index_[i]   = MODULE_MAC_INDEX_INVALID;
-        endstop_msg_[i] = MODULE_MESSAGE_ID_INVALID;
-        length_[i]      = 0;
-      }
-      machine_size_ = MACHINE_SIZE_UNKNOWN;
-      endstop_      = 0xFFFFFFFF;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
 
-    ErrCode CheckModuleType();
+    uint16_t CheckModuleType(uint8_t mac_index) {
+      if (mac_index == 0xff) {
+        return 0;
+      } else {
+        return MODULE_GET_DEVICE_ID(canhost.mac(mac_index));
+      }
+    }
+
+    ErrCode UpdateMachineLead();
 
     ErrCode PollEndstop(LinearAxisType axis);
 
@@ -98,7 +99,7 @@ class Linear: public ModuleBase  {
 
     uint32_t endstop() { return endstop_; }
 
-    MachineSize machine_size() { return machine_size_; }
+    MachineSize machine_size() { return Linear::machine_size_; }
 
   private:
     LinearAxisType DetectAxis(MAC_t &mac, uint8_t &endstop);
@@ -107,14 +108,13 @@ class Linear: public ModuleBase  {
     ErrCode GetLengthOrLead(SSTP_Event_t &event, uint8_t ext_cmd);
 
   private:
-    uint8_t       mac_index_[LINEAR_AXIS_MAX];
-    uint16_t      length_[LINEAR_AXIS_MAX];
-    uint16_t      lead_[LINEAR_AXIS_MAX];
+    static uint8_t       mac_index_[LINEAR_AXIS_MAX];
+    static uint16_t      length_[LINEAR_AXIS_MAX];
+    static uint16_t      lead_[LINEAR_AXIS_MAX];
+    static MachineSize   machine_size_;
 
-    message_id_t  endstop_msg_[LINEAR_AXIS_MAX];
-    uint32_t      endstop_;
-
-    MachineSize   machine_size_;
+    static message_id_t  endstop_msg_[LINEAR_AXIS_MAX];
+    static uint32_t      endstop_;
 };
 
 extern Linear linear;

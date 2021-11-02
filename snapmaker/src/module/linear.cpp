@@ -28,6 +28,16 @@
 #include "src/inc/MarlinConfig.h"
 #include "src/module/endstops.h"
 
+#define LINEAR_MODULE_MAC_INDEX_INVALID {0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+#define LINEAR_MODULE_MESSAGE_ID_INVALID {0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff}
+
+MachineSize Linear::machine_size_ = MACHINE_SIZE_UNKNOWN;
+uint8_t Linear::mac_index_[] = LINEAR_MODULE_MAC_INDEX_INVALID;
+uint16_t Linear::length_[] = {0};
+uint16_t Linear::lead_[] = {0};
+message_id_t Linear::endstop_msg_[] = LINEAR_MODULE_MESSAGE_ID_INVALID;
+uint32_t Linear::endstop_ = 0xFFFFFFFF;
+ 
 Linear linear(MODULE_DEVICE_ID_LINEAR);
 Linear linear_tmc(MODULE_DEVICE_ID_LINEAR_TMC);
 
@@ -88,8 +98,15 @@ static void LinearCallbackEndstopX1(CanStdDataFrame_t &cmd) {
     break;
 
   case MACHINE_SIZE_A150:
-  default:
     linear_p->SetEndstopBit(X_MAX, cmd.data[0]);
+    break;
+
+  default:
+    if (linear_p->length(LINEAR_AXIS_X1) < 200) {
+      linear_p->SetEndstopBit(X_MAX, cmd.data[0]);
+    } else {
+      linear_p->SetEndstopBit(X_MIN, cmd.data[0]);
+    } 
     break;
   }
 }
@@ -227,69 +244,68 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   return canhost.BindMessageID(cmd, message_id);
 }
 
-ErrCode Linear::CheckModuleType() {
-  int32_t i;
-  uint32_t device_id = 0xffffffff;
-  uint32_t id;
-  MAC_t mac_t;
+ErrCode Linear::UpdateMachineLead() {
 
-  // check if all linear modules are the same generation
-  for (i = LINEAR_AXIS_X1; i < LINEAR_AXIS_MAX; i++) {
-    if (mac_index_[i] == 0xff) continue;
+  uint16_t type_id[LINEAR_AXIS_MAX];
+  float axis_steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
 
-    mac_t.val = canhost.mac(mac_index_[i]);
-    id = MODULE_GET_DEVICE_ID(mac_t.val);
-    if (device_id == 0xffffffff) {
-      device_id = id;
+  for (uint8_t i = LINEAR_AXIS_X1; i < LINEAR_AXIS_MAX; i++) {
+    type_id[i] = CheckModuleType(mac_index_[i]);
+  }
+  // check if the coaxial types match
+  if (type_id[LINEAR_AXIS_X1] && type_id[LINEAR_AXIS_X2]) {
+    if (type_id[LINEAR_AXIS_X1] != type_id[LINEAR_AXIS_X2]) {
+      goto type_err;
     }
-    else if (device_id != id) {
-      LOG_I("device id error\n");
-      systemservice.ThrowException(EHOST_LINEAR, ETYPE_LINEAR_MODULE_DIFF_DRIVER);
-      return E_FAILURE;
+  } 
+
+  if (type_id[LINEAR_AXIS_Y1] && type_id[LINEAR_AXIS_Y2]) {
+    if (type_id[LINEAR_AXIS_Y1] != type_id[LINEAR_AXIS_Y2]) {
+      goto type_err;
     }
   }
 
-  float axis_steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
-
-  // if using 2.5 generation linear modules, check if the linear module lead is correct for each axis
-  if (device_id == MODULE_DEVICE_ID_LINEAR_TMC) {
-    for (i = LINEAR_AXIS_X1; i < LINEAR_AXIS_MAX; i++) {
-      if (mac_index_[i] == 0xff) continue;
-
-      switch (i) {
-        case LINEAR_AXIS_X1:
-        case LINEAR_AXIS_X2:
-        case LINEAR_AXIS_Y1:
-        case LINEAR_AXIS_Y2:
-          if (lead_[i] != MODULE_LINEAR_PITCH_20) {
-            systemservice.ThrowException(EHOST_LINEAR, ETYPE_LINEAR_MODULE_LEAD_ERROR);
-            return E_FAILURE;
-          }
-          break;
-        case LINEAR_AXIS_Z1:
-        case LINEAR_AXIS_Z2:
-        case LINEAR_AXIS_Z3:
-          if (lead_[i] != MODULE_LINEAR_PITCH_8) {
-            systemservice.ThrowException(EHOST_LINEAR, ETYPE_LINEAR_MODULE_LEAD_ERROR);
-            return E_FAILURE;
-          }
-          break;
-        default:
-          break;
+  if (type_id[LINEAR_AXIS_Z1] && type_id[LINEAR_AXIS_Z2]) {
+    if (type_id[LINEAR_AXIS_Z1] != type_id[LINEAR_AXIS_Z2]) {
+      goto type_err;
+    } else if (type_id[LINEAR_AXIS_Z3]) {
+      if (type_id[LINEAR_AXIS_Z2] != type_id[LINEAR_AXIS_Z3]) {
+        goto type_err;
       }
     }
   }
-
-  if ((mac_index_[LINEAR_AXIS_X1] != 0xff) || (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
+  // Whether the coaxial leads are equal
+  if ((mac_index_[LINEAR_AXIS_X1] != 0xff) && (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
+    if (lead_[LINEAR_AXIS_X1] == lead_[LINEAR_AXIS_X2]) {
+      axis_steps_per_unit[X_AXIS] = lead_[LINEAR_AXIS_X1];
+    } else {
+       goto lead_err;
+    }  
+  } else if ((mac_index_[LINEAR_AXIS_X1] != 0xff) || (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
     axis_steps_per_unit[X_AXIS] = mac_index_[LINEAR_AXIS_X1] != 0xff ? lead_[LINEAR_AXIS_X1] : lead_[LINEAR_AXIS_X2];
-  }
+  } 
 
-  if ((mac_index_[LINEAR_AXIS_Y1] != 0xff) || (mac_index_[LINEAR_AXIS_Y2] != 0xff)) {
+  if ((mac_index_[LINEAR_AXIS_Y1] != 0xff) && (mac_index_[LINEAR_AXIS_Y2] != 0xff)) {
+    if (lead_[LINEAR_AXIS_Y1] == lead_[LINEAR_AXIS_Y2]) {
+       axis_steps_per_unit[Y_AXIS] = lead_[LINEAR_AXIS_Y1];                                
+    } else {
+       goto lead_err;
+    }
+  } else if ((mac_index_[LINEAR_AXIS_Y1] != 0xff) || (mac_index_[LINEAR_AXIS_Y2] != 0xff)) {
     axis_steps_per_unit[Y_AXIS] = mac_index_[LINEAR_AXIS_Y1] != 0xff ? lead_[LINEAR_AXIS_Y1] : lead_[LINEAR_AXIS_Y2];
   }
 
-  if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff)) {
-    axis_steps_per_unit[Z_AXIS] = mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z1] : mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z2] : lead_[LINEAR_AXIS_Z3];
+  if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) && (mac_index_[LINEAR_AXIS_Z2] != 0xff)) {
+    if (lead_[LINEAR_AXIS_Z1] == lead_[LINEAR_AXIS_Z2]) {
+      axis_steps_per_unit[Z_AXIS] = lead_[LINEAR_AXIS_Z1];     
+    } else {
+       goto lead_err;
+    }
+  } else if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff)) {
+    axis_steps_per_unit[Z_AXIS] = mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z1] : lead_[LINEAR_AXIS_Z2];
+  }
+  if ((mac_index_[LINEAR_AXIS_Z3] != 0xff) && (lead_[LINEAR_AXIS_Z3] != axis_steps_per_unit[Z_AXIS])) {
+    goto lead_err;
   }
 
   LOOP_XYZ(i) {
@@ -301,8 +317,17 @@ ErrCode Linear::CheckModuleType() {
 
   planner.refresh_positioning();
   return E_SUCCESS;
-}
 
+type_err:
+  SERIAL_ECHOLNPAIR("coaxial linear module type match error\n");
+  systemservice.ThrowException(EHOST_LINEAR, ETYPE_LINEAR_MODULE_DIFF_DRIVER);
+  return E_FAILURE;
+
+lead_err:
+  SERIAL_ECHOLNPAIR("coaxial linear module lead not equal\n");
+  systemservice.ThrowException(EHOST_LINEAR, ETYPE_LINEAR_MODULE_LEAD_ERROR);
+  return E_FAILURE;
+}
 
 ErrCode Linear::PollEndstop(LinearAxisType axis) {
   CanStdMesgCmd_t message;
@@ -329,14 +354,9 @@ ErrCode Linear::PollEndstop(LinearAxisType axis) {
 
 
 MachineSize Linear::UpdateMachineSize() {
-  if (length_[LINEAR_AXIS_X1] != length_[LINEAR_AXIS_Y1] ||
-      length_[LINEAR_AXIS_Y1] != length_[LINEAR_AXIS_Z1]) {
+  uint16_t axis_length[3] = {0, 0, 0};
 
-    systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
-    return (machine_size_ = MACHINE_SIZE_UNKNOWN);
-  }
-
-  if (CheckModuleType() != E_SUCCESS) {
+  if (UpdateMachineLead() != E_SUCCESS) {
     X_MAX_POS = 0;
     Y_MAX_POS = 0;
     Z_MAX_POS = 0;
@@ -344,91 +364,147 @@ MachineSize Linear::UpdateMachineSize() {
     return (machine_size_ = MACHINE_SIZE_UNKNOWN);
   }
 
-  if (length_[LINEAR_AXIS_X1] < 200) {
-    LOG_I("Model: A150\n");
+  // Whether the coaxial lengths are equal
+  if ((mac_index_[LINEAR_AXIS_X1] != 0xff) && (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
+    if (length_[LINEAR_AXIS_X1] == length_[LINEAR_AXIS_X2]) {
+      axis_length[X_AXIS] = length_[LINEAR_AXIS_X1];
+    } else {
+      goto length_err;
+    }  
+  } else if ((mac_index_[LINEAR_AXIS_X1] != 0xff) || (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
+    axis_length[X_AXIS] = mac_index_[LINEAR_AXIS_X1] != 0xff ? length_[LINEAR_AXIS_X1] : length_[LINEAR_AXIS_X2];
+  } 
+
+  if ((mac_index_[LINEAR_AXIS_Y1] != 0xff) && (mac_index_[LINEAR_AXIS_Y2] != 0xff)) {
+    if (length_[LINEAR_AXIS_Y1] == length_[LINEAR_AXIS_Y2]) {
+       axis_length[Y_AXIS] = length_[LINEAR_AXIS_Y1];                                
+    } else {
+      goto length_err;
+    }
+  } else if ((mac_index_[LINEAR_AXIS_Y1] != 0xff) || (mac_index_[LINEAR_AXIS_Y2] != 0xff)) {
+    axis_length[Y_AXIS] = mac_index_[LINEAR_AXIS_Y1] != 0xff ? length_[LINEAR_AXIS_Y1] : length_[LINEAR_AXIS_Y2];
+  }
+
+  if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) && (mac_index_[LINEAR_AXIS_Z2] != 0xff)) {
+    if (length_[LINEAR_AXIS_Z1] == length_[LINEAR_AXIS_Z2]) {
+      axis_length[Z_AXIS] = length_[LINEAR_AXIS_Z1];      
+    } else {
+      goto length_err;
+    }
+  } else if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff)) {
+    axis_length[Z_AXIS] = mac_index_[LINEAR_AXIS_Z1] != 0xff ? length_[LINEAR_AXIS_Z1] : length_[LINEAR_AXIS_Z2];
+  }
+  if ((mac_index_[LINEAR_AXIS_Z3] != 0xff) && (length_[LINEAR_AXIS_Z3] != axis_length[Z_AXIS])) {
+    goto length_err;
+  }
+
+  if (axis_length[X_AXIS] < 200) {
     X_MAX_POS = 167;
-    Y_MAX_POS = 165;
-    Z_MAX_POS = 150;
+    X_DEF_SIZE = 160;
+    MAGNET_X_SPAN = 114;
     X_HOME_DIR = 1;
     X_DIR = false;
-    Y_HOME_DIR = 1;
-    Y_DIR = false;
-    Z_HOME_DIR = 1;
-    Z_DIR = false;
-
-    LOOP_XN(i) home_offset[i] = s_home_offset[i];
-
-    X_DEF_SIZE = 160;
-    Y_DEF_SIZE = 160;
-    Z_DEF_SIZE = 145;
-
-    MAGNET_X_SPAN = 114;
-    MAGNET_Y_SPAN = 114;
-
-    machine_size_ = MACHINE_SIZE_A150;
-
-    goto out;
-  }
-
-  if (length_[LINEAR_AXIS_X1] < 300) {
-    LOG_I("Model: A250\n");
+    home_offset[X_AXIS] = s_home_offset[X_AXIS];
+  } else if (axis_length[X_AXIS] < 300) {
     X_MAX_POS = 252;
-    Y_MAX_POS = 260;
-    Z_MAX_POS = 235;
-    X_HOME_DIR = -1;
-    X_DIR = true;
-    Y_HOME_DIR = 1;
-    Y_DIR = false;
-    Z_HOME_DIR = 1;
-    Z_DIR = false;
-
-    LOOP_XN(i) home_offset[i] = m_home_offset[i];
-
     X_DEF_SIZE = 230;
-    Y_DEF_SIZE = 250;
-    Z_DEF_SIZE = 235;
-
     MAGNET_X_SPAN = 184;
-    MAGNET_Y_SPAN = 204;
-
-    machine_size_ = MACHINE_SIZE_A250;
-    goto out;
-  }
-
-  if (length_[LINEAR_AXIS_X1] < 400) {
-    LOG_I("Model: A350\n");
-    X_MAX_POS = 345;
-    Y_MAX_POS = 357;
-    Z_MAX_POS = 334;
     X_HOME_DIR = -1;
     X_DIR = true;
-    Y_HOME_DIR = 1;
-    Y_DIR = false;
-    Z_HOME_DIR = 1;
-    Z_DIR = false;
-
-    LOOP_XN(i) home_offset[i] = l_home_offset[i];
-
+    home_offset[X_AXIS] = m_home_offset[X_AXIS];
+  } else if (axis_length[X_AXIS] < 400) {
+    X_MAX_POS = 345;
     X_DEF_SIZE = 320;
-    Y_DEF_SIZE = 340;
-    Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
-
     MAGNET_X_SPAN = 274;
-    MAGNET_Y_SPAN = 304;
-
-    machine_size_ = MACHINE_SIZE_A350;
+    X_HOME_DIR = -1;
+    X_DIR = true;
+    home_offset[X_AXIS] = l_home_offset[X_AXIS];
+  } else {
     goto out;
   }
 
-  systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
-  return (machine_size_ = MACHINE_SIZE_UNKNOWN);
+  if (axis_length[Y_AXIS] < 200) {
+    Y_MAX_POS = 165;
+    Y_DEF_SIZE = 160;
+    MAGNET_Y_SPAN = 114;
+    Y_HOME_DIR = 1;
+    Y_DIR = false;
+    home_offset[Y_AXIS] = s_home_offset[Y_AXIS];
+  } else if (axis_length[Y_AXIS] < 300) {
+    Y_MAX_POS = 260;
+    Y_DEF_SIZE = 250;
+    MAGNET_Y_SPAN = 204;
+    Y_HOME_DIR = 1;
+    Y_DIR = false;
+    home_offset[Y_AXIS] = m_home_offset[Y_AXIS];
+  } else if (axis_length[Y_AXIS] < 400) {
+    Y_MAX_POS = 357;
+    Y_DEF_SIZE = 340;
+    MAGNET_Y_SPAN = 304;
+    Y_HOME_DIR = 1;
+    Y_DIR = false;
+    home_offset[Y_AXIS] = l_home_offset[Y_AXIS];
+  } else {
+    goto out;
+  }
 
-out:
+if (axis_length[Z_AXIS] < 200) {
+    Z_MAX_POS = 150;
+    Z_DEF_SIZE = 145;
+    Z_HOME_DIR = 1;
+    Z_DIR = false;
+    home_offset[Z_AXIS] = s_home_offset[Z_AXIS];
+  } else if (axis_length[Z_AXIS] < 300) {
+    Z_MAX_POS = 235;
+    Z_HOME_DIR = 1;
+    Z_DIR = false;
+    Z_DEF_SIZE = 235;
+    home_offset[Z_AXIS] = m_home_offset[Z_AXIS];
+  } else if (axis_length[Z_AXIS] < 400) {
+    Z_MAX_POS = 334;
+    Z_HOME_DIR = 1;
+    Z_DIR = false;
+    Z_DEF_SIZE = 330; 
+    home_offset[Z_AXIS] = l_home_offset[Z_AXIS];
+  } else {
+    goto out;
+  }
+
   UpdateMachineDefines();
   endstops.reinit_hit_status();
   PollEndstop(LINEAR_AXIS_ALL);
   systemservice.ClearException(EHOST_MC, ETYPE_NO_HOST);
+  
+  for (uint8_t i = 0; i < LINEAR_AXIS_MAX; i++) {
+    if (mac_index_[0] == 0xff || (mac_index_[i] != 0xff && length_[i] != length_[LINEAR_AXIS_X1])) {
+      goto out;
+    }
+  }
+
+  if (length_[LINEAR_AXIS_X1] == 0) {
+    machine_size_ = MACHINE_SIZE_UNKNOWN;
+  } else if (length_[LINEAR_AXIS_X1] < 200) {
+    machine_size_ = MACHINE_SIZE_A150;
+  } else if (length_[LINEAR_AXIS_X1] < 300) {
+    machine_size_ = MACHINE_SIZE_A250;
+  } else if (length_[LINEAR_AXIS_X1] < 400) {
+    machine_size_ = MACHINE_SIZE_A350;
+  } else {
+    goto out;
+  }
+  
   return machine_size_;
+
+length_err:
+  SERIAL_ECHOLNPAIR("coaxial linear module length not equal\n");
+  systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
+  return (machine_size_ = MACHINE_SIZE_UNKNOWN);
+
+out:
+  machine_size_ = MACHINE_SIZE_UNKNOWN;
+  SERIAL_ECHOLNPAIR("unknown machine size!\n");
+  //systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
+  return (machine_size_ = MACHINE_SIZE_UNKNOWN);
 }
 
 
