@@ -47,7 +47,7 @@ extern ToolHead3DP printer_single;
 ModuleBase *static_modules[] = {
   &linear,
   &printer_single,
-  &laser_low_power,
+  &laser_1_6_w,
   &cnc,
   &enclosure,
   &emergency_stop,

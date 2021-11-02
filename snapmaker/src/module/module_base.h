@@ -80,7 +80,7 @@ typedef struct {
 enum ModuleDeviceID {
   MODULE_DEVICE_ID_3DP_SINGLE   ,    // 0
   MODULE_DEVICE_ID_CNC          ,    // 1
-  MODULE_DEVICE_ID_LASER        ,    // 2
+  MODULE_DEVICE_ID_1_6_W_LASER        ,    // 2
   MODULE_DEVICE_ID_LINEAR       ,    // 3
   MODULE_DEVICE_ID_LIGHT        ,    // 4
   MODULE_DEVICE_ID_ENCLOSURE    ,    // 5
@@ -92,7 +92,7 @@ enum ModuleDeviceID {
   MODULE_DEVICE_ID_FAN,              // 11
   MODULE_DEVICE_ID_LINEAR_TMC,       // 12
   MODULE_DEVICE_ID_3DP_DUAL,         // 13
-  MODULE_DEVICE_ID_HIGH_POWER_LASER, // 14
+  MODULE_DEVICE_ID_10W_LASER, // 14
 
   MODULE_DEVICE_ID_INVALID
 };
