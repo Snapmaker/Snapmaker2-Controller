@@ -24,6 +24,8 @@
 #include "../common/debug.h"
 #include "../service/system.h"
 
+#include "src/module/configuration_store.h"
+
 // marlin headers
 #include "src/inc/MarlinConfig.h"
 #include "src/module/endstops.h"
@@ -247,6 +249,8 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
 ErrCode Linear::UpdateMachineLead() {
 
   uint16_t type_id[LINEAR_AXIS_MAX];
+  bool need_save_lead = false;
+
   float axis_steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
 
   for (uint8_t i = LINEAR_AXIS_X1; i < LINEAR_AXIS_MAX; i++) {
@@ -308,12 +312,30 @@ ErrCode Linear::UpdateMachineLead() {
     goto lead_err;
   }
 
+
   LOOP_XYZ(i) {
     if (!planner.is_user_set_lead) {
-      planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
+        planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];    
+    } else {
+       if ((int)axis_steps_per_unit[i] == 400) {
+        if (abs(planner.settings.axis_steps_per_mm[i] - axis_steps_per_unit[i]) > 120) {
+          planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
+          need_save_lead = true;
+        }      
+      } else if ((int)axis_steps_per_unit[i] == 160) {     
+        if (abs(planner.settings.axis_steps_per_mm[i] - axis_steps_per_unit[i]) > 16) {
+          planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
+          need_save_lead = true;
+        }
+      } else {
+        planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];   
+      }
     }
     SERIAL_ECHOLNPAIR("axis index:", i, "  pitch:", planner.settings.axis_steps_per_mm[i]);
   }
+
+  if (need_save_lead)
+    settings.save();
 
   planner.refresh_positioning();
   return E_SUCCESS;
@@ -397,6 +419,8 @@ MachineSize Linear::UpdateMachineSize() {
   if ((mac_index_[LINEAR_AXIS_Z3] != 0xff) && (length_[LINEAR_AXIS_Z3] != axis_length[Z_AXIS])) {
     goto length_err;
   }
+
+
 
   if (axis_length[X_AXIS] < 200) {
     X_MAX_POS = 167;
