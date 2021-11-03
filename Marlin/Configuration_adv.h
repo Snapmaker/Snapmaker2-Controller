@@ -561,7 +561,7 @@
 // if unwanted behavior is observed on a user's machine when running at very slow speeds.
 // #define MINIMUM_PLANNER_SPEED 0.05 // (mm/s)
 #define MINIMUM_PRINT_PLANNER_SPEED 0.05 // (mm/s)
-#define MINIMUM_LASER_PLANNER_SPEED 0.05 // (mm/s)
+#define MINIMUM_LASER_PLANNER_SPEED 3 // (mm/s)
 #define MINIMUM_CNC_PLANNER_SPEED   0.05 // (mm/s)
 
 //
