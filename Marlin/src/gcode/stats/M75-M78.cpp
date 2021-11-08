@@ -23,6 +23,7 @@
 #include "../gcode.h"
 #include "../../module/printcounter.h"
 #include "../../../../snapmaker/src/service/system.h"
+#include "../../../../snapmaker/src/service/power_loss_recovery.h"
 
 #if ENABLED(EXTENSIBLE_UI)
   #include "../../lcd/extensible_ui/ui_api.h"
@@ -49,6 +50,8 @@ void GcodeSuite::M76() {
   planner.synchronize();
   SERIAL_ECHOPAIR("MC REQ PAUSE\n");
   systemservice.ChangeSystemStatus(event);
+  // To pause recovery, skip the current line
+  pl_recovery.SaveCmdLine(pl_recovery.LastLine() + 1);
 }
 
 /**
