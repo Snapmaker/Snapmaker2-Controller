@@ -1766,8 +1766,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
         else {
           current_line_ = 0;
         }
-        // Batch sending requires the controller to actively request the next line
-        gocde_pack_start_line(current_line_ + 1);
+        gocde_pack_start_line(current_line_);
         SNAP_DEBUG_SET_GCODE_LINE(current_line_);
         LOG_I("RESUME over\n");
         return E_SUCCESS;
