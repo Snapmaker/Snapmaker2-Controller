@@ -107,6 +107,7 @@ class ToolHeadLaser: public ModuleBase {
       laser_temperature_ = 0;
       need_to_turnoff_laser_ = false;
       need_to_tell_hmi_ = false;
+      laser_10w_status_ = LASER_10W_DISABLE;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -174,26 +175,19 @@ class ToolHeadLaser: public ModuleBase {
 
   private:
     uint8_t  mac_index_;
-
     uint16_t timer_in_process_;
     ToolHeadLaserState  state_;
-
     float power_val_;
     float power_limit_;
-
     uint16_t power_pwm_;
-
     uint8_t  fan_state_;
     uint16_t fan_tick_;
-    LASER_10W_STATUS laser_10w_status_ = LASER_10W_ENABLE;
     uint16_t laser_10w_tick_ = 0;
 
     // save orignal value from module
     uint16_t focus_;
-
     message_id_t msg_id_set_fan_;
     message_id_t msg_id_get_focus_;
-
     UartHost esp32_;
 
   public:
@@ -203,6 +197,7 @@ class ToolHeadLaser: public ModuleBase {
     int8_t laser_temperature_;
     bool need_to_turnoff_laser_;
     bool need_to_tell_hmi_;
+    LASER_10W_STATUS laser_10w_status_;
 };
 
 
