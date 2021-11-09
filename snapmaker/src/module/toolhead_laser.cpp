@@ -75,6 +75,9 @@ static void CallbackAckReportSecurity(CanStdDataFrame_t &cmd) {
 
   if (laser->security_status_ != 0) {
     laser->need_to_turnoff_laser_ = true;
+    if (laser->laser_10w_status_ == LASER_10W_ENABLE) {
+      laser->TurnOff();
+    }
     if (systemservice.GetCurrentStage() == SYSTAGE_WORK || systemservice.GetCurrentStage() == SYSTAGE_PAUSE) {
       quickstop.Trigger(QS_SOURCE_SECURITY, true);
     }
@@ -150,7 +153,6 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
     SetToolhead(MODULE_TOOLHEAD_LASER);
   } else if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
     SetToolhead(MODULE_TOOLHEAD_LASER_10W);
-    LaserControl(0);
   }
 
   return E_SUCCESS;
