@@ -75,7 +75,7 @@ static void CallbackAckReportSecurity(CanStdDataFrame_t &cmd) {
 
   if (laser->security_status_ != 0) {
     laser->need_to_turnoff_laser_ = true;
-    
+
     if (systemservice.GetCurrentStage() == SYSTAGE_WORK || systemservice.GetCurrentStage() == SYSTAGE_PAUSE) {
       quickstop.Trigger(QS_SOURCE_SECURITY, true);
     } else if (laser->laser_10w_status_ == LASER_10W_ENABLE) {
@@ -935,7 +935,7 @@ void ToolHeadLaser::TellSecurityStatus() {
   SERIAL_ECHO("Laser 10w security state: 0x");
   SERIAL_PRINTLN(laser->security_status_, HEX);
 
-  SERIAL_ECHOLNPAIR("Laser 10w temp: ", laser->laser_temperature_, 
+  SERIAL_ECHOLNPAIR("Laser 10w temp: ", laser->laser_temperature_,
                       ", roll: ", laser->roll_, ", pitch: ", laser->pitch_);
 }
 
