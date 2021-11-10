@@ -69,7 +69,7 @@ void QuickStopService::Trigger(QuickStopSource new_source, bool from_isr /*=fals
     state_ = QS_STA_TRIGGERED;
 
     // to stop planning movement
-    planner.cleaning_buffer_counter = 2000;
+    planner.cleaning_buffer_counter = 100;
   } else {
     if (new_source == QS_SOURCE_POWER_LOSS) {
       pre_source_ = source_;
