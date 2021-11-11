@@ -59,7 +59,7 @@ void GcodeSuite::M1005() {
     canhost.ShowModuleVersion(mac);
   }
 
-  if (ModuleBase::toolhead() == MACHINE_TYPE_LASER) {
+  if (ModuleBase::toolhead() == MACHINE_TYPE_LASER || (ModuleBase::toolhead() == MACHINE_TYPE_LASER_10W)) {
     laser->ReadBluetoothVer();
   }
   SERIAL_ECHO("Machine Size: ");
