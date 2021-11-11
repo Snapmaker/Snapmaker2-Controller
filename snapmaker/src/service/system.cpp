@@ -2178,13 +2178,6 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
 
     // reset the status of filament monitor
     runout.reset();
-
-    // make sure laser is off
-    // won't turn off laser in pl_recovery.SaveEnv(), it's call by stepper ISR
-    // because it may call CAN transmisson function
-    if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W)) {
-      laser->TurnOff();
-    }
     break;
 
   case QS_SOURCE_STOP:
