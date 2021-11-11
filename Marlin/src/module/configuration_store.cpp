@@ -2000,7 +2000,6 @@ void MarlinSettings::postprocess() {
     else {
       systemservice.ThrowException(EHOST_MC, ETYPE_LOST_CFG);
       reset();
-      save();
       return true;
     }
   }
