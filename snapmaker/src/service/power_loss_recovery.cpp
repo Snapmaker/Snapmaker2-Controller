@@ -380,7 +380,7 @@ int PowerLossRecovery::SaveEnv(void) {
 	case MODULE_TOOLHEAD_LASER:
 	case MODULE_TOOLHEAD_LASER_10W:
 		cur_data_.laser_percent = laser->power();
-		cur_data_.laser_pwm = laser->power_pwm();
+		cur_data_.laser_pwm = laser->tim_pwm();
 	    laser->TurnOff();
 	break;
 
