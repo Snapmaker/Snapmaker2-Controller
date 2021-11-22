@@ -273,6 +273,7 @@
 #define MACHINE_TYPE_CNC        2
 #define MACHINE_TYPE_LASER      3
 #define MACHINE_TYPE_LASER_10W  4
+#define MACHINE_TYPE_DUAL_EXTRUDER 5
 
 //Machine size define
 #define MACHINE_SIZE_UNKNOW 0

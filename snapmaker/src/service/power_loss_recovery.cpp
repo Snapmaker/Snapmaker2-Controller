@@ -44,6 +44,7 @@
 #include "src/module/motion.h"
 #include "src/feature/runout.h"
 #include "src/feature/bedlevel/bedlevel.h"
+#include "../../../Marlin/src/module/tool_change.h"
 
 #include HAL_PATH(src/HAL, HAL.h)
 
@@ -86,9 +87,10 @@ void PowerLossRecovery::Init(void) {
 		if (ModuleBase::toolhead() == pre_data_.toolhead) {
 			systemservice.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
 
-			if (pre_data_.live_z_offset != 0) {
-				LOG_I("PL: changed live z: %.3f\n", pre_data_.live_z_offset);
-				levelservice.live_z_offset(pre_data_.live_z_offset);
+			if (pre_data_.live_z_offset[0] != 0 || pre_data_.live_z_offset[0] != 0) {
+				LOG_I("PL: changed live z0: %.3f, changed live z1: %.3f\n", pre_data_.live_z_offset[0], pre_data_.live_z_offset[1]);
+				levelservice.live_z_offset(pre_data_.live_z_offset[0], 0);
+				levelservice.live_z_offset(pre_data_.live_z_offset[1], 1);
 				settings.save();
 			}
 
@@ -343,25 +345,30 @@ int PowerLossRecovery::SaveEnv(void) {
   int     i = 0;
   uint8_t *pBuff;
 
-	LOOP_XN(idx) cur_data_.position_shift[idx] = position_shift[idx];
+  LOOP_XN(idx) cur_data_.position_shift[idx] = position_shift[idx];
 
-	cur_data_.FilePosition = last_line_;
+  cur_data_.FilePosition = last_line_;
 
-	cur_data_.axes_relative_mode = relative_mode;
+  cur_data_.axes_relative_mode = relative_mode;
 
-	LOOP_X_TO_E(idx) cur_data_.axis_relative_modes[idx] = gcode.axis_relative_modes[idx];
+  LOOP_X_TO_E(idx) cur_data_.axis_relative_modes[idx] = gcode.axis_relative_modes[idx];
 
   cur_data_.toolhead = ModuleBase::toolhead();
+  cur_data_.active_extruder = active_extruder;
 
   cur_data_.PrintFeedRate = saved_g1_feedrate_mm_s;
   cur_data_.TravelFeedRate = saved_g0_feedrate_mm_s;
-	cur_data_.feedrate_percentage = feedrate_percentage;
+  cur_data_.extruders_feedrate_percentage[TOOLHEAD_3DP_EXTRUDER0] = extruders_feedrate_percentage[TOOLHEAD_3DP_EXTRUDER0];
+  cur_data_.extruders_feedrate_percentage[TOOLHEAD_3DP_EXTRUDER1] = extruders_feedrate_percentage[TOOLHEAD_3DP_EXTRUDER1];
 
 	// if live z offset was changed when working, record it
-	if (levelservice.live_z_offset_updated())
-		cur_data_.live_z_offset = levelservice.live_z_offset();
-	else
-		cur_data_.live_z_offset = 0;
+	if (levelservice.live_z_offset_updated()) {
+		cur_data_.live_z_offset[0] = levelservice.live_z_offset((uint8_t)0);
+		cur_data_.live_z_offset[1] = levelservice.live_z_offset((uint8_t)1);
+	} else {
+		cur_data_.live_z_offset[0] = 0;
+		cur_data_.live_z_offset[1] = 0;
+	}
 
   cur_data_.accumulator = print_job_timer.duration();
 
@@ -385,10 +392,20 @@ int PowerLossRecovery::SaveEnv(void) {
 	break;
 
   case MODULE_TOOLHEAD_3DP:
-    for (i = 0; i < PP_FAN_COUNT; i++)
+    for (i = 0; i < 2; i++)
       cur_data_.FanSpeed[i] = printer1->fan_speed(i);
     // extruders' temperature
-    HOTEND_LOOP() cur_data_.HeaterTemp[e] = thermalManager.temp_hotend[e].target;
+    cur_data_.HeaterTemp[0] = thermalManager.temp_hotend[0].target;
+    // heated bed
+    cur_data_.BedTamp = thermalManager.temp_bed.target;
+    break;
+
+  case MODULE_TOOLHEAD_DUAL_EXTRUDER:
+    for (i = 0; i < 3; i++)
+      cur_data_.FanSpeed[i] = printer1->fan_speed(i);
+    // extruders' temperature
+    cur_data_.HeaterTemp[0] = thermalManager.temp_hotend[0].target;
+	cur_data_.HeaterTemp[1] = thermalManager.temp_hotend[1].target;
     // heated bed
     cur_data_.BedTamp = thermalManager.temp_bed.target;
     break;
@@ -488,6 +505,74 @@ void PowerLossRecovery::Resume3DP() {
 	planner.synchronize();
 }
 
+void PowerLossRecovery::ResumeDualExtruder() {
+	// enable hotend
+	if(pre_data_.BedTamp > BED_MAXTEMP - 15) {
+		LOG_W("recorded bed temp [%f] is larger than %f, limited it.\n",
+						pre_data_.BedTamp, BED_MAXTEMP - 15);
+		pre_data_.BedTamp = BED_MAXTEMP - 15;
+	}
+
+	if (pre_data_.HeaterTemp[0] > HEATER_0_MAXTEMP - 15) {
+		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
+						pre_data_.BedTamp, HEATER_0_MAXTEMP - 15);
+		pre_data_.HeaterTemp[0] = HEATER_0_MAXTEMP - 15;
+	}
+
+	if (pre_data_.HeaterTemp[1] > HEATER_1_MAXTEMP - 15) {
+		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
+						pre_data_.BedTamp, HEATER_0_MAXTEMP - 15);
+		pre_data_.HeaterTemp[1] = HEATER_1_MAXTEMP - 15;
+	}
+
+	/* when recover 3DP from power-loss, maybe the filament is freezing because
+	 * nozzle has been cooling. If we raise Z in this condition, the model will
+	 * be pulled up, sometimes it will break the model.
+	 * So we heating the hotend to 150 celsius degree before raising Z
+	 */
+	thermalManager.setTargetBed(pre_data_.BedTamp);
+	thermalManager.setTargetHotend(pre_data_.HeaterTemp[0], 0);
+	thermalManager.setTargetHotend(pre_data_.HeaterTemp[1], 1);
+
+  	while (thermalManager.degHotend(pre_data_.active_extruder) < 150) idle();
+
+	RestoreWorkspace();
+
+	// waiting temperature reach target
+	thermalManager.wait_for_bed(true);
+	thermalManager.wait_for_hotend(0, true);
+	thermalManager.wait_for_hotend(1, true);
+
+  	// recover FAN speed after heating to save time
+	for (int i = 0; i < 3; i++) {
+		printer1->SetFan(i, pre_data_.FanSpeed[i]);
+	}
+
+	current_position[E_AXIS] += 20;
+	line_to_current_position(5);
+	planner.synchronize();
+
+	// try to cut out filament
+	current_position[E_AXIS] -= 6;
+	line_to_current_position(50);
+	planner.synchronize();
+
+	// E axis will be recovered in ResumeOver() using  cur_data_.PositionData[]
+	// So put it in cur_data_.PositionData[] in advance
+	cur_data_.PositionData[E_AXIS] = pre_data_.PositionData[E_AXIS];
+
+	// move to target X Y
+	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
+	planner.synchronize();
+
+	// switch to pre target extruder
+	tool_change(pre_data_.active_extruder);
+
+	// move to target Z
+	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 30);
+	planner.synchronize();
+}
+
 void PowerLossRecovery::ResumeCNC() {
 	// for CNC recover form power-loss, we need to raise Z firstly.
 	// because the drill bit maybe is in the workpiece
@@ -544,11 +629,12 @@ void PowerLossRecovery::ResumeLaser() {
 
 
 void PowerLossRecovery::RestoreWorkspace() {
-	feedrate_percentage = pre_data_.feedrate_percentage;
+	extruders_feedrate_percentage[TOOLHEAD_3DP_EXTRUDER0] = pre_data_.extruders_feedrate_percentage[TOOLHEAD_3DP_EXTRUDER0];
+	extruders_feedrate_percentage[TOOLHEAD_3DP_EXTRUDER1] = pre_data_.extruders_feedrate_percentage[TOOLHEAD_3DP_EXTRUDER1];
+	feedrate_percentage = extruders_feedrate_percentage[active_extruder];
 
 	// home first
 	process_cmd_imd("G28");
-
 	planner.synchronize();
 
 	LOG_I("position shift:\n");
@@ -591,6 +677,19 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		LOG_I("previous target temp: hotend: %d, bed: %d\n", pre_data_.HeaterTemp[0], pre_data_.BedTamp);
 
 		Resume3DP();
+		break;
+
+	case MODULE_TOOLHEAD_DUAL_EXTRUDER:
+		if (runout.is_filament_runout()) {
+			LOG_E("trigger RESTORE: failed, filament runout\n");
+			systemservice.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
+			process_cmd_imd("G28 Z");
+			return E_NO_FILAMENT;
+		}
+
+		LOG_I("previous target temp: hotend0: %d, hotend1: %d, bed: %d\n", pre_data_.HeaterTemp[0], pre_data_.HeaterTemp[1], pre_data_.BedTamp);
+
+		ResumeDualExtruder();
 		break;
 
 	case MODULE_TOOLHEAD_CNC:

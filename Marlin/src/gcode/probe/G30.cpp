@@ -39,8 +39,8 @@
  *   E   Engage the probe for each probe (default 1)
  */
 void GcodeSuite::G30() {
-  const float xpos = parser.linearval('X', current_position[X_AXIS] + X_PROBE_OFFSET_FROM_EXTRUDER),
-              ypos = parser.linearval('Y', current_position[Y_AXIS] + Y_PROBE_OFFSET_FROM_EXTRUDER);
+  const float xpos = parser.linearval('X', current_position[X_AXIS] + xprobe_offset_from_extruder),
+              ypos = parser.linearval('Y', current_position[Y_AXIS] + yprobe_offset_from_extruder);
 
   if (!position_is_reachable_by_probe(xpos, ypos)) return;
 

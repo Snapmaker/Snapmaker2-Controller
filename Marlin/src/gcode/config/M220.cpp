@@ -22,13 +22,45 @@
 
 #include "../gcode.h"
 #include "../../module/motion.h"
+#include "../../../../snapmaker/src/module/toolhead_3dp.h"
 
 /**
  * M220: Set speed percentage factor, aka "Feed Rate" (M220 S95)
  */
 void GcodeSuite::M220() {
+  int16_t percentage = 100;
+  if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
+    if (parser.seenval('S')) {
+      percentage = parser.value_int();
+    }
+    if (percentage > 500 || percentage < 0) {
+      return;
+    }
+    feedrate_percentage = percentage;
+  }
 
-  if (parser.seenval('S'))
-    feedrate_percentage = parser.value_int();
+  if (MODULE_TOOLHEAD_DUAL_EXTRUDER == ModuleBase::toolhead()) {
+    uint8_t e = 0;
+    bool seen_t = parser.seenval('T');
+    if (seen_t) {
+      e = (uint8_t)parser.byteval('T', (uint8_t)0);
+      if (e >= EXTRUDERS) {
+        return;
+      }
+    }
+
+    bool seen_s = parser.seenval('S');
+    if (seen_s) {
+      percentage = (uint8_t)parser.intval('S', (int16_t)100);
+      if (percentage > 500 || percentage < 0) {
+        return;
+      }
+    }
+    extruders_feedrate_percentage[e] = percentage;
+
+    if (active_extruder == e) {
+      feedrate_percentage = percentage;
+    }
+  }
 
 }

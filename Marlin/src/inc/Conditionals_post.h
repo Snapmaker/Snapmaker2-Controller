@@ -443,6 +443,11 @@
   #ifndef HOTEND_OFFSET_Z
     #define HOTEND_OFFSET_Z { 0 } // Z offsets for each extruder
   #endif
+
+  #ifndef DEFAULT_HOTEND_OFFSETS
+    #define DEFAULT_HOTEND_OFFSETS   { {0.0, 20.0}, {0.0, 0.0}, {0.0, 0}}   //extruder 0 offsets must be 0
+    #define HOTEND_OFFSET_MAX_DEVIATION   1
+  #endif
 #endif
 
 /**
@@ -1386,10 +1391,10 @@
     extern float Z_MIN_POS;
   #endif
   // Boundaries for Cartesian probing based on bed limits
-  #define _MIN_PROBE_X (MAX(X_MIN_BED + MIN_PROBE_EDGE, X_MIN_POS + X_PROBE_OFFSET_FROM_EXTRUDER))
-  #define _MIN_PROBE_Y (MAX(Y_MIN_BED + MIN_PROBE_EDGE, Y_MIN_POS + Y_PROBE_OFFSET_FROM_EXTRUDER))
-  #define _MAX_PROBE_X (MIN(X_MAX_BED - (MIN_PROBE_EDGE), X_MAX_POS + X_PROBE_OFFSET_FROM_EXTRUDER))
-  #define _MAX_PROBE_Y (MIN(Y_MAX_BED - (MIN_PROBE_EDGE), Y_MAX_POS + Y_PROBE_OFFSET_FROM_EXTRUDER))
+  #define _MIN_PROBE_X (MAX(X_MIN_BED + MIN_PROBE_EDGE, X_MIN_POS + xprobe_offset_from_extruder))
+  #define _MIN_PROBE_Y (MAX(Y_MIN_BED + MIN_PROBE_EDGE, Y_MIN_POS + yprobe_offset_from_extruder))
+  #define _MAX_PROBE_X (MIN(X_MAX_BED - (MIN_PROBE_EDGE), X_MAX_POS + xprobe_offset_from_extruder))
+  #define _MAX_PROBE_Y (MIN(Y_MAX_BED - (MIN_PROBE_EDGE), Y_MAX_POS + yprobe_offset_from_extruder))
 
 #endif
 

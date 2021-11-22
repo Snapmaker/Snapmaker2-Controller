@@ -357,6 +357,7 @@ void Endstops::not_homing() {
 // Enable / disable endstop z-probe checking
 #if HAS_BED_PROBE
   void Endstops::enable_z_probe(const bool onoff) {
+    printer1->SetProbeSensor(PROBE_SENSOR_PROXIMITY_SWITCH);
     z_probe_enabled = onoff;
     resync();
   }
@@ -457,8 +458,12 @@ void _O2 Endstops::M119() {
     ES_REPORT_LINEAR(Y_MAX);
     ES_REPORT_LINEAR(Z_MIN);
     ES_REPORT_LINEAR(Z_MAX);
-    print_es_state(TEST(printer1->probe_state(), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE));
-    print_es_state(TEST(printer1->filament_state(), 0) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR));
+    print_es_state(TEST(printer1->probe_state(PROBE_SENSOR_PROXIMITY_SWITCH), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE"_proximity_switch"));
+    print_es_state(TEST(printer1->probe_state(PROBE_SENSOR_LEFT_OPTOCOUPLER), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE"_left_optocoupler"));
+    print_es_state(TEST(printer1->probe_state(PROBE_SENSOR_RIGHT_OPTOCOUPLER), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE"_right_optocoupler"));
+
+    print_es_state(TEST(printer1->filament_state(TOOLHEAD_3DP_EXTRUDER0), 0) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR"_extruder0"));
+    print_es_state(TEST(printer1->filament_state(TOOLHEAD_3DP_EXTRUDER1), 0) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR"_extruder1"));
   #else
 
 

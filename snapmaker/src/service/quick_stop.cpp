@@ -220,7 +220,8 @@ void QuickStopService::Park() {
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
-    if(thermalManager.temp_hotend[0].current > 180)
+  case MODULE_TOOLHEAD_DUAL_EXTRUDER:
+    if(thermalManager.temp_hotend[active_extruder].current > 180)
       retract = 6;
 
     // for power loss, we don't have enough time
@@ -239,10 +240,14 @@ void QuickStopService::Park() {
 
     // move X to max position of home dir
     // move Y to max position
-    if (X_HOME_DIR > 0)
-      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 60);
-    else
-      move_to_limited_xy(0, Y_MAX_POS, 60);
+    if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
+      if (X_HOME_DIR > 0)
+        move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 60);
+      else
+        move_to_limited_xy(0, Y_MAX_POS, 60);
+    } else if ( MODULE_TOOLHEAD_DUAL_EXTRUDER == ModuleBase::toolhead() ) {
+      move_to_limited_xy(current_position[X_AXIS], Y_MAX_POS, 60);
+    }
     break;
 
   case MODULE_TOOLHEAD_LASER:
@@ -319,8 +324,13 @@ void QuickStopService::EmergencyStop() {
       cnc.TurnOff();
       break;
     case MACHINE_TYPE_3DPRINT:
-      printer1->SetFan(1, 0);
-      printer1->SetFan(0, 0);
+      printer1->SetFan(SINGLE_EXTRUDER_MODULE_FAN, 0);
+      printer1->SetFan(SINGLE_EXTRUDER_NOZZLE_FAN, 0);
+      break;
+    case MACHINE_TYPE_DUAL_EXTRUDER:
+      printer1->SetFan(DUAL_EXTRUDER_LEFT_MODULE_FAN, 0);
+      printer1->SetFan(DUAL_EXTRUDER_RIGHT_MODULE_FAN, 0);
+      printer1->SetFan(DUAL_EXTRUDER_NOZZLE_FAN, 0);
       break;
     case MACHINE_TYPE_LASER:
     case MACHINE_TYPE_LASER_10W:

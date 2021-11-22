@@ -35,7 +35,7 @@
 #define Z_POS_CALI_OFFSET 15
 #define Z_POS_AFTER_CALI  100
 
-#define Z_LIMIT_CALI      140
+#define Z_LIMIT_CALI      100
 
 #define LASER_POWER_CALI  70
 

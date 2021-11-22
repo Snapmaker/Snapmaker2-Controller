@@ -176,6 +176,9 @@ enum RuntimeEnvType : uint8_t {
   RENV_TYPE_LASER_POWER,
   RENV_TYPE_ZOFFSET,
   RENV_TYPE_CNC_POWER,
+  RENV_TYPE_EXTRUDER1_FEEDRATE,
+  RENV_TYPE_EXTRUDER1_HOTEND_TEMP,
+  RENV_TYPE_EXTRUDER1_ZOFFSET,
 
   RENV_TYPE_INVALID
 };
@@ -204,6 +207,8 @@ typedef struct {
 
   uint8_t executor_type;
   uint32_t cur_gcode_line;
+  int16_t extruder1_hotend_current_temp;
+  int16_t extruder1_hotend_target_temp;
 } __packed SystemStatus_t;
 
 

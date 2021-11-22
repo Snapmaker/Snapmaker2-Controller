@@ -91,6 +91,10 @@ void GcodeSuite::M1006() {
     SERIAL_ECHOLN("3DP");
     break;
 
+  case MODULE_TOOLHEAD_DUAL_EXTRUDER:
+    SERIAL_ECHOLN("DUAL EXTRUDER");
+    break;
+
   case MODULE_TOOLHEAD_LASER:
     SERIAL_ECHOLN("LASER");
     SERIAL_ECHO("Current Status: ");

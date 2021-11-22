@@ -28,6 +28,7 @@
 #include "../../Marlin.h" // for IsRunning()
 #include "../../module/motion.h"
 #include "../../feature/bedlevel/bedlevel.h"
+#include "../../module/probe.h"
 
 /**
  * G42: Move X & Y axes to mesh coordinates (I & J)
@@ -48,8 +49,8 @@ void GcodeSuite::G42() {
     if (hasI) destination[X_AXIS] = _GET_MESH_X(ix);
     if (hasJ) destination[Y_AXIS] = _GET_MESH_Y(iy);
     if (parser.boolval('P')) {
-      if (hasI) destination[X_AXIS] -= X_PROBE_OFFSET_FROM_EXTRUDER;
-      if (hasJ) destination[Y_AXIS] -= Y_PROBE_OFFSET_FROM_EXTRUDER;
+      if (hasI) destination[X_AXIS] -= xprobe_offset_from_extruder;
+      if (hasJ) destination[Y_AXIS] -= yprobe_offset_from_extruder;
     }
 
     const float fval = parser.linearval('F');

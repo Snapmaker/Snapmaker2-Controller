@@ -139,6 +139,11 @@ typedef struct SettingsDataStruct {
 
   float home_offset[XN];                                // M206 XYZ / M665 TPZ
 
+#if EXTRUDERS > 1
+  float switch_stroke_extruder0;
+  float switch_stroke_extruder1;
+#endif
+
   #if HAS_HOTEND_OFFSET
     float hotend_offset[XYZ][HOTENDS - 1];              // M218 XYZ
   #endif
@@ -538,6 +543,11 @@ void MarlinSettings::postprocess() {
           const float home_offset[XYZ] = { 0 };
         #endif
         EEPROM_WRITE(home_offset);
+      #endif
+
+      #if EXTRUDERS > 1
+        EEPROM_WRITE(switch_stroke_extruder0);
+        EEPROM_WRITE(switch_stroke_extruder1);
       #endif
 
       #if HAS_HOTEND_OFFSET
@@ -1258,7 +1268,7 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(planner.settings.travel_acceleration);
         EEPROM_READ(planner.settings.min_feedrate_mm_s);
         EEPROM_READ(planner.settings.min_travel_feedrate_mm_s);
-        
+
         #if ENABLED(BACKLASH_GCODE)
           // M425
           EEPROM_READ(backlash_distance_mm);
@@ -1301,6 +1311,10 @@ void MarlinSettings::postprocess() {
       // Hotend Offsets, if any
       //
       {
+        #if EXTRUDERS > 1
+          EEPROM_READ(switch_stroke_extruder0);
+          EEPROM_READ(switch_stroke_extruder1);
+        #endif
         #if HAS_HOTEND_OFFSET
           // Skip hotend 0 which must be 0
           for (uint8_t e = 1; e < HOTENDS; e++)
@@ -2666,6 +2680,21 @@ void MarlinSettings::reset() {
         " Z", LINEAR_UNIT(home_offset[Z_AXIS])
       );
     #endif
+
+      if (MODULE_TOOLHEAD_DUAL_EXTRUDER == ModuleBase::toolhead()) {
+        SERIAL_ECHOLNPAIR("  stroke"
+          " extruder0: ", LINEAR_UNIT(switch_stroke_extruder0),
+          " extruder1: ", LINEAR_UNIT(switch_stroke_extruder1)
+        );
+        SERIAL_ECHOLNPAIR("  nozzle type"
+          " nozzle0: ", LINEAR_UNIT(printer1->GetNozzleType(TOOLHEAD_3DP_EXTRUDER0)),
+          " nozzle1: ", LINEAR_UNIT(printer1->GetNozzleType(TOOLHEAD_3DP_EXTRUDER1))
+        );
+        SERIAL_ECHOLNPAIR("  extruder info"
+          " active: ", LINEAR_UNIT(active_extruder),
+          " target: ", LINEAR_UNIT(target_extruder)
+        );
+      }
 
     #if HAS_HOTEND_OFFSET
       CONFIG_ECHO_HEADING("Hotend offsets:");

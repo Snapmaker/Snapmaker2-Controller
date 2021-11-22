@@ -255,14 +255,6 @@ void GcodeSuite::G28(const bool always_home_all) {
     bltouch.init();
   #endif
 
-  // Always home with tool 0 active
-  #if HOTENDS > 1
-    #if DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE)
-      const uint8_t old_tool_index = active_extruder;
-    #endif
-    tool_change(0, 0, true);
-  #endif
-
   #if HAS_DUPLICATION_MODE
     extruder_duplication_enabled = false;
   #endif
@@ -354,9 +346,26 @@ void GcodeSuite::G28(const bool always_home_all) {
         active_extruder_parked = true;
 
       #else
-
+        if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUAL_EXTRUDER) {
+          if ((linear_p->machine_size() == MACHINE_SIZE_A250) || (linear_p->machine_size() == MACHINE_SIZE_A350)) {
+            printer1->SwitchExtruderWithoutMove(TOOLHEAD_3DP_EXTRUDER0);
+          } else if (linear_p->machine_size() == MACHINE_SIZE_A150) {
+            if (!axes_homed(Z_AXIS)) {
+              return;
+            }
+            printer1->SwitchExtruderWithoutMove(TOOLHEAD_3DP_EXTRUDER1);
+            if (current_position[Z_AXIS] - 5 < 0) {
+              do_blocking_move_to_z(current_position[Z_AXIS] + 10);
+            }
+            do_blocking_move_to_z(current_position[Z_AXIS] - 5);
+            float tmp = current_position[Z_AXIS];
+            do_blocking_move_to_z(current_position[Z_AXIS] - hotend_offset[Z_AXIS][TOOLHEAD_3DP_EXTRUDER1]);
+            planner.synchronize();
+            current_position[Z_AXIS] = tmp;
+            sync_plan_position();
+          }
+        }
         homeaxis(X_AXIS);
-
       #endif
     }
 
@@ -409,7 +418,7 @@ void GcodeSuite::G28(const bool always_home_all) {
       set_axis_is_at_home(B_AXIS);
     }
     sync_plan_position();
-  
+
   #endif // !DELTA (G28)
 
   /**
@@ -459,24 +468,13 @@ void GcodeSuite::G28(const bool always_home_all) {
   #endif
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-    if((ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) && (all_axes_homed())) {
+    if(((ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUAL_EXTRUDER)) && (all_axes_homed())) {
       set_bed_leveling_enabled(true);
-      levelservice.ApplyLiveZOffset();
+      levelservice.ApplyLiveZOffset(active_extruder);
     }
   #endif
 
   clean_up_after_endstop_or_probe_move();
-
-  // Restore the active tool after homing
-  #if HOTENDS > 1 && (DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE))
-    #if ENABLED(PARKING_EXTRUDER)
-      #define NO_FETCH false // fetch the previous toolhead
-    #else
-      #define NO_FETCH true
-    #endif
-    tool_change(old_tool_index, 0, NO_FETCH);
-  #endif
-
 
   report_current_position();
   #if ENABLED(NANODLP_Z_SYNC)

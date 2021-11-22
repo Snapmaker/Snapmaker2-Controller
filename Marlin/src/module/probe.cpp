@@ -56,6 +56,8 @@
 #endif
 
 float zprobe_zoffset; // Initialized by settings.load()
+float xprobe_offset_from_extruder = X_PROBE_OFFSET_FROM_EXTRUDER;
+float yprobe_offset_from_extruder = Y_PROBE_OFFSET_FROM_EXTRUDER;
 
 #if ENABLED(BLTOUCH)
   #include "../feature/bltouch.h"
@@ -719,13 +721,15 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
     DEBUG_POS("", current_position);
   }
 
+  printer1->SetExtruderCheck(EXTRUDER_STATUS_IDLE);
+
   // TODO: Adapt for SCARA, where the offset rotates
   float nx = rx, ny = ry;
   SERIAL_ECHOLNPAIR("ProbeX:", rx, " ProbeY:", ry, "Avtive:", probe_relative);
   if (probe_relative) {
-    if (!position_is_reachable_by_probe(rx, ry)) { return NAN;}  // The given position is in terms of the probe
-    nx -= (X_PROBE_OFFSET_FROM_EXTRUDER);                     // Get the nozzle position
-    ny -= (Y_PROBE_OFFSET_FROM_EXTRUDER);
+    // if (!position_is_reachable_by_probe(rx, ry)) { return NAN;}  // The given position is in terms of the probe
+    nx -= (xprobe_offset_from_extruder);                     // Get the nozzle position
+    ny -= (yprobe_offset_from_extruder);
   }
   else if (!position_is_reachable(nx, ny)) return NAN;        // The given position is in terms of the nozzle
 
@@ -770,6 +774,8 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
   }
 
   if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("<<< probe_pt");
+
+  printer1->SetExtruderCheck(EXTRUDER_STATUS_CHECK);
 
   return measured_z;
 }

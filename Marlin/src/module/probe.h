@@ -29,6 +29,8 @@
 
 #if HAS_BED_PROBE
   extern float zprobe_zoffset;
+  extern float xprobe_offset_from_extruder;
+  extern float yprobe_offset_from_extruder;
   bool set_probe_deployed(const bool deploy);
   #ifdef Z_AFTER_PROBING
     void move_z_after_probing();

@@ -23,6 +23,7 @@
 #include "../inc/MarlinConfigPre.h"
 
 #include "tool_change.h"
+#include "../../../snapmaker/src/module/linear.h"
 
 #include "probe.h"
 #include "motion.h"
@@ -79,6 +80,16 @@
 
 #if HAS_LCD_MENU
   #include "../lcd/ultralcd.h"
+#endif
+
+#if EXTRUDERS > 1
+  float lift_switch_left_position;
+  float lift_switch_right_position;
+
+  void reset_tool_change_params (){
+    lift_switch_left_position  = INVALID_LIFT_SWITCH_POSITION;
+    lift_switch_right_position = INVALID_LIFT_SWITCH_POSITION;
+  }
 #endif
 
 #if DO_SWITCH_EXTRUDER
@@ -645,14 +656,18 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
       }
     #endif // TOOLCHANGE_FILAMENT_SWAP
 
+    if (current_position[X_AXIS] < X_MIN_POS + TOOL_CHANGE_SAFE_SPACE) {
+      do_blocking_move_to_xy(X_MIN_POS + TOOL_CHANGE_SAFE_SPACE, current_position[Y_AXIS]);
+    } else if (current_position[X_AXIS] > X_MAX_POS - TOOL_CHANGE_SAFE_SPACE) {
+      do_blocking_move_to_xy(X_MAX_POS - TOOL_CHANGE_SAFE_SPACE, current_position[Y_AXIS]);
+    }
+
     if (tmp_extruder != active_extruder) {
+      printer1->SetExtruderCheck(EXTRUDER_STATUS_IDLE);
 
       #if SWITCHING_NOZZLE_TWO_SERVOS
         raise_nozzle(active_extruder);
       #endif
-
-      const float old_feedrate_mm_s = fr_mm_s > 0.0 ? fr_mm_s : feedrate_mm_s;
-      feedrate_mm_s = fr_mm_s > 0.0 ? fr_mm_s : XY_PROBE_FEEDRATE_MM_S;
 
       #if HAS_SOFTWARE_ENDSTOPS && ENABLED(DUAL_X_CARRIAGE)
         update_software_endstops(X_AXIS, active_extruder, tmp_extruder);
@@ -675,6 +690,32 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
         #endif
         planner.synchronize();
       }
+
+      // clear old live_z_offset
+      levelservice.UnapplyLiveZOffset(active_extruder);
+
+      // unapply current extruder feedrate
+      feedrate_percentage = 100;
+
+      if ((linear_p->machine_size() == MACHINE_SIZE_A250) || (linear_p->machine_size() == MACHINE_SIZE_A350)) {
+        if (tmp_extruder == TOOLHEAD_3DP_EXTRUDER0) {
+          current_position[X_AXIS] = lift_switch_left_position + hotend_offset[X_AXIS][TOOLHEAD_3DP_EXTRUDER1];
+        } else if (tmp_extruder == TOOLHEAD_3DP_EXTRUDER1) {
+          current_position[X_AXIS] = lift_switch_right_position;
+        }
+      } else if (linear_p->machine_size() == MACHINE_SIZE_A150) {
+        if (tmp_extruder == TOOLHEAD_3DP_EXTRUDER0) {
+          current_position[X_AXIS] = lift_switch_left_position;
+        } else if (tmp_extruder == TOOLHEAD_3DP_EXTRUDER1) {
+          current_position[X_AXIS] = lift_switch_right_position - hotend_offset[X_AXIS][TOOLHEAD_3DP_EXTRUDER1];
+        }
+      }
+
+      float old_feedrate_mm_s = feedrate_mm_s;
+      feedrate_mm_s = 100;
+      planner.buffer_line(current_position, feedrate_mm_s, active_extruder);
+      feedrate_mm_s = old_feedrate_mm_s;
+      planner.synchronize();
 
       #if HAS_HOTEND_OFFSET
         #if ENABLED(DUAL_X_CARRIAGE)
@@ -716,6 +757,7 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
 
       // Set the new active extruder if not already done in tool specific function above
       active_extruder = tmp_extruder;
+      target_extruder = active_extruder;
 
       // Tell the planner the new "current position"
       sync_plan_position();
@@ -770,6 +812,12 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
         // Move back to the original (or tweaked) position
         do_blocking_move_to(destination);
 
+        // use new live_z_offset
+        levelservice.ApplyLiveZOffset(active_extruder);
+
+        // apply new extruder's feedrate
+        feedrate_percentage = extruders_feedrate_percentage[active_extruder];
+
         #if ENABLED(DUAL_X_CARRIAGE)
           active_extruder_parked = false;
         #endif
@@ -807,6 +855,8 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
     } // (tmp_extruder != active_extruder)
 
     planner.synchronize();
+    printer1->SwitchExtruder(active_extruder);
+    printer1->SetExtruderCheck(EXTRUDER_STATUS_CHECK);
 
     #if ENABLED(EXT_SOLENOID) && DISABLED(PARKING_EXTRUDER)
       disable_all_solenoids();
@@ -831,9 +881,6 @@ void tool_change(const uint8_t tmp_extruder, const float fr_mm_s/*=0.0*/, bool n
       // Restore leveling to re-establish the logical position
       set_bed_leveling_enabled(leveling_was_active);
     #endif
-
-    SERIAL_ECHO_START();
-    SERIAL_ECHOLNPAIR(MSG_ACTIVE_EXTRUDER, int(active_extruder));
 
   #endif // EXTRUDERS > 1
 }

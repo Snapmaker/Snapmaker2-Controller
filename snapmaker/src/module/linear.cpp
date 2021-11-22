@@ -27,6 +27,8 @@
 // marlin headers
 #include "src/inc/MarlinConfig.h"
 #include "src/module/endstops.h"
+#include "toolhead_3dp.h"
+#include "../../../Marlin/src/module/tool_change.h"
 
 Linear linear(MODULE_DEVICE_ID_LINEAR);
 Linear linear_tmc(MODULE_DEVICE_ID_LINEAR_TMC);
@@ -383,14 +385,34 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    LOOP_XN(i) home_offset[i] = s_home_offset[i];
-
     X_DEF_SIZE = 160;
     Y_DEF_SIZE = 160;
     Z_DEF_SIZE = 145;
 
     MAGNET_X_SPAN = 114;
     MAGNET_Y_SPAN = 114;
+
+    if (printer1->device_id() == MODULE_DEVICE_ID_DUAL_EXTRUDER) {
+      float temp_offset[3] = S_HOME_OFFSET_DEFAULT_DUAL_EXTRUDER;
+      LOOP_XYZ(i) home_offset[i] = temp_offset[i];
+      DUAL_EXTRUDER_X_MAX_POS = 140;
+      DUAL_EXTRUDER_Y_MAX_POS = 140;
+      DUAL_EXTRUDER_Z_MAX_POS = 150;
+      DUAL_EXTRUDER_X_MIN_POS = 30;
+      DUAL_EXTRUDER_Y_MIN_POS = 30;
+      DUAL_EXTRUDER_Z_MIN_POS = 30;
+
+      X_DEF_SIZE    = 80;
+      MAGNET_X_SPAN = 62;
+
+      lift_switch_left_position  = S_DEFAULT_LIFT_SWITCH_LEFT_POSITION;
+      lift_switch_right_position = S_DEFAULT_LIFT_SWITCH_RIGHT_POSITION;
+
+      active_extruder = TOOLHEAD_3DP_EXTRUDER1;
+    }
+    else {
+      LOOP_XYZ(i) home_offset[i] = s_home_offset[i];
+    }
 
     machine_size_ = MACHINE_SIZE_A150;
 
@@ -415,6 +437,28 @@ MachineSize Linear::UpdateMachineSize() {
     MAGNET_X_SPAN = 184;
     MAGNET_Y_SPAN = 204;
 
+    if (printer1->device_id() == MODULE_DEVICE_ID_DUAL_EXTRUDER) {
+      float temp_offset[3] = M_HOME_OFFSET_DEFAULT_DUAL_EXTRUDER;
+      LOOP_XYZ(i) home_offset[i] = temp_offset[i];
+      DUAL_EXTRUDER_X_MAX_POS = 245;
+      DUAL_EXTRUDER_Y_MAX_POS = 260;
+      DUAL_EXTRUDER_Z_MAX_POS = 210;
+      DUAL_EXTRUDER_X_MIN_POS = 30;
+      DUAL_EXTRUDER_Y_MIN_POS = 30;
+      DUAL_EXTRUDER_Z_MIN_POS = 30;
+
+      X_DEF_SIZE    = 195;
+      MAGNET_X_SPAN = 129;
+
+      lift_switch_left_position  = M_DEFAULT_LIFT_SWITCH_LEFT_POSITION;
+      lift_switch_right_position = M_DEFAULT_LIFT_SWITCH_RIGHT_POSITION;
+
+      active_extruder = TOOLHEAD_3DP_EXTRUDER0;
+    }
+    else {
+      LOOP_XYZ(i) home_offset[i] = m_home_offset[i];
+    }
+
     machine_size_ = MACHINE_SIZE_A250;
   } else if (length_[LINEAR_AXIS_X1] < 400) {
     LOG_I("Model: A350\n");
@@ -436,6 +480,28 @@ MachineSize Linear::UpdateMachineSize() {
 
     MAGNET_X_SPAN = 274;
     MAGNET_Y_SPAN = 304;
+
+    if (printer1->device_id() == MODULE_DEVICE_ID_DUAL_EXTRUDER) {
+      float temp_offset[3] = L_HOME_OFFSET_DEFAULT_DUAL_EXTRUDER;
+      LOOP_XYZ(i) home_offset[i] = temp_offset[i];
+      DUAL_EXTRUDER_X_MAX_POS = 320;
+      DUAL_EXTRUDER_Y_MAX_POS = 330;
+      DUAL_EXTRUDER_Z_MAX_POS = 310;
+      DUAL_EXTRUDER_X_MIN_POS = 30;
+      DUAL_EXTRUDER_Y_MIN_POS = 30;
+      DUAL_EXTRUDER_Z_MIN_POS = 30;
+
+      X_DEF_SIZE    = 300;
+      MAGNET_X_SPAN = 230;
+
+      lift_switch_left_position  = L_DEFAULT_LIFT_SWITCH_LEFT_POSITION;
+      lift_switch_right_position = L_DEFAULT_LIFT_SWITCH_RIGHT_POSITION;
+
+      active_extruder = TOOLHEAD_3DP_EXTRUDER0;
+    }
+    else {
+      LOOP_XYZ(i) home_offset[i] = l_home_offset[i];
+    }
 
     machine_size_ = MACHINE_SIZE_A350;
   }
