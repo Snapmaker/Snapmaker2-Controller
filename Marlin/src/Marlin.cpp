@@ -236,6 +236,13 @@ millis_t max_inactive_time, // = 0
   float X_MIN_POS = 0;
   float Y_MIN_POS = 0;
   float Z_MIN_POS = 0;
+  float DUAL_EXTRUDER_X_MAX_POS = 130;
+  float DUAL_EXTRUDER_Y_MAX_POS = 130;
+  float DUAL_EXTRUDER_Z_MAX_POS = 130;
+  float DUAL_EXTRUDER_X_MIN_POS = 30;
+  float DUAL_EXTRUDER_Y_MIN_POS = 30;
+  float DUAL_EXTRUDER_Z_MIN_POS = 30;
+  float TOOL_CHANGE_SAFE_SPACE  = 30;
 
   // Machine definition size
   float X_DEF_SIZE = 145;

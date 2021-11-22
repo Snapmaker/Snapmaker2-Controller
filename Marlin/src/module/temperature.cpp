@@ -212,6 +212,8 @@ hotend_info_t Temperature::temp_hotend[HOTENDS]; // = { 0 }
   #ifdef BED_MAXTEMP
     int16_t Temperature::maxtemp_raw_BED = HEATER_BED_RAW_HI_TEMP;
   #endif
+  int16_t Temperature::mintemp_raw_BED = HEATER_BED_RAW_LO_TEMP;
+  int16_t Temperature::maxtemp_raw_BED = HEATER_BED_RAW_HI_TEMP;
   #if WATCH_BED
     heater_watch_t Temperature::watch_bed; // = { 0 }
     heater_watch_t Temperature::watch_bed_tempdrop;
@@ -2576,7 +2578,7 @@ void Temperature::isr() {
     /**
      * Standard heater PWM modulation
      */
-    if(MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
+    if(MODULE_TOOLHEAD_3DP == ModuleBase::toolhead() || MODULE_TOOLHEAD_DUAL_EXTRUDER == ModuleBase::toolhead()) {
       if (pwm_count_tmp >= 127) {
         pwm_count_tmp -= 127;
         #define _PWM_MOD(N,S,T) do{                           \

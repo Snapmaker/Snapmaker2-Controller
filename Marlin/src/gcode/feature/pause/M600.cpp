@@ -159,8 +159,16 @@ void GcodeSuite::M600() {
 #else
 #include "../../../gcode/gcode.h"
 #include "../snapmaker/src/module/toolhead_3dp.h"
+#include "../../../module/motion.h"
+
 void GcodeSuite::M600() {
-  printer1->filament_state(0, 0);
+  uint8_t buf[EXTRUDERS] = {0,};
+  for (uint32_t i = 0; i < EXTRUDERS; i++) {
+    if (active_extruder != i) {
+      buf[i] = 1;
+    }
+  }
+  printer1->filament_state(buf);
 }
 
 #endif // ADVANCED_PAUSE_FEATURE

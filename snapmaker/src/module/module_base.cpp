@@ -43,6 +43,7 @@
 #include HAL_PATH(src/HAL, HAL.h)
 
 extern ToolHead3DP printer_single;
+extern ToolHead3DP printer_dual;
 
 ModuleBase *static_modules[] = {
   &linear,
@@ -54,6 +55,7 @@ ModuleBase *static_modules[] = {
   &linear_tmc,
   &rotaryModule,
   &purifier,
+  &printer_dual,
   &laser_10w,
   NULL
 };
@@ -303,7 +305,7 @@ void ModuleBase::SetToolhead(ModuleToolHeadType toolhead) {
   bool need_saved = false;
 
   // if plugged non-3DP toolhead, will reset leveling data
-  if (toolhead != MODULE_TOOLHEAD_3DP) {
+  if (toolhead != MODULE_TOOLHEAD_3DP && toolhead != MODULE_TOOLHEAD_DUAL_EXTRUDER) {
     for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
       for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
         if (z_values[x][y] != DEFAUT_LEVELING_HEIGHT) {

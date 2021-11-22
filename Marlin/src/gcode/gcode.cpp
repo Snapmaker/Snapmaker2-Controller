@@ -299,6 +299,8 @@ void GcodeSuite::execute_command(void) {
         case 800: parser.debug(); break;                          // G800: GCode Parser Test for G
       #endif
       case 1029: G1029(); break;
+      case 1040: G1040(); break;
+      case 1041: G1041(); break;
 
       default: parser.unknown_command_error(); break;
     }
@@ -795,6 +797,12 @@ void GcodeSuite::execute_command(void) {
       case 2001: M2001(); break;
 
       case 2002: M2002(); break;
+
+      case 2003: M2003(); break;
+
+      case 2004: M2004(); break;
+
+      case 2029: M2029(); break;
 
       default: parser.unknown_command_error(); break;
     }

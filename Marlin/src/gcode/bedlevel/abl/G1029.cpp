@@ -75,10 +75,16 @@ void GcodeSuite::G1029() {
   const bool seen_p = parser.seenval('P');
   if (seen_p) {
     int size = parser.value_int();
+
+    if (MODULE_TOOLHEAD_DUAL_EXTRUDER == ModuleBase::toolhead() && size%2 == 0) {
+      size++;
+    }
+
     if (size < 0 || size > GRID_MAX_NUM) {
       SERIAL_ECHOLNPAIR("Invalid grid size , maximum: ", GRID_MAX_NUM);
       return;
     }
+
     set_bed_leveling_enabled(false);
     GRID_MAX_POINTS_X = size;
     GRID_MAX_POINTS_Y = size;
@@ -107,20 +113,28 @@ void GcodeSuite::G1029() {
 
   const bool seen_a = parser.seen("A");
   if (seen_a) {
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      thermalManager.disable_all_heaters();
+      process_cmd_imd("G28");
+      set_bed_leveling_enabled(false);
 
-    thermalManager.disable_all_heaters();
-    process_cmd_imd("G28");
-    set_bed_leveling_enabled(false);
+      // Set the Z max feedrate to 50mm/s
+      planner.settings.max_feedrate_mm_s[Z_AXIS] = 40;
 
-    // Set the Z max feedrate to 50mm/s
-    planner.settings.max_feedrate_mm_s[Z_AXIS] = 40;
+      endstops.enable_z_probe(true);
+      auto_probing(false, false);
+      endstops.enable_z_probe(false);
 
-    endstops.enable_z_probe(true);
-    auto_probing(false, false);
-    endstops.enable_z_probe(false);
+      // Recover the Z max feedrate to 20mm/s
+      planner.settings.max_feedrate_mm_s[Z_AXIS] = 30;
+    } else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUAL_EXTRUDER) {
+      uint8_t grid = (uint8_t)parser.byteval('A', (uint8_t)5);
+      SSTP_Event_t event = {EID_SETTING_REQ, SETTINGS_OPC_DO_AUTO_LEVELING};
+      event.data = &grid;
+      event.length = 1;
+      levelservice.DoAutoLeveling(event);
+    }
 
-    // Recover the Z max feedrate to 20mm/s
-    planner.settings.max_feedrate_mm_s[Z_AXIS] = 30;
     return;
   }
 
@@ -129,8 +143,10 @@ void GcodeSuite::G1029() {
     uint8_t opt_s = (uint8_t)parser.byteval('S', (uint8_t)0);
     if (opt_s == 0) {
       compensate_offset();
-    }
-    else {
+    } else if (opt_s == 1) {
+      // there is no need to compensate, because it has already been done
+      hotend_offset[Z_AXIS][TOOLHEAD_3DP_EXTRUDER1] = hotend_offset_z_temp;
+    } else {
       if (nozzle_height_probed <= 0 || nozzle_height_probed > MAX_NOZZLE_HEIGHT_PROBED) {
         LOG_E("invalid nozzle height after level: %.2f", nozzle_height_probed);
         return;
@@ -142,8 +158,7 @@ void GcodeSuite::G1029() {
     bed_level_virt_interpolate();
 
     // only save data in flash after adjusting z offset
-    if (opt_s == 0)
-      settings.save();
+    settings.save();
     return;
   }
 
@@ -172,6 +187,49 @@ void GcodeSuite::G1029() {
       set_bed_leveling_enabled(true);
     }
     return;
+  }
+
+  SSTP_Event_t event = {EID_SETTING_REQ};
+  const bool seen_m = parser.seenval('M');
+  if (seen_m) {
+    uint8_t grid = (uint8_t)parser.byteval('M', (uint8_t)0);
+    if (grid < 0 || grid > GRID_MAX_NUM) {
+      SERIAL_ECHOLNPAIR("Invalid grid size , maximum: ", GRID_MAX_NUM);
+      return;
+    }
+
+    event.data = &grid;
+    event.length = 1;
+    event.op_code = SETTINGS_OPC_DO_MANUAL_LEVELING;
+    levelservice.DoManualLeveling(event);
+  }
+
+  const bool seen_n = parser.seenval('N');
+  if (seen_n) {
+    uint8_t level_point_index = (uint8_t)parser.byteval('N', (uint8_t)0);
+    if (level_point_index < 0 || level_point_index > GRID_MAX_NUM) {
+      SERIAL_ECHOLNPAIR("Invalid level_point_index");
+      return;
+    }
+
+    event.data = &level_point_index;
+    event.length = 1;
+    event.op_code = SETTINGS_OPC_SET_LEVELING_PONIT;
+    levelservice.SetManualLevelingPoint(event);
+  }
+
+  const bool seen_f = parser.seenval('F');
+  if (seen_f) {
+    uint8_t extruder_index = (uint8_t)parser.byteval('F', (uint8_t)0);
+    if (extruder_index > 1) {
+      SERIAL_ECHOLNPAIR("Invalid extruder_index");
+      return;
+    }
+
+    event.data = &extruder_index;
+    event.length = 1;
+    event.op_code = SETTINGS_OPC_SAVE_AND_EXIT_LEVELING;
+    levelservice.SaveAndExitLeveling(event);
   }
 }
 

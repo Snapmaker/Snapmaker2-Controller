@@ -25,6 +25,16 @@
 
 #if EXTRUDERS > 1
 
+  #define INVALID_LIFT_SWITCH_POSITION          0
+  #define S_DEFAULT_LIFT_SWITCH_LEFT_POSITION   X_MIN_POS
+  #define S_DEFAULT_LIFT_SWITCH_RIGHT_POSITION  (X_MAX_POS - 2.5)
+  #define M_DEFAULT_LIFT_SWITCH_LEFT_POSITION   X_MIN_POS
+  #define M_DEFAULT_LIFT_SWITCH_RIGHT_POSITION  (X_MAX_POS - 2.5)
+  #define L_DEFAULT_LIFT_SWITCH_LEFT_POSITION   X_MIN_POS
+  #define L_DEFAULT_LIFT_SWITCH_RIGHT_POSITION  (X_MAX_POS - 2.5)
+
+  #define STOPPER_ASSEMBLE_LEFT_SAFTY_SAPCING   3
+
   typedef struct {
     #if ENABLED(TOOLCHANGE_FILAMENT_SWAP)
       float swap_length;
@@ -37,6 +47,9 @@
   } toolchange_settings_t;
 
   extern toolchange_settings_t toolchange_settings;
+
+  extern float lift_switch_left_position;
+  extern float lift_switch_right_position;
 
 #endif
 

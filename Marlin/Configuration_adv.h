@@ -94,7 +94,7 @@
    * and/or decrease WATCH_TEMP_INCREASE. WATCH_TEMP_INCREASE should not be set
    * below 2.
    */
-  #define WATCH_TEMP_PERIOD   20                // Seconds
+  #define WATCH_TEMP_PERIOD   60                // Seconds
   #define WATCH_TEMP_INCREASE 2               // Degrees Celsius
 
   #define WATCH_TEMP_TARGET_START   100
@@ -105,7 +105,7 @@
   #define WATCH_TEMP_DROP_DELTA     2
 
   #define WATCH_TEMP_NOTHEATED_DEBOUNCE 4
-  #define WATCH_TEMP_NOTHEATED_PERIOD   5   // Seconds
+  #define WATCH_TEMP_NOTHEATED_PERIOD   20   // Seconds
   #define WATCH_TEMP_NOTHEATED_LIMIT    15  // Degrees Celsius
   #define WATCH_TEMP_NOTHEATED_DELTA    3   // Degrees Celsius
 #endif

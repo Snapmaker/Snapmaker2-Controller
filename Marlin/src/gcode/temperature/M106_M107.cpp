@@ -55,7 +55,7 @@
  */
 void GcodeSuite::M106() {
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-    if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) return;
+    if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead() && MODULE_TOOLHEAD_DUAL_EXTRUDER != ModuleBase::toolhead()) return;
     uint8_t p = parser.byteval('P', 0);
     //uint16_t d = parser.seen('A') ? thermalManager.fan_speed[active_extruder] : 255;
     uint16_t s = parser.ushortval('S', 255);
@@ -91,7 +91,7 @@ void GcodeSuite::M107() {
     uint8_t p = parser.byteval('P', 0);
     NOMORE(p, 4);
     if(p < 4)
-      printer1->SetFan(p, 0);
+      printer1->SetFan((fan_e)p, 0);
 
   #else
     const uint8_t p = parser.byteval('P', _ALT_P);
