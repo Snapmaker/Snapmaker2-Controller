@@ -120,13 +120,22 @@ float destination[X_TO_E]; // = { 0 }
 // The active extruder (tool). Set with T<extruder> command.
 #if EXTRUDERS > 1
   uint8_t active_extruder; // = 0
+  uint8_t target_extruder;
+  float switch_stroke_extruder0 = SWITCH_STROKE_EXTRUDER;
+  float switch_stroke_extruder1 = SWITCH_STROKE_EXTRUDER;
+  void reset_stroke() {
+    switch_stroke_extruder0 = SWITCH_STROKE_EXTRUDER;
+    switch_stroke_extruder1 = SWITCH_STROKE_EXTRUDER;
+  }
 #endif
 
 // Extruder offsets
 #if HAS_HOTEND_OFFSET
   float hotend_offset[XYZ][HOTENDS]; // Initialized by settings.load()
+  float hotend_offset_z_temp;
+  float hotend_triggered_z[EXTRUDERS];
   void reset_hotend_offsets() {
-    constexpr float tmp[XYZ][HOTENDS] = { HOTEND_OFFSET_X, HOTEND_OFFSET_Y, HOTEND_OFFSET_Z };
+    constexpr float tmp[XYZ][HOTENDS] = DEFAULT_HOTEND_OFFSETS;
     static_assert(
       tmp[X_AXIS][0] == 0 && tmp[Y_AXIS][0] == 0 && tmp[Z_AXIS][0] == 0,
       "Offsets for the first hotend must be 0.0."
@@ -145,6 +154,7 @@ float destination[X_TO_E]; // = { 0 }
 float feedrate_mm_s = MMM_TO_MMS(1500.0f);
 
 int16_t feedrate_percentage = 100;
+int16_t extruders_feedrate_percentage[EXTRUDERS] = {100, 100};
 
 // Homing feedrate is const progmem - compare to constexpr in the header
 const float homing_feedrate_mm_s[XN] PROGMEM = {
@@ -903,10 +913,10 @@ void clean_up_after_endstop_or_probe_move() {
 #if ENABLED(DUAL_X_CARRIAGE)
 
   DualXMode dual_x_carriage_mode         = DEFAULT_DUAL_X_CARRIAGE_MODE;
-  float inactive_extruder_x_pos          = X2_MAX_POS,                    // used in mode 0 & 1
+  float inactive_extruderx_pos          = X2_MAX_POS,                    // used in mode 0 & 1
         raised_parked_position[XYZE],                                     // used in mode 1
         duplicate_extruder_x_offset      = DEFAULT_DUPLICATION_X_OFFSET;  // used in mode 2
-  bool active_extruder_parked            = false;                         // used in mode 1 & 2
+  bool active_extruderparked            = false;                         // used in mode 1 & 2
   millis_t delayed_move_time             = 0;                             // used in mode 1
   int16_t duplicate_extruder_temp_offset = 0;                             // used in mode 2
 
@@ -929,7 +939,7 @@ void clean_up_after_endstop_or_probe_move() {
    * Return true if current_position[] was set to destination[]
    */
   inline bool dual_x_carriage_unpark() {
-    if (active_extruder_parked) {
+    if (active_extruderparked) {
       switch (dual_x_carriage_mode) {
         case DXC_FULL_CONTROL_MODE:
           break;
@@ -959,18 +969,18 @@ void clean_up_after_endstop_or_probe_move() {
               if (planner.buffer_line(   CUR_X,    CUR_Y, RAISED_Z, CUR_E, PLANNER_XY_FEEDRATE(),             active_extruder))
                   planner.buffer_line(   CUR_X,    CUR_Y,    CUR_Z, CUR_E, planner.settings.max_feedrate_mm_s[Z_AXIS], active_extruder);
           delayed_move_time = 0;
-          active_extruder_parked = false;
-          if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Clear active_extruder_parked");
+          active_extruderparked = false;
+          if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Clear active_extruderparked");
           break;
         case DXC_MIRRORED_MODE:
         case DXC_DUPLICATION_MODE:
           if (active_extruder == 0) {
-            if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPAIR("Set planner X", inactive_extruder_x_pos, " ... Line to X", current_position[X_AXIS] + duplicate_extruder_x_offset);
+            if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPAIR("Set planner X", inactive_extruderx_pos, " ... Line to X", current_position[X_AXIS] + duplicate_extruder_x_offset);
             // move duplicate extruder into correct duplication position.
-            planner.set_position_mm(inactive_extruder_x_pos, current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+            planner.set_position_mm(inactive_extruderx_pos, current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
 
             if (!planner.buffer_line(
-                dual_x_carriage_mode == DXC_DUPLICATION_MODE ? duplicate_extruder_x_offset + current_position[X_AXIS] : inactive_extruder_x_pos,
+                dual_x_carriage_mode == DXC_DUPLICATION_MODE ? duplicate_extruder_x_offset + current_position[X_AXIS] : inactive_extruderx_pos,
                 current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS],
                 planner.settings.max_feedrate_mm_s[X_AXIS], 1
               )
@@ -978,8 +988,8 @@ void clean_up_after_endstop_or_probe_move() {
             planner.synchronize();
             sync_plan_position();
             extruder_duplication_enabled = true;
-            active_extruder_parked = false;
-            if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Set extruder_duplication_enabled\nClear active_extruder_parked");
+            active_extruderparked = false;
+            if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Set extruder_duplication_enabled\nClear active_extruderparked");
           }
           else if (DEBUGGING(LEVELING)) DEBUG_ECHOLNPGM("Active extruder not 0");
           break;
@@ -1470,7 +1480,7 @@ void homeaxis(const AxisEnum axis) {
     #else
       maxlen = 1.5f * max_length(axis);
     #endif
-    
+
     do_homing_move(axis, 1.5f * maxlen * axis_home_dir);
   }
 
@@ -1750,4 +1760,10 @@ void  move_to_limited_position(const float (&target)[X_TO_E], const float fr_mm_
     current_position[E_AXIS] = target[E_AXIS];
     line_to_current_position(z_feedrate);
   }
+}
+
+void get_destination_from_logic(float (&logic_position)[X_TO_E]) {
+    LOOP_X_TO_E(i) {
+      destination[i] = (relative_mode || relative_mode) ? current_position[i] + logic_position[i] : (i == E_AXIS) ? logic_position[i] : LOGICAL_TO_NATIVE(logic_position[i], i);
+    }
 }

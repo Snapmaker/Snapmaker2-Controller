@@ -42,10 +42,10 @@
    *
    *   M605 S0 : (FULL_CONTROL) The slicer has full control over both X-carriages and can achieve optimal travel
    *             results as long as it supports dual X-carriages.
-   * 
+   *
    *   M605 S1 : (AUTO_PARK) The firmware automatically parks and unparks the X-carriages on tool-change so that
    *             additional slicer support is not required.
-   * 
+   *
    *   M605 S2 X R : (DUPLICATION) The firmware moves the second X-carriage and extruder in synchronization with
    *             the first X-carriage and extruder, to print 2 copies of the same object at the same time.
    *             Set the constant X-offset and temperature differential with M605 S2 X[offs] R[deg] and
@@ -100,7 +100,7 @@
           dual_x_carriage_mode = DEFAULT_DUAL_X_CARRIAGE_MODE;
           break;
       }
-      active_extruder_parked = false;
+      active_extruderparked = false;
       extruder_duplication_enabled = false;
       stepper.set_directions();
       delayed_move_time = 0;
@@ -120,10 +120,10 @@
           case DXC_MIRRORED_MODE:     DEBUG_ECHOPGM("MIRRORED");     break;
         }
         DEBUG_ECHOPAIR("\nActive Ext: ", int(active_extruder));
-        if (!active_extruder_parked) DEBUG_ECHOPGM(" NOT ");
+        if (!active_extruderparked) DEBUG_ECHOPGM(" NOT ");
         DEBUG_ECHOPGM(" parked.");
-        DEBUG_ECHOPAIR("\nactive_extruder_x_pos: ", current_position[X_AXIS]);
-        DEBUG_ECHOPAIR("\ninactive_extruder_x_pos: ", inactive_extruder_x_pos);
+        DEBUG_ECHOPAIR("\nactive_extruderx_pos: ", current_position[X_AXIS]);
+        DEBUG_ECHOPAIR("\ninactive_extruderx_pos: ", inactive_extruderx_pos);
         DEBUG_ECHOPAIR("\nextruder_duplication_enabled: ", int(extruder_duplication_enabled));
         DEBUG_ECHOPAIR("\nduplicate_extruder_x_offset: ", duplicate_extruder_x_offset);
         DEBUG_ECHOPAIR("\nduplicate_extruder_temp_offset: ", duplicate_extruder_temp_offset);

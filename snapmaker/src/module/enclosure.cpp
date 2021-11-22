@@ -76,7 +76,7 @@ ErrCode Enclosure::Init(MAC_t &mac, uint8_t mac_index) {
 }
 
 ErrCode Enclosure::PostInit() {
-  if (IsOnline() && ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+  if (IsOnline() && (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUAL_EXTRUDER)) {
     Disable();
   }
   return E_SUCCESS;

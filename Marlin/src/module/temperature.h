@@ -376,9 +376,11 @@ class Temperature {
       #ifdef BED_MINTEMP
         static int16_t mintemp_raw_BED;
       #endif
+      static int16_t mintemp_raw_BED;
       #ifdef BED_MAXTEMP
         static int16_t maxtemp_raw_BED;
       #endif
+      static int16_t maxtemp_raw_BED;
     #endif
 
     #if HAS_HEATED_CHAMBER

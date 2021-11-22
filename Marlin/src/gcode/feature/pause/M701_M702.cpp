@@ -73,7 +73,7 @@ void GcodeSuite::M701() {
 
   #if EXTRUDERS > 1 && DISABLED(PRUSA_MMU2)
     // Change toolhead if specified
-    uint8_t active_extruder_before_filament_change = active_extruder;
+    uint8_t active_extruderbefore_filament_change = active_extruder;
     if (active_extruder != target_extruder)
       tool_change(target_extruder, 0, false);
   #endif
@@ -103,8 +103,8 @@ void GcodeSuite::M701() {
 
   #if EXTRUDERS > 1 && DISABLED(PRUSA_MMU2)
     // Restore toolhead if it was changed
-    if (active_extruder_before_filament_change != active_extruder)
-      tool_change(active_extruder_before_filament_change, 0, false);
+    if (active_extruderbefore_filament_change != active_extruder)
+      tool_change(active_extruderbefore_filament_change, 0, false);
   #endif
 
   // Show status screen
@@ -144,7 +144,7 @@ void GcodeSuite::M702() {
 
   #if EXTRUDERS > 1 && DISABLED(PRUSA_MMU2)
     // Change toolhead if specified
-    uint8_t active_extruder_before_filament_change = active_extruder;
+    uint8_t active_extruderbefore_filament_change = active_extruder;
     if (active_extruder != target_extruder)
       tool_change(target_extruder, 0, false);
   #endif
@@ -181,8 +181,8 @@ void GcodeSuite::M702() {
 
   #if EXTRUDERS > 1 && DISABLED(PRUSA_MMU2)
     // Restore toolhead if it was changed
-    if (active_extruder_before_filament_change != active_extruder)
-      tool_change(active_extruder_before_filament_change, 0, false);
+    if (active_extruderbefore_filament_change != active_extruder)
+      tool_change(active_extruderbefore_filament_change, 0, false);
   #endif
 
   // Show status screen

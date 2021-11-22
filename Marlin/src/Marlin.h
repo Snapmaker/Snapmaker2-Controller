@@ -413,6 +413,13 @@ void protected_pin_err();
   extern float X_MIN_POS;
   extern float Y_MIN_POS;
   extern float Z_MIN_POS;
+  extern float DUAL_EXTRUDER_X_MAX_POS;
+  extern float DUAL_EXTRUDER_Y_MAX_POS;
+  extern float DUAL_EXTRUDER_Z_MAX_POS;
+  extern float DUAL_EXTRUDER_X_MIN_POS;
+  extern float DUAL_EXTRUDER_Y_MIN_POS;
+  extern float DUAL_EXTRUDER_Z_MIN_POS;
+  extern float TOOL_CHANGE_SAFE_SPACE;
 #endif //ENABLED(SW_MACHINE_SIZE)
 
 #if USE_EXECUTE_COMMANDS_IMMEDIATE

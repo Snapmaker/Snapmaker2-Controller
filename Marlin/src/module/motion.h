@@ -87,11 +87,15 @@ extern float feedrate_mm_s;
  * Feedrate scaling and conversion
  */
 extern int16_t feedrate_percentage;
+extern int16_t extruders_feedrate_percentage[EXTRUDERS];
 #define MMS_SCALED(MM_S) ((MM_S)*feedrate_percentage*0.01f)
 
 // The active extruder (tool). Set with T<extruder> command.
 #if EXTRUDERS > 1
   extern uint8_t active_extruder;
+  extern uint8_t target_extruder;
+  extern float switch_stroke_extruder0;
+  extern float switch_stroke_extruder1;
 #else
   constexpr uint8_t active_extruder = 0;
 #endif
@@ -138,6 +142,8 @@ XN_DEFS(signed char, home_dir, HOME_DIR);
 
 #if HAS_HOTEND_OFFSET
   extern float hotend_offset[XYZ][HOTENDS];
+  extern float hotend_offset_z_temp;
+  extern float hotend_triggered_z[EXTRUDERS];
   void reset_hotend_offsets();
 #else
   constexpr float hotend_offset[XYZ][HOTENDS] = { { 0 }, { 0 }, { 0 } };
@@ -372,10 +378,10 @@ void homeaxis(const AxisEnum axis);
   };
 
   extern DualXMode dual_x_carriage_mode;
-  extern float inactive_extruder_x_pos,           // Used in mode 0 & 1
+  extern float inactive_extruderx_pos,           // Used in mode 0 & 1
                raised_parked_position[XYZE],      // Used in mode 1
                duplicate_extruder_x_offset;       // Used in mode 2 & 3
-  extern bool active_extruder_parked;             // Used in mode 1, 2 & 3
+  extern bool active_extruderparked;             // Used in mode 1, 2 & 3
   extern millis_t delayed_move_time;              // Used in mode 1
   extern int16_t duplicate_extruder_temp_offset;  // Used in mode 2 & 3
 
@@ -422,3 +428,5 @@ FORCE_INLINE void  move_to_limited_x(const float x, const float fr_mm_s) {
   float target[X_TO_E] = {x, current_position[Y_AXIS], current_position[Z_AXIS], current_position[B_AXIS], current_position[E_AXIS]};
   move_to_limited_position(target, fr_mm_s);
 }
+
+void get_destination_from_logic(float (&logic_position)[X_TO_E]);

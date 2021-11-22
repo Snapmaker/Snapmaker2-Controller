@@ -86,7 +86,7 @@ void GcodeSuite::M600() {
 
   #if EXTRUDERS > 1
     // Change toolhead if specified
-    const uint8_t active_extruder_before_filament_change = active_extruder;
+    const uint8_t active_extruderbefore_filament_change = active_extruder;
     if (
       active_extruder != target_extruder
       #if ENABLED(DUAL_X_CARRIAGE)
@@ -152,15 +152,23 @@ void GcodeSuite::M600() {
 
   #if EXTRUDERS > 1
     // Restore toolhead if it was changed
-    if (active_extruder_before_filament_change != active_extruder)
-      tool_change(active_extruder_before_filament_change, 0, false);
+    if (active_extruderbefore_filament_change != active_extruder)
+      tool_change(active_extruderbefore_filament_change, 0, false);
   #endif
 }
 #else
 #include "../../../gcode/gcode.h"
 #include "../snapmaker/src/module/toolhead_3dp.h"
+#include "../../../module/motion.h"
+
 void GcodeSuite::M600() {
-  printer1->filament_state(0, 0);
+  uint8_t buf[EXTRUDERS] = {0,};
+  for (uint32_t i = 0; i < EXTRUDERS; i++) {
+    if (active_extruder != i) {
+      buf[i] = 1;
+    }
+  }
+  printer1->filament_state(buf);
 }
 
 #endif // ADVANCED_PAUSE_FEATURE

@@ -148,7 +148,7 @@
 
       // This causes the carriage on Dual X to unpark
       #if ENABLED(DUAL_X_CARRIAGE)
-        active_extruder_parked = false;
+        active_extruderparked = false;
       #endif
 
       #if ENABLED(SENSORLESS_HOMING)
@@ -255,14 +255,6 @@ void GcodeSuite::G28(const bool always_home_all) {
     bltouch.init();
   #endif
 
-  // Always home with tool 0 active
-  #if HOTENDS > 1
-    #if DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE)
-      const uint8_t old_tool_index = active_extruder;
-    #endif
-    tool_change(0, 0, true);
-  #endif
-
   #if HAS_DUPLICATION_MODE
     extruder_duplication_enabled = false;
   #endif
@@ -342,7 +334,7 @@ void GcodeSuite::G28(const bool always_home_all) {
         homeaxis(X_AXIS);
 
         // Remember this extruder's position for later tool change
-        inactive_extruder_x_pos = current_position[X_AXIS];
+        inactive_extruderx_pos = current_position[X_AXIS];
 
         // Home the 1st (left) extruder
         active_extruder = 0;
@@ -351,12 +343,14 @@ void GcodeSuite::G28(const bool always_home_all) {
         // Consider the active extruder to be parked
         COPY(raised_parked_position, current_position);
         delayed_move_time = 0;
-        active_extruder_parked = true;
+        active_extruderparked = true;
 
       #else
 
+        if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUAL_EXTRUDER) {
+          printer1->SwitchExtruderWithoutMove(TOOLHEAD_3DP_EXTRUDER0);
+        }
         homeaxis(X_AXIS);
-
       #endif
     }
 
@@ -409,7 +403,7 @@ void GcodeSuite::G28(const bool always_home_all) {
       set_axis_is_at_home(B_AXIS);
     }
     sync_plan_position();
-  
+
   #endif // !DELTA (G28)
 
   /**
@@ -427,7 +421,7 @@ void GcodeSuite::G28(const bool always_home_all) {
       homeaxis(X_AXIS);
 
       // Remember this extruder's position for later tool change
-      inactive_extruder_x_pos = current_position[X_AXIS];
+      inactive_extruderx_pos = current_position[X_AXIS];
 
       // Home the 1st (left) extruder
       active_extruder = 0;
@@ -436,7 +430,7 @@ void GcodeSuite::G28(const bool always_home_all) {
       // Consider the active extruder to be parked
       COPY(raised_parked_position, current_position);
       delayed_move_time = 0;
-      active_extruder_parked = true;
+      active_extruderparked = true;
       extruder_duplication_enabled = IDEX_saved_duplication_state;
       extruder_duplication_enabled = false;
 
@@ -459,24 +453,13 @@ void GcodeSuite::G28(const bool always_home_all) {
   #endif
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-    if((ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) && (all_axes_homed())) {
+    if(((ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUAL_EXTRUDER)) && (all_axes_homed())) {
       set_bed_leveling_enabled(true);
-      levelservice.ApplyLiveZOffset();
+      levelservice.ApplyLiveZOffset(active_extruder);
     }
   #endif
 
   clean_up_after_endstop_or_probe_move();
-
-  // Restore the active tool after homing
-  #if HOTENDS > 1 && (DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE))
-    #if ENABLED(PARKING_EXTRUDER)
-      #define NO_FETCH false // fetch the previous toolhead
-    #else
-      #define NO_FETCH true
-    #endif
-    tool_change(old_tool_index, 0, NO_FETCH);
-  #endif
-
 
   report_current_position();
   #if ENABLED(NANODLP_Z_SYNC)

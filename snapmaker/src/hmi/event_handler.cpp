@@ -296,7 +296,7 @@ void check_and_request_gcode_again() {
     LOG_E("wait gcode pack timeout and req:%d\n", gocde_pack_start_line());
     ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
     if(!planner.movesplanned()) { // and no movement planned
-      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && laser->tim_pwm() > 0) {
+      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUAL_EXTRUDER && laser->tim_pwm() > 0) {
         systemservice.is_laser_on = true;
         laser->TurnOff();
       }
@@ -458,7 +458,7 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
     gcode_buf->is_finish_packet = false;
   }
   gcode_request_status = GCODE_REQ_NORMAL;
-  if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && systemservice.is_laser_on) {
+  if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUAL_EXTRUDER && systemservice.is_laser_on) {
     systemservice.is_laser_on = false;
     laser->TurnOn();
   }
@@ -509,6 +509,10 @@ static ErrCode SetLogLevel(SSTP_Event_t &event) {
   return debug.SetLogLevel(event);
 }
 
+static ErrCode GetSecurityStatus(SSTP_Event_t &event) {
+  return laser->GetSecurityStatus(event);
+}
+
 static ErrCode SetGcodeToPackMode(SSTP_Event_t &event) {
   uint8_t status = 0;
   uint8_t is_work = event.data[0];
@@ -524,8 +528,16 @@ static ErrCode SetGcodeToPackMode(SSTP_Event_t &event) {
   return E_SUCCESS;
 }
 
-static ErrCode GetSecurityStatus(SSTP_Event_t &event) {
-  return laser->GetSecurityStatus(event);
+static ErrCode GetNozzleType(SSTP_Event_t &event) {
+  return printer1->SendNozzleTypeToHmi();
+}
+
+static ErrCode GetFilamentState(SSTP_Event_t &event) {
+  return printer1->SendFilamentStateToHmi();
+}
+
+static ErrCode GetNozzleTemp(SSTP_Event_t &event) {
+  return printer1->SendNozzleTempToHmi();
 }
 
 EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
@@ -547,7 +559,10 @@ EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   /* [SYSCTL_OPC_SET_LOG_LEVEL]      =  */{EVENT_ATTR_DEFAULT,      SetLogLevel},
   UNDEFINED_CALLBACK,
   /* [SYSCTL_OPC_GET_SECURITY_STATUS] = */{EVENT_ATTR_DEFAULT,      GetSecurityStatus},
-  /* [SYSCTL_OPC_SET_GCODE_PACK_MODE]     =  */{EVENT_ATTR_DEFAULT,      SetGcodeToPackMode},
+  /* [SYSCTL_OPC_SET_GCODE_PACK_MODE] =  */{EVENT_ATTR_DEFAULT,      SetGcodeToPackMode},
+  /* [SYSCTL_OPC_GET_NOZZLE_TYPE]     =  */{EVENT_ATTR_DEFAULT,      GetNozzleType},
+  /* [SYSCTL_OPC_GET_FILAMENT_STATE]  =  */{EVENT_ATTR_DEFAULT,      GetFilamentState},
+  /* [SYSCTL_OPC_GET_NOZZLE_TEMP]     =  */{EVENT_ATTR_DEFAULT,      GetNozzleTemp},
 };
 
 
@@ -639,6 +654,34 @@ static ErrCode LaserGetHWVersion(SSTP_Event_t &event) {
   return laser->LaserGetHWVersion();
 }
 
+static ErrCode ExtruderStatusCtrl(SSTP_Event_t &event) {
+  return printer1->ExtruderStatusCtrl(event);
+}
+
+static ErrCode ExtruderStrokeCalibration(SSTP_Event_t &event) {
+  return printer1->ExtruderStrokeCalibration(event);
+}
+
+static ErrCode ExtruderStrokeConfirm(SSTP_Event_t &event) {
+  return printer1->ExtruderStrokeConfirm(event);
+}
+
+static ErrCode SetHotendOffset(SSTP_Event_t &event) {
+  return printer1->SetHotendOffset(event);
+}
+
+static ErrCode SetFanSpeed(SSTP_Event_t &event) {
+  return printer1->SetFanSpeed(event);
+}
+
+static ErrCode DoXYCalibration(SSTP_Event_t &event) {
+  return printer1->DoXYCalibration(event);
+}
+
+static ErrCode XYCalibrationConfirm(SSTP_Event_t &event) {
+  return printer1->XYCalibrationConfirm(event);
+}
+
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* SETTINGS_OPC_SET_MACHINE_SIZE */ UNDEFINED_CALLBACK,
@@ -664,6 +707,13 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_GET_IS_LEVELED]         =  */{EVENT_ATTR_DEFAULT,      IsLeveled},
   /* [SETTINGS_OPC_SET_LASER_TEMP]         =  */{EVENT_ATTR_DEFAULT,      SetProtectTemp},
   /* [SETTINGS_OPC_GET_LASER_HW_VERSION]   =  */{EVENT_ATTR_DEFAULT,      LaserGetHWVersion},
+  /* [SETTINGS_OPC_EXTRUDER_STATUS_CTRL]   =  */{EVENT_ATTR_DEFAULT,      ExtruderStatusCtrl},
+  /* [SETTINGS_OPC_START_STROKE_CALIBRATION]   =  */{EVENT_ATTR_DEFAULT,  ExtruderStrokeCalibration},
+  /* [SETTINGS_OPC_STROKE_CONFIRM]         =  */{EVENT_ATTR_DEFAULT,      ExtruderStrokeConfirm},
+  /* [SETTINGS_OPC_SET_HOTEND_OFFSET]      =  */{EVENT_ATTR_DEFAULT,      SetHotendOffset},
+  /* [SETTINGS_OPC_SET_FAN_SPEED]          =  */{EVENT_ATTR_DEFAULT,      SetFanSpeed},
+  /* [SETTINGS_OPC_XY_CALIBRATION]         =  */{EVENT_ATTR_DEFAULT,      DoXYCalibration},
+  /* [SETTINGS_OPC_XY_CALIBRATION_CONFIRM] =  */{EVENT_ATTR_DEFAULT,      XYCalibrationConfirm},
 
 };
 
@@ -777,12 +827,22 @@ out:
   return hmi.Send(event);
 }
 
+static ErrCode LeftStopperAssemble(SSTP_Event_t &event) {
+  return printer1->LeftStopperAssemble(event);
+}
+
+static ErrCode RightStopperAssemble(SSTP_Event_t &event) {
+  return printer1->RightStopperAssemble(event);
+}
+
 EventCallback_t motion_event_cb[MOTION_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
-  /* [MOTION_OPC_DO_ABSOLUTE_MOVE]     =  */{EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
-  /* [MOTION_OPC_DO_RELATIVE_MOVE]     =  */{EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
-  /* [MOTION_OPC_DO_E_MOVE]            =  */{EVENT_ATTR_HAVE_MOTION,  DoEMove}
+  /* [MOTION_OPC_DO_ABSOLUTE_MOVE]       =  */{EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
+  /* [MOTION_OPC_DO_RELATIVE_MOVE]       =  */{EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
+  /* [MOTION_OPC_DO_E_MOVE]              =  */{EVENT_ATTR_HAVE_MOTION,  DoEMove},
+  /* [MOTION_OPC_LEFT_STOPPER_ASSEMBLE]  =  */{EVENT_ATTR_HAVE_MOTION,  LeftStopperAssemble},
+  /* [MOTION_OPC_RIGHT_STOPPER_ASSEMBLE] =  */{EVENT_ATTR_HAVE_MOTION,  RightStopperAssemble},
 };
 
 

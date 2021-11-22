@@ -33,6 +33,8 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../../core/debug_out.h"
 #include "../../../../../snapmaker/src/snapmaker.h"
+#include "../../../../../snapmaker/src/module/toolhead_3dp.h"
+#include "../../../module/tool_change.h"
 
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
@@ -464,7 +466,7 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   float z;
 
   int dir_idx = 0;
-  do_blocking_move_to_z(15, 10);
+  do_blocking_move_to_z(50, 10);
 
   for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
     LOG_I("Probing No. %d\n", k);
@@ -500,7 +502,23 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
     cur_y = new_y;
   }
 
-  
+  if (MODULE_TOOLHEAD_DUAL_EXTRUDER == ModuleBase::toolhead()) {
+    hotend_offset[Z_AXIS][TOOLHEAD_3DP_EXTRUDER1] = 0;
+    do_blocking_move_to_z(current_position[Z_AXIS] + 2, speed_in_calibration[Z_AXIS]);
+    tool_change(TOOLHEAD_3DP_EXTRUDER0);
+    printer1->SetProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
+    float z_extruder0 = probe_pt(_GET_MESH_X(GRID_MAX_POINTS_X / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), PROBE_PT_RAISE, 0, false);
+    z_extruder0 += switch_stroke_extruder0;
+    compensate_offset(z_values[GRID_MAX_POINTS_X / 2][GRID_MAX_POINTS_Y / 2] - z_extruder0);
+    tool_change(TOOLHEAD_3DP_EXTRUDER1);
+    printer1->SetProbeSensor(PROBE_SENSOR_RIGHT_OPTOCOUPLER);
+    float z_extruder1 = probe_pt(_GET_MESH_X(GRID_MAX_POINTS_Y / 2), _GET_MESH_Y(GRID_MAX_POINTS_Y / 2), PROBE_PT_RAISE, 0, false);
+    z_extruder1 += switch_stroke_extruder1;
+    hotend_offset_z_temp = z_extruder0 - z_extruder1;
+
+    return ret;
+  }
+
   // if fast_leveling is true, over directly. Otherwise move nozzle to current position of probe
   if (!fast_leveling) {
     do_blocking_move_to_z(current_position[Z_AXIS] + 1, speed_in_calibration[Z_AXIS]);

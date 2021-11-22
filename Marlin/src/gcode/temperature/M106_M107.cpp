@@ -91,7 +91,7 @@ void GcodeSuite::M107() {
     uint8_t p = parser.byteval('P', 0);
     NOMORE(p, 4);
     if(p < 4)
-      printer1->SetFan(p, 0);
+      printer1->SetFan((fan_e)p, 0);
 
   #else
     const uint8_t p = parser.byteval('P', _ALT_P);
