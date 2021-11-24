@@ -297,7 +297,8 @@ void QuickStopService::TurnOffPower() {
   BreathLightClose();
 
   if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W)) {
-      laser->TurnOff();
+    // The laser movement stops immediately with no risk of damaging the model
+    disable_power_domain(POWER_DOMAIN_1);
   }
 }
 
