@@ -66,5 +66,7 @@ typedef uint8_t ErrCode;
 #define E_DOOR_OPENED       (PRIVATE_ERROR_BASE + 3)
 #define E_REJECT_SYNC_WRITE (PRIVATE_ERROR_BASE + 4)
 #define E_AUTO_PROBING      (PRIVATE_ERROR_BASE + 5)
+#define E_IS_HOMING         (PRIVATE_ERROR_BASE + 6)
+#define E_NO_HOMED          (PRIVATE_ERROR_BASE + 7)
 
 #endif // #ifndef ERROR_H_

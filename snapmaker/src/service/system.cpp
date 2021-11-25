@@ -613,8 +613,14 @@ ErrCode SystemService::StartWork(TriggerSource s) {
       LOG_E("Door is opened!\n");
       return E_DOOR_OPENED;
     }
-    if (axes_homed(Z_AXIS) == false)
-      process_cmd_imd("G28 Z");
+
+    if (is_homing()) {
+      LOG_E("Is homing!\n");
+      return E_IS_HOMING;
+    } else if (all_axes_homed() == false) {
+      LOG_E("No homed!\n");
+      return E_NO_HOMED;
+    }
 
     // set to defualt power, but not turn on Motor
     if (MODULE_TOOLHEAD_CNC == ModuleBase::toolhead()) {
