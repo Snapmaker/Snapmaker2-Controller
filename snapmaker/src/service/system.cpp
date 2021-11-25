@@ -1933,7 +1933,9 @@ ErrCode SystemService::SendHomeAndCoordinateStatus(SSTP_Event_t &event) {
 
   event.data = buff;
 
-  if (all_axes_homed()) {
+  if (is_homing()) {
+    buff[i++] = 2;
+  } else if (all_axes_homed()) {
     buff[i++] = 0;
   }
   else {
