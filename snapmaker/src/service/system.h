@@ -203,6 +203,7 @@ typedef struct {
   uint8_t addon_state;
 
   uint8_t executor_type;
+  uint32_t cur_gcode_line;
 } __packed SystemStatus_t;
 
 

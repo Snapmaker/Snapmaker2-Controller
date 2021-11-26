@@ -1692,7 +1692,13 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
 
   // executor type
   sta.executor_type = ModuleBase::toolhead();
-
+  i += 3;
+  if (cur_status_ > SYSTAT_IDLE) {
+    tmp_u32 = pl_recovery.LastLine();
+  } else {
+    tmp_u32 = 0;
+  }
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
   return hmi.Send(event);
 }
 #endif
