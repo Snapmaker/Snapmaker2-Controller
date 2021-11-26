@@ -930,6 +930,15 @@ ErrCode ToolHeadLaser::LaserGetHWVersion() {
   return E_SUCCESS;
 }
 
+void ToolHeadLaser::TellSecurityStatus() {
+  SendSecurityStatus();
+  SERIAL_ECHO("Laser 10w security state: 0x");
+  SERIAL_PRINTLN(laser->security_status_, HEX);
+
+  SERIAL_ECHOLNPAIR("Laser 10w temp: ", laser->laser_temperature_, 
+                      ", roll: ", laser->roll_, ", pitch: ", laser->pitch_);
+}
+
 void ToolHeadLaser::Process() {
   if (++timer_in_process_ < 100) return;
   timer_in_process_ = 0;
@@ -937,8 +946,7 @@ void ToolHeadLaser::Process() {
   if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
     if (need_to_tell_hmi_) {
       need_to_tell_hmi_ = false;
-      SendSecurityStatus();
-      LOG_I("security_state: %x, temp: %d, roll: %d, pitch: %d", laser->security_status_,     laser->laser_temperature_, laser->roll_, laser->pitch_);
+      TellSecurityStatus();
     }
 
     TurnoffLaserIfNeeded();
