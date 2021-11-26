@@ -146,6 +146,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode SetProtectTemp(SSTP_Event_t &event);
     ErrCode LaserControl(uint8_t state);
     ErrCode LaserGetHWVersion();
+    void TellSecurityStatus();
     void Process();
 
     uint32_t mac(uint8_t sub_index = 0) { return canhost.mac(mac_index_); }
