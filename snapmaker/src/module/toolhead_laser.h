@@ -105,15 +105,20 @@ class ToolHeadLaser: public ModuleBase {
 
       security_status_ = 0;
       laser_temperature_ = 0;
+      imu_temperature_   = 0;
       need_to_turnoff_laser_ = false;
       need_to_tell_hmi_ = false;
       laser_10w_status_ = LASER_10W_DISABLE;
+      laser_pwm_pin_checked_ = false;
+      pwm_pin_pullup_state_ = 0xff;
+      pwm_pin_pulldown_state_ = 0xff;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
     void TurnoffLaserIfNeeded();
 
     void TurnOn();
+    void PwmCtrlDirectly(uint8_t duty);
     void TurnOff();
 
     void SetFanPower(uint8_t power);  // power 0 - 100
@@ -147,6 +152,8 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode LaserControl(uint8_t state);
     ErrCode LaserGetHWVersion();
     void TellSecurityStatus();
+    uint8_t LaserGetPwmPinState();
+    void LaserConfirmPinState();
     void Process();
 
     uint32_t mac(uint8_t sub_index = 0) { return canhost.mac(mac_index_); }
@@ -191,11 +198,16 @@ class ToolHeadLaser: public ModuleBase {
     message_id_t msg_id_get_focus_;
     UartHost esp32_;
 
+    bool laser_pwm_pin_checked_;
+    uint8_t pwm_pin_pullup_state_;
+    uint8_t pwm_pin_pulldown_state_;
+
   public:
     uint8_t security_status_;
     int16_t roll_;
     int16_t pitch_;
     int8_t laser_temperature_;
+    int8_t imu_temperature_;
     bool need_to_turnoff_laser_;
     bool need_to_tell_hmi_;
     LASER_10W_STATUS laser_10w_status_;
