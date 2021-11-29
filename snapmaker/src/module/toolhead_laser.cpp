@@ -75,11 +75,11 @@ static void CallbackAckReportSecurity(CanStdDataFrame_t &cmd) {
 
   if (laser->security_status_ != 0) {
     laser->need_to_turnoff_laser_ = true;
-    if (laser->laser_10w_status_ == LASER_10W_ENABLE) {
-      laser->TurnOff();
-    }
+    
     if (systemservice.GetCurrentStage() == SYSTAGE_WORK || systemservice.GetCurrentStage() == SYSTAGE_PAUSE) {
       quickstop.Trigger(QS_SOURCE_SECURITY, true);
+    } else if (laser->laser_10w_status_ == LASER_10W_ENABLE) {
+      laser->TurnOff();
     }
   }
 }
