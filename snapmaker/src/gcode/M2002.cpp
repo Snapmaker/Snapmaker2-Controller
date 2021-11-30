@@ -24,15 +24,35 @@
 #include "src/gcode/gcode.h"
 #include "../module/toolhead_laser.h"
 
+/*
+* M2020 : 10w laser control
+ *   S[bool]   0 show security status , 1 get security status from module
+ *   L[bool]   set auto focus light, 0-OFF 1-ON
+ *   Y[uint32] set online sync Id
+ *   G[NULL]   get online sync Id
+ *   T[int8]   set protect temperature
+**/
+
 void GcodeSuite::M2002() {
-  const bool seen_s = parser.seenval('S');
+  if (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_10W) {
+    return;
+  }
+  const bool seen_s = parser.seen('S');
   if (seen_s) {
-    SSTP_Event_t event;
-    event.op_code = 2;
-    event.data = NULL;
-    event.length = 0;
-    event.id = 9;
-    laser->GetSecurityStatus(event);
+    uint8_t state = (uint8_t)parser.byteval('S', (uint8_t)0);
+    if (state) {
+      // Proactively request module security status once
+      SSTP_Event_t event;
+      event.op_code = 2;
+      event.data = NULL;
+      event.length = 0;
+      event.id = 9;
+      SERIAL_ECHOLN("Get security status");
+      laser->GetSecurityStatus(event);
+    } else {
+      // The state is synchronized with the module, so you can send the state directly
+      laser->TellSecurityStatus();
+    }
   }
 
   const bool seen_l = parser.seenval('L');
@@ -49,7 +69,7 @@ void GcodeSuite::M2002() {
 
   const bool seen_y = parser.seenval('Y');
   if (seen_y) {
-    uint32_t id = (uint32_t)parser.byteval('Y', (uint32_t)0);
+    uint32_t id = (uint32_t)parser.ulongval('Y', (uint32_t)0);
     SSTP_Event_t event;
     event.op_code = 2;
     event.data = (uint8_t *)&id;
@@ -59,7 +79,7 @@ void GcodeSuite::M2002() {
     laser->SetOnlineSyncId(event);
   }
 
-  const bool seen_g = parser.seenval('G');
+  const bool seen_g = parser.seen('G');
   if (seen_g) {
     SSTP_Event_t event;
     event.op_code = 2;
