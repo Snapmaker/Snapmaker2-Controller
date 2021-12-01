@@ -338,8 +338,7 @@ MachineSize Linear::UpdateMachineSize() {
       is_err = true;
     }
   } else {
-    if (length_[LINEAR_AXIS_X1] == 0 ||
-        length_[LINEAR_AXIS_X1] != length_[LINEAR_AXIS_Y1] ||
+    if (length_[LINEAR_AXIS_X1] != length_[LINEAR_AXIS_Y1] ||
         length_[LINEAR_AXIS_Y1] != length_[LINEAR_AXIS_Y2] ||
         length_[LINEAR_AXIS_Y2] != length_[LINEAR_AXIS_Z1] ||
         length_[LINEAR_AXIS_Z1] != length_[LINEAR_AXIS_Z2]) {
