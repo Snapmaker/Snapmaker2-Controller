@@ -986,7 +986,6 @@ void ToolHeadLaser::Process() {
     if (need_to_tell_hmi_) {
       need_to_tell_hmi_ = false;
       TellSecurityStatus();
-      SendSecurityStatus();
     }
 
     TurnoffLaserIfNeeded();
