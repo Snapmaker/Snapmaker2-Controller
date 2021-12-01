@@ -1451,7 +1451,7 @@ void Stepper::isr() {
 void Stepper::stepper_pulse_phase_isr() {
 
   // If we must abort the current block, do so!
-  if (abort_current_block) {
+  if (abort_current_block || !Running) {
     abort_current_block = false;
     if (current_block) {
       axis_did_move = 0;
