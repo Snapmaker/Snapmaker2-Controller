@@ -232,6 +232,28 @@ ErrCode Linear::CheckModuleType() {
   uint32_t device_id = 0xffffffff;
   uint32_t id;
   MAC_t mac_t;
+  // Initialize variables before detecting errors to avoid M999 movement errors
+  float axis_steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
+  if ((mac_index_[LINEAR_AXIS_X1] != 0xff) || (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
+    axis_steps_per_unit[X_AXIS] = mac_index_[LINEAR_AXIS_X1] != 0xff ? lead_[LINEAR_AXIS_X1] : lead_[LINEAR_AXIS_X2];
+  }
+
+  if ((mac_index_[LINEAR_AXIS_Y1] != 0xff) || (mac_index_[LINEAR_AXIS_Y2] != 0xff)) {
+    axis_steps_per_unit[Y_AXIS] = mac_index_[LINEAR_AXIS_Y1] != 0xff ? lead_[LINEAR_AXIS_Y1] : lead_[LINEAR_AXIS_Y2];
+  }
+
+  if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff)) {
+    axis_steps_per_unit[Z_AXIS] = mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z1] : mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z2] : lead_[LINEAR_AXIS_Z3];
+  }
+
+  LOOP_XYZ(i) {
+    if (!planner.is_user_set_lead) {
+      planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
+    }
+    SERIAL_ECHOLNPAIR("axis index:", i, "  pitch:", planner.settings.axis_steps_per_mm[i]);
+  }
+
+  planner.refresh_positioning();
 
   // check if all linear modules are the same generation
   for (i = LINEAR_AXIS_X1; i < LINEAR_AXIS_MAX; i++) {
@@ -248,8 +270,6 @@ ErrCode Linear::CheckModuleType() {
       return E_FAILURE;
     }
   }
-
-  float axis_steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
 
   // if using 2.5 generation linear modules, check if the linear module lead is correct for each axis
   if (device_id == MODULE_DEVICE_ID_LINEAR_TMC) {
@@ -280,26 +300,6 @@ ErrCode Linear::CheckModuleType() {
     }
   }
 
-  if ((mac_index_[LINEAR_AXIS_X1] != 0xff) || (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
-    axis_steps_per_unit[X_AXIS] = mac_index_[LINEAR_AXIS_X1] != 0xff ? lead_[LINEAR_AXIS_X1] : lead_[LINEAR_AXIS_X2];
-  }
-
-  if ((mac_index_[LINEAR_AXIS_Y1] != 0xff) || (mac_index_[LINEAR_AXIS_Y2] != 0xff)) {
-    axis_steps_per_unit[Y_AXIS] = mac_index_[LINEAR_AXIS_Y1] != 0xff ? lead_[LINEAR_AXIS_Y1] : lead_[LINEAR_AXIS_Y2];
-  }
-
-  if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff)) {
-    axis_steps_per_unit[Z_AXIS] = mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z1] : mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z2] : lead_[LINEAR_AXIS_Z3];
-  }
-
-  LOOP_XYZ(i) {
-    if (!planner.is_user_set_lead) {
-      planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
-    }
-    SERIAL_ECHOLNPAIR("axis index:", i, "  pitch:", planner.settings.axis_steps_per_mm[i]);
-  }
-
-  planner.refresh_positioning();
   return E_SUCCESS;
 }
 
@@ -329,22 +329,50 @@ ErrCode Linear::PollEndstop(LinearAxisType axis) {
 
 
 MachineSize Linear::UpdateMachineSize() {
-  if (length_[LINEAR_AXIS_X1] != length_[LINEAR_AXIS_Y1] ||
-      length_[LINEAR_AXIS_Y1] != length_[LINEAR_AXIS_Z1]) {
-
-    systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
-    return (machine_size_ = MACHINE_SIZE_UNKNOWN);
-  }
-
-  if (CheckModuleType() != E_SUCCESS) {
-    X_MAX_POS = 0;
-    Y_MAX_POS = 0;
-    Z_MAX_POS = 0;
-    systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
-    return (machine_size_ = MACHINE_SIZE_UNKNOWN);
-  }
-
+  bool is_err = false;
   if (length_[LINEAR_AXIS_X1] < 200) {
+    // A150 judges only 3 axes,
+    if (length_[LINEAR_AXIS_X1] == 0 ||
+        length_[LINEAR_AXIS_X1] != length_[LINEAR_AXIS_Y1] ||
+        length_[LINEAR_AXIS_Y1] != length_[LINEAR_AXIS_Z1]) {
+      is_err = true;
+    }
+  } else {
+    if (length_[LINEAR_AXIS_X1] == 0 ||
+        length_[LINEAR_AXIS_X1] != length_[LINEAR_AXIS_Y1] ||
+        length_[LINEAR_AXIS_Y1] != length_[LINEAR_AXIS_Y2] ||
+        length_[LINEAR_AXIS_Y2] != length_[LINEAR_AXIS_Z1] ||
+        length_[LINEAR_AXIS_Z1] != length_[LINEAR_AXIS_Z2]) {
+      is_err = true;
+    }
+  }
+
+  if (CheckModuleType() != E_SUCCESS || is_err) {
+    LOG_I("Model: unknow\n");
+    if (length_[LINEAR_AXIS_X1] < 200 &&
+        length_[LINEAR_AXIS_Y1] < 200 &&
+        length_[LINEAR_AXIS_Z1] < 200) {
+      X_HOME_DIR = 1;
+      X_DIR = false;
+      Y_HOME_DIR = 1;
+      Y_DIR = false;
+      Z_HOME_DIR = 1;
+      Z_DIR = false;
+    } else {
+      X_HOME_DIR = -1;
+      X_DIR = true;
+      Y_HOME_DIR = 1;
+      Y_DIR = false;
+      Z_HOME_DIR = 1;
+      Z_DIR = false;
+    }
+    X_MAX_POS = length_[LINEAR_AXIS_X1];
+    Y_MAX_POS = length_[LINEAR_AXIS_Y1];
+    Z_MAX_POS = length_[LINEAR_AXIS_Z1];
+    UpdateMachineDefines();
+    systemservice.ThrowException(EHOST_LINEAR, ETYPE_NO_HOST);
+    return (machine_size_ = MACHINE_SIZE_UNKNOWN);
+  } else if (length_[LINEAR_AXIS_X1] < 200) {
     LOG_I("Model: A150\n");
     X_MAX_POS = 167;
     Y_MAX_POS = 165;
@@ -367,10 +395,7 @@ MachineSize Linear::UpdateMachineSize() {
 
     machine_size_ = MACHINE_SIZE_A150;
 
-    goto out;
-  }
-
-  if (length_[LINEAR_AXIS_X1] < 300) {
+  } else if (length_[LINEAR_AXIS_X1] < 300) {
     LOG_I("Model: A250\n");
     X_MAX_POS = 252;
     Y_MAX_POS = 260;
@@ -392,10 +417,7 @@ MachineSize Linear::UpdateMachineSize() {
     MAGNET_Y_SPAN = 204;
 
     machine_size_ = MACHINE_SIZE_A250;
-    goto out;
-  }
-
-  if (length_[LINEAR_AXIS_X1] < 400) {
+  } else if (length_[LINEAR_AXIS_X1] < 400) {
     LOG_I("Model: A350\n");
     X_MAX_POS = 345;
     Y_MAX_POS = 357;
@@ -417,13 +439,8 @@ MachineSize Linear::UpdateMachineSize() {
     MAGNET_Y_SPAN = 304;
 
     machine_size_ = MACHINE_SIZE_A350;
-    goto out;
   }
 
-  systemservice.ThrowException(EHOST_MC, ETYPE_NO_HOST);
-  return (machine_size_ = MACHINE_SIZE_UNKNOWN);
-
-out:
   UpdateMachineDefines();
   endstops.reinit_hit_status();
   PollEndstop(LINEAR_AXIS_ALL);
