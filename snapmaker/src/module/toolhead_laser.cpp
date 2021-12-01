@@ -938,7 +938,7 @@ void ToolHeadLaser::TellSecurityStatus() {
   SERIAL_ECHO("Laser 10w security state: 0x");
   SERIAL_PRINTLN(laser->security_status_, HEX);
 
-  SERIAL_ECHOLNPAIR("Laser 10w temp: ", laser->laser_temperature_, "imu temp: ", laser->imu_temperature_, ", roll: ", laser->roll_, ", pitch: ", laser->pitch_, "pwm_pin_pulldown_state_: ", laser->pwm_pin_pulldown_state_, "pwm_pin_pullup_state_: ", laser->pwm_pin_pullup_state_);
+  SERIAL_ECHOLNPAIR("Laser 10w temp: ", laser->laser_temperature_, ", imu temp: ", laser->imu_temperature_, ", roll: ", laser->roll_, ", pitch: ", laser->pitch_, ", pwm_pin_pulldown_state_: ", laser->pwm_pin_pulldown_state_, ", pwm_pin_pullup_state_: ", laser->pwm_pin_pullup_state_);
 }
 
 uint8_t ToolHeadLaser::LaserGetPwmPinState() {
