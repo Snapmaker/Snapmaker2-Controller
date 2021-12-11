@@ -53,12 +53,26 @@ extern void Tim1SetCCR4(uint16_t pwm);
 extern uint16_t Tim1GetCCR4();
 extern void Tim1PwmInit();
 
-static __attribute__((section(".data"))) uint8_t power_table[]= {
+static __attribute__((section(".data"))) uint8_t power_table_1_6W[]= {
   0,
   20,22,24,26,28,30,31,33,35,37,39,41,43,45,47,49,51,53,54,56,58,60,63,65,67,69,71,73,75,77,79,82,84,86,88,90,93,95,97,
   100,102,103,106,109,111,113,116,119,121,123,125,128,130,133,135,138,140,143,145,148,150,153,156,158,161,164,166,169,
   171,174,177,179,182,185,187,190,192,196,198,200,203,205,208,210,211,214,217,218,221,224,226,228,231,234,236,240,242,
   247,251,255
+};
+
+static __attribute__((section(".data"))) uint8_t power_table_10W[]= {
+  0, 27, 27, 29, 32, 35, 37, 40, 42, 45,
+  47, 49, 51, 54, 56, 59, 61, 63, 65, 68,
+  70, 72, 75, 77, 79, 82, 84, 87, 90, 92,
+  94, 97, 99, 101, 103, 106, 108, 110, 112, 115,
+  117, 120, 122, 124, 126, 128, 131, 133, 135, 138,
+  140, 142, 144, 147, 149, 151, 153, 156, 158, 161,
+  163, 166, 168, 171, 173, 176, 178, 180, 182, 185,
+  188, 190, 192, 193, 195, 198, 200, 202, 204, 207,
+  209, 212, 214, 216, 218, 221, 224, 226, 228, 230,
+  233, 235, 239, 241, 242, 245, 247, 250, 252, 254,
+  255
 };
 
 static void CallbackAckLaserFocus(CanStdDataFrame_t &cmd) {
@@ -150,9 +164,12 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
 
   laser = this;
   // set toolhead
+  power_table_ = power_table_1_6W;
   if (laser->device_id_ == MODULE_DEVICE_ID_1_6_W_LASER) {
+    power_table_ = power_table_1_6W;
     SetToolhead(MODULE_TOOLHEAD_LASER);
   } else if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
+    power_table_ = power_table_10W;
     SetToolhead(MODULE_TOOLHEAD_LASER_10W);
   }
 
@@ -244,7 +261,7 @@ void ToolHeadLaser::SetPower(float power) {
   integer = (int)power;
   decimal = power - integer;
 
-  power_pwm_ = (uint16_t)(power_table[integer] + (power_table[integer + 1] - power_table[integer]) * decimal);
+  power_pwm_ = (uint16_t)(power_table_[integer] + (power_table_[integer + 1] - power_table_[integer]) * decimal);
 }
 
 
