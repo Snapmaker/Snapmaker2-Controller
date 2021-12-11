@@ -39,7 +39,7 @@
 #include "toolhead_3dp.h"
 
 
-#define LASER_CLOSE_FAN_DELAY     (120)
+#define LASER_CLOSE_FAN_DELAY     (300)
 #define LASER_10W_DISABLE_DELAY     (2)
 
 #define TimSetPwm(n)  Tim1SetCCR4(n)
