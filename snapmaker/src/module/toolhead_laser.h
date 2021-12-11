@@ -182,6 +182,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode SetBluetoothInfo(LaserCameraCommand cmd, uint8_t *info, uint16_t length);
 
   private:
+    uint8_t *power_table_;
     uint8_t  mac_index_;
     uint16_t timer_in_process_;
     ToolHeadLaserState  state_;
