@@ -687,7 +687,8 @@
  * Override with M92
  *                                      X, Y, Z, B, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
  */
-#define DEFAULT_AXIS_STEPS_PER_UNIT   { 400, 400, 400, 888.89, 212.21 }
+#define DEFAULT_AXIS_STEPS_PER_UNIT   { 400, 400, 400, 888.89, 212.21}
+#define DEFAULT_TMC_AXIS_STEPS_PER_UNIT   { MODULE_LINEAR_PITCH_20, MODULE_LINEAR_PITCH_20, MODULE_LINEAR_PITCH_8, 888.89, 212.21 }
 
 #define MODULE_LINEAR_PITCH_20        160
 #define MODULE_LINEAR_PITCH_8         400
