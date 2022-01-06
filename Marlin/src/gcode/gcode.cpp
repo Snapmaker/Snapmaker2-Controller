@@ -345,6 +345,8 @@ void GcodeSuite::execute_command(void) {
         #endif
 
         case 928: M928(); break;                                  // M928: Start SD write
+      #else
+        case 25: M25(); break;                                    // M25: Pause print
       #endif // SDSUPPORT
 
       case 31: M31(); break;                                      // M31: Report time since the start of SD print or last M109
