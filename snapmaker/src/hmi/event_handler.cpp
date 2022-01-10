@@ -131,11 +131,11 @@ char * get_command_from_pack(uint32_t &line_num) {
   }
   // Remove '\n' and ';'
   while ( (((*ret) == '\n') || ((*ret) == ';')) && (head->cursor < head->length) ) {
-    ret++;
     head->cursor++;
     if (((*ret) == '\n')) {
       head->start_line_num++;
     }
+    ret++;
   }
 
   if (head->cursor == head->length) {
