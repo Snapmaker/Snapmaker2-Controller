@@ -37,9 +37,9 @@ def pack_minor_image(image_type, start_id, end_id, version, input, output):
     else:
         full_version = 'Snapmaker_{}_{}'.format(version, date).encode('UTF-8')
     if len(full_version) >= 32:
-        full_version = full_version[:31]
+        full_version = full_version[:32]
     else:
-        full_version += b'\0' * (31 - len(full_version))
+        full_version += b'\0' * (32 - len(full_version))
     full_version += b'\0'
 
     with open(output, 'wb') as f:
@@ -47,7 +47,7 @@ def pack_minor_image(image_type, start_id, end_id, version, input, output):
         # - type (1 byte)
         # - start ID (2 bytes)
         # - end ID (2 bytes)
-        # - Version (32 bytes)
+        # - Version (33 bytes)
         # - Reserved (2 bytes)
         # - Content Length (4 bytes)
         # - Checksum (4 bytes)
