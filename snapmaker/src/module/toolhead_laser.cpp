@@ -253,11 +253,14 @@ void ToolHeadLaser::SetPower(float power) {
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
     return;
 
+  // limit to valid range of the table
+  LIMIT(power, 0.0f, 100.0f);
   power_val_ = power;
 
   integer = (int)power;
   decimal = power - integer;
 
+  // even if random data is read by exceeding the table data, it will be discarded when multiplying by 0
   power_pwm_ = (uint16_t)(power_table_[integer] + (power_table_[integer + 1] - power_table_[integer]) * decimal);
 
   if (power_pwm_ > power_limit_pwm_)
