@@ -231,6 +231,7 @@ void ToolHeadLaser::TurnOff() {
       laser_10w_tick_ = 0;
     }
   }
+  laser->InlineDisable();
   state_ = TOOLHEAD_LASER_STATE_OFF;
   CheckFan(0);
   tim_pwm(0);
