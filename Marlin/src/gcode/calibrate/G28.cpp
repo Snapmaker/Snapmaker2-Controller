@@ -195,7 +195,6 @@ void GcodeSuite::G28(const bool always_home_all) {
     log_machine_info();
   }
   if (laser->IsOnline()) {
-    laser->InlineDisable();
     laser->TurnOff();
   }
 
