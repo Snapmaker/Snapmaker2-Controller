@@ -101,6 +101,8 @@ class Linear: public ModuleBase  {
     MachineSize machine_size() { return machine_size_; }
     void reset_axis_steps_per_unit(void);
 
+    void ShowAllLinearInfo(void);
+
   private:
     LinearAxisType DetectAxis(MAC_t &mac, uint8_t &endstop);
 

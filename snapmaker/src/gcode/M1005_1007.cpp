@@ -59,6 +59,8 @@ void GcodeSuite::M1005() {
     canhost.ShowModuleVersion(mac);
   }
 
+  linear_p->ShowAllLinearInfo();
+
   if (ModuleBase::toolhead() == MACHINE_TYPE_LASER || (ModuleBase::toolhead() == MACHINE_TYPE_LASER_10W)) {
     laser->ReadBluetoothVer();
   }
