@@ -533,3 +533,22 @@ ErrCode Linear::GetLengthOrLead(SSTP_Event_t &event, uint8_t ext_cmd) {
 
   return hmi.Send(event);
 }
+
+void Linear::ShowAllLinearInfo(void) {
+  char tmp_buff[100];
+  for (int i = 0; i <= LINEAR_AXIS_Z2; i++) {
+    if (linear.mac_index_[i] != 0xFF) {
+      memset(tmp_buff, 0, 100);
+      sprintf(tmp_buff,"linear %c%d length: %d mm, lead: %d mm\n",axis_codes[(i > 2 ? i - 3 : i)], \
+              i > 2 ? 2 : 1, linear.length_[i], (200 * 16 / linear.lead_[i]));
+      SERIAL_ECHOPAIR(tmp_buff);
+    }
+
+    if (linear_tmc.mac_index_[i] != 0xFF) {
+      memset(tmp_buff, 0, 100);
+      sprintf(tmp_buff,"linear_tmc %c%d length: %u mm, lead: %u mm\n",axis_codes[(i > 2 ? i - 3 : i)], \
+        i > 2 ? 2 : 1, linear_tmc.length_[i], (200 * 16 / linear_tmc.lead_[i]));
+      SERIAL_ECHOPAIR(tmp_buff);
+    }
+  }
+}
