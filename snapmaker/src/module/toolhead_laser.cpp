@@ -1025,10 +1025,23 @@ void ToolHeadLaser::InlineDisable() {
 
 void ToolHeadLaser::SetOutputInline(float power) {
   CheckFan(power);
-  planner.laser_inline.status.isEnabled = true;
 
   SetPower(power);
   planner.laser_inline.power = power_pwm_;
+  
+  if (power_pwm_ > 0)
+    planner.laser_inline.status.isEnabled = true;
+  else
+    planner.laser_inline.status.isEnabled = false;
+
+  if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER && power_pwm_ > 0) {
+    if (laser_10w_status_ == LASER_10W_DISABLE) {
+      // Send the enable command only when the power is disabled
+      LaserControl(1);
+    }
+    // Stop waiting disable
+    laser_10w_status_ = LASER_10W_ENABLE;
+  }
 }
 
 
@@ -1036,5 +1049,10 @@ void ToolHeadLaser::TurnOn_ISR(uint16_t power_pwm) {
   if (power_pwm > power_limit_pwm_)
     power_pwm = power_limit_pwm_;
 
+  if (power_pwm > 0)
+    state_ = TOOLHEAD_LASER_STATE_ON;
+  else
+    state_ = TOOLHEAD_LASER_STATE_OFF;
+    
   TimSetPwm(power_pwm);
 }
