@@ -114,7 +114,7 @@ uint8_t Planner::delay_before_delivering;       // This counter delays delivery 
 
 planner_settings_t Planner::settings;           // Initialized by settings.load()
 
-laser_state_t Planner::laser_inline;            // Planner laser power for blocks
+laser_state_t Planner::laser_inline = {0};            // Planner laser power for blocks
 
 uint32_t Planner::max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
 
