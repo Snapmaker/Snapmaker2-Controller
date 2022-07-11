@@ -472,6 +472,8 @@ private:
     static void M28();
     static void M29();
     static void M30();
+  #else
+    static void M25();
   #endif
 
   static void M31();

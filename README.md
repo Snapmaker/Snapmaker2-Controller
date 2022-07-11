@@ -42,6 +42,11 @@ As of recommended in Marlin's development settings, we use **Visual Studio Code*
 
 ![VSCode with PlatformIO](https://user-images.githubusercontent.com/3749551/98325327-814d3200-2029-11eb-9dd8-df9bee2dcbad.png)
 
+### Ensure your changes are loaded
+
+- The machine will not load new firmware if the version string remains the same
+- You must update [Marlin/src/inc/Version.h](https://github.com/Snapmaker/Snapmaker2-Controller/blob/main/Marlin/src/inc/Version.h) to change the `SHORT_BUILD_VERSION` or your changes will not be loaded when flashing the firmware.
+
 ### Compile the code
 
 - To compile the code, you have two ways:

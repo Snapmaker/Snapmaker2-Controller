@@ -26,6 +26,8 @@
 
 #include "../hmi/uart_host.h"
 
+#include "src/module/planner.h"
+
 #define TOOLHEAD_LASER_POWER_SAFE_LIMIT   (0.5)
 #define TOOLHEAD_LASER_POWER_NORMAL_LIMIT (100)
 #define TOOLHEAD_LASER_CAMERA_FOCUS_MAX   (65000)  // mm*1000
@@ -91,7 +93,7 @@ enum LASER_10W_STATUS {
 class ToolHeadLaser: public ModuleBase {
   public:
 		ToolHeadLaser(ModuleDeviceID id): ModuleBase(id) {
-      power_limit_ = 100;
+      power_limit_pwm_ = 255;
       power_pwm_   = 0;
       power_val_   = 0;
       mac_index_   = MODULE_MAC_INDEX_INVALID;
@@ -182,11 +184,12 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode SetBluetoothInfo(LaserCameraCommand cmd, uint8_t *info, uint16_t length);
 
   private:
+    uint8_t *power_table_;
     uint8_t  mac_index_;
     uint16_t timer_in_process_;
     ToolHeadLaserState  state_;
     float power_val_;
-    float power_limit_;
+    uint16_t power_limit_pwm_;
     uint16_t power_pwm_;
     uint8_t  fan_state_;
     uint16_t fan_tick_;
@@ -211,6 +214,22 @@ class ToolHeadLaser: public ModuleBase {
     bool need_to_turnoff_laser_;
     bool need_to_tell_hmi_;
     LASER_10W_STATUS laser_10w_status_;
+  
+  // Laser Inline Power functions
+  public:
+    /**
+     * Inline power adds extra fields to the planner block
+     * to handle laser power and scale to movement speed.
+     */
+
+    // Force disengage planner power control
+    void InlineDisable();
+
+    // Set the power for subsequent movement blocks
+    void SetOutputInline(float power);
+
+    // Optimized TurnOn function for use from the Stepper ISR
+    void TurnOn_ISR(uint16_t power_pwm);
 };
 
 

@@ -227,13 +227,18 @@ ErrCode Linear::Init(MAC_t &mac, uint8_t mac_index) {
   return canhost.BindMessageID(cmd, message_id);
 }
 
+void Linear::reset_axis_steps_per_unit(void) {
+  LOOP_X_TO_EN(i) {
+    planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
+  }
+}
+
 ErrCode Linear::CheckModuleType() {
   int32_t i;
   uint32_t device_id = 0xffffffff;
   uint32_t id;
   MAC_t mac_t;
   // Initialize variables before detecting errors to avoid M999 movement errors
-  float axis_steps_per_unit[] = DEFAULT_AXIS_STEPS_PER_UNIT;
   if ((mac_index_[LINEAR_AXIS_X1] != 0xff) || (mac_index_[LINEAR_AXIS_X2] != 0xff)) {
     axis_steps_per_unit[X_AXIS] = mac_index_[LINEAR_AXIS_X1] != 0xff ? lead_[LINEAR_AXIS_X1] : lead_[LINEAR_AXIS_X2];
   }
@@ -244,6 +249,8 @@ ErrCode Linear::CheckModuleType() {
 
   if ((mac_index_[LINEAR_AXIS_Z1] != 0xff) || (mac_index_[LINEAR_AXIS_Z2] != 0xff) || (mac_index_[LINEAR_AXIS_Z3] != 0xff)) {
     axis_steps_per_unit[Z_AXIS] = mac_index_[LINEAR_AXIS_Z1] != 0xff ? lead_[LINEAR_AXIS_Z1] : mac_index_[LINEAR_AXIS_Z2] != 0xff ? lead_[LINEAR_AXIS_Z2] : lead_[LINEAR_AXIS_Z3];
+  } else {
+    axis_steps_per_unit[Z_AXIS] = MODULE_LINEAR_PITCH_20;
   }
 
   LOOP_XYZ(i) {
@@ -525,4 +532,23 @@ ErrCode Linear::GetLengthOrLead(SSTP_Event_t &event, uint8_t ext_cmd) {
   event.length = (uint16_t)j;
 
   return hmi.Send(event);
+}
+
+void Linear::ShowAllLinearInfo(void) {
+  char tmp_buff[100];
+  for (int i = 0; i <= LINEAR_AXIS_Z2; i++) {
+    if (linear.mac_index_[i] != 0xFF) {
+      memset(tmp_buff, 0, 100);
+      sprintf(tmp_buff,"linear %c%d length: %d mm, lead: %d mm\n",axis_codes[(i > 2 ? i - 3 : i)], \
+              i > 2 ? 2 : 1, linear.length_[i], (200 * 16 / linear.lead_[i]));
+      SERIAL_ECHOPAIR(tmp_buff);
+    }
+
+    if (linear_tmc.mac_index_[i] != 0xFF) {
+      memset(tmp_buff, 0, 100);
+      sprintf(tmp_buff,"linear_tmc %c%d length: %u mm, lead: %u mm\n",axis_codes[(i > 2 ? i - 3 : i)], \
+        i > 2 ? 2 : 1, linear_tmc.length_[i], (200 * 16 / linear_tmc.lead_[i]));
+      SERIAL_ECHOPAIR(tmp_buff);
+    }
+  }
 }

@@ -99,6 +99,9 @@ class Linear: public ModuleBase  {
     uint32_t endstop() { return endstop_; }
 
     MachineSize machine_size() { return machine_size_; }
+    void reset_axis_steps_per_unit(void);
+
+    void ShowAllLinearInfo(void);
 
   private:
     LinearAxisType DetectAxis(MAC_t &mac, uint8_t &endstop);
@@ -115,6 +118,7 @@ class Linear: public ModuleBase  {
     uint32_t      endstop_;
 
     MachineSize   machine_size_;
+    float axis_steps_per_unit[5] = DEFAULT_TMC_AXIS_STEPS_PER_UNIT;
 };
 
 extern Linear linear;

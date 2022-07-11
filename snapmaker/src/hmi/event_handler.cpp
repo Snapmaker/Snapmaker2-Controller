@@ -131,11 +131,11 @@ char * get_command_from_pack(uint32_t &line_num) {
   }
   // Remove '\n' and ';'
   while ( (((*ret) == '\n') || ((*ret) == ';')) && (head->cursor < head->length) ) {
-    ret++;
     head->cursor++;
     if (((*ret) == '\n')) {
       head->start_line_num++;
     }
+    ret++;
   }
 
   if (head->cursor == head->length) {
@@ -439,11 +439,11 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
   gcode_buf->end_line_num = end_line;
   gcode_buf->length = size - data_head_index;
   gcode_buf->cursor = 0;
+  gcode_request_status = GCODE_REQ_NORMAL;
   if (gcode_buf->length == 0) {
     gcode_buf->is_finish_packet = true;
     hmi_gcode_pack_buffer.InsertOne();
     wait_req_next_pack = false;
-    gcode_request_status = GCODE_REQ_NORMAL;
   } else {
     memcpy(gcode_buf->buf, event_buff+data_head_index, gcode_buf->length);
     //  The memory data has been modified so no more assignment is required
@@ -457,7 +457,6 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
     }
     gcode_buf->is_finish_packet = false;
   }
-  gcode_request_status = GCODE_REQ_NORMAL;
   if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && systemservice.is_laser_on) {
     systemservice.is_laser_on = false;
     laser->TurnOn();

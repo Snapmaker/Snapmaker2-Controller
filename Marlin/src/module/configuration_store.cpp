@@ -85,6 +85,7 @@
   #include "../feature/power_loss_recovery.h"
 #endif
 #include "../../../snapmaker/src/service/power_loss_recovery.h"
+#include "../../../snapmaker/src/module/linear.h"
 
 #include "../feature/pause.h"
 
@@ -2123,6 +2124,7 @@ void MarlinSettings::reset() {
     planner.settings.max_feedrate_mm_s[i]          = pgm_read_float(&tmp2[ALIM(i, tmp2)]);
     planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
   }
+  linear_p->reset_axis_steps_per_unit();
 
   planner.settings.min_segment_time_us = DEFAULT_MINSEGMENTTIME;
   planner.settings.acceleration = DEFAULT_ACCELERATION;
