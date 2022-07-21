@@ -79,6 +79,10 @@ ErrCode Enclosure::PostInit() {
   if (IsOnline() && ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
     Disable();
   }
+
+  // update the state of the door
+  PollDoorState();
+  
   return E_SUCCESS;
 }
 
