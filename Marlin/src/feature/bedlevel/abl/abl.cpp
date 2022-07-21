@@ -33,6 +33,7 @@
 #define DEBUG_OUT ENABLED(DEBUG_LEVELING_FEATURE)
 #include "../../../core/debug_out.h"
 #include "../../../../../snapmaker/src/snapmaker.h"
+#include "../../../../../snapmaker/src/module/linear.h"
 
 int bilinear_grid_spacing[2], bilinear_start[2];
 float bilinear_grid_factor[2],
@@ -445,7 +446,13 @@ void bilinear_grid_manual()
   bilinear_grid_spacing[X_AXIS] = (endx - startx) / (GRID_MAX_POINTS_X - 1);
   bilinear_grid_spacing[Y_AXIS] = (endy - starty) / (GRID_MAX_POINTS_Y - 1);
   bilinear_start[X_AXIS] = RAW_X_POSITION(startx);
+  if (linear_p->machine_size() == MACHINE_SIZE_A350) {
+    home_offset[Y_AXIS] = -10;
+  }
   bilinear_start[Y_AXIS] = RAW_Y_POSITION(starty);
+  if (linear_p->machine_size() == MACHINE_SIZE_A350) {
+    home_offset[Y_AXIS] = -4;
+  }
   SERIAL_ECHOLNPAIR("X:", bilinear_start[X_AXIS], " - ", bilinear_grid_spacing[X_AXIS]);
   SERIAL_ECHOLNPAIR("Y:", bilinear_start[Y_AXIS], " - ", bilinear_grid_spacing[Y_AXIS]);
 }
@@ -500,7 +507,7 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
     cur_y = new_y;
   }
 
-  
+
   // if fast_leveling is true, over directly. Otherwise move nozzle to current position of probe
   if (!fast_leveling) {
     do_blocking_move_to_z(current_position[Z_AXIS] + 1, speed_in_calibration[Z_AXIS]);
