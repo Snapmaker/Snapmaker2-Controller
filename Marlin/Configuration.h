@@ -1055,7 +1055,7 @@
 
 #define S_HOME_OFFSET_DEFAULT {-7, -5, 0, 0}
 #define M_HOME_OFFSET_DEFAULT {-15.5, -7, 0, 0}
-#define L_HOME_OFFSET_DEFAULT {-19, -10, 0, 0}
+#define L_HOME_OFFSET_DEFAULT {-19, -4, 0, 0}
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed
