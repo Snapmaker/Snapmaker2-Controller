@@ -438,7 +438,7 @@ MachineSize Linear::UpdateMachineSize() {
     LOOP_XN(i) home_offset[i] = l_home_offset[i];
 
     X_DEF_SIZE = 320;
-    Y_DEF_SIZE = 340;
+    Y_DEF_SIZE = 352;
     Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
 
     MAGNET_X_SPAN = 274;
