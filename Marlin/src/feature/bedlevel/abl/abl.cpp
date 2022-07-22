@@ -446,13 +446,7 @@ void bilinear_grid_manual()
   bilinear_grid_spacing[X_AXIS] = (endx - startx) / (GRID_MAX_POINTS_X - 1);
   bilinear_grid_spacing[Y_AXIS] = (endy - starty) / (GRID_MAX_POINTS_Y - 1);
   bilinear_start[X_AXIS] = RAW_X_POSITION(startx);
-  if (linear_p->machine_size() == MACHINE_SIZE_A350) {
-    home_offset[Y_AXIS] = -10;
-  }
   bilinear_start[Y_AXIS] = RAW_Y_POSITION(starty);
-  if (linear_p->machine_size() == MACHINE_SIZE_A350) {
-    home_offset[Y_AXIS] = -4;
-  }
   SERIAL_ECHOLNPAIR("X:", bilinear_start[X_AXIS], " - ", bilinear_grid_spacing[X_AXIS]);
   SERIAL_ECHOLNPAIR("Y:", bilinear_start[Y_AXIS], " - ", bilinear_grid_spacing[Y_AXIS]);
 }
