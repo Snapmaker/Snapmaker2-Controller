@@ -403,7 +403,7 @@ MachineSize Linear::UpdateMachineSize() {
 
   } else if (length_[LINEAR_AXIS_X1] < 300) {
     LOG_I("Model: A250\n");
-    X_MAX_POS = 252;
+    X_MAX_POS = 255;
     Y_MAX_POS = 260;
     Z_MAX_POS = 235;
     X_HOME_DIR = -1;
@@ -425,7 +425,7 @@ MachineSize Linear::UpdateMachineSize() {
     machine_size_ = MACHINE_SIZE_A250;
   } else if (length_[LINEAR_AXIS_X1] < 400) {
     LOG_I("Model: A350\n");
-    X_MAX_POS = 345;
+    X_MAX_POS = 348;
     Y_MAX_POS = 357;
     Z_MAX_POS = 334;
     X_HOME_DIR = -1;
