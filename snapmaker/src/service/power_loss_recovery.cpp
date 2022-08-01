@@ -509,7 +509,7 @@ void PowerLossRecovery::ResumeCNC() {
 
 	// enable CNC motor
 	cnc.SetOutput(pre_data_.cnc_power);
-	LOG_I("Restore CNC power: %.2f\n", pre_data_.cnc_power);
+	LOG_I("Restore CNC power: %d\n", pre_data_.cnc_power);
 
 	// move to target Z
 	move_to_limited_z(pre_data_.PositionData[Z_AXIS] + 15, 30);
@@ -576,7 +576,7 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		return E_NO_RESRC;
 	}
 
-	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, B: &.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS],
+	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, B: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS],
 			pre_data_.PositionData[Z_AXIS], pre_data_.PositionData[B_AXIS], pre_data_.PositionData[E_AXIS]);
 
 	switch (pre_data_.toolhead) {
@@ -599,7 +599,7 @@ ErrCode PowerLossRecovery::ResumeWork() {
 			return E_DOOR_OPENED;
 		}
 
-		LOG_I("previous CNC power is %.2f\n", pre_data_.cnc_power);
+		LOG_I("previous CNC power is %d\n", pre_data_.cnc_power);
 		if (pre_data_.cnc_power < 50) {
 			LOG_I("previous power is less than 50%, set to 50%");
 			pre_data_.cnc_power = 50;

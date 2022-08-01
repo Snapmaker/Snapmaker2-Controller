@@ -289,7 +289,7 @@ void inline SystemService::resume_3dp(void) {
 
 void inline SystemService::resume_cnc(void) {
   // enable CNC motor
-  LOG_I("restore CNC power: %f\n", pl_recovery.cur_data_.cnc_power);
+  LOG_I("restore CNC power: %d\n", pl_recovery.cur_data_.cnc_power);
   cnc.SetOutput(pl_recovery.cur_data_.cnc_power);
 }
 
@@ -2116,7 +2116,7 @@ ErrCode SystemService::GetRuntimeEnv(SSTP_Event_t &event) {
   case RENV_TYPE_CNC_POWER:
     tmp_i32 = (int)(pl_recovery.pre_data_.cnc_power * 1000);
     WORD_TO_PDU_BYTES(buff+1, tmp_i32);
-    LOG_I("laser power: %.2f\n", pl_recovery.pre_data_.cnc_power);
+    LOG_I("cnc power: %d\n", pl_recovery.pre_data_.cnc_power);
     break;
 
   default:
