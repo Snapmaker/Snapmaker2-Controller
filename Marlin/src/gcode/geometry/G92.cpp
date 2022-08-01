@@ -61,14 +61,14 @@ void GcodeSuite::G92() {
   #if IS_SCARA || !HAS_POSITION_SHIFT
     bool didXYZ = false;
   #else
-    constexpr bool didXYZ = false;
+    bool didXYZ = false;
   #endif
 
   bool onlyE = true;
   if (IS_G92_0) LOOP_X_TO_E(i) {
     if (parser.seenval(axis_codes[i])) {
       const float l = parser.value_axis_units((AxisEnum)i),
-                  v = i == E_AXIS ? l : LOGICAL_TO_NATIVE(l, i),
+                  v = (i == E_AXIS || i == B_AXIS) ? l : LOGICAL_TO_NATIVE(l, i),
                   d = v - current_position[i];
       if (!NEAR_ZERO(d)) {
         #if IS_SCARA || !HAS_POSITION_SHIFT
@@ -81,7 +81,17 @@ void GcodeSuite::G92() {
           }
           else {
             onlyE = false;
-            position_shift[i] += d;       // Other axes simply offset the coordinate space
+            if (i == B_AXIS) {
+              // Special handling!!!
+              // Set the B coordinate directly and use G92 to solve the problem of overflow of
+              // the B-axis unidirectional rotation position
+              didXYZ = true;
+              position_shift[i] = -home_offset[i];
+              current_position[i] = v;
+            }
+            else {
+              position_shift[i] += d;       // Other axes simply offset the coordinate space
+            }
             update_workspace_offset((AxisEnum)i);
           }
         #endif
