@@ -31,6 +31,7 @@
 #include "emergency_stop.h"
 #include "rotary_module.h"
 #include "toolhead_3dp.h"
+#include "toolhead_dualextruder.h"
 #include "toolhead_cnc.h"
 #include "toolhead_laser.h"
 #include "purifier.h"
@@ -54,6 +55,7 @@ ModuleBase *static_modules[] = {
   &linear_tmc,
   &rotaryModule,
   &purifier,
+  &printer_dualextruder,
   &laser_10w,
   NULL
 };
