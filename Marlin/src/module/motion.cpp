@@ -1470,7 +1470,7 @@ void homeaxis(const AxisEnum axis) {
     #else
       maxlen = 1.5f * max_length(axis);
     #endif
-    
+
     do_homing_move(axis, 1.5f * maxlen * axis_home_dir);
   }
 

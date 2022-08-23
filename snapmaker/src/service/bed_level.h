@@ -48,21 +48,21 @@ class BedLevelService {
     ErrCode IsLeveled(SSTP_Event_t &event);
     ErrCode SyncPointIndex(uint8_t index);
 
-    ErrCode UpdateLiveZOffset(float offset);
-    void ApplyLiveZOffset();
-    void UnapplyLiveZOffset();
+    ErrCode UpdateLiveZOffset(float offset, uint8_t e = 0);
+    void ApplyLiveZOffset(uint8_t e = 0);
+    void UnapplyLiveZOffset(uint8_t e = 0);
     void SaveLiveZOffset();
 
     bool live_z_offset_updated() { return live_z_offset_updated_; }
-    void live_z_offset(float offset) { if (offset <=LIVE_Z_OFFSET_MAX && offset >=LIVE_Z_OFFSET_MIN) live_z_offset_ = offset; }
-    float live_z_offset() { return live_z_offset_; }
+    void live_z_offset(float offset, uint8_t e=0) { if (offset <=LIVE_Z_OFFSET_MAX && offset >=LIVE_Z_OFFSET_MIN) live_z_offset_[e] = offset; }
+    float live_z_offset(uint8_t e=0) { return live_z_offset_[e]; }
 
   private:
     LevelMode level_mode_ = LEVEL_MODE_INVALD;
 
     uint8_t manual_level_index_ = MANUAL_LEVEL_INDEX_INVALID;
 
-    float live_z_offset_ = 0;
+    float live_z_offset_[EXTRUDERS] = {0};
     bool  live_z_offset_updated_ = false;
 
     float MeshPointZ[MESH_POINT_SIZE];
@@ -71,24 +71,30 @@ class BedLevelService {
 extern BedLevelService levelservice;
 
 
-#define LEVEL_SERVICE_EEPROM_PARAM  float live_z_offset
+#define LEVEL_SERVICE_EEPROM_PARAM  float live_z_offset[EXTRUDERS]
 
 #define LEVEL_SERVICE_EEPROM_READ() do { \
-                                        float live_z_offset; \
-                                        _FIELD_TEST(live_z_offset); \
-                                        EEPROM_READ(live_z_offset); \
-                                        levelservice.live_z_offset(live_z_offset); \
+                                        float live_z_offset[EXTRUDERS]; \
+                                        for (uint32_t i=0; i<EXTRUDERS; i++) { \
+                                          _FIELD_TEST(live_z_offset[i]); \
+                                          EEPROM_READ(live_z_offset[i]); \
+                                          levelservice.live_z_offset(live_z_offset[i], i); \
+                                         } \
                                     } while (0)
 
 #define LEVEL_SERVICE_EEPROM_WRITE() do { \
-                                      float live_z_offset; \
-                                      live_z_offset = levelservice.live_z_offset(); \
-                                      _FIELD_TEST(live_z_offset); \
-                                      EEPROM_WRITE(live_z_offset); \
+                                      float live_z_offset[EXTRUDERS]; \
+                                      for (uint8_t i=0; i<EXTRUDERS; i++) { \
+                                        live_z_offset[i] = levelservice.live_z_offset(i); \
+                                        _FIELD_TEST(live_z_offset[i]); \
+                                        EEPROM_WRITE(live_z_offset[i]); \
+                                      } \
                                     } while (0)
 
 #define LEVEL_SERVICE_EEPROM_RESET()  do { \
-                                        levelservice.live_z_offset(0); \
+                                        for (uint8_t i=0; i<EXTRUDERS; i++) { \
+                                          levelservice.live_z_offset(0, i); \
+                                        } \
                                       } while (0)
 
 #endif  //#ifndef SNAPMAKER_BED_LEVEL_H_
