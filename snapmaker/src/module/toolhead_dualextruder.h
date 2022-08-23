@@ -26,13 +26,101 @@
 #include "can_host.h"
 #include "../common/config.h"
 
+typedef struct {
+  uint8_t model;
+  float diameter;
+}hotend_type_info_t;
+
+typedef enum {
+  SINGLE_EXTRUDER_MODULE_FAN       = 0,
+  SINGLE_EXTRUDER_NOZZLE_FAN       = 1,
+  DUAL_EXTRUDER_LEFT_MODULE_FAN    = 0,
+  DUAL_EXTRUDER_RIGHT_MODULE_FAN   = 1,
+  DUAL_EXTRUDER_NOZZLE_FAN         = 2,
+}fan_e;
+
+typedef struct {
+  int16_t current;
+  int16_t target;
+}hotend_temp_t;
+
+#define HOTEND_INFO_MAX 22
+const hotend_type_info_t hotend_info[HOTEND_INFO_MAX] = {{.model = 2, .diameter = 0.4}, \
+                                                         {.model = 1, .diameter = 0.6}, \
+                                                         {.model = 1, .diameter = 0.8}, \
+                                                         {.model = 1, .diameter = 0.4},\
+                                                         {.model = 1, .diameter = 0.2},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 2, .diameter = 0.4},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = 0, .diameter = 0.4}, \
+                                                         {.model = 0, .diameter = 0.8}, \
+                                                        };
+
 class ToolHeadDualExtruder: public ToolHead3DP {
   public:
     ToolHeadDualExtruder(ModuleDeviceID id): ToolHead3DP(id) {
-      // do nothing
+      for (int i = 0; i < EXTRUDERS; i++) {
+        hotend_type_[i] = 0xff;
+      }
+      for (int i = 0; i < EXTRUDERS; i++) {
+        hotend_temp_[i].current = 0;
+        hotend_temp_[i].target  = 0;
+      }
     }
 
+    //
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
+    ErrCode ToolChange(uint8_t new_extruder, bool use_compensation = true);
+    bool probe_state();
+    bool probe_state(probe_sensor_t sensor);
+    bool filament_state();
+    bool filament_state(uint8_t e);
+
+    // module report callback
+    void ReportProbeState(uint8_t state[]);
+    void ReportTemperature(uint8_t *data);
+    void ReportPID(uint8_t *data);
+    void ReportFilamentState(uint8_t state[]);
+    void ReportHotendType(uint8_t *data);
+    void ReportExtruderInfo(uint8_t *data);
+    void ReportHotendOffset(uint8_t *data);
+    void ReportProbeSensorCompensation(uint8_t *data);
+    void ReportRightExtruderPos(uint8_t *data);
+
+    // set module
+    ErrCode ModuleCtrlProximitySwitchPower(uint8_t state);
+    ErrCode ModuleCtrlFan(uint8_t fan_index, uint16_t speed, uint8_t delay_time);
+    ErrCode ModuleCtrlHotendTemp(uint8_t e, uint16_t temp);
+    ErrCode ModuleCtrlProbeStateSync();
+    ErrCode ModuleCtrlSetPid(float p, float i, float d);
+    ErrCode ModuleCtrlToolChange(uint8_t new_extruder);
+    ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis);
+    ErrCode ModuleCtrlSaveZCompensation(float *val);
+    ErrCode ModuleCtrlRightExtruderMove(uint8_t type, float destination = 0);
+    ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos);
+
+  protected:
+    probe_sensor_t active_probe_sensor_;
+    uint8_t hotend_type_[EXTRUDERS];
+    float hotend_diameter_[EXTRUDERS];
+    hotend_temp_t hotend_temp_[EXTRUDERS];
+
+  private:
+    uint8_t mac_index_;
+    bool hotend_type_initialized_ = false;
 };
 
 extern ToolHeadDualExtruder printer_dualextruder;

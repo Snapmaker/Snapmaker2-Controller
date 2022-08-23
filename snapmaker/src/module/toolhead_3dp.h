@@ -26,9 +26,18 @@
 
 #include "../common/config.h"
 
-#define TOOLHEAD_3DP_FAN_MAX    (2)
+#define TOOLHEAD_3DP_FAN_MAX    (3)
 
-#define EXTRUDERS 1
+#define EXTRUDERS 2
+
+typedef enum {
+  PROBE_SENSOR_PROXIMITY_SWITCH,
+  PROBE_SENSOR_LEFT_OPTOCOUPLER,
+  PROBE_SENSOR_RIGHT_OPTOCOUPLER,
+  PROBE_SENSOR_LEFT_CONDUCTIVE,
+  PROBE_SENSOR_RIGHT_CONDUCTIVE,
+  PROBE_SENSOR_INVALID,
+}probe_sensor_t;
 
 class ToolHead3DP: public ModuleBase {
   public:
@@ -69,7 +78,7 @@ class ToolHead3DP: public ModuleBase {
       return fan_speed_[fan_index];
     }
 
-    void probe_state(uint8_t state, uint8_t extrude_index=0) {
+    void report_probe_state(uint8_t state, uint8_t extrude_index=0) {
       if (extrude_index >= EXTRUDERS)
         return;
 
@@ -81,8 +90,21 @@ class ToolHead3DP: public ModuleBase {
     uint8_t probe_state() {
       return probe_state_;
     }
+    uint8_t probe_state(probe_sensor_t sensor) {
+      return probe_state_;
+    }
 
-    void filament_state(uint8_t state, uint8_t extrude_index=0) {
+    void ResetFilamentState(uint8_t state, uint8_t extrude_index=0) {
+      if (extrude_index >= EXTRUDERS)
+        return;
+
+      if (state)
+        filament_state_ |= (1<<extrude_index);
+      else
+        filament_state_ &= ~(1<<extrude_index);
+    }
+
+    void report_filament_state(uint8_t state, uint8_t extrude_index=0) {
       if (extrude_index >= EXTRUDERS)
         return;
 
@@ -92,6 +114,9 @@ class ToolHead3DP: public ModuleBase {
         filament_state_ &= ~(1<<extrude_index);
     }
     uint8_t filament_state() {
+      return filament_state_;
+    }
+    uint8_t filament_state(uint8_t e) {
       return filament_state_;
     }
 
@@ -108,23 +133,45 @@ class ToolHead3DP: public ModuleBase {
       return cur_temp_[extrude_index];
     }
 
-  private:
+    // for dualextruder
+    ErrCode ToolChange(uint8_t new_extruder, bool use_compensation = true) { return E_SUCCESS; }
+    void ReportProbeState(uint8_t state[]) { return; }
+    void ReportTemperature(uint8_t *data) { return; }
+    void ReportPID(uint8_t *data) { return; }
+    void ReportFilamentState(uint8_t state[]) { return; }
+    void ReportHotendType(uint8_t *data) { return; }
+    void ReportExtruderInfo(uint8_t *data) { return; }
+    void ReportHotendOffset(uint8_t *data) { return; }
+    void ReportProbeSensorCompensation(uint8_t *data) { return; }
+    void ReportRightExtruderPos(uint8_t *data) { return; }
+    ErrCode ModuleCtrlProximitySwitchPower(uint8_t state) { return E_SUCCESS; }
+    ErrCode ModuleCtrlFan(uint8_t fan_index, uint16_t speed, uint8_t delay_time) { return E_SUCCESS; }
+    ErrCode ModuleCtrlHotendTemp(uint8_t e, uint16_t temp) { return E_SUCCESS; }
+    ErrCode ModuleCtrlProbeStateSync() { return E_SUCCESS; }
+    ErrCode ModuleCtrlSetPid(float p, float i, float d) { return E_SUCCESS; }
+    ErrCode ModuleCtrlToolChange(uint8_t new_extruder) { return E_SUCCESS; }
+    ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis) { return E_SUCCESS; }
+    ErrCode ModuleCtrlSaveZCompensation(float *val) { return E_SUCCESS; }
+    ErrCode ModuleCtrlRightExtruderMove(uint8_t type, float destination = 0) { return E_SUCCESS; }
+    ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos) { return E_SUCCESS; }
+
+  protected:
     void IOInit(void);
+
+  protected:
+    int16_t cur_temp_[EXTRUDERS];
+    uint8_t  fan_speed_[TOOLHEAD_3DP_FAN_MAX];
+    // 1 bit indicates one sensor
+    uint8_t probe_state_ = 0;
+    uint8_t filament_state_;
+    float pid_[3];
 
   private:
     uint8_t mac_index_;
-
     uint16_t timer_in_process_;
-
-    int16_t cur_temp_[EXTRUDERS];
-    uint8_t  fan_speed_[TOOLHEAD_3DP_FAN_MAX];
-
-    // 1 bit indicates one sensor
-    uint8_t probe_state_;
-    uint8_t filament_state_;
-    float pid_[3];
 };
 
+extern ToolHead3DP printer_single;
 extern ToolHead3DP *printer1;
 
 #endif  // #ifndef TOOLHEAD_3DP_H_

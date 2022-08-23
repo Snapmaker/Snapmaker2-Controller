@@ -36,7 +36,7 @@ ToolHead3DP printer_single(MODULE_DEVICE_ID_3DP_SINGLE);
 ToolHead3DP *printer1 = &printer_single;
 
 static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
-  printer1->probe_state(cmd.data[0], 0);
+  printer1->report_probe_state(cmd.data[0], 0);
 }
 
 
@@ -53,7 +53,7 @@ static void CallbackAckReportPidTemp(CanStdDataFrame_t &cmd) {
 
 static void CallbackAckFilamentState(CanStdDataFrame_t &cmd) {
   // temperature from module, was
-  printer1->filament_state(cmd.data[0], 0);
+  printer1->report_filament_state(cmd.data[0], 0);
 }
 
 void ToolHead3DP::GetFilamentState() {
@@ -175,6 +175,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   IOInit();
 
   SetToolhead(MODULE_TOOLHEAD_3DP);
+  printer1 = this;
 
 out:
   return ret;

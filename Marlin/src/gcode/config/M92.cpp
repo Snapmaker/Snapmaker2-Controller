@@ -22,6 +22,7 @@
 
 #include "../gcode.h"
 #include "../../module/planner.h"
+#include "../../../../snapmaker/src/module/module_base.h"
 
 void report_M92(const bool echo=true, const int8_t e=-1) {
   if (echo) SERIAL_ECHO_START(); else SERIAL_CHAR(' ');
@@ -31,6 +32,8 @@ void report_M92(const bool echo=true, const int8_t e=-1) {
   SERIAL_ECHOPAIR(" B", LINEAR_UNIT(planner.settings.axis_steps_per_mm[B_AXIS]));
   #if DISABLED(DISTINCT_E_FACTORS)
     SERIAL_ECHOPAIR(" E", VOLUMETRIC_UNIT(planner.settings.axis_steps_per_mm[E_AXIS]));
+    SERIAL_ECHOPAIR("BACKUP SINGLE E", VOLUMETRIC_UNIT(planner.settings.e_axis_steps_per_mm_backup[0]));
+    SERIAL_ECHOPAIR("BACKUP SINGLE E", VOLUMETRIC_UNIT(planner.settings.e_axis_steps_per_mm_backup[1]));
   #endif
   SERIAL_EOL();
 
@@ -82,6 +85,11 @@ void GcodeSuite::M92() {
           planner.max_acceleration_steps_per_s2[E_AXIS_N(target_extruder)] *= factor;
         }
         planner.settings.axis_steps_per_mm[E_AXIS_N(target_extruder)] = value;
+        if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
+          planner.settings.e_axis_steps_per_mm_backup[0] = value;
+        } else if (MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
+          planner.settings.e_axis_steps_per_mm_backup[1] = value;
+        }
       }
       else {
         planner.settings.axis_steps_per_mm[i] = parser.value_per_axis_units((AxisEnum)i);

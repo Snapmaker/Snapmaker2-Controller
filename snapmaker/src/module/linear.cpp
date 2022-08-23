@@ -231,6 +231,7 @@ void Linear::reset_axis_steps_per_unit(void) {
   LOOP_X_TO_EN(i) {
     planner.settings.axis_steps_per_mm[i] = axis_steps_per_unit[i];
   }
+
 }
 
 ErrCode Linear::CheckModuleType() {

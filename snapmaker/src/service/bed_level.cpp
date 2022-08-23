@@ -67,7 +67,8 @@ ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
 
     // MUST clear live z offset before G28
     // otherwise will apply live z after homing
-    live_z_offset_ = 0;
+    live_z_offset_[0] = 0;
+    live_z_offset_[1] = 0;
 
     process_cmd_imd("G28");
 
@@ -141,7 +142,8 @@ ErrCode BedLevelService::DoManualLeveling(SSTP_Event_t &event) {
 
     // MUST clear live z offset before G28
     // otherwise will apply live z after homing
-    live_z_offset_ = 0;
+    live_z_offset_[0] = 0;
+    live_z_offset_[1] = 0;
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
@@ -380,8 +382,12 @@ ErrCode BedLevelService::SyncPointIndex(uint8_t index) {
 }
 
 
-ErrCode BedLevelService::UpdateLiveZOffset(float offset) {
-  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
+ErrCode BedLevelService::UpdateLiveZOffset(float offset, uint8_t e) {
+  if (e >= EXTRUDERS) {
+    return E_PARAM;
+  }
+
+  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead() && MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead()) {
     LOG_E("only enable z offset for 3DP!\n");
     return E_FAILURE;
   }
@@ -391,63 +397,71 @@ ErrCode BedLevelService::UpdateLiveZOffset(float offset) {
     return E_PARAM;
   }
 
-  if (offset == live_z_offset_) {
+  if (offset == live_z_offset_[e]) {
     LOG_W("offset is same with old\n");
     return E_PARAM;
   }
 
-  planner.synchronize();
+  if (e == active_extruder) {
+    planner.synchronize();
 
-  float cur_z = current_position[Z_AXIS];
+    float cur_z = current_position[Z_AXIS];
+    do_blocking_move_to_z(current_position[Z_AXIS] + (offset - live_z_offset_[e]), 5);
+    planner.synchronize();
+    current_position[Z_AXIS] = cur_z;
+    sync_plan_position();
+  }
 
-  do_blocking_move_to_z(current_position[Z_AXIS] + (offset - live_z_offset_), 5);
-  planner.synchronize();
+  LOG_I("extruder: %d, new live Z: %.3f, delta: %.3f\n", e, offset, (offset - live_z_offset_[e]));
 
-  current_position[Z_AXIS] = cur_z;
-  sync_plan_position();
-
-  LOG_I("new live Z: %.3f, delta: %.3f\n", offset, (offset - live_z_offset_));
-
-  live_z_offset_ = offset;
+  live_z_offset_[e] = offset;
   live_z_offset_updated_ = true;
   return E_SUCCESS;
 }
 
 
-void BedLevelService::ApplyLiveZOffset() {
-  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
+void BedLevelService::ApplyLiveZOffset(uint8_t e) {
+  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead() && MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead()) {
     LOG_E("only enable z offset for 3DP!\n");
+    return;
+  }
+
+  if ((MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) && (e != active_extruder)) {
     return;
   }
 
   planner.synchronize();
   float cur_z = current_position[Z_AXIS];
 
-  do_blocking_move_to_z(current_position[Z_AXIS] + live_z_offset_, 5);
+  do_blocking_move_to_z(current_position[Z_AXIS] + live_z_offset_[e], 5);
   planner.synchronize();
 
   current_position[Z_AXIS] = cur_z;
   sync_plan_position();
 
-  LOG_I("Apply Z offset: %.2f\n", live_z_offset_);
+  LOG_I("Apply Z offset: %.2f\n", live_z_offset_[e]);
 }
 
-
-void BedLevelService::UnapplyLiveZOffset() {
-  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
+void BedLevelService::UnapplyLiveZOffset(uint8_t e) {
+  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead() && MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead()) {
     LOG_E("only enable z offset for 3DP!\n");
     return;
   }
+
+  if ((MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) && (e != active_extruder)) {
+    return;
+  }
+
   planner.synchronize();
   float cur_z = current_position[Z_AXIS];
 
-  do_blocking_move_to_z(current_position[Z_AXIS] - live_z_offset_, 5);
+  do_blocking_move_to_z(current_position[Z_AXIS] - live_z_offset_[e], 5);
   planner.synchronize();
 
   current_position[Z_AXIS] = cur_z;
   sync_plan_position();
 
-  LOG_I("Unapply Z offset: %.2f\n", live_z_offset_);
+  LOG_I("Unapply Z offset: %.2f\n", live_z_offset_[e]);
 }
 
 

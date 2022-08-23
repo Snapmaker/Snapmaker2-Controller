@@ -65,7 +65,7 @@ enum {
 #define X_STOP_PIN        PE12
 #define Y_STOP_PIN        PE12
 #define Z_STOP_PIN        PE12
-#define Z_MIN_PROBE_PIN   -1 
+#define Z_MIN_PROBE_PIN   -1
 
 //
 // Steppers
@@ -116,7 +116,8 @@ extern uint8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
 //
 // Heaters / Fans
 //
-#define HEATER_0_PIN       PA15   // EXTRUDER 1
+#define HEATER_0_PIN       PA15   // unused pin, fake
+#define HEATER_1_PIN       PA15   // unused pin, fake
 
 #define HEATER_BED_PIN     PA7   // BED
 
@@ -130,7 +131,7 @@ extern uint8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
 //
 #define TEMP_BED_PIN       PC4   // ANALOG NUMBERING
 #define TEMP_0_PIN         PC5   // ANALOG NUMBERING
-#define TEMP_1_PIN         -1   // ANALOG NUMBERING
+#define TEMP_1_PIN         PE7   // ANALOG NUMBERING
 
 //
 // Filament Switch

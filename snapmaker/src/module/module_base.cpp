@@ -43,8 +43,6 @@
 #include "src/module/configuration_store.h"
 #include HAL_PATH(src/HAL, HAL.h)
 
-extern ToolHead3DP printer_single;
-
 ModuleBase *static_modules[] = {
   &linear,
   &printer_single,

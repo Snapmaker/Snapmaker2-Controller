@@ -1244,7 +1244,8 @@ void MarlinSettings::postprocess() {
         uint32_t tmp1[XN + esteppers];
         EEPROM_READ(tmp1);                         // max_acceleration_mm_per_s2
         EEPROM_READ(planner.settings.min_segment_time_us);
-
+        EEPROM_READ(planner.settings.e_axis_steps_per_mm_backup[0]);
+        EEPROM_READ(planner.settings.e_axis_steps_per_mm_backup[1]);
         float tmp2[XN + esteppers], tmp3[XN + esteppers];
         EEPROM_READ(tmp2);                         // axis_steps_per_mm
         EEPROM_READ(tmp3);                         // max_feedrate_mm_s
@@ -1259,7 +1260,7 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(planner.settings.travel_acceleration);
         EEPROM_READ(planner.settings.min_feedrate_mm_s);
         EEPROM_READ(planner.settings.min_travel_feedrate_mm_s);
-        
+
         #if ENABLED(BACKLASH_GCODE)
           // M425
           EEPROM_READ(backlash_distance_mm);
@@ -2124,6 +2125,8 @@ void MarlinSettings::reset() {
     planner.settings.max_feedrate_mm_s[i]          = pgm_read_float(&tmp2[ALIM(i, tmp2)]);
     planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
   }
+  planner.settings.e_axis_steps_per_mm_backup[0] = SINGLE_EXTRUDER_E_STEPS_PER_MM;
+  planner.settings.e_axis_steps_per_mm_backup[1] = DUAL_EXTRUDER_E_STEPS_PER_MM;
   linear_p->reset_axis_steps_per_unit();
 
   planner.settings.min_segment_time_us = DEFAULT_MINSEGMENTTIME;
