@@ -30,6 +30,7 @@
 #include "src/pins/pins.h"
 #include "src/inc/MarlinConfig.h"
 #include HAL_PATH(src/HAL, HAL.h)
+#include "../../../Marlin/src/module/planner.h"
 
 ToolHead3DP printer_single(MODULE_DEVICE_ID_3DP_SINGLE);
 
@@ -173,7 +174,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   LOG_I("\tprobe: 0x%x, filament: 0x%x\n", probe_state_, filament_state_);
 
   IOInit();
-
+  UpdateEAxisStepsPerUnit(MODULE_TOOLHEAD_3DP);
   SetToolhead(MODULE_TOOLHEAD_3DP);
   printer1 = this;
 
@@ -273,3 +274,19 @@ void ToolHead3DP::Process() {
 
 
 }
+
+void ToolHead3DP::UpdateEAxisStepsPerUnit(ModuleToolHeadType type) {
+  switch (type) {
+    case MODULE_TOOLHEAD_3DP:
+      planner.settings.axis_steps_per_mm[E_AXIS] = planner.settings.axis_steps_per_mm[0];
+      break;
+    case MODULE_TOOLHEAD_DUALEXTRUDER:
+      planner.settings.axis_steps_per_mm[E_AXIS] = planner.settings.axis_steps_per_mm[1];
+      break;
+    default:
+      return;
+  }
+
+  planner.refresh_positioning();
+}
+

@@ -105,6 +105,12 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode ModuleCtrlFan(uint8_t fan_index, uint16_t speed, uint8_t delay_time);
     ErrCode ModuleCtrlHotendTemp(uint8_t e, uint16_t temp);
     ErrCode ModuleCtrlProbeStateSync();
+    ErrCode ModuleCtrlPidSync();
+    ErrCode ModuleCtrlHotendTypeSync();
+    ErrCode ModuleCtrlFilamentStateSync();
+    ErrCode ModuleCtrlHotendOffsetSync();
+    ErrCode ModuleCtrlZProbeSensorCompensationSync();
+    ErrCode ModuleCtrlRightExtruderPosSync();
     ErrCode ModuleCtrlSetPid(float p, float i, float d);
     ErrCode ModuleCtrlToolChange(uint8_t new_extruder);
     ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis);
