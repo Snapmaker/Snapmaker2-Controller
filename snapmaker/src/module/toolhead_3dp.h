@@ -133,6 +133,8 @@ class ToolHead3DP: public ModuleBase {
       return cur_temp_[extrude_index];
     }
 
+    void UpdateEAxisStepsPerUnit(ModuleToolHeadType type);
+
     // for dualextruder
     ErrCode ToolChange(uint8_t new_extruder, bool use_compensation = true) { return E_SUCCESS; }
     void ReportProbeState(uint8_t state[]) { return; }

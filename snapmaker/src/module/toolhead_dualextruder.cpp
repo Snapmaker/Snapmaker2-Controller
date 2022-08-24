@@ -176,11 +176,18 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
 
   IOInit();
   mac_index_ = mac_index;
+  UpdateEAxisStepsPerUnit(MODULE_TOOLHEAD_DUALEXTRUDER);
   SetToolhead(MODULE_TOOLHEAD_DUALEXTRUDER);
   printer1 = this;
 
   // sync the state of sensors
   ModuleCtrlProbeStateSync();
+  ModuleCtrlPidSync();
+  ModuleCtrlHotendTypeSync();
+  ModuleCtrlFilamentStateSync();
+  ModuleCtrlHotendOffsetSync();
+  ModuleCtrlZProbeSensorCompensationSync();
+  ModuleCtrlRightExtruderPosSync();
 
 out:
   return ret;
@@ -448,10 +455,78 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlHotendTemp(uint8_t e, uint16_t temp) {
 ErrCode ToolHeadDualExtruder::ModuleCtrlProbeStateSync() {
   CanStdFuncCmd_t cmd;
 
-  cmd.id     = MODULE_FUNC_SET_NOZZLE_TEMP;
-  cmd.data   = NULL;
-  cmd.length = 0;
-  return canhost.SendStdCmd(cmd, 0);
+  cmd.id      = MODULE_FUNC_SET_NOZZLE_TEMP;
+  cmd.data    = NULL;
+  cmd.length  = 0;
+  ErrCode ret = canhost.SendStdCmd(cmd, 0);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  return ret;
+}
+
+ErrCode ToolHeadDualExtruder::ModuleCtrlPidSync() {
+  CanStdFuncCmd_t cmd;
+
+  cmd.id      = MODULE_FUNC_REPORT_3DP_PID;
+  cmd.data    = NULL;
+  cmd.length  = 0;
+  ErrCode ret = canhost.SendStdCmd(cmd, 0);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  return ret;
+}
+
+ErrCode ToolHeadDualExtruder::ModuleCtrlHotendTypeSync() {
+  CanStdFuncCmd_t cmd;
+
+  cmd.id      = MODULE_FUNC_REPORT_NOZZLE_TYPE;
+  cmd.data    = NULL;
+  cmd.length  = 0;
+  ErrCode ret = canhost.SendStdCmd(cmd, 0);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  return ret;
+}
+
+ErrCode ToolHeadDualExtruder::ModuleCtrlFilamentStateSync() {
+  CanStdFuncCmd_t cmd;
+
+  cmd.id      = MODULE_FUNC_RUNOUT_SENSOR_STATE;
+  cmd.data    = NULL;
+  cmd.length  = 0;
+  ErrCode ret = canhost.SendStdCmd(cmd, 0);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  return ret;
+}
+
+ErrCode ToolHeadDualExtruder::ModuleCtrlHotendOffsetSync() {
+  CanStdFuncCmd_t cmd;
+
+  cmd.id      = MODULE_FUNC_REPORT_HOTEND_OFFSET;
+  cmd.data    = NULL;
+  cmd.length  = 0;
+  ErrCode ret = canhost.SendStdCmd(cmd, 0);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  return ret;
+}
+
+ErrCode ToolHeadDualExtruder::ModuleCtrlZProbeSensorCompensationSync() {
+  CanStdFuncCmd_t cmd;
+
+  cmd.id      = MODULE_FUNC_REPORT_PROBE_SENSOR_COMPENSATION;
+  cmd.data    = NULL;
+  cmd.length  = 0;
+  ErrCode ret = canhost.SendStdCmd(cmd, 0);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  return ret;
+}
+
+ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderPosSync() {
+  CanStdFuncCmd_t cmd;
+
+  cmd.id      = MODULE_FUNC_REPORT_RIGHT_EXTRUDER_POS;
+  cmd.data    = NULL;
+  cmd.length  = 0;
+  ErrCode ret = canhost.SendStdCmd(cmd, 0);
+  vTaskDelay(pdMS_TO_TICKS(5));
+  return ret;
 }
 
 ErrCode ToolHeadDualExtruder::ModuleCtrlSetPid(float p, float i, float d) {
@@ -703,4 +778,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
   }
 
   set_bed_leveling_enabled(leveling_was_active);
+  return E_SUCCESS;
 }
+
+
