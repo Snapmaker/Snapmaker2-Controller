@@ -57,11 +57,11 @@ class ToolHead3DP: public ModuleBase {
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
 
-    ErrCode SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time=0);
+    virtual ErrCode SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time=0);
     ErrCode SetPID(uint8_t index, float value, uint8_t extrude_index=0);
     float * GetPID(uint8_t extrude_index=0);
     void UpdatePID(uint8_t index, float val) {if (index < 3) pid_[index]=val;};
-    ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index=0);
+    virtual ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index=0);
     void GetFilamentState();
     void Process();
 
@@ -87,11 +87,11 @@ class ToolHead3DP: public ModuleBase {
       else
         probe_state_ &= ~(1<<extrude_index);
     }
-    uint8_t probe_state() {
-      return probe_state_;
+    virtual bool probe_state() {
+      return (bool)probe_state_;
     }
-    uint8_t probe_state(probe_sensor_t sensor) {
-      return probe_state_;
+    virtual bool probe_state(probe_sensor_t sensor) {
+      return (bool)probe_state_;
     }
 
     void ResetFilamentState(uint8_t state, uint8_t extrude_index=0) {
@@ -113,11 +113,11 @@ class ToolHead3DP: public ModuleBase {
       else
         filament_state_ &= ~(1<<extrude_index);
     }
-    uint8_t filament_state() {
-      return filament_state_;
+    virtual bool filament_state() {
+      return (bool)filament_state_;
     }
-    uint8_t filament_state(uint8_t e) {
-      return filament_state_;
+    virtual bool filament_state(uint8_t e) {
+      return (bool)filament_state_;
     }
 
     void SetTemp(int16_t temp, uint8_t extrude_index=0) {
@@ -136,26 +136,15 @@ class ToolHead3DP: public ModuleBase {
     void UpdateEAxisStepsPerUnit(ModuleToolHeadType type);
 
     // for dualextruder
-    ErrCode ToolChange(uint8_t new_extruder, bool use_compensation = true) { return E_SUCCESS; }
-    void ReportProbeState(uint8_t state[]) { return; }
-    void ReportTemperature(uint8_t *data) { return; }
-    void ReportPID(uint8_t *data) { return; }
-    void ReportFilamentState(uint8_t state[]) { return; }
-    void ReportHotendType(uint8_t *data) { return; }
-    void ReportExtruderInfo(uint8_t *data) { return; }
-    void ReportHotendOffset(uint8_t *data) { return; }
-    void ReportProbeSensorCompensation(uint8_t *data) { return; }
-    void ReportRightExtruderPos(uint8_t *data) { return; }
-    ErrCode ModuleCtrlProximitySwitchPower(uint8_t state) { return E_SUCCESS; }
-    ErrCode ModuleCtrlFan(uint8_t fan_index, uint16_t speed, uint8_t delay_time) { return E_SUCCESS; }
-    ErrCode ModuleCtrlHotendTemp(uint8_t e, uint16_t temp) { return E_SUCCESS; }
-    ErrCode ModuleCtrlProbeStateSync() { return E_SUCCESS; }
-    ErrCode ModuleCtrlSetPid(float p, float i, float d) { return E_SUCCESS; }
-    ErrCode ModuleCtrlToolChange(uint8_t new_extruder) { return E_SUCCESS; }
-    ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis) { return E_SUCCESS; }
-    ErrCode ModuleCtrlSaveZCompensation(float *val) { return E_SUCCESS; }
-    ErrCode ModuleCtrlRightExtruderMove(uint8_t type, float destination = 0) { return E_SUCCESS; }
-    ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos) { return E_SUCCESS; }
+    virtual ErrCode ToolChange(uint8_t new_extruder, bool use_compensation = true) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlProximitySwitchPower(uint8_t state) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlProbeStateSync() { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlSetPid(float p, float i, float d) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlToolChange(uint8_t new_extruder) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlSaveZCompensation(float *val) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlRightExtruderMove(uint8_t type, float destination = 0) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos) { return E_SUCCESS; }
 
   protected:
     void IOInit(void);

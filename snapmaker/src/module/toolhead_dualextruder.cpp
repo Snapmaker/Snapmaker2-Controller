@@ -47,39 +47,39 @@
 ToolHeadDualExtruder printer_dualextruder(MODULE_DEVICE_ID_DUAL_EXTRUDER);
 
 static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
-  printer1->ReportProbeState(cmd.data);
+  printer_dualextruder.ReportProbeState(cmd.data);
 }
 
 static void CallbackAckNozzleTemp(CanStdDataFrame_t &cmd) {
-  printer1->ReportTemperature(cmd.data);
+  printer_dualextruder.ReportTemperature(cmd.data);
 }
 
 static void CallbackAckReportPidTemp(CanStdDataFrame_t &cmd) {
-  printer1->ReportPID(cmd.data);
+  printer_dualextruder.ReportPID(cmd.data);
 }
 
 static void CallbackAckFilamentState(CanStdDataFrame_t &cmd) {
-  printer1->ReportFilamentState(cmd.data);
+  printer_dualextruder.ReportFilamentState(cmd.data);
 }
 
 static void CallbackAckNozzleType(CanStdDataFrame_t &cmd) {
-  printer1->ReportHotendType(cmd.data);
+  printer_dualextruder.ReportHotendType(cmd.data);
 }
 
 static void CallbackAckExtruderInfo(CanStdDataFrame_t &cmd) {
-  printer1->ReportExtruderInfo(cmd.data);
+  printer_dualextruder.ReportExtruderInfo(cmd.data);
 }
 
 static void CallbackAckReportHotendOffset(CanStdDataFrame_t &cmd) {
-  printer1->ReportHotendOffset(cmd.data);
+  printer_dualextruder.ReportHotendOffset(cmd.data);
 }
 
 static void CallbackAckReportProbeSensorCompensation(CanStdDataFrame_t &cmd) {
-  printer1->ReportProbeSensorCompensation(cmd.data);
+  printer_dualextruder.ReportProbeSensorCompensation(cmd.data);
 }
 
 static void CallbackAckReportRightExtruderPos(CanStdDataFrame_t &cmd) {
-  printer1->ReportRightExtruderPos(cmd.data);
+  printer_dualextruder.ReportRightExtruderPos(cmd.data);
 }
 
 ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
@@ -188,6 +188,8 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
   ModuleCtrlHotendOffsetSync();
   ModuleCtrlZProbeSensorCompensationSync();
   ModuleCtrlRightExtruderPosSync();
+
+  LOG_I("dualextruder ready!\n");
 
 out:
   return ret;
@@ -378,7 +380,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlProximitySwitchPower(uint8_t state) {
   return canhost.SendStdCmdSync(cmd, 2000);
 }
 
-ErrCode ToolHeadDualExtruder::ModuleCtrlFan(uint8_t fan_index, uint16_t speed, uint8_t delay_time) {
+ErrCode ToolHeadDualExtruder::SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time /* =0 */) {
   CanStdFuncCmd_t cmd;
   uint8_t buffer[CAN_FRAME_SIZE];
 
@@ -406,30 +408,30 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlFan(uint8_t fan_index, uint16_t speed, u
   return canhost.SendStdCmd(cmd, 0);
 }
 
-ErrCode ToolHeadDualExtruder::ModuleCtrlHotendTemp(uint8_t e, uint16_t temp) {
-  if (e >= EXTRUDERS) {
+ErrCode ToolHeadDualExtruder::SetHeater(uint16_t target_temp, uint8_t extrude_index /*=0*/) {
+  if (extrude_index >= EXTRUDERS) {
     return E_PARAM;
   }
 
-  if (hotend_type_[e] == 0xff) {
-    LOG_E("hotend %d is invalid\n", e);
+  if (hotend_type_[extrude_index] == 0xff) {
+    LOG_E("hotend %d is invalid\n", extrude_index);
     return E_HARDWARE;
   }
 
-  hotend_temp_[e].target = temp;
-  LOG_I("Set T%d=%d\n", e, hotend_temp_[e].target);
+  hotend_temp_[extrude_index].target = target_temp;
+  LOG_I("Set T%d=%d\n", extrude_index, hotend_temp_[extrude_index].target);
 
   fan_e nozzle_fan_index = DUAL_EXTRUDER_NOZZLE_FAN;
   uint8_t fan_speed = 0;
   uint8_t fan_delay = 0;
-  if (hotend_temp_[e].target >= 60) {
+  if (hotend_temp_[extrude_index].target >= 60) {
     fan_speed = 255;
-  } else if (hotend_temp_[e].target == 0) {
+  } else if (hotend_temp_[extrude_index].target == 0) {
     // check if need to delay to turn off fan
-    if (hotend_temp_[e].current >= 150) {
+    if (hotend_temp_[extrude_index].current >= 150) {
       fan_speed = 0;
       fan_delay = 120;
-    } else if (hotend_temp_[e].target >= 60) {
+    } else if (hotend_temp_[extrude_index].target >= 60) {
       fan_speed = 0;
       fan_delay = 60;
     } else {
@@ -437,7 +439,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlHotendTemp(uint8_t e, uint16_t temp) {
       fan_delay = 0;
     }
   }
-  ModuleCtrlFan((uint8_t)nozzle_fan_index, fan_speed, fan_delay);
+  SetFan((uint8_t)nozzle_fan_index, fan_speed, fan_delay);
 
   uint8_t buffer[2*EXTRUDERS];
   for (int i = 0; i < EXTRUDERS; i++) {
@@ -455,7 +457,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlHotendTemp(uint8_t e, uint16_t temp) {
 ErrCode ToolHeadDualExtruder::ModuleCtrlProbeStateSync() {
   CanStdFuncCmd_t cmd;
 
-  cmd.id      = MODULE_FUNC_SET_NOZZLE_TEMP;
+  cmd.id      = MODULE_FUNC_PROBE_STATE;
   cmd.data    = NULL;
   cmd.length  = 0;
   ErrCode ret = canhost.SendStdCmd(cmd, 0);

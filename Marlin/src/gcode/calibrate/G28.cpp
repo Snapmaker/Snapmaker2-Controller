@@ -290,6 +290,10 @@ void GcodeSuite::G28(const bool always_home_all) {
 
     set_destination_from_current();
 
+    if (MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
+
+    }
+
     #if DISABLED(SW_MACHINE_SIZE)
       #if Z_HOME_DIR > 0  // If homing away from BED do Z first
         if (home_all || homeZ) homeaxis(Z_AXIS);

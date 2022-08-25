@@ -22,6 +22,7 @@
 
 #include "../gcode.h"
 #include "../../module/tool_change.h"
+#include "../../../../snapmaker/src/module/toolhead_3dp.h"
 
 #if ENABLED(DEBUG_LEVELING_FEATURE) || EXTRUDERS > 1
   #include "../../module/motion.h"
@@ -66,11 +67,12 @@ void GcodeSuite::T(const uint8_t tool_index) {
 
   #else
 
-    tool_change(
-      tool_index,
-      MMM_TO_MMS(parser.linearval('F')),
-      (tool_index == active_extruder) || parser.boolval('S')
-    );
+    printer1->ToolChange(tool_index);
+    // tool_change(
+    //   tool_index,
+    //   MMM_TO_MMS(parser.linearval('F')),
+    //   (tool_index == active_extruder) || parser.boolval('S')
+    // );
 
   #endif
 

@@ -34,27 +34,27 @@
 
 ToolHead3DP printer_single(MODULE_DEVICE_ID_3DP_SINGLE);
 
-ToolHead3DP *printer1 = &printer_single;
 
+ToolHead3DP *printer1 = &printer_single;
 static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
-  printer1->report_probe_state(cmd.data[0], 0);
+  printer_single.report_probe_state(cmd.data[0], 0);
 }
 
 
 static void CallbackAckNozzleTemp(CanStdDataFrame_t &cmd) {
   // temperature from module, was
-  printer1->SetTemp(cmd.data[0]<<8 | cmd.data[1], 0);
+  printer_single.SetTemp(cmd.data[0]<<8 | cmd.data[1], 0);
 }
 
 static void CallbackAckReportPidTemp(CanStdDataFrame_t &cmd) {
   // PID from module, was
   float val = (float)((cmd.data[1] << 24) | (cmd.data[2] << 16) | (cmd.data[3] << 8) | cmd.data[4]) / 1000;
-  printer1->UpdatePID(cmd.data[0], val);
+  printer_single.UpdatePID(cmd.data[0], val);
 }
 
 static void CallbackAckFilamentState(CanStdDataFrame_t &cmd) {
   // temperature from module, was
-  printer1->report_filament_state(cmd.data[0], 0);
+  printer_single.report_filament_state(cmd.data[0], 0);
 }
 
 void ToolHead3DP::GetFilamentState() {

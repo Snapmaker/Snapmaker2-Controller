@@ -102,8 +102,8 @@ class ToolHeadDualExtruder: public ToolHead3DP {
 
     // set module
     ErrCode ModuleCtrlProximitySwitchPower(uint8_t state);
-    ErrCode ModuleCtrlFan(uint8_t fan_index, uint16_t speed, uint8_t delay_time);
-    ErrCode ModuleCtrlHotendTemp(uint8_t e, uint16_t temp);
+    ErrCode SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time = 0);
+    ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index = 0);
     ErrCode ModuleCtrlProbeStateSync();
     ErrCode ModuleCtrlPidSync();
     ErrCode ModuleCtrlHotendTypeSync();
@@ -125,7 +125,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     hotend_temp_t hotend_temp_[EXTRUDERS];
 
   private:
-    uint8_t mac_index_;
+    uint8_t mac_index_ = MODULE_MAC_INDEX_INVALID;
     bool hotend_type_initialized_ = false;
 };
 
