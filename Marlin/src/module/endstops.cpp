@@ -461,8 +461,8 @@ void _O2 Endstops::M119() {
     print_es_state(TEST(printer1->probe_state(PROBE_SENSOR_LEFT_OPTOCOUPLER), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE"_left_optocoupler"));
     print_es_state(TEST(printer1->probe_state(PROBE_SENSOR_RIGHT_OPTOCOUPLER), 0) != Z_MIN_PROBE_ENDSTOP_INVERTING, PSTR(MSG_Z_PROBE"_right_optocoupler"));
 
-    print_es_state(TEST(printer1->filament_state(0), 0) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR"_extruder0"));
-    print_es_state(TEST(printer1->filament_state(1), 0) != FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR"_extruder1"));
+    print_es_state(TEST(printer1->filament_state(0), 0) == FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR"_extruder0"));
+    print_es_state(TEST(printer1->filament_state(1), 0) == FIL_RUNOUT_INVERTING, PSTR(MSG_FILAMENT_RUNOUT_SENSOR"_extruder1"));
   #else
 
 

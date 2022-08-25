@@ -30,7 +30,7 @@
 
 #define MODULE_FUNCTION_ID_INVALID       (0xFFFF)
 #define MODULE_FUNCTION_PRIORITY_INVALID (0xFF)
-#define MODULE_FUNCTION_MAX_IN_ONE       (16) // upper limit of functions in one module
+#define MODULE_FUNCTION_MAX_IN_ONE       (64) // upper limit of functions in one module
 
 #define MODULE_MESSAGE_ID_INVALID   (0xFFFF)
 #define MODULE_MESSAGE_ID_MASK      (0x1FF)
