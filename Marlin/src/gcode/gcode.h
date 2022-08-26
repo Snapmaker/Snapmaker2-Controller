@@ -902,6 +902,8 @@ private:
 
   static void M2002();
 
+  static void M3000();
+
   static void T(const uint8_t tool_index);
 
 };
