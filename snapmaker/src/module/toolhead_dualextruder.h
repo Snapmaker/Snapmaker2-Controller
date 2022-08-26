@@ -89,6 +89,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     bool filament_state();
     bool filament_state(uint8_t e);
     void SelectProbeSensor(probe_sensor_t sensor);
+    void SetZCompensation(float &left_val, float &right_val);
 
     // module report callback
     void ReportProbeState(uint8_t state[]);
@@ -124,6 +125,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     uint8_t hotend_type_[EXTRUDERS];
     float hotend_diameter_[EXTRUDERS];
     hotend_temp_t hotend_temp_[EXTRUDERS];
+    float z_compensation_[EXTRUDERS];
 
   private:
     uint8_t mac_index_ = MODULE_MAC_INDEX_INVALID;

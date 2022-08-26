@@ -144,6 +144,7 @@ class ToolHead3DP: public ModuleBase {
     // for dualextruder
     virtual ErrCode ToolChange(uint8_t new_extruder, bool use_compensation = true) { return E_SUCCESS; }
     virtual void SelectProbeSensor(probe_sensor_t sensor) { return; }
+    virtual void SetZCompensation(float &left_val, float &right_val) { return; }
     virtual ErrCode ModuleCtrlProximitySwitchPower(uint8_t state) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlProbeStateSync() { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSetPid(float p, float i, float d) { return E_SUCCESS; }

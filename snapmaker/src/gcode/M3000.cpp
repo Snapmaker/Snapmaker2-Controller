@@ -24,7 +24,7 @@
 #include "src/gcode/gcode.h"
 #include "../module/toolhead_3dp.h"
 #include "../../../Marlin/src/module/endstops.h"
-
+#include "../service/bed_level.h"
 
 void GcodeSuite::M3000() {
   printer1->SelectProbeSensor(PROBE_SENSOR_PROXIMITY_SWITCH);
@@ -32,3 +32,41 @@ void GcodeSuite::M3000() {
   endstops.enable_z_probe(true);
   do_blocking_move_to_z(current_position[Z_AXIS] - 100);
 }
+
+void GcodeSuite::M3001() {
+  const bool seen_l = parser.seenval('L');
+  if (seen_l) {
+    uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);
+    SSTP_Event_t event;
+    uint8_t buf[10];
+    event.data = buf;
+    switch (stage) {
+      case 0:
+        levelservice.ProbeSensorCalibrationLeftExtruderAutoProbe(event);
+        break;
+      case 1:
+        levelservice.ProbeSensorCalibrationRightExtruderAutoProbe(event);
+        break;
+      case 2:
+        levelservice.ProbeSensorCalibrationRightExtruderManualProbe(event);
+        break;
+      case 3:
+        levelservice.ProbeSensorCalibraitonRightExtruderPositionConfirm(event);
+        break;
+      case 4:
+        levelservice.ProbeSensorCalibrationLeftExtruderManualProbe(event);
+        break;
+      case 5:
+        levelservice.ProbeSensorCalibraitonLeftExtruderPositionConfirm(event);
+        break;
+      default:
+        break;
+    }
+  }
+
+}
+
+
+
+
+

@@ -349,10 +349,7 @@ void ToolHeadDualExtruder::ReportHotendOffset(uint8_t *data) {
 
 void ToolHeadDualExtruder::ReportProbeSensorCompensation(uint8_t *data) {
   uint8_t e = data[0];
-  float compensation = (float)((data[1] << 24) | (data[2] << 16) | (data[3] << 8) | data[4]) / 1000;
-
-  // bedlevel_svc.z_compensation_[e] = compensation;
-  // todo
+  z_compensation_[e] = (float)((data[1] << 24) | (data[2] << 16) | (data[3] << 8) | data[4]) / 1000;
 
   #ifdef USE_FDM_INTERRUPT_LOG
     LOG_I("extruder: %d, compensation: %f\n", e, compensation);
@@ -710,6 +707,12 @@ void ToolHeadDualExtruder::SelectProbeSensor(probe_sensor_t sensor) {
   }
 
   active_probe_sensor_ = sensor;
+}
+
+void ToolHeadDualExtruder::SetZCompensation(float &left_val, float &right_val) {
+  z_compensation_[0] = left_val;
+  z_compensation_[1] = right_val;
+  ModuleCtrlSaveZCompensation(z_compensation_);
 }
 
 ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensation/* = true */) {
