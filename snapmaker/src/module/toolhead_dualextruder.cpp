@@ -715,6 +715,11 @@ void ToolHeadDualExtruder::SetZCompensation(float &left_val, float &right_val) {
   ModuleCtrlSaveZCompensation(z_compensation_);
 }
 
+void ToolHeadDualExtruder::GetZCompensation(float &left_z_compensation, float &right_z_compensation) {
+  left_z_compensation = z_compensation_[0];
+  right_z_compensation = z_compensation_[1];
+}
+
 ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensation/* = true */) {
   planner.synchronize();
 
