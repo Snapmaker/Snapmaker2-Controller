@@ -817,6 +817,8 @@ void GcodeSuite::execute_command(void) {
 
       case 3000: M3000(); break;
 
+      case 3001: M3001(); break;
+
       default: parser.unknown_command_error(); break;
     }
     break;

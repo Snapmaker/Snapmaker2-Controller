@@ -432,6 +432,18 @@ float bilinear_z_offset(const float raw[XYZ]) {
 
 #endif // IS_CARTESIAN && !SEGMENT_LEVELED_MOVES
 
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  void get_center_coordinates_of_bed(float &x, float &y) {
+    x = RAW_X_POSITION(X_DEF_SIZE / 2.0);
+    y = RAW_Y_POSITION(Y_DEF_SIZE / 2.0);
+
+    NOMORE(x, X_MAX_POS);
+    NOLESS(x, X_MIN_POS);
+    NOMORE(y, Y_MAX_POS);
+    NOLESS(y, Y_MIN_POS);
+  }
+#endif
+
 /**
  * bilinear_grid_manual:Initialize bilinear parameters
  */

@@ -19,21 +19,20 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include "../common/config.h"
-
 #include "bed_level.h"
 #include "../gcode/M1028.h"
-
 #include "src/Marlin.h"
 #include "src/module/planner.h"
 #include "src/module/endstops.h"
 #include "src/module/temperature.h"
+#include "src/module/probe.h"
 #include "src/module/configuration_store.h"
-
 #include "src/gcode/gcode.h"
 #include "src/gcode/parser.h"
-
 #include "src/feature/bedlevel/abl/abl.h"
 #include "src/feature/bedlevel/bedlevel.h"
+
+#define CALIBRATION_PAPER_THICKNESS 0.1
 
 BedLevelService levelservice;
 
@@ -473,3 +472,121 @@ void BedLevelService::SaveLiveZOffset() {
 }
 
 // for dualextruder
+void BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+  LOG_I("hmi request left probe sensor auto calibration\n");
+
+  live_z_offset_[0] = 0;
+  live_z_offset_[1] = 0;
+  process_cmd_imd("G28");
+  set_bed_leveling_enabled(false);
+
+  float x, y;
+  get_center_coordinates_of_bed(x, y);
+  printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
+  endstops.enable_z_probe(true);
+  do_blocking_move_to_xy(x, y, 80);
+  do_blocking_move_to_z(40, 20);
+  planner.synchronize();
+  left_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
+
+  if (isnan(left_extruder_auto_probe_position_)) {
+    err = E_FAILURE;
+    left_extruder_auto_probe_position_ = 40;
+  }
+
+  LOG_I("probed z value: %.2f\n", left_extruder_auto_probe_position_);
+
+  event.data = &err;
+  event.length = 1;
+  hmi.Send(event);
+}
+
+void BedLevelService::ProbeSensorCalibrationRightExtruderAutoProbe(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+  LOG_I("hmi request right probe sensor auto calibration\n");
+
+  printer1->ToolChange(1, false);
+  float x, y;
+  get_center_coordinates_of_bed(x, y);
+  printer1->SelectProbeSensor(PROBE_SENSOR_RIGHT_OPTOCOUPLER);
+  endstops.enable_z_probe(true);
+  do_blocking_move_to_xy(x, y, 80);
+  do_blocking_move_to_z(40, 40);
+  planner.synchronize();
+  right_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
+
+  if (isnan(right_extruder_auto_probe_position_)) {
+    err = E_FAILURE;
+    right_extruder_auto_probe_position_ = 40;
+  }
+
+  endstops.enable_z_probe(false);
+  LOG_I("probed z value: %.2f\n", right_extruder_auto_probe_position_);
+
+  event.data = &err;
+  event.length = 1;
+  hmi.Send(event);
+}
+
+void BedLevelService::ProbeSensorCalibrationLeftExtruderManualProbe(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  LOG_I("hmi request left extruder manual probe\n");
+  printer1->ToolChange(0, false);
+
+  event.data = &err;
+  event.length = 1;
+  hmi.Send(event);
+}
+
+void BedLevelService::ProbeSensorCalibrationRightExtruderManualProbe(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  LOG_I("hmi request right extruder manual probe\n");
+
+  event.data = &err;
+  event.length = 1;
+  hmi.Send(event);
+}
+
+void BedLevelService::ProbeSensorCalibraitonLeftExtruderPositionConfirm(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  left_extruder_manual_probe_position_ = current_position[Z_AXIS];
+  LOG_I("confirm left extruder manual probe position: %.3f\n", left_extruder_manual_probe_position_);
+
+  float left_z_compensation  = left_extruder_manual_probe_position_ - CALIBRATION_PAPER_THICKNESS - left_extruder_auto_probe_position_;
+  float right_z_compensation = right_extruder_manual_probe_position_ - CALIBRATION_PAPER_THICKNESS - right_extruder_auto_probe_position_;
+  LOG_I("z_compensation: %.2f, %.2f\n", left_z_compensation, right_z_compensation);
+  printer1->SetZCompensation(left_z_compensation, right_z_compensation);
+
+  hotend_offset[Z_AXIS][1] = left_extruder_manual_probe_position_ - right_extruder_manual_probe_position_;
+  LOG_I("hotend_offset_z: %.2f\n", hotend_offset[Z_AXIS][1]);
+  printer1->ModuleCtrlSaveHotendOffset(hotend_offset[Z_AXIS][1], Z_AXIS);
+
+  do_blocking_move_to_z(current_position[Z_AXIS] + 100, 40);
+  set_bed_leveling_enabled(true);
+  endstops.enable_z_probe(false);
+
+  event.data = &err;
+  event.length = 1;
+  hmi.Send(event);
+}
+
+void BedLevelService::ProbeSensorCalibraitonRightExtruderPositionConfirm(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  right_extruder_manual_probe_position_ = current_position[Z_AXIS];
+  LOG_I("confirm right extruder manual probe position: %.3f\n", right_extruder_manual_probe_position_);
+
+  event.data = &err;
+  event.length = 1;
+  hmi.Send(event);
+}
+
+
+
+
+
+

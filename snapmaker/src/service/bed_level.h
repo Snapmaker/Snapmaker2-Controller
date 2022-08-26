@@ -57,15 +57,23 @@ class BedLevelService {
     void live_z_offset(float offset, uint8_t e=0) { if (offset <=LIVE_Z_OFFSET_MAX && offset >=LIVE_Z_OFFSET_MIN) live_z_offset_[e] = offset; }
     float live_z_offset(uint8_t e=0) { return live_z_offset_[e]; }
 
+    void ProbeSensorCalibrationLeftExtruderAutoProbe(SSTP_Event_t &event);
+    void ProbeSensorCalibrationRightExtruderAutoProbe(SSTP_Event_t &event);
+    void ProbeSensorCalibrationLeftExtruderManualProbe(SSTP_Event_t &event);
+    void ProbeSensorCalibrationRightExtruderManualProbe(SSTP_Event_t &event);
+    void ProbeSensorCalibraitonLeftExtruderPositionConfirm(SSTP_Event_t &event);
+    void ProbeSensorCalibraitonRightExtruderPositionConfirm(SSTP_Event_t &event);
+
   private:
     LevelMode level_mode_ = LEVEL_MODE_INVALD;
-
     uint8_t manual_level_index_ = MANUAL_LEVEL_INDEX_INVALID;
-
     float live_z_offset_[EXTRUDERS] = {0};
     bool  live_z_offset_updated_ = false;
-
     float MeshPointZ[MESH_POINT_SIZE];
+    float left_extruder_auto_probe_position_;
+    float right_extruder_auto_probe_position_;
+    float left_extruder_manual_probe_position_;
+    float right_extruder_manual_probe_position_;
 };
 
 extern BedLevelService levelservice;
