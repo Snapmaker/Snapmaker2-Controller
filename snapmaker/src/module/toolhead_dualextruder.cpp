@@ -704,6 +704,14 @@ bool ToolHeadDualExtruder::filament_state(uint8_t e) {
   return (bool)(filament_state_ & (1<<e));
 }
 
+void ToolHeadDualExtruder::SelectProbeSensor(probe_sensor_t sensor) {
+  if (sensor >= PROBE_SENSOR_INVALID) {
+    return;
+  }
+
+  active_probe_sensor_ = sensor;
+}
+
 ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensation/* = true */) {
   planner.synchronize();
 

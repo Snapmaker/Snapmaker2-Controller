@@ -88,6 +88,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     bool probe_state(probe_sensor_t sensor);
     bool filament_state();
     bool filament_state(uint8_t e);
+    void SelectProbeSensor(probe_sensor_t sensor);
 
     // module report callback
     void ReportProbeState(uint8_t state[]);
@@ -119,7 +120,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos);
 
   protected:
-    probe_sensor_t active_probe_sensor_;
+    probe_sensor_t active_probe_sensor_ = PROBE_SENSOR_PROXIMITY_SWITCH;
     uint8_t hotend_type_[EXTRUDERS];
     float hotend_diameter_[EXTRUDERS];
     hotend_temp_t hotend_temp_[EXTRUDERS];
