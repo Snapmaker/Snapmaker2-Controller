@@ -2685,6 +2685,12 @@ void MarlinSettings::reset() {
       }
     #endif
 
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      float left_z_compensation, right_z_compensation;
+      printer1->GetZCompensation(left_z_compensation, right_z_compensation);
+      SERIAL_ECHOPAIR("  left_z_compensation: ", left_z_compensation, "  right_z_compensation: ", right_z_compensation, "\n");
+    #endif
+
     /**
      * Bed Leveling
      */

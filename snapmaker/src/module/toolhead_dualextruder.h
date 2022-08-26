@@ -90,6 +90,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     bool filament_state(uint8_t e);
     void SelectProbeSensor(probe_sensor_t sensor);
     void SetZCompensation(float &left_val, float &right_val);
+    void GetZCompensation(float &left_z_compensation, float &right_z_compensation);
 
     // module report callback
     void ReportProbeState(uint8_t state[]);
