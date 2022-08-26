@@ -565,7 +565,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlSetPid(float p, float i, float d) {
   return E_SUCCESS;
 }
 
-ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderMove(uint8_t type, float destination/* = 0*/) {
+ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderMove(move_type_e type, float destination/* = 0*/) {
   ErrCode ret;
   CanStdFuncCmd_t cmd;
   uint8_t buffer[CAN_FRAME_SIZE];
@@ -584,14 +584,14 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderMove(uint8_t type, float de
   cmd.length = index;
 
   switch (type) {
-    case 0:
-    case 1:
+    case GO_HOME:
+    case MOVE_SYNC:
       ret = canhost.SendStdCmdSync(cmd, 20000);
       // LOG_I("recv, move type: %d, move result: %d\n", recv_buf[0], recv_buf[1]);
       // 报错
       // todo
       break;
-    case 2:
+    case MOVE_ASYNC:
       ret = canhost.SendStdCmd(cmd, 0);
       break;
     default:

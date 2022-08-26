@@ -282,17 +282,27 @@ void GcodeSuite::G28(const bool always_home_all) {
 
   #else // NOT DELTA
 
-    const bool homeX = always_home_all || parser.seen('X'),
-               homeY = always_home_all || parser.seen('Y'),
-               homeZ = always_home_all || parser.seen('Z'),
-               homeB = always_home_all || parser.seen('B'),
-               home_all = (!homeX && !homeY && !homeZ && !homeB) || (homeX && homeY && homeZ&& homeB);
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      const bool homeX = always_home_all || parser.seen('X'),
+                 homeY = always_home_all || parser.seen('Y'),
+                 homeZ = always_home_all || parser.seen('Z'),
+                 homeB = always_home_all || parser.seen('B');
+      bool home_all = (!homeX && !homeY && !homeZ && !homeB) || (homeX && homeY && homeZ&& homeB);
+    #else
+      const bool homeX = always_home_all || parser.seen('X'),
+                 homeY = always_home_all || parser.seen('Y'),
+                 homeZ = always_home_all || parser.seen('Z'),
+                 homeB = always_home_all || parser.seen('B'),
+                 home_all = (!homeX && !homeY && !homeZ && !homeB) || (homeX && homeY && homeZ&& homeB);
+    #endif
 
     set_destination_from_current();
 
-    if (MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
-
-    }
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      if (MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
+        home_all = true;
+      }
+    #endif
 
     #if DISABLED(SW_MACHINE_SIZE)
       #if Z_HOME_DIR > 0  // If homing away from BED do Z first
@@ -302,6 +312,13 @@ void GcodeSuite::G28(const bool always_home_all) {
       if (Z_HOME_DIR > 0)
         if (home_all || homeZ) homeaxis(Z_AXIS);
     #endif // DISABLED(SW_MACHINE_SIZE)
+
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      if (MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
+        printer1->ModuleCtrlRightExtruderMove(GO_HOME);
+        active_extruder = 0;
+      }
+    #endif
 
     const float z_homing_height = (
       #if ENABLED(UNKNOWN_Z_NO_RAISE)

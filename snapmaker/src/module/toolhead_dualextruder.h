@@ -115,7 +115,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode ModuleCtrlToolChange(uint8_t new_extruder);
     ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis);
     ErrCode ModuleCtrlSaveZCompensation(float *val);
-    ErrCode ModuleCtrlRightExtruderMove(uint8_t type, float destination = 0);
+    ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0);
     ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos);
 
   protected:
