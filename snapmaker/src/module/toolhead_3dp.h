@@ -39,6 +39,12 @@ typedef enum {
   PROBE_SENSOR_INVALID,
 }probe_sensor_t;
 
+typedef enum {
+  GO_HOME,
+  MOVE_SYNC,
+  MOVE_ASYNC,
+}move_type_e;
+
 class ToolHead3DP: public ModuleBase {
   public:
     ToolHead3DP(ModuleDeviceID id): ModuleBase(id) {
@@ -143,7 +149,7 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode ModuleCtrlToolChange(uint8_t new_extruder) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSaveZCompensation(float *val) { return E_SUCCESS; }
-    virtual ErrCode ModuleCtrlRightExtruderMove(uint8_t type, float destination = 0) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos) { return E_SUCCESS; }
 
   protected:
