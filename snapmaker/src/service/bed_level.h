@@ -63,6 +63,10 @@ class BedLevelService {
     void ProbeSensorCalibrationRightExtruderManualProbe(SSTP_Event_t &event);
     void ProbeSensorCalibraitonLeftExtruderPositionConfirm(SSTP_Event_t &event);
     void ProbeSensorCalibraitonRightExtruderPositionConfirm(SSTP_Event_t &event);
+    ErrCode DoDualExtruderAutoLeveling(SSTP_Event_t &event);
+    ErrCode DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event);
+    ErrCode FinishDualExtruderAutoLeveling(SSTP_Event_t &event);
+    ErrCode DoDualExtruderManualLeveling(SSTP_Event_t &event);
 
   private:
     LevelMode level_mode_ = LEVEL_MODE_INVALD;

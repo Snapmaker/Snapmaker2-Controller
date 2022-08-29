@@ -872,6 +872,9 @@
 #define X_PROBE_OFFSET_FROM_EXTRUDER 13     // X offset: -left  +right  [of the nozzle]
 #define Y_PROBE_OFFSET_FROM_EXTRUDER 19.15  // Y offset: -front +behind [the nozzle]
 #define Z_PROBE_OFFSET_FROM_EXTRUDER 0      // Z offset: -below +above  [the nozzle]
+#define DUALEXTRUDER_X_PROBE_OFFSET_FROM_EXTRUDER 13
+#define DUALEXTRUDER_Y_PROBE_OFFSET_FROM_EXTRUDER 26
+#define DUALEXTRUDER_Z_PROBE_OFFSET_FROM_EXTRUDER 0
 
 // Certain types of probes need to stay away from edges
 #define MIN_PROBE_EDGE 5

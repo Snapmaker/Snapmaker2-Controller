@@ -585,6 +585,136 @@ void BedLevelService::ProbeSensorCalibraitonRightExtruderPositionConfirm(SSTP_Ev
   hmi.Send(event);
 }
 
+ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
+  ErrCode err = E_FAILURE;
+  uint8_t grid;
+  char cmd[16];
+
+  LOG_I("hmi req dual extruder auto leveling\n");
+  if (event.length > 0) {
+    if (event.data[0] > 11 || event.data[0] < 2) {
+      LOG_E("grid [%u] from hmi is out of range [2:11], set to default: 3\n", event.data[0]);
+      goto EXIT;
+    }
+    else {
+      grid = event.data[0];
+    }
+  }
+
+  live_z_offset_[0] = 0;
+  live_z_offset_[1] = 0;
+  process_cmd_imd("G28");
+  snprintf(cmd, 16, "G1029 P%u\n", grid);
+  process_cmd_imd(cmd);
+  set_bed_leveling_enabled(false);
+  planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
+  printer1->SelectProbeSensor(PROBE_SENSOR_PROXIMITY_SWITCH);
+  endstops.enable_z_probe(true);
+
+EXIT:
+  event.data   = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
+
+ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+  uint8_t probe_point;
+  float probe_x, probe_y;
+  uint8_t x_index, y_index;
+
+  probe_point = event.data[0] - 1;
+  if (probe_point > GRID_MAX_POINTS_INDEX) {
+    err = E_PARAM;
+    goto EXIT;
+  }
+
+  x_index   = probe_point % GRID_MAX_POINTS_X;
+  y_index   = probe_point / GRID_MAX_POINTS_Y;
+  probe_x = _GET_MESH_X(x_index);
+  probe_y = _GET_MESH_Y(y_index);
+
+  if (probe_point == 0) {
+    do_blocking_move_to_xy(probe_x, probe_y, 80);
+    do_blocking_move_to_z(40, 40);
+  } else {
+    do_blocking_move_to_xy(probe_x, probe_y, 80);
+  }
+  planner.synchronize();
+
+  printer1->ModuleCtrlProximitySwitchPower(1);
+  z_values[x_index][y_index] = probe_pt(probe_x, probe_y, PROBE_PT_RAISE);
+  printer1->ModuleCtrlProximitySwitchPower(0);
+
+EXIT:
+  event.data   = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
+
+ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+  uint8_t probe_point;
+  float probe_x, probe_y;
+  uint8_t x_index, y_index;
+
+  probe_point = GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y - 1;
+  x_index     = probe_point % GRID_MAX_POINTS_X;
+  y_index     = probe_point / GRID_MAX_POINTS_Y;
+  probe_x     = _GET_MESH_X(x_index);
+  probe_y     = _GET_MESH_Y(y_index);
+  do_blocking_move_to_xy(probe_x, probe_y, 80);
+  planner.synchronize();
+
+  printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
+  left_extruder_auto_probe_position_ = probe_pt(probe_x, probe_y, PROBE_PT_RAISE, 0, false);
+  if (isnan(left_extruder_auto_probe_position_)) {
+    err = E_FAILURE;
+    goto EXIT;
+  }
+
+  err = printer1->ToolChange(1, false);
+  if (err != E_SUCCESS) {
+    goto EXIT;
+  }
+
+  printer1->SelectProbeSensor(PROBE_SENSOR_RIGHT_OPTOCOUPLER);
+  right_extruder_auto_probe_position_ = probe_pt(probe_x, probe_y, PROBE_PT_RAISE, 0, false);
+  if (isnan(right_extruder_auto_probe_position_)) {
+    err = E_FAILURE;
+    goto EXIT;
+  }
+
+  {
+    float left_z_compensation = 1.0, right_z_compensation = 1.0;
+    printer1->GetZCompensation(left_z_compensation, right_z_compensation);
+    float left_extruder_touch_bed_position  = left_extruder_auto_probe_position_ + left_z_compensation;
+    float right_extruder_touch_bed_position = right_extruder_auto_probe_position_ + right_z_compensation;
+    hotend_offset[Z_AXIS][1] = left_extruder_touch_bed_position - right_extruder_touch_bed_position;
+    float z_offset = z_values[x_index][y_index] - left_extruder_touch_bed_position;
+    for (uint32_t i = 0; i < GRID_MAX_POINTS_X; i++) {
+      for (uint32_t j = 0; j < GRID_MAX_POINTS_Y; j++) {
+        z_values[i][j] -= z_offset;
+      }
+    }
+    bed_level_virt_interpolate();
+    settings.save();
+  }
+
+  do_blocking_move_to_z(current_position[Z_AXIS] + 100, 40);
+  printer1->ToolChange(0, false);
+
+EXIT:
+  event.data   = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
+
+ErrCode BedLevelService::DoDualExtruderManualLeveling(SSTP_Event_t &event) {
+
+  return E_SUCCESS;
+}
+
 
 
 

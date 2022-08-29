@@ -56,6 +56,10 @@
 #endif
 
 float zprobe_zoffset; // Initialized by settings.load()
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  float x_probe_sensor_offset_from_nozzle;
+  float y_probe_sensor_offset_from_nozzle;
+#endif
 
 #if ENABLED(BLTOUCH)
   #include "../feature/bltouch.h"
