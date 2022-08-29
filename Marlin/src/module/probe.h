@@ -29,6 +29,10 @@
 
 #if HAS_BED_PROBE
   extern float zprobe_zoffset;
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+    extern float x_probe_sensor_offset_from_nozzle;
+    extern float y_probe_sensor_offset_from_nozzle;
+  #endif
   bool set_probe_deployed(const bool deploy);
   #ifdef Z_AFTER_PROBING
     void move_z_after_probing();
