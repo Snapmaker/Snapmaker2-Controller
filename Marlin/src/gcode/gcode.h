@@ -908,6 +908,8 @@ private:
 
   static void M3002();
 
+  static void M3003();
+
   static void T(const uint8_t tool_index);
 
 };
