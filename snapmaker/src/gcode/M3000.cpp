@@ -83,7 +83,7 @@ void GcodeSuite::M3002() {
         levelservice.DualExtruderAutoLevelingProbePoint(event);
         break;
       case 2:
-        levelservice.ProbeSensorCalibrationRightExtruderManualProbe(event);
+        levelservice.FinishDualExtruderAutoLeveling(event);
         break;
       default:
         break;
@@ -91,7 +91,30 @@ void GcodeSuite::M3002() {
   }
 }
 
-
+void GcodeSuite::M3003() {
+  const bool seen_l = parser.seenval('L');
+  if (seen_l) {
+    uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);
+    SSTP_Event_t event;
+    uint8_t buf[10];
+    event.data = buf;
+    switch (stage) {
+      case 0:
+        buf[0] = (uint8_t)parser.byteval('G', (uint8_t)0);
+        levelservice.DoDualExtruderManualLeveling(event);
+        break;
+      case 1:
+        buf[0] = (uint8_t)parser.byteval('P', (uint8_t)0);
+        levelservice.DualExtruderManualLevelingProbePoint(event);
+        break;
+      case 2:
+        levelservice.FinishDualExtruderManualLeveling(event);
+        break;
+      default:
+        break;
+    }
+  }
+}
 
 
 
