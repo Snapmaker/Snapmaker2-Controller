@@ -1699,6 +1699,14 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
     tmp_u32 = 0;
   }
   WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_u32, i);
+  if (MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
+    // temperatures of extruder1 hotend
+    tmp_i16 = (int16_t)thermalManager.degHotend(1);
+    HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
+    tmp_i16 = (int16_t)thermalManager.degTargetHotend(1);
+    HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
+  }
+
   return hmi.Send(event);
 }
 #endif
