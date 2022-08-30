@@ -681,6 +681,8 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
     }
     bed_level_virt_interpolate();
     settings.save();
+    print_bilinear_leveling_grid();
+    print_bilinear_leveling_grid_virt();
   }
 
   do_blocking_move_to_z(current_position[Z_AXIS] + 100, 40);
@@ -753,7 +755,7 @@ ErrCode BedLevelService::DualExtruderManualLevelingProbePoint(SSTP_Event_t &even
     // check point index
     if (manual_level_index_ <= GRID_MAX_POINTS_INDEX) {
       // save point index
-      MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
+      MeshPointZ[manual_level_index_] = current_position[Z_AXIS] - CALIBRATION_PAPER_THICKNESS;
       LOG_I("P[%d]: (%.2f, %.2f, %.2f)\n", manual_level_index_, current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
       // if got new point, raise Z firstly
@@ -780,7 +782,7 @@ ErrCode BedLevelService::FinishDualExtruderManualLeveling(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
   uint32_t i, j;
 
-  MeshPointZ[manual_level_index_] = current_position[Z_AXIS];
+  MeshPointZ[manual_level_index_] = current_position[Z_AXIS] - CALIBRATION_PAPER_THICKNESS;
   for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
     for (i = 0; i < GRID_MAX_POINTS_X; i++) {
       z_values[i][j] = MeshPointZ[j * GRID_MAX_POINTS_X + i];
@@ -789,6 +791,8 @@ ErrCode BedLevelService::FinishDualExtruderManualLeveling(SSTP_Event_t &event) {
 
   bed_level_virt_interpolate();
   settings.save();
+  print_bilinear_leveling_grid();
+  print_bilinear_leveling_grid_virt();
 
   do_blocking_move_to_z(current_position[Z_AXIS] + 100, 40);
   set_bed_leveling_enabled(true);
@@ -797,4 +801,167 @@ ErrCode BedLevelService::FinishDualExtruderManualLeveling(SSTP_Event_t &event) {
   return hmi.Send(event);
 }
 
+ErrCode BedLevelService::DualExtruderAutoBedDetect(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  switch (event.data[0]) {
+    case 0:
+      err = DualExtruderLeftExtruderAutoBedDetect();
+      break;
+    case 1:
+      err = DualExtruderRightExtruderAutoBedDetect();
+      break;
+    default:
+      err = E_PARAM;
+      break;
+  }
+
+  event.data = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
+
+ErrCode BedLevelService::DualExtruderLeftExtruderAutoBedDetect() {
+  ErrCode err = E_SUCCESS;
+  LOG_I("hmi request left auto bed detect\n");
+
+  live_z_offset_[0] = 0;
+  live_z_offset_[1] = 0;
+  process_cmd_imd("G28");
+  set_bed_leveling_enabled(false);
+
+  float x, y;
+  get_center_coordinates_of_bed(x, y);
+  printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
+  endstops.enable_z_probe(true);
+  do_blocking_move_to_xy(x, y, 80);
+  do_blocking_move_to_z(40, 20);
+  planner.synchronize();
+  left_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
+  endstops.enable_z_probe(false);
+
+  if (isnan(left_extruder_auto_probe_position_)) {
+    err = E_FAILURE;
+    left_extruder_auto_probe_position_ = 40;
+  }
+
+  LOG_I("probed z value: %.2f\n", left_extruder_auto_probe_position_);
+
+  return err;
+}
+
+ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
+  ErrCode err = E_SUCCESS;
+  LOG_I("hmi request left auto bed detect\n");
+
+  printer1->ToolChange(1, false);
+  float x, y;
+  get_center_coordinates_of_bed(x, y);
+  printer1->SelectProbeSensor(PROBE_SENSOR_RIGHT_OPTOCOUPLER);
+  endstops.enable_z_probe(true);
+  do_blocking_move_to_xy(x, y, 80);
+  do_blocking_move_to_z(40, 40);
+  planner.synchronize();
+  right_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
+  endstops.enable_z_probe(false);
+
+  if (isnan(right_extruder_auto_probe_position_)) {
+    err = E_FAILURE;
+    right_extruder_auto_probe_position_ = 40;
+    return err;
+  }
+  LOG_I("probed z value: %.2f\n", right_extruder_auto_probe_position_);
+
+  float left_z_compensation = 1, right_z_compensation = 1;
+  printer1->GetZCompensation(left_z_compensation, right_z_compensation);
+  float left_extruder_touch_bed_position  = left_extruder_auto_probe_position_ + left_z_compensation;
+  float right_extruder_touch_bed_position = right_extruder_auto_probe_position_ + right_z_compensation;
+  hotend_offset[Z_AXIS][1] = left_extruder_touch_bed_position - right_extruder_touch_bed_position;
+  float z_offset = z_values[GRID_MAX_POINTS_X/2][GRID_MAX_POINTS_Y/2] - left_extruder_touch_bed_position;
+  for (uint32_t i = 0; i < GRID_MAX_POINTS_X; i++) {
+    for (uint32_t j = 0; j < GRID_MAX_POINTS_Y; j++) {
+      z_values[i][j] -= z_offset;
+    }
+  }
+  bed_level_virt_interpolate();
+  settings.save();
+  print_bilinear_leveling_grid();
+  print_bilinear_leveling_grid_virt();
+
+  set_bed_leveling_enabled(true);
+  do_blocking_move_to_z(current_position[Z_AXIS] + 100, 40);
+  printer1->ToolChange(0, false);
+  return err;
+}
+
+ErrCode BedLevelService::DualExtruderManualBedDetect(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+
+  switch (event.data[0]) {
+    case 0:
+      err = DualExtruderLeftExtruderManualBedDetect();
+      break;
+    case 1:
+      err = DualExtruderRightExtruderManualBedDetect();
+      break;
+    case 2:
+      err = FinishDualExtruderManualBedDetect();
+      break;
+    default:
+      err = E_PARAM;
+      break;
+  }
+
+  event.data = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
+
+ErrCode BedLevelService::DualExtruderLeftExtruderManualBedDetect() {
+  ErrCode err = E_SUCCESS;
+  LOG_I("hmi request left manual bed detect\n");
+
+  live_z_offset_[0] = 0;
+  live_z_offset_[1] = 0;
+  process_cmd_imd("G28");
+  set_bed_leveling_enabled(false);
+
+  float x, y;
+  get_center_coordinates_of_bed(x, y);
+  do_blocking_move_to_xy(x, y, 80);
+  do_blocking_move_to_z(40, 40);
+  planner.synchronize();
+
+  return err;
+}
+
+ErrCode BedLevelService::DualExtruderRightExtruderManualBedDetect() {
+  left_extruder_manual_probe_position_ = current_position[Z_AXIS] - CALIBRATION_PAPER_THICKNESS;
+
+  do_blocking_move_to_z(current_position[Z_AXIS] + 3, 20);
+  printer1->ToolChange(1, false);
+
+  return E_SUCCESS;
+}
+
+ErrCode BedLevelService::FinishDualExtruderManualBedDetect() {
+  right_extruder_manual_probe_position_ = current_position[Z_AXIS] - CALIBRATION_PAPER_THICKNESS;
+
+  hotend_offset[Z_AXIS][1] = left_extruder_manual_probe_position_ - right_extruder_manual_probe_position_;
+  float z_offset = z_values[GRID_MAX_POINTS_X/2][GRID_MAX_POINTS_Y/2] - left_extruder_manual_probe_position_;
+  for (uint32_t i = 0; i < GRID_MAX_POINTS_X; i++) {
+    for (uint32_t j = 0; j < GRID_MAX_POINTS_Y; j++) {
+      z_values[i][j] -= z_offset;
+    }
+  }
+  bed_level_virt_interpolate();
+  settings.save();
+  print_bilinear_leveling_grid();
+  print_bilinear_leveling_grid_virt();
+
+  set_bed_leveling_enabled(true);
+  do_blocking_move_to_z(current_position[Z_AXIS] + 100, 40);
+  printer1->ToolChange(0,false);
+  return E_SUCCESS;
+}
 
