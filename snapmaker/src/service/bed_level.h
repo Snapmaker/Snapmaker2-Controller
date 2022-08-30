@@ -68,6 +68,13 @@ class BedLevelService {
     ErrCode DoDualExtruderManualLeveling(SSTP_Event_t &event);
     ErrCode DualExtruderManualLevelingProbePoint(SSTP_Event_t &event);
     ErrCode FinishDualExtruderManualLeveling(SSTP_Event_t &event);
+    ErrCode DualExtruderAutoBedDetect(SSTP_Event_t &event);
+    ErrCode DualExtruderLeftExtruderAutoBedDetect();
+    ErrCode DualExtruderRightExtruderAutoBedDetect();
+    ErrCode DualExtruderManualBedDetect(SSTP_Event_t &event);
+    ErrCode DualExtruderLeftExtruderManualBedDetect();
+    ErrCode DualExtruderRightExtruderManualBedDetect();
+    ErrCode FinishDualExtruderManualBedDetect();
 
   private:
     LevelMode level_mode_ = LEVEL_MODE_INVALD;

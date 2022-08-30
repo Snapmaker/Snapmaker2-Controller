@@ -823,6 +823,8 @@ void GcodeSuite::execute_command(void) {
 
       case 3003: M3003(); break;
 
+      case 3004: M3004(); break;
+
       default: parser.unknown_command_error(); break;
     }
     break;
