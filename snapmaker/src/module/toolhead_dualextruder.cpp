@@ -894,3 +894,18 @@ ErrCode ToolHeadDualExtruder::HmiRequestToolChange(SSTP_Event_t &event) {
   event.length  = 2;
   return hmi.Send(event);
 }
+
+ErrCode ToolHeadDualExtruder::HmiSetFanSpeed(SSTP_Event_t &event) {
+  if (event.length != 2 || event.data[0] > 2) {
+    return E_PARAM;
+  }
+
+  SetFan(event.data[0], event.data[1]);
+
+  event.data = fan_speed_;
+  event.length = 3;
+  event.id = EID_SETTING_ACK;
+  event.op_code = SETTINGS_OPC_SET_FAN_SPEED;
+  return hmi.Send(event);
+}
+

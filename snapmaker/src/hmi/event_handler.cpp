@@ -657,6 +657,10 @@ static ErrCode HmiRequestToolChange(SSTP_Event_t &event) {
   return printer1->HmiRequestToolChange(event);
 }
 
+static ErrCode HmiSetFanSpeed(SSTP_Event_t &event) {
+  return printer1->HmiSetFanSpeed(event);
+}
+
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* SETTINGS_OPC_SET_MACHINE_SIZE */ UNDEFINED_CALLBACK,
@@ -683,6 +687,10 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_SET_LASER_TEMP]         =  */{EVENT_ATTR_DEFAULT,      SetProtectTemp},
   /* [SETTINGS_OPC_GET_LASER_HW_VERSION]   =  */{EVENT_ATTR_DEFAULT,      LaserGetHWVersion},
   /* [SETTINGS_OPC_TOOL_CHANGE]            =  */{EVENT_ATTR_DEFAULT,      HmiRequestToolChange},
+  /* SETTINGS_OPC_SYNC_LEVEL_POINT */ UNDEFINED_CALLBACK,
+  /* SETTINGS_OPC_SYNC_LEVEL_POINT */ UNDEFINED_CALLBACK,
+  /* SETTINGS_OPC_SYNC_LEVEL_POINT */ UNDEFINED_CALLBACK,
+  /* [SETTINGS_OPC_SET_FAN_SPEED]          =  */{EVENT_ATTR_DEFAULT,      HmiSetFanSpeed},
 
 };
 

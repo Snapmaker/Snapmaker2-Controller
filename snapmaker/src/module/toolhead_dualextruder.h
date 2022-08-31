@@ -97,6 +97,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode HmiGetFilamentState();
     ErrCode HmiGetHotendTemp();
     ErrCode HmiRequestToolChange(SSTP_Event_t &event);
+    ErrCode HmiSetFanSpeed(SSTP_Event_t &event);
 
     // module report callback
     void ReportProbeState(uint8_t state[]);
