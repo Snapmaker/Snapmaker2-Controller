@@ -159,6 +159,7 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode HmiGetHotendType() { return E_SUCCESS; }
     virtual ErrCode HmiGetFilamentState() { return E_SUCCESS; }
     virtual ErrCode HmiGetHotendTemp() { return E_SUCCESS; }
+    virtual ErrCode HmiRequestToolChange(SSTP_Event_t &event) { return E_SUCCESS; }
 
   protected:
     void IOInit(void);

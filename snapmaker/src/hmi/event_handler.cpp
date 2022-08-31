@@ -653,6 +653,10 @@ static ErrCode LaserGetHWVersion(SSTP_Event_t &event) {
   return laser->LaserGetHWVersion();
 }
 
+static ErrCode HmiRequestToolChange(SSTP_Event_t &event) {
+  return printer1->HmiRequestToolChange(event);
+}
+
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* SETTINGS_OPC_SET_MACHINE_SIZE */ UNDEFINED_CALLBACK,
@@ -678,6 +682,7 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_GET_IS_LEVELED]         =  */{EVENT_ATTR_DEFAULT,      IsLeveled},
   /* [SETTINGS_OPC_SET_LASER_TEMP]         =  */{EVENT_ATTR_DEFAULT,      SetProtectTemp},
   /* [SETTINGS_OPC_GET_LASER_HW_VERSION]   =  */{EVENT_ATTR_DEFAULT,      LaserGetHWVersion},
+  /* [SETTINGS_OPC_TOOL_CHANGE]            =  */{EVENT_ATTR_DEFAULT,      HmiRequestToolChange},
 
 };
 
