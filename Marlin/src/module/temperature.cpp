@@ -1003,9 +1003,9 @@ void Temperature::manage_heater() {
         }
       }
 
-      if (temp_hotend[e].current > (HEATER_0_MAXTEMP + 10))
+      if (temp_hotend[e].current > temp_range[e].maxtemp)
         systemservice.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP_AGAIN);
-      else if (temp_hotend[e].current > HEATER_0_MAXTEMP)
+      else if (temp_hotend[e].current > temp_range[e].maxtemp)
         systemservice.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP);
 
       #if ENABLED(THERMAL_PROTECTION_HOTENDS)

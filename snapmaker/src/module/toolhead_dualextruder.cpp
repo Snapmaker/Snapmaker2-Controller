@@ -178,6 +178,8 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
   mac_index_ = mac_index;
   UpdateEAxisStepsPerUnit(MODULE_TOOLHEAD_DUALEXTRUDER);
   SetToolhead(MODULE_TOOLHEAD_DUALEXTRUDER);
+  UpdateHotendMaxTemp(315, 0);
+  UpdateHotendMaxTemp(315, 1);
   printer1 = this;
 
   // sync the state of sensors

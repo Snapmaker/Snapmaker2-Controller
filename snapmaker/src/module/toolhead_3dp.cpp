@@ -31,6 +31,7 @@
 #include "src/inc/MarlinConfig.h"
 #include HAL_PATH(src/HAL, HAL.h)
 #include "../../../Marlin/src/module/planner.h"
+#include "../../../Marlin/src/module/temperature.h"
 
 ToolHead3DP printer_single(MODULE_DEVICE_ID_3DP_SINGLE);
 
@@ -176,6 +177,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   IOInit();
   UpdateEAxisStepsPerUnit(MODULE_TOOLHEAD_3DP);
   SetToolhead(MODULE_TOOLHEAD_3DP);
+  UpdateHotendMaxTemp(275);
   printer1 = this;
 
 out:
@@ -288,5 +290,16 @@ void ToolHead3DP::UpdateEAxisStepsPerUnit(ModuleToolHeadType type) {
   }
 
   planner.refresh_positioning();
+}
+
+void ToolHead3DP::UpdateHotendMaxTemp(int16_t temp, uint8_t e/* = 0*/) {
+  switch (e) {
+    case 0:
+      thermalManager.temp_range[0].maxtemp = temp + 15;
+      break;
+    case 1:
+      thermalManager.temp_range[1].maxtemp = temp + 15;
+      break;
+  }
 }
 

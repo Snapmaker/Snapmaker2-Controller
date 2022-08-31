@@ -2017,13 +2017,13 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     break;
 
   case RENV_TYPE_HOTEND_TEMP:
-    LOG_I("new hotend temp: %.2f\n", param);
-    if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
+    LOG_I("new hotend0 temp: %.2f\n", param);
+    if ((MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) && (MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead())) {
       ret = E_INVALID_STATE;
       break;
     }
 
-    if (param < HEATER_0_MAXTEMP)
+    if (param < thermalManager.temp_range[0].maxtemp)
       thermalManager.setTargetHotend((int16_t)param, 0);
     else
       ret = E_PARAM;
@@ -2081,6 +2081,27 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
         cnc.TurnOn();
       LOG_I("new CNC power: %.2f\n", param);
     }
+    break;
+
+  case RENV_TYPE_EXTRUDER1_FEEDRATE:
+
+    break;
+
+  case RENV_TYPE_EXTRUDER1_HOTEND_TEMP:
+    LOG_I("new hotend1 temp: %.2f\n", param);
+    if (MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead()) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
+    if (param < thermalManager.temp_range[1].maxtemp)
+      thermalManager.setTargetHotend((int16_t)param, 1);
+    else
+      ret = E_PARAM;
+    break;
+
+  case RENV_TYPE_EXTRUDER1_ZOFFSET:
+
     break;
 
   default:
