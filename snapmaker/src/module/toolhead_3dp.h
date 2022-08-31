@@ -141,6 +141,8 @@ class ToolHead3DP: public ModuleBase {
 
     void UpdateEAxisStepsPerUnit(ModuleToolHeadType type);
 
+    virtual void UpdateHotendMaxTemp(int16_t temp, uint8_t e = 0);
+
     // for dualextruder
     virtual ErrCode ToolChange(uint8_t new_extruder, bool use_compensation = true) { return E_SUCCESS; }
     virtual void SelectProbeSensor(probe_sensor_t sensor) { return; }

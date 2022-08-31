@@ -337,6 +337,10 @@ class Temperature {
       #endif
     #endif
 
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      static temp_range_t temp_range[HOTENDS];
+    #endif
+
   private:
 
     #if EARLY_WATCHDOG
@@ -361,7 +365,9 @@ class Temperature {
       static lpq_ptr_t lpq_ptr;
     #endif
 
-    static temp_range_t temp_range[HOTENDS];
+    #if (MOTHERBOARD != BOARD_SNAPMAKER_2_0)
+      static temp_range_t temp_range[HOTENDS];
+    #endif
 
     #if HAS_HEATED_BED
       #if WATCH_BED
