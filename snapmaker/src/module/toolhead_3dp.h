@@ -154,6 +154,9 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode ModuleCtrlSaveZCompensation(float *val) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos) { return E_SUCCESS; }
+    virtual ErrCode HmiGetHotendType() { return E_SUCCESS; }
+    virtual ErrCode HmiGetFilamentState() { return E_SUCCESS; }
+    virtual ErrCode HmiGetHotendTemp() { return E_SUCCESS; }
 
   protected:
     void IOInit(void);

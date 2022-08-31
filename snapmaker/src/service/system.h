@@ -204,6 +204,9 @@ typedef struct {
 
   uint8_t executor_type;
   uint32_t cur_gcode_line;
+
+  int16_t extruder1_hotend_current_temp;
+  int16_t extruder1_hotend_target_temp;
 } __packed SystemStatus_t;
 
 

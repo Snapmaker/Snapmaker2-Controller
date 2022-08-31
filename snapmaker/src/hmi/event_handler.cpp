@@ -527,26 +527,41 @@ static ErrCode GetSecurityStatus(SSTP_Event_t &event) {
   return laser->GetSecurityStatus(event);
 }
 
+static ErrCode GetHotendType(SSTP_Event_t &event) {
+  return printer1->HmiGetHotendType();
+}
+
+static ErrCode GetFilamentState(SSTP_Event_t &event) {
+  return printer1->HmiGetFilamentState();
+}
+
+static ErrCode GetHotendTemp(SSTP_Event_t &event) {
+  return printer1->HmiGetHotendTemp();
+}
+
 EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
   UNDEFINED_CALLBACK,
-  /* [SYSCTL_OPC_GET_STATUES]        =  */{EVENT_ATTR_DEFAULT,      SendStatus},
-  /* [SYSCTL_OPC_GET_EXCEPTION]      =  */{EVENT_ATTR_DEFAULT,      SendException},
-  /* [SYSCTL_OPC_START_WORK]         =  */{EVENT_ATTR_DEFAULT,      ChangeSystemStatus},
-  /* [SYSCTL_OPC_PAUSE]              =  */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
-  /* [SYSCTL_OPC_RESUME]             =  */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
-  /* [SYSCTL_OPC_STOP]               =  */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
-  /* [SYSCTL_OPC_FINISH]             =  */{EVENT_ATTR_HAVE_MOTION,  ChangeSystemStatus},
-  /* [SYSCTL_OPC_GET_LAST_LINE]      =  */{EVENT_ATTR_DEFAULT,      SendLastLine},
+  /* [SYSCTL_OPC_GET_STATUES]         = */{EVENT_ATTR_DEFAULT,      SendStatus},
+  /* [SYSCTL_OPC_GET_EXCEPTION]       = */{EVENT_ATTR_DEFAULT,      SendException},
+  /* [SYSCTL_OPC_START_WORK]          = */{EVENT_ATTR_DEFAULT,      ChangeSystemStatus},
+  /* [SYSCTL_OPC_PAUSE]               = */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
+  /* [SYSCTL_OPC_RESUME]              = */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
+  /* [SYSCTL_OPC_STOP]                = */{EVENT_ATTR_ABORT_MOTION, ChangeSystemStatus},
+  /* [SYSCTL_OPC_FINISH]              = */{EVENT_ATTR_HAVE_MOTION,  ChangeSystemStatus},
+  /* [SYSCTL_OPC_GET_LAST_LINE]       = */{EVENT_ATTR_DEFAULT,      SendLastLine},
   UNDEFINED_CALLBACK,
-  /* [SYSCTL_OPC_CLEAR_FAULT]        =  */{EVENT_ATTR_DEFAULT,      ClearException},
-  /* [SYSCTL_OPC_RECOVER_POWER_LOSS] =  */{EVENT_ATTR_HAVE_MOTION,  RecoverFromPowerLoss},
+  /* [SYSCTL_OPC_CLEAR_FAULT]         = */{EVENT_ATTR_DEFAULT,      ClearException},
+  /* [SYSCTL_OPC_RECOVER_POWER_LOSS]  = */{EVENT_ATTR_HAVE_MOTION,  RecoverFromPowerLoss},
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
-  /* [SYSCTL_OPC_GET_HOME_STATUS]    =  */{EVENT_ATTR_DEFAULT,      SendHomeAndCoordinateStatus},
-  /* [SYSCTL_OPC_SET_LOG_LEVEL]      =  */{EVENT_ATTR_DEFAULT,      SetLogLevel},
+  /* [SYSCTL_OPC_GET_HOME_STATUS]     = */{EVENT_ATTR_DEFAULT,      SendHomeAndCoordinateStatus},
+  /* [SYSCTL_OPC_SET_LOG_LEVEL]       = */{EVENT_ATTR_DEFAULT,      SetLogLevel},
   UNDEFINED_CALLBACK,
   /* [SYSCTL_OPC_GET_SECURITY_STATUS] = */{EVENT_ATTR_DEFAULT,      GetSecurityStatus},
-  /* [SYSCTL_OPC_SET_GCODE_PACK_MODE]     =  */{EVENT_ATTR_DEFAULT,      SetGcodeToPackMode},
+  /* [SYSCTL_OPC_SET_GCODE_PACK_MODE] = */{EVENT_ATTR_DEFAULT,      SetGcodeToPackMode},
+  /* [SYSCTL_OPC_GET_HOTEND_TYPE]     = */{EVENT_ATTR_DEFAULT,      GetHotendType},
+  /* [SYSCTL_OPC_GET_FILAMENT_STATE]  = */{EVENT_ATTR_DEFAULT,      GetFilamentState},
+  /* [SYSCTL_OPC_GET_HOTEND_TEMP]     = */{EVENT_ATTR_DEFAULT,      GetHotendTemp},
 };
 
 

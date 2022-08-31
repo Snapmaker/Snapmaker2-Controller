@@ -92,6 +92,11 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     void SetZCompensation(float &left_val, float &right_val);
     void GetZCompensation(float &left_z_compensation, float &right_z_compensation);
 
+    // for hmi interface
+    ErrCode HmiGetHotendType();
+    ErrCode HmiGetFilamentState();
+    ErrCode HmiGetHotendTemp();
+
     // module report callback
     void ReportProbeState(uint8_t state[]);
     void ReportTemperature(uint8_t *data);

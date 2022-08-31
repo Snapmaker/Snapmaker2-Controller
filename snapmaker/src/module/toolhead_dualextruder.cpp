@@ -799,4 +799,65 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
   return E_SUCCESS;
 }
 
+// hmi interface
+ErrCode ToolHeadDualExtruder::HmiGetHotendType() {
+  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_HOTEND_TYPE};
+  uint8_t buf[10];
+  uint8_t index = 0;
+  uint32_t hotend_diameter_scaled;
 
+  buf[index++] = hotend_type_[0];
+  hotend_diameter_scaled = (uint32_t)(hotend_diameter_[0] * 1000);
+  buf[index++] = (hotend_diameter_scaled >> 24) & 0xff;
+  buf[index++] = (hotend_diameter_scaled >> 16) & 0xff;
+  buf[index++] = (hotend_diameter_scaled >> 8)  & 0xff;
+  buf[index++] = hotend_diameter_scaled & 0xff;
+
+  buf[index++] = hotend_type_[1];
+  hotend_diameter_scaled = (uint32_t)(hotend_diameter_[1] * 1000);
+  buf[index++] = (hotend_diameter_scaled >> 24) & 0xff;
+  buf[index++] = (hotend_diameter_scaled >> 16) & 0xff;
+  buf[index++] = (hotend_diameter_scaled >> 8)  & 0xff;
+  buf[index++] = hotend_diameter_scaled & 0xff;
+
+  event.data   = buf;
+  event.length = index;
+  return hmi.Send(event);
+}
+
+ErrCode ToolHeadDualExtruder::HmiGetFilamentState() {
+  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_FILAMENT_STATE};
+  uint8_t buf[2];
+  uint8_t index = 0;
+
+  buf[index++] = (uint8_t)(!filament_state(0));
+  buf[index++] = (uint8_t)(!filament_state(1));
+
+  event.data   = buf;
+  event.length = index;
+  return hmi.Send(event);
+}
+
+ErrCode ToolHeadDualExtruder::HmiGetHotendTemp() {
+  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_HOTEND_TEMP};
+  uint8_t buf[8];
+  uint8_t index = 0;
+  int16_t temp;
+
+  temp = (int16_t)thermalManager.degHotend(0);
+  buf[index++] = ((uint8_t *)&temp)[1];
+  buf[index++] = ((uint8_t *)&temp)[0];
+  temp = (int16_t)thermalManager.degTargetHotend(0);
+  buf[index++] = ((uint8_t *)&temp)[1];
+  buf[index++] = ((uint8_t *)&temp)[0];
+  temp = (int16_t)thermalManager.degHotend(1);
+  buf[index++] = ((uint8_t *)&temp)[1];
+  buf[index++] = ((uint8_t *)&temp)[0];
+  temp = (int16_t)thermalManager.degTargetHotend(1);
+  buf[index++] = ((uint8_t *)&temp)[1];
+  buf[index++] = ((uint8_t *)&temp)[0];
+
+  event.data   = buf;
+  event.length = index;
+  return hmi.Send(event);
+}
