@@ -863,3 +863,34 @@ ErrCode ToolHeadDualExtruder::HmiGetHotendTemp() {
   event.length = index;
   return hmi.Send(event);
 }
+
+ErrCode ToolHeadDualExtruder::HmiRequestToolChange(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+  uint8_t buf[2];
+
+  switch (event.data[0]) {
+    case 0:
+      err = ToolChange(0);
+      break;
+    case 1:
+      err = ToolChange(1);
+      break;
+    default:
+      err = E_PARAM;
+      break;
+  }
+
+  if (err == E_SUCCESS) {
+    buf[0] = 0;
+  } else {
+    buf[0] = 1;
+  }
+
+  buf[1] = active_extruder;
+
+  event.id      = EID_SETTING_ACK;
+  event.op_code = SETTINGS_OPC_TOOL_CHANGE;
+  event.data    = buf;
+  event.length  = 2;
+  return hmi.Send(event);
+}

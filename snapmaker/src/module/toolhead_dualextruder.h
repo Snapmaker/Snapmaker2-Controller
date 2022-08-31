@@ -96,6 +96,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode HmiGetHotendType();
     ErrCode HmiGetFilamentState();
     ErrCode HmiGetHotendTemp();
+    ErrCode HmiRequestToolChange(SSTP_Event_t &event);
 
     // module report callback
     void ReportProbeState(uint8_t state[]);
