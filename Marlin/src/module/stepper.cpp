@@ -1347,6 +1347,12 @@ void Stepper::isr() {
       current_block = NULL;
       planner.discard_current_block();
     }
+    // interval = 1 ms
+    HAL_timer_set_compare(STEP_TIMER_NUM,
+        hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
+
+    ENABLE_ISRS();
+    return;
   }
   #endif
 
@@ -2357,6 +2363,17 @@ int32_t Stepper::position(const AxisEnum axis) {
   #endif
   return v;
 }
+
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  void Stepper::e_moves_quick_stop_triggered() {
+    const bool was_enabled = STEPPER_ISR_ENABLED();
+    if (was_enabled) DISABLE_STEPPER_DRIVER_INTERRUPT();
+
+    quick_stop_e_moves();
+
+    if (was_enabled) ENABLE_STEPPER_DRIVER_INTERRUPT();
+  }
+#endif
 
 // Signal endstops were triggered - This function can be called from
 // an ISR context  (Temperature, Stepper or limits ISR), so we must

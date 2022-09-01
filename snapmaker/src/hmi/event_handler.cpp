@@ -842,7 +842,20 @@ EXIT:
 }
 
 static ErrCode StopEMoves(SSTP_Event_t &event) {
-  stepper.quick_stop_e_moves();
+  stepper.e_moves_quick_stop_triggered();
+
+  uint32_t time_elaspe = millis();
+
+  while ((stepper.get_abort_e_moves_state() == false) || (time_elaspe + 1000 > millis()));
+
+  // Get E where the steppers were interrupted
+  set_current_position_from_count_position(E_AXIS);
+
+  // Tell the planner where we actually are
+  sync_plan_position();
+
+
+
   return E_SUCCESS;
 }
 
