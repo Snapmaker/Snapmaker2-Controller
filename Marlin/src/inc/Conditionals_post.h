@@ -445,6 +445,13 @@
   #endif
 #endif
 
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #ifndef DEFAULT_HOTEND_OFFSETS
+    #define DEFAULT_HOTEND_OFFSETS   { {0.0, 26.0}, {0.0, 0.0}, {0.0, -1.5}}   //extruder 0 offsets must be 0
+    #define HOTEND_OFFSET_MAX_DEVIATION   1.2
+  #endif
+#endif
+
 /**
  * ARRAY_BY_EXTRUDERS based on EXTRUDERS
  */

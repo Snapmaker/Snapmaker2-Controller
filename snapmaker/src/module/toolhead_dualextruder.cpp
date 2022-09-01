@@ -909,3 +909,27 @@ ErrCode ToolHeadDualExtruder::HmiSetFanSpeed(SSTP_Event_t &event) {
   return hmi.Send(event);
 }
 
+ErrCode ToolHeadDualExtruder::HmiSetHotendOffset(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+  if (event.length != 5 || event.data[0] > 3) {
+    return E_PARAM;
+  }
+
+  float tmp_offset;
+  float nozzle_offset[XYZ][HOTENDS] = DEFAULT_HOTEND_OFFSETS;
+  tmp_offset = (event.data[1]<<24 | event.data[2]<<16 | event.data[3]<<8 | event.data[4])/1000;
+  if (tmp_offset > nozzle_offset[event.data[0]][1] + HOTEND_OFFSET_MAX_DEVIATION || \
+      tmp_offset < nozzle_offset[event.data[0]][1] - HOTEND_OFFSET_MAX_DEVIATION) {
+    err = E_PARAM;
+  } else {
+    hotend_offset[event.data[0]][1] = tmp_offset;
+  }
+
+  event.data    = &err;
+  event.length  = 1;
+  event.id      = EID_SETTING_ACK;
+  event.op_code = SETTINGS_OPC_SET_HOTEND_OFFSET;
+  return hmi.Send(event);
+}
+
+
