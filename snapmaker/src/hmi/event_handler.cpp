@@ -38,6 +38,7 @@
 // marlin headers
 #include "src/Marlin.h"
 #include "src/module/motion.h"
+#include "src/module/stepper.h"
 #include "src/module/temperature.h"
 #include "src/module/planner.h"
 #include "src/libs/hex_print_routines.h"
@@ -767,7 +768,7 @@ static ErrCode DoEMove(SSTP_Event_t &event) {
     goto out;
   }
 
-  if (thermalManager.tooColdToExtrude(0)) {
+  if (thermalManager.tooColdToExtrude(active_extruder)) {
     LOG_E("temperature is cool, cannot move E!\n");
     goto out;
   }
@@ -812,12 +813,47 @@ out:
   return hmi.Send(event);
 }
 
+static ErrCode DoEInfinityMove(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
+  float speed;
+
+  if (event.length != 5) {
+    err = E_PARAM;
+    goto EXIT;
+  }
+
+  PDU_TO_LOCAL_WORD(speed, event.data + 1);
+  speed = speed / 1000;
+
+  if (event.data[0] == 0) {
+    current_position[E_AXIS] += 100000;
+    line_to_current_position(speed);
+  } else if (event.data[0] == 1) {
+    current_position[E_AXIS] -= 100000;
+    line_to_current_position(speed);
+  } else {
+    err = E_PARAM;
+  }
+
+EXIT:
+  event.data   = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
+
+static ErrCode StopEMoves(SSTP_Event_t &event) {
+  stepper.quick_stop_e_moves();
+  return E_SUCCESS;
+}
+
 EventCallback_t motion_event_cb[MOTION_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   UNDEFINED_CALLBACK,
   /* [MOTION_OPC_DO_ABSOLUTE_MOVE]     =  */{EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
   /* [MOTION_OPC_DO_RELATIVE_MOVE]     =  */{EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
-  /* [MOTION_OPC_DO_E_MOVE]            =  */{EVENT_ATTR_HAVE_MOTION,  DoEMove}
+  /* [MOTION_OPC_DO_E_MOVE]            =  */{EVENT_ATTR_HAVE_MOTION,  DoEMove},
+  /* [MOTION_OPC_DO_E_INCINITY_MOVE]   =  */{EVENT_ATTR_HAVE_MOTION,  DoEInfinityMove},
+  /* [MOTION_OPC_STOP_E_MOVES]         =  */{EVENT_ATTR_HAVE_MOTION,  StopEMoves}
 };
 
 
