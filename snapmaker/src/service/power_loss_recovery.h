@@ -82,7 +82,8 @@ typedef struct __attribute__((aligned (4))) {
 	bool axes_relative_mode;
 
 	int16_t feedrate_percentage;
-	float   live_z_offset;
+	int16_t extruders_feedrate_percentage[EXTRUDERS];
+	float   live_z_offset[EXTRUDERS];
 } PowerLossRecoveryData_t;
 
 

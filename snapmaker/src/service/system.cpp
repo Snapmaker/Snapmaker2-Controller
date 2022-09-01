@@ -2012,7 +2012,16 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
       ret = E_PARAM;
       break;
     }
-    feedrate_percentage = (int16_t)param;
+
+    if (MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
+      extruders_feedrate_percentage[0] = (int16_t)param;
+      if (active_extruder == 0) {
+        feedrate_percentage = extruders_feedrate_percentage[0];
+      }
+    } else if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
+      feedrate_percentage = (int16_t)param;
+    }
+
     LOG_I("feedrate scaling: %d\n", feedrate_percentage);
     break;
 
@@ -2084,7 +2093,16 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     break;
 
   case RENV_TYPE_EXTRUDER1_FEEDRATE:
-
+    if (param > 500 || param < 0) {
+      LOG_E("invalid extruder1 feedrate scaling: %.2f\n", param);
+      ret = E_PARAM;
+      break;
+    }
+    extruders_feedrate_percentage[1] = (int16_t)param;
+    if (active_extruder == 1) {
+      feedrate_percentage = extruders_feedrate_percentage[1];
+    }
+    LOG_I("extruder1 feedrate scaling: %d\n", extruders_feedrate_percentage[1]);
     break;
 
   case RENV_TYPE_EXTRUDER1_HOTEND_TEMP:

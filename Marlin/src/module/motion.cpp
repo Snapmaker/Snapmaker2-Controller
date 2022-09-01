@@ -149,6 +149,9 @@ float destination[X_TO_E]; // = { 0 }
 float feedrate_mm_s = MMM_TO_MMS(1500.0f);
 
 int16_t feedrate_percentage = 100;
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  int16_t extruders_feedrate_percentage[EXTRUDERS] = {100, 100};
+#endif
 
 // Homing feedrate is const progmem - compare to constexpr in the header
 const float homing_feedrate_mm_s[XN] PROGMEM = {
