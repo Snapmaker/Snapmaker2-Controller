@@ -403,6 +403,7 @@ class Stepper {
     FORCE_INLINE static void quick_stop() { abort_current_block = true; }
     #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       FORCE_INLINE static void quick_stop_e_moves() { abort_e_moves = true; }
+      bool get_abort_e_moves_state() { return abort_e_moves; }
     #endif
 
     // The direction of a single motor
@@ -421,6 +422,10 @@ class Stepper {
         #endif
       ;
     }
+
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      void e_moves_quick_stop_triggered();
+    #endif
 
     // Handle a triggered endstop
     static void endstop_triggered(const AxisEnum axis);
