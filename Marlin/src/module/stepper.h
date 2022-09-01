@@ -263,7 +263,9 @@ class Stepper {
                    axis_did_move;           // Last Movement in the given direction is not null, as computed when the last movement was fetched from planner
 
     static bool abort_current_block;        // Signals to the stepper that current block should be aborted
-
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      static bool abort_e_moves;
+    #endif
     // Last-moved extruder, as set when the last movement was fetched from planner
     #if EXTRUDERS < 2
       static constexpr uint8_t last_moved_extruder = 0;
@@ -399,6 +401,9 @@ class Stepper {
 
     // Quickly stop all steppers
     FORCE_INLINE static void quick_stop() { abort_current_block = true; }
+    #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+      FORCE_INLINE static void quick_stop_e_moves() { abort_e_moves = true; }
+    #endif
 
     // The direction of a single motor
     FORCE_INLINE static bool motor_direction(const AxisEnum axis) { return TEST(last_direction_bits, axis); }

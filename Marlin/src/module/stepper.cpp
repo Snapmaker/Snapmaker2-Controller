@@ -144,6 +144,9 @@ uint8_t Stepper::last_direction_bits, // = 0
 #endif
 
 bool Stepper::abort_current_block;
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  bool Stepper::abort_e_moves;
+#endif
 
 #if DISABLED(MIXING_EXTRUDER) && EXTRUDERS > 1
   uint8_t Stepper::last_moved_extruder = 0xFF;
@@ -1336,6 +1339,17 @@ void Stepper::isr() {
     return;
   }
 
+  #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  if (abort_e_moves && TEST(axis_did_move, E_AXIS)) {
+    abort_e_moves = false;
+    if (current_block) {
+      axis_did_move = 0;
+      current_block = NULL;
+      planner.discard_current_block();
+    }
+  }
+  #endif
+
   do {
     // Enable ISRs to reduce USART processing latency
     ENABLE_ISRS();
@@ -1704,7 +1718,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
           }
           else if (LA_steps) nextAdvanceISR = 0;
         #endif // LIN_ADVANCE
-        
+
         // Update laser - Decelerating
         if (laser_trap.enabled) {
           laser_trap.cur_power = (current_block->laser.power * step_rate) / current_block->nominal_rate;
@@ -1825,12 +1839,19 @@ uint32_t Stepper::stepper_block_phase_isr() {
 
       #define B_MOVE_TEST !!current_block->steps[B_AXIS]
 
+      #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+        #define E_MOVE_TEST !!current_block->steps[E_AXIS]
+      #endif
+
       uint8_t axis_bits = 0;
       if (X_MOVE_TEST) SBI(axis_bits, X_AXIS);
       if (Y_MOVE_TEST) SBI(axis_bits, Y_AXIS);
       if (Z_MOVE_TEST) SBI(axis_bits, Z_AXIS);
       if (B_MOVE_TEST) SBI(axis_bits, B_AXIS);
-      //if (!!current_block->steps[E_AXIS]) SBI(axis_bits, E_AXIS);
+      #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+        if (E_MOVE_TEST) SBI(axis_bits, E_AXIS);
+      #endif
+      // if (!!current_block->steps[E_AXIS]) SBI(axis_bits, E_AXIS);
       //if (!!current_block->steps[A_AXIS]) SBI(axis_bits, X_HEAD);
       //if (!!current_block->steps[B_AXIS]) SBI(axis_bits, Y_HEAD);
       //if (!!current_block->steps[C_AXIS]) SBI(axis_bits, Z_HEAD);
