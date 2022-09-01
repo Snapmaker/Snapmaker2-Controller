@@ -99,6 +99,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode HmiRequestToolChange(SSTP_Event_t &event);
     ErrCode HmiSetFanSpeed(SSTP_Event_t &event);
     ErrCode HmiSetHotendOffset(SSTP_Event_t &event);
+    ErrCode HmiGetHotendOffset();
 
     // module report callback
     void ReportProbeState(uint8_t state[]);

@@ -160,8 +160,9 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode HmiGetFilamentState() { return E_SUCCESS; }
     virtual ErrCode HmiGetHotendTemp() { return E_SUCCESS; }
     virtual ErrCode HmiRequestToolChange(SSTP_Event_t &event) { return E_SUCCESS; }
-    virtual ErrCode HmiSetFanSpeed(SSTP_Event_t &event) { return E_SUCCESS;}
-    virtual ErrCode HmiSetHotendOffset(SSTP_Event_t &event) { return E_SUCCESS;}
+    virtual ErrCode HmiSetFanSpeed(SSTP_Event_t &event) { return E_SUCCESS; }
+    virtual ErrCode HmiSetHotendOffset(SSTP_Event_t &event) { return E_SUCCESS; }
+    virtual ErrCode HmiGetHotendOffset() { return E_SUCCESS; }
 
   protected:
     void IOInit(void);

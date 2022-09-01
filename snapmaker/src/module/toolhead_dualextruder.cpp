@@ -932,4 +932,34 @@ ErrCode ToolHeadDualExtruder::HmiSetHotendOffset(SSTP_Event_t &event) {
   return hmi.Send(event);
 }
 
+ErrCode ToolHeadDualExtruder::HmiGetHotendOffset() {
+  uint8_t buf[12];
+  uint8_t index = 0;
+  int32_t tmp;
+  tmp = hotend_offset[X_AXIS][1] * 1000;
+  buf[index++] = tmp >> 24;
+  buf[index++] = tmp >> 16;
+  buf[index++] = tmp >> 8;
+  buf[index++] = tmp;
+  tmp = hotend_offset[Y_AXIS][1] * 1000;
+  buf[index++] = tmp >> 24;
+  buf[index++] = tmp >> 16;
+  buf[index++] = tmp >> 8;
+  buf[index++] = tmp;
+  tmp = hotend_offset[Z_AXIS][1] * 1000;
+  buf[index++] = tmp >> 24;
+  buf[index++] = tmp >> 16;
+  buf[index++] = tmp >> 8;
+  buf[index++] = tmp;
+
+  SSTP_Event_t event;
+  event.data    = buf;
+  event.length  = index;
+  event.id      = EID_SETTING_ACK;
+  event.op_code = SETTINGS_OPC_GET_HOTEND_OFFSET;
+  return hmi.Send(event);
+}
+
+
+
 
