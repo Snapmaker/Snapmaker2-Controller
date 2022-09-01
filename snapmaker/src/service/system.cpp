@@ -2069,6 +2069,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     break;
 
   case RENV_TYPE_ZOFFSET:
+    LOG_I("set extruder0 live_z_offset: %f\n", param);
     ret = levelservice.UpdateLiveZOffset(param);
     break;
 
@@ -2119,7 +2120,8 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     break;
 
   case RENV_TYPE_EXTRUDER1_ZOFFSET:
-
+    LOG_I("set extruder1 live_z_offset: %f\n", param);
+    ret = levelservice.UpdateLiveZOffset(param, 1);
     break;
 
   default:
