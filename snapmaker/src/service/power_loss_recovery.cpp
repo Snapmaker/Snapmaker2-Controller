@@ -86,9 +86,10 @@ void PowerLossRecovery::Init(void) {
 		if (ModuleBase::toolhead() == pre_data_.toolhead) {
 			systemservice.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
 
-			if (pre_data_.live_z_offset != 0) {
-				LOG_I("PL: changed live z: %.3f\n", pre_data_.live_z_offset);
-				levelservice.live_z_offset(pre_data_.live_z_offset);
+			if ((pre_data_.live_z_offset[0] != 0) || (pre_data_.live_z_offset[1] != 0)) {
+				LOG_I("PL: changed live z0: %.3f, changed live z1: %.3f\n", pre_data_.live_z_offset[0], pre_data_.live_z_offset[1]);
+				levelservice.live_z_offset(pre_data_.live_z_offset[0], 0);
+				levelservice.live_z_offset(pre_data_.live_z_offset[1], 1);
 				settings.save();
 			}
 
@@ -356,12 +357,17 @@ int PowerLossRecovery::SaveEnv(void) {
   cur_data_.PrintFeedRate = saved_g1_feedrate_mm_s;
   cur_data_.TravelFeedRate = saved_g0_feedrate_mm_s;
 	cur_data_.feedrate_percentage = feedrate_percentage;
+  cur_data_.extruders_feedrate_percentage[0] = extruders_feedrate_percentage[0];
+  cur_data_.extruders_feedrate_percentage[1] = extruders_feedrate_percentage[1];
 
 	// if live z offset was changed when working, record it
-	if (levelservice.live_z_offset_updated())
-		cur_data_.live_z_offset = levelservice.live_z_offset();
-	else
-		cur_data_.live_z_offset = 0;
+	if (levelservice.live_z_offset_updated()) {
+		cur_data_.live_z_offset[0] = levelservice.live_z_offset((uint8_t)0);
+		cur_data_.live_z_offset[1] = levelservice.live_z_offset((uint8_t)1);
+	} else {
+		cur_data_.live_z_offset[0] = 0;
+		cur_data_.live_z_offset[1] = 0;
+	}
 
   cur_data_.accumulator = print_job_timer.duration();
 

@@ -87,6 +87,9 @@ extern float feedrate_mm_s;
  * Feedrate scaling and conversion
  */
 extern int16_t feedrate_percentage;
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  extern int16_t extruders_feedrate_percentage[EXTRUDERS];
+#endif
 #define MMS_SCALED(MM_S) ((MM_S)*feedrate_percentage*0.01f)
 
 // The active extruder (tool). Set with T<extruder> command.
