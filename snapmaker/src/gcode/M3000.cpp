@@ -42,22 +42,22 @@ void GcodeSuite::M3001() {
     event.data = buf;
     switch (stage) {
       case 0:
-        levelservice.ProbeSensorCalibrationLeftExtruderAutoProbe(event);
+        levelservice.ProbeSensorCalibrationLeftExtruderAutoProbe();
         break;
       case 1:
-        levelservice.ProbeSensorCalibrationRightExtruderAutoProbe(event);
+        levelservice.ProbeSensorCalibrationRightExtruderAutoProbe();
         break;
       case 2:
-        levelservice.ProbeSensorCalibrationRightExtruderManualProbe(event);
+        levelservice.ProbeSensorCalibrationRightExtruderManualProbe();
         break;
       case 3:
-        levelservice.ProbeSensorCalibraitonRightExtruderPositionConfirm(event);
+        levelservice.ProbeSensorCalibraitonRightExtruderPositionConfirm();
         break;
       case 4:
-        levelservice.ProbeSensorCalibrationLeftExtruderManualProbe(event);
+        levelservice.ProbeSensorCalibrationLeftExtruderManualProbe();
         break;
       case 5:
-        levelservice.ProbeSensorCalibraitonLeftExtruderPositionConfirm(event);
+        levelservice.ProbeSensorCalibraitonLeftExtruderPositionConfirm();
         break;
       default:
         break;

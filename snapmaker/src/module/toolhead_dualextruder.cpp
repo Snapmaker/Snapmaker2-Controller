@@ -961,6 +961,39 @@ ErrCode ToolHeadDualExtruder::HmiGetHotendOffset() {
   return hmi.Send(event);
 }
 
+ErrCode ToolHeadDualExtruder::HmiRequestProbeSensorCal(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
 
+  if ((event.length != 1) || (event.data[0] > 3)) {
+    err = E_PARAM;
+    goto EXIT;
+  }
+
+  switch (event.data[0]) {
+    case 0:
+      err = levelservice.ProbeSensorCalibrationLeftExtruderAutoProbe();
+      break;
+    case 1:
+      err = levelservice.ProbeSensorCalibrationRightExtruderAutoProbe();
+      break;
+    case 2:
+      err = levelservice.ProbeSensorCalibrationRightExtruderManualProbe();
+      break;
+    case 3:
+      err = levelservice.ProbeSensorCalibrationLeftExtruderManualProbe();
+      break;
+    case 4:
+      err = levelservice.ProbeSensorCalibraitonLeftExtruderPositionConfirm();
+      break;
+    default:
+      err = E_PARAM;
+      break;
+  }
+
+EXIT:
+  event.data   = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
 
 

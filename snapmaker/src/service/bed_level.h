@@ -56,12 +56,12 @@ class BedLevelService {
     void live_z_offset(float offset, uint8_t e=0) { if (offset <=LIVE_Z_OFFSET_MAX && offset >=LIVE_Z_OFFSET_MIN) live_z_offset_[e] = offset; }
     float live_z_offset(uint8_t e=0) { return live_z_offset_[e]; }
 
-    void ProbeSensorCalibrationLeftExtruderAutoProbe(SSTP_Event_t &event);
-    void ProbeSensorCalibrationRightExtruderAutoProbe(SSTP_Event_t &event);
-    void ProbeSensorCalibrationLeftExtruderManualProbe(SSTP_Event_t &event);
-    void ProbeSensorCalibrationRightExtruderManualProbe(SSTP_Event_t &event);
-    void ProbeSensorCalibraitonLeftExtruderPositionConfirm(SSTP_Event_t &event);
-    void ProbeSensorCalibraitonRightExtruderPositionConfirm(SSTP_Event_t &event);
+    ErrCode ProbeSensorCalibrationLeftExtruderAutoProbe();
+    ErrCode ProbeSensorCalibrationRightExtruderAutoProbe();
+    ErrCode ProbeSensorCalibrationLeftExtruderManualProbe();
+    ErrCode ProbeSensorCalibrationRightExtruderManualProbe();
+    ErrCode ProbeSensorCalibraitonLeftExtruderPositionConfirm();
+    ErrCode ProbeSensorCalibraitonRightExtruderPositionConfirm();
     ErrCode DoDualExtruderAutoLeveling(SSTP_Event_t &event);
     ErrCode DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event);
     ErrCode FinishDualExtruderAutoLeveling(SSTP_Event_t &event);

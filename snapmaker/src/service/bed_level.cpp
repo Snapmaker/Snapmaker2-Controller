@@ -472,7 +472,7 @@ void BedLevelService::SaveLiveZOffset() {
 }
 
 // for dualextruder
-void BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe(SSTP_Event_t &event) {
+ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
   ErrCode err = E_SUCCESS;
   LOG_I("hmi request left probe sensor auto calibration\n");
 
@@ -496,13 +496,10 @@ void BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe(SSTP_Event_t &
   }
 
   LOG_I("probed z value: %.2f\n", left_extruder_auto_probe_position_);
-
-  event.data = &err;
-  event.length = 1;
-  hmi.Send(event);
+  return err;
 }
 
-void BedLevelService::ProbeSensorCalibrationRightExtruderAutoProbe(SSTP_Event_t &event) {
+ErrCode BedLevelService::ProbeSensorCalibrationRightExtruderAutoProbe() {
   ErrCode err = E_SUCCESS;
   LOG_I("hmi request right probe sensor auto calibration\n");
 
@@ -523,34 +520,25 @@ void BedLevelService::ProbeSensorCalibrationRightExtruderAutoProbe(SSTP_Event_t 
 
   endstops.enable_z_probe(false);
   LOG_I("probed z value: %.2f\n", right_extruder_auto_probe_position_);
-
-  event.data = &err;
-  event.length = 1;
-  hmi.Send(event);
+  return err;
 }
 
-void BedLevelService::ProbeSensorCalibrationLeftExtruderManualProbe(SSTP_Event_t &event) {
+ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderManualProbe() {
   ErrCode err = E_SUCCESS;
 
   LOG_I("hmi request left extruder manual probe\n");
   printer1->ToolChange(0, false);
-
-  event.data = &err;
-  event.length = 1;
-  hmi.Send(event);
+  return err;
 }
 
-void BedLevelService::ProbeSensorCalibrationRightExtruderManualProbe(SSTP_Event_t &event) {
+ErrCode BedLevelService::ProbeSensorCalibrationRightExtruderManualProbe() {
   ErrCode err = E_SUCCESS;
 
   LOG_I("hmi request right extruder manual probe\n");
-
-  event.data = &err;
-  event.length = 1;
-  hmi.Send(event);
+  return err;
 }
 
-void BedLevelService::ProbeSensorCalibraitonLeftExtruderPositionConfirm(SSTP_Event_t &event) {
+ErrCode BedLevelService::ProbeSensorCalibraitonLeftExtruderPositionConfirm() {
   ErrCode err = E_SUCCESS;
 
   left_extruder_manual_probe_position_ = current_position[Z_AXIS];
@@ -569,20 +557,15 @@ void BedLevelService::ProbeSensorCalibraitonLeftExtruderPositionConfirm(SSTP_Eve
   set_bed_leveling_enabled(true);
   endstops.enable_z_probe(false);
 
-  event.data = &err;
-  event.length = 1;
-  hmi.Send(event);
+  return err;
 }
 
-void BedLevelService::ProbeSensorCalibraitonRightExtruderPositionConfirm(SSTP_Event_t &event) {
+ErrCode BedLevelService::ProbeSensorCalibraitonRightExtruderPositionConfirm() {
   ErrCode err = E_SUCCESS;
 
   right_extruder_manual_probe_position_ = current_position[Z_AXIS];
   LOG_I("confirm right extruder manual probe position: %.3f\n", right_extruder_manual_probe_position_);
-
-  event.data = &err;
-  event.length = 1;
-  hmi.Send(event);
+  return err;
 }
 
 ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {

@@ -670,6 +670,10 @@ static ErrCode HmiGetHotendOffset(SSTP_Event_t &event) {
   return printer1->HmiGetHotendOffset();
 }
 
+static ErrCode HmiRequestProbeSensorCal(SSTP_Event_t &event) {
+  return printer1->HmiRequestProbeSensorCal(event);
+}
+
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* SETTINGS_OPC_SET_MACHINE_SIZE */ UNDEFINED_CALLBACK,
@@ -700,7 +704,7 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_GET_HOTEND_OFFSET]      =  */{EVENT_ATTR_DEFAULT,      HmiGetHotendOffset},
   /* [SETTINGS_OPC_SET_HOTEND_OFFSET]      =  */{EVENT_ATTR_DEFAULT,      HmiSetHotendOffset},
   /* [SETTINGS_OPC_SET_FAN_SPEED]          =  */{EVENT_ATTR_DEFAULT,      HmiSetFanSpeed},
-
+  /* [SETTINGS_OPC_PROBE_SENSOR_CAL]       =  */{EVENT_ATTR_DEFAULT,      HmiRequestProbeSensorCal},
 };
 
 
