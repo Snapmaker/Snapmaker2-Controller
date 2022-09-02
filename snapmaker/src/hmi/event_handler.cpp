@@ -671,7 +671,50 @@ static ErrCode HmiGetHotendOffset(SSTP_Event_t &event) {
 }
 
 static ErrCode HmiRequestProbeSensorCal(SSTP_Event_t &event) {
-  return printer1->HmiRequestProbeSensorCal(event);
+  ErrCode err = E_SUCCESS;
+
+  if ((event.length != 1) || (event.data[0] > 3)) {
+    err = E_PARAM;
+    goto EXIT;
+  }
+
+  switch (event.data[0]) {
+    case 0:
+      err = levelservice.ProbeSensorCalibrationLeftExtruderAutoProbe();
+      break;
+    case 1:
+      err = levelservice.ProbeSensorCalibrationRightExtruderAutoProbe();
+      break;
+    case 2:
+      err = levelservice.ProbeSensorCalibrationRightExtruderManualProbe();
+      break;
+    case 3:
+      err = levelservice.ProbeSensorCalibrationLeftExtruderManualProbe();
+      break;
+    case 4:
+      err = levelservice.ProbeSensorCalibraitonLeftExtruderPositionConfirm();
+      break;
+    default:
+      err = E_PARAM;
+      break;
+  }
+
+EXIT:
+  event.data   = &err;
+  event.length = 1;
+  return hmi.Send(event);
+}
+
+static ErrCode HmiRequestDoDualExtruderAutoLeveling(SSTP_Event_t &event) {
+  return levelservice.DoDualExtruderAutoLeveling(event);
+}
+
+static ErrCode HmiSetDualExtruderAutoLevelingPoint(SSTP_Event_t &event) {
+  return levelservice.DualExtruderAutoLevelingProbePoint(event);
+}
+
+static ErrCode HmiFinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
+  return levelservice.FinishDualExtruderAutoLeveling(event);
 }
 
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
@@ -705,6 +748,11 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_SET_HOTEND_OFFSET]      =  */{EVENT_ATTR_DEFAULT,      HmiSetHotendOffset},
   /* [SETTINGS_OPC_SET_FAN_SPEED]          =  */{EVENT_ATTR_DEFAULT,      HmiSetFanSpeed},
   /* [SETTINGS_OPC_PROBE_SENSOR_CAL]       =  */{EVENT_ATTR_DEFAULT,      HmiRequestProbeSensorCal},
+  /* SETTINGS_OPC_AUTO_BED_POSITION_DET */ UNDEFINED_CALLBACK,
+  /* SETTINGS_OPC_MANUAL_BED_POSITION_DET */ UNDEFINED_CALLBACK,
+  /* [SETTINGS_OPC_DO_DUALEXTRUDER_AUTO_LEVELING]         =  */{EVENT_ATTR_DEFAULT,      HmiRequestDoDualExtruderAutoLeveling},
+  /* [SETTINGS_OPC_SET_DUALEXTRUDER_AUTO_LEVELING_POINT]  =  */{EVENT_ATTR_DEFAULT,      HmiSetDualExtruderAutoLevelingPoint},
+  /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_AUTO_LEVELING]     =  */{EVENT_ATTR_DEFAULT,      HmiFinishDualExtruderAutoLeveling},
 };
 
 
