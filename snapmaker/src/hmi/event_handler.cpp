@@ -725,6 +725,18 @@ static ErrCode HmiFinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
   return levelservice.FinishDualExtruderAutoLeveling(event);
 }
 
+static ErrCode HmiRequestDoDualExtruderManualLeveling(SSTP_Event_t &event) {
+  return levelservice.DoDualExtruderManualLeveling(event);
+}
+
+static ErrCode HmiSetDualExtruderManualLevelingPoint(SSTP_Event_t &event) {
+  return levelservice.DualExtruderManualLevelingProbePoint(event);
+}
+
+static ErrCode HmiFinishDualExtruderManualLeveling(SSTP_Event_t &event) {
+  return levelservice.FinishDualExtruderManualLeveling(event);
+}
+
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* SETTINGS_OPC_SET_MACHINE_SIZE */ UNDEFINED_CALLBACK,
@@ -761,6 +773,9 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_DO_DUALEXTRUDER_AUTO_LEVELING]         =  */{EVENT_ATTR_DEFAULT,      HmiRequestDoDualExtruderAutoLeveling},
   /* [SETTINGS_OPC_SET_DUALEXTRUDER_AUTO_LEVELING_POINT]  =  */{EVENT_ATTR_DEFAULT,      HmiSetDualExtruderAutoLevelingPoint},
   /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_AUTO_LEVELING]     =  */{EVENT_ATTR_DEFAULT,      HmiFinishDualExtruderAutoLeveling},
+  /* [SETTINGS_OPC_DO_DUALEXTRUDER_MANUAL_LEVELING]         =  */{EVENT_ATTR_DEFAULT,    HmiRequestDoDualExtruderManualLeveling},
+  /* [SETTINGS_OPC_SET_DUALEXTRUDER_MANUAL_LEVELING_POINT]  =  */{EVENT_ATTR_DEFAULT,    HmiSetDualExtruderManualLevelingPoint},
+  /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_MANUAL_LEVELING]     =  */{EVENT_ATTR_DEFAULT,    HmiFinishDualExtruderManualLeveling},
 };
 
 
