@@ -80,6 +80,9 @@
 #include "stepper.h"
 
 Stepper stepper; // Singleton
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  uint8_t E_ENABLE_ON = 1;
+#endif
 
 #if HAS_MOTOR_CURRENT_PWM
   bool Stepper::initialized; // = false
