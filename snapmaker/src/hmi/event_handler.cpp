@@ -854,8 +854,6 @@ static ErrCode StopEMoves(SSTP_Event_t &event) {
   // Tell the planner where we actually are
   sync_plan_position();
 
-
-
   return E_SUCCESS;
 }
 

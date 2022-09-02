@@ -525,7 +525,7 @@
  * Prevent a single extrusion longer than EXTRUDE_MAXLENGTH.
  * Note: For Bowden Extruders make this large enough to allow load/unload.
  */
-#define PREVENT_LENGTHY_EXTRUDE
+// #define PREVENT_LENGTHY_EXTRUDE
 #define EXTRUDE_MAXLENGTH 200
 
 //===========================================================================
@@ -945,7 +945,12 @@
 #define Y_ENABLE_ON 0
 #define Z_ENABLE_ON 0
 #define B_ENABLE_ON 0
-#define E_ENABLE_ON 0 // For all extruders
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+// #define E_ENABLE_ON 0 // For all extruders
+extern uint8_t E_ENABLE_ON;
+#else
+  #define E_ENABLE_ON 0 // For all extruders
+#endif
 
 // Disables axis stepper immediately when it's not being used.
 // WARNING: When motors turn off there is a chance of losing position accuracy!

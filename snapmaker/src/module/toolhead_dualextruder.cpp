@@ -174,6 +174,7 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
     goto out;
   }
 
+  E_ENABLE_ON = 1;
   IOInit();
   mac_index_ = mac_index;
   UpdateEAxisStepsPerUnit(MODULE_TOOLHEAD_DUALEXTRUDER);

@@ -174,6 +174,7 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
 
   LOG_I("\tprobe: 0x%x, filament: 0x%x\n", probe_state_, filament_state_);
 
+  E_ENABLE_ON = 0;
   IOInit();
   UpdateEAxisStepsPerUnit(MODULE_TOOLHEAD_3DP);
   SetToolhead(MODULE_TOOLHEAD_3DP);
