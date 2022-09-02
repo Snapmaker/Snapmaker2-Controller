@@ -705,6 +705,14 @@ EXIT:
   return hmi.Send(event);
 }
 
+static ErrCode HmiRequestAutoBedPositionDet(SSTP_Event_t &event) {
+  return levelservice.DualExtruderAutoBedDetect(event);
+}
+
+static ErrCode HmiRequestManualBedPositionDet(SSTP_Event_t &event) {
+  return levelservice.DualExtruderManualBedDetect(event);
+}
+
 static ErrCode HmiRequestDoDualExtruderAutoLeveling(SSTP_Event_t &event) {
   return levelservice.DoDualExtruderAutoLeveling(event);
 }
@@ -748,8 +756,8 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_SET_HOTEND_OFFSET]      =  */{EVENT_ATTR_DEFAULT,      HmiSetHotendOffset},
   /* [SETTINGS_OPC_SET_FAN_SPEED]          =  */{EVENT_ATTR_DEFAULT,      HmiSetFanSpeed},
   /* [SETTINGS_OPC_PROBE_SENSOR_CAL]       =  */{EVENT_ATTR_DEFAULT,      HmiRequestProbeSensorCal},
-  /* SETTINGS_OPC_AUTO_BED_POSITION_DET */ UNDEFINED_CALLBACK,
-  /* SETTINGS_OPC_MANUAL_BED_POSITION_DET */ UNDEFINED_CALLBACK,
+  /* SETTINGS_OPC_AUTO_BED_POSITION_DET    =  */{EVENT_ATTR_DEFAULT,      HmiRequestAutoBedPositionDet},
+  /* SETTINGS_OPC_MANUAL_BED_POSITION_DET  =  */{EVENT_ATTR_DEFAULT,      HmiRequestManualBedPositionDet},
   /* [SETTINGS_OPC_DO_DUALEXTRUDER_AUTO_LEVELING]         =  */{EVENT_ATTR_DEFAULT,      HmiRequestDoDualExtruderAutoLeveling},
   /* [SETTINGS_OPC_SET_DUALEXTRUDER_AUTO_LEVELING_POINT]  =  */{EVENT_ATTR_DEFAULT,      HmiSetDualExtruderAutoLevelingPoint},
   /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_AUTO_LEVELING]     =  */{EVENT_ATTR_DEFAULT,      HmiFinishDualExtruderAutoLeveling},
