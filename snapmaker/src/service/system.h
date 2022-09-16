@@ -210,6 +210,7 @@ typedef struct {
 
   int16_t extruder1_hotend_current_temp;
   int16_t extruder1_hotend_target_temp;
+  uint16_t  extruder1_feedrate;    // mm/min
 } __packed SystemStatus_t;
 
 

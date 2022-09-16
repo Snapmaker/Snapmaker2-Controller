@@ -1028,7 +1028,7 @@ void ToolHeadLaser::SetOutputInline(float power) {
 
   SetPower(power);
   planner.laser_inline.power = power_pwm_;
-  
+
   if (power_pwm_ > 0)
     planner.laser_inline.status.isEnabled = true;
   else
@@ -1053,6 +1053,6 @@ void ToolHeadLaser::TurnOn_ISR(uint16_t power_pwm) {
     state_ = TOOLHEAD_LASER_STATE_ON;
   else
     state_ = TOOLHEAD_LASER_STATE_OFF;
-    
+
   TimSetPwm(power_pwm);
 }

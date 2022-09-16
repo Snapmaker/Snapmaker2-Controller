@@ -268,11 +268,12 @@
 #endif
 
 //Machine type defines,ExecuterManager use this
-#define MACHINE_TYPE_UNDEFINE   0
-#define MACHINE_TYPE_3DPRINT    1
-#define MACHINE_TYPE_CNC        2
-#define MACHINE_TYPE_LASER      3
-#define MACHINE_TYPE_LASER_10W  4
+#define MACHINE_TYPE_UNDEFINE     0
+#define MACHINE_TYPE_3DPRINT      1
+#define MACHINE_TYPE_CNC          2
+#define MACHINE_TYPE_LASER        3
+#define MACHINE_TYPE_LASER_10W    4
+#define MACHINE_TYPE_DUALEXTRUDER 5
 
 //Machine size define
 #define MACHINE_SIZE_UNKNOW 0
