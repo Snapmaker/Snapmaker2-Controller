@@ -381,7 +381,7 @@ ErrCode BedLevelService::SyncPointIndex(uint8_t index) {
 }
 
 
-ErrCode BedLevelService::UpdateLiveZOffset(float offset, uint8_t e) {
+ErrCode BedLevelService::UpdateLiveZOffset(float offset, uint8_t e/* = 0*/) {
   if (e >= EXTRUDERS) {
     return E_PARAM;
   }
@@ -389,6 +389,11 @@ ErrCode BedLevelService::UpdateLiveZOffset(float offset, uint8_t e) {
   if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead() && MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead()) {
     LOG_E("only enable z offset for 3DP!\n");
     return E_FAILURE;
+  }
+
+  if (axis_is_homing) {
+    LOG_I("refuse to set live_z_offset when machine is homing");
+    return E_BUSY;
   }
 
   if (offset < LIVE_Z_OFFSET_MIN || offset > LIVE_Z_OFFSET_MAX) {
@@ -402,8 +407,9 @@ ErrCode BedLevelService::UpdateLiveZOffset(float offset, uint8_t e) {
   }
 
   if (e == active_extruder) {
+    // PauseTrigger(TRIGGER_SOURCE_SC);
+    // ResumeTrigger(TRIGGER_SOURCE_SC);
     planner.synchronize();
-
     float cur_z = current_position[Z_AXIS];
     do_blocking_move_to_z(current_position[Z_AXIS] + (offset - live_z_offset_[e]), 5);
     planner.synchronize();
