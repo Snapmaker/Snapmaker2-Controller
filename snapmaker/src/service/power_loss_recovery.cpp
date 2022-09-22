@@ -437,6 +437,21 @@ int PowerLossRecovery::SaveEnv(void) {
 }
 
 void PowerLossRecovery::Resume3DP() {
+	if (pre_data_.active_extruder >= EXTRUDERS) {
+		LOG_E("active extruder error\n");
+		return;
+	}
+
+	// restore live_z_offset
+	HOTEND_LOOP() levelservice.live_z_offset(pre_data_.live_z_offset[e], e);
+
+	// restore feedrate_percentage
+	HOTEND_LOOP() extruders_feedrate_percentage[e] = pre_data_.extruders_feedrate_percentage[e];
+	feedrate_percentage = extruders_feedrate_percentage[pre_data_.active_extruder];
+
+	// restore flow_percentage
+	HOTEND_LOOP() planner.flow_percentage[e] = pre_data_.flow_percentage[e];
+
 	// enable hotend
 	if(pre_data_.BedTamp > BED_MAXTEMP - 15) {
 		LOG_W("recorded bed temp [%f] is larger than %f, limited it.\n",
@@ -450,8 +465,14 @@ void PowerLossRecovery::Resume3DP() {
 		pre_data_.HeaterTemp[0] = HEATER_0_MAXTEMP - 15;
 	}
 
-	if (pre_data_.HeaterTemp[0] < 180)
-		pre_data_.HeaterTemp[0] = 180;
+	if (pre_data_.HeaterTemp[1] > HEATER_1_MAXTEMP - 15) {
+		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
+						pre_data_.BedTamp, HEATER_1_MAXTEMP - 15);
+		pre_data_.HeaterTemp[1] = HEATER_1_MAXTEMP - 15;
+	}
+
+	if (pre_data_.HeaterTemp[pre_data_.active_extruder] < 180)
+		pre_data_.HeaterTemp[pre_data_.active_extruder] = 180;
 
 	/* when recover 3DP from power-loss, maybe the filament is freezing because
 	 * nozzle has been cooling. If we raise Z in this condition, the model will
@@ -460,8 +481,9 @@ void PowerLossRecovery::Resume3DP() {
 	 */
 	thermalManager.setTargetBed(pre_data_.BedTamp);
 	thermalManager.setTargetHotend(pre_data_.HeaterTemp[0], 0);
+	thermalManager.setTargetHotend(pre_data_.HeaterTemp[1], 1);
 
-  	while (thermalManager.degHotend(0) < 150) idle();
+  while (thermalManager.degHotend(pre_data_.active_extruder) < 150) idle();
 
 	RestoreWorkspace();
 
@@ -558,6 +580,8 @@ void PowerLossRecovery::RestoreWorkspace() {
 	process_cmd_imd("G28");
 
 	planner.synchronize();
+
+	printer1->ToolChange(pre_data_.active_extruder);
 
 	LOG_I("position shift:\n");
 	LOG_I("X: %.2f, Y: %.2f, Z: %.2f, B: %.2f\n", pre_data_.position_shift[0], pre_data_.position_shift[1],

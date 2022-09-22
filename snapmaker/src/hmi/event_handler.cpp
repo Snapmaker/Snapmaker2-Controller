@@ -673,7 +673,7 @@ static ErrCode HmiGetHotendOffset(SSTP_Event_t &event) {
 static ErrCode HmiRequestProbeSensorCal(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
 
-  if ((event.length != 1) || (event.data[0] > 3)) {
+  if (event.length != 1) {
     err = E_PARAM;
     goto EXIT;
   }
