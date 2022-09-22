@@ -764,6 +764,7 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_GET_LASER_HW_VERSION]   =  */{EVENT_ATTR_DEFAULT,      LaserGetHWVersion},
   /* [SETTINGS_OPC_TOOL_CHANGE]            =  */{EVENT_ATTR_DEFAULT,      HmiRequestToolChange},
   /* [SETTINGS_OPC_GET_HOTEND_OFFSET]      =  */{EVENT_ATTR_DEFAULT,      HmiGetHotendOffset},
+  /* SETTINGS_OPC_SYNC_LEVEL_POINT */ UNDEFINED_CALLBACK,
   /* [SETTINGS_OPC_SET_HOTEND_OFFSET]      =  */{EVENT_ATTR_DEFAULT,      HmiSetHotendOffset},
   /* [SETTINGS_OPC_SET_FAN_SPEED]          =  */{EVENT_ATTR_DEFAULT,      HmiSetFanSpeed},
   /* [SETTINGS_OPC_PROBE_SENSOR_CAL]       =  */{EVENT_ATTR_DEFAULT,      HmiRequestProbeSensorCal},
