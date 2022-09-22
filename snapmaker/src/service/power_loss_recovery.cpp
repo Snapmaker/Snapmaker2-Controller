@@ -357,8 +357,6 @@ int PowerLossRecovery::SaveEnv(void) {
   cur_data_.PrintFeedRate = saved_g1_feedrate_mm_s;
   cur_data_.TravelFeedRate = saved_g0_feedrate_mm_s;
 	cur_data_.feedrate_percentage = feedrate_percentage;
-  cur_data_.extruders_feedrate_percentage[0] = extruders_feedrate_percentage[0];
-  cur_data_.extruders_feedrate_percentage[1] = extruders_feedrate_percentage[1];
 
 	// if live z offset was changed when working, record it
 	if (levelservice.live_z_offset_updated()) {
@@ -397,6 +395,10 @@ int PowerLossRecovery::SaveEnv(void) {
     HOTEND_LOOP() cur_data_.HeaterTemp[e] = thermalManager.temp_hotend[e].target;
     // heated bed
     cur_data_.BedTamp = thermalManager.temp_bed.target;
+		cur_data_.active_extruder = active_extruder;
+		cur_data_.extruders_feedrate_percentage[0] = extruders_feedrate_percentage[0];
+  	HOTEND_LOOP() cur_data_.extruders_feedrate_percentage[e] = extruders_feedrate_percentage[e];
+		HOTEND_LOOP() cur_data_.flow_percentage[e] = planner.flow_percentage[e];
     break;
 
 	default:
