@@ -737,6 +737,10 @@ static ErrCode HmiFinishDualExtruderManualLeveling(SSTP_Event_t &event) {
   return levelservice.FinishDualExtruderManualLeveling(event);
 }
 
+static ErrCode HmiRequestGetActiveExtruder(SSTP_Event_t &event) {
+  return printer1->HmiRequestGetActiveExtruder(event);
+}
+
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* SETTINGS_OPC_SET_MACHINE_SIZE */ UNDEFINED_CALLBACK,
@@ -776,6 +780,7 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_DO_DUALEXTRUDER_MANUAL_LEVELING]         =  */{EVENT_ATTR_DEFAULT,    HmiRequestDoDualExtruderManualLeveling},
   /* [SETTINGS_OPC_SET_DUALEXTRUDER_MANUAL_LEVELING_POINT]  =  */{EVENT_ATTR_DEFAULT,    HmiSetDualExtruderManualLevelingPoint},
   /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_MANUAL_LEVELING]     =  */{EVENT_ATTR_DEFAULT,    HmiFinishDualExtruderManualLeveling},
+  /* [SETTINGS_OPC_GET_ACTIVE_EXTRUDER]    =  */{EVENT_ATTR_DEFAULT,    HmiRequestGetActiveExtruder},
 };
 
 
@@ -938,7 +943,7 @@ EventCallback_t motion_event_cb[MOTION_OPC_MAX] = {
   /* [MOTION_OPC_DO_ABSOLUTE_MOVE]     =  */{EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
   /* [MOTION_OPC_DO_RELATIVE_MOVE]     =  */{EVENT_ATTR_HAVE_MOTION,  DoXYZMove},
   /* [MOTION_OPC_DO_E_MOVE]            =  */{EVENT_ATTR_HAVE_MOTION,  DoEMove},
-  /* [MOTION_OPC_DO_E_INCINITY_MOVE]   =  */{EVENT_ATTR_HAVE_MOTION,  DoEInfinityMove},
+  /* [MOTION_OPC_DO_E_INFINITY_MOVE]   =  */{EVENT_ATTR_HAVE_MOTION,  DoEInfinityMove},
   /* [MOTION_OPC_STOP_E_MOVES]         =  */{EVENT_ATTR_HAVE_MOTION,  StopEMoves}
 };
 

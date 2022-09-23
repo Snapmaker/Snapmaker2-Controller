@@ -964,3 +964,11 @@ ErrCode ToolHeadDualExtruder::HmiGetHotendOffset() {
   return hmi.Send(event);
 }
 
+ErrCode ToolHeadDualExtruder::HmiRequestGetActiveExtruder(SSTP_Event_t &event) {
+  event.data    = &active_extruder;
+  event.length  = 1;
+  event.id      = EID_SETTING_ACK;
+  event.op_code = SETTINGS_OPC_GET_ACTIVE_EXTRUDER;
+  return hmi.Send(event);
+}
+
