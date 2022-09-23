@@ -138,23 +138,46 @@ void GcodeSuite::M3004() {
   }
 }
 
-void GcodeSuite::M3005() {
-  const bool seen_l = parser.seenval('L');
-  if (seen_l) {
-    uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);
-    SSTP_Event_t event;
-    uint8_t buf[10];
-    event.data = buf;
-    switch (stage) {
-      case 0:
-        break;
-      case 1:
-        break;
-      case 2:
-        break;
-      default:
-        break;
-    }
-  }
-}
+// extern ErrCode DoEInfinityMove(SSTP_Event_t &event);
+// extern ErrCode StopEMoves(SSTP_Event_t &event);
+// void GcodeSuite::M3005() {
+//   const bool seen_l = parser.seenval('L');
+//   if (seen_l) {
+//     uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);
+//     SSTP_Event_t event;
+//     uint8_t buf[10];
+//     event.data = buf;
+//     float speed;
+//     uint32_t speed_scaled;
+//     switch (stage) {
+//       case 0:
+//         speed = (float)parser.floatval('P', (float)0);
+//         speed_scaled = speed * 1000;
+//         buf[0] = 0;
+//         buf[1] = (speed_scaled >> 24) & 0xff;
+//         buf[2] = (speed_scaled >> 16) & 0xff;
+//         buf[3] = (speed_scaled >> 8) & 0xff;
+//         buf[4] = speed_scaled & 0xff;
+//         event.length = 5;
+//         DoEInfinityMove(event);
+//         break;
+//       case 1:
+//         speed = (float)parser.floatval('P', (float)0);
+//         speed_scaled = speed * 1000;
+//         buf[0] = 1;
+//         buf[1] = (speed_scaled >> 24) & 0xff;
+//         buf[2] = (speed_scaled >> 16) & 0xff;
+//         buf[3] = (speed_scaled >> 8) & 0xff;
+//         buf[4] = speed_scaled & 0xff;
+//         event.length = 5;
+//         DoEInfinityMove(event);
+//         break;
+//       case 2:
+//         StopEMoves(event);
+//         break;
+//       // default:
+//       //   break;
+//     }
+//   }
+// }
 
