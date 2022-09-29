@@ -131,6 +131,8 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0);
     ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos);
 
+    uint8_t GetHWVersion();
+
   protected:
     probe_sensor_t active_probe_sensor_ = PROBE_SENSOR_PROXIMITY_SWITCH;
     uint8_t hotend_type_[EXTRUDERS];
@@ -141,6 +143,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
   private:
     uint8_t mac_index_ = MODULE_MAC_INDEX_INVALID;
     bool hotend_type_initialized_ = false;
+    uint8_t hw_version_ = 0xff;
 };
 
 extern ToolHeadDualExtruder printer_dualextruder;
