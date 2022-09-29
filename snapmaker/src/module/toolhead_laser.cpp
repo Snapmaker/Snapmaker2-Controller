@@ -937,7 +937,7 @@ ErrCode ToolHeadLaser::LaserGetHWVersion() {
   CanStdFuncCmd_t cmd;
   uint8_t buff[1] = {0};
 
-  cmd.id        = MODULE_FUNC_GET_LASER_HW_VERSION;
+  cmd.id        = MODULE_FUNC_GET_HW_VERSION;
   cmd.data      = buff;
   cmd.length    = 1;
 
