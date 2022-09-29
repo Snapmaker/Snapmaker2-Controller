@@ -90,8 +90,6 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
   message_id_t  message_id[50];
   CanStdCmdCallback_t cb = NULL;
 
-  uint16_t hw_ver_msg_id;
-
   ret = ModuleBase::InitModule8p(mac, E0_DIR_PIN, 0);
   if (ret != E_SUCCESS)
     return ret;
@@ -194,10 +192,33 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
   ModuleCtrlZProbeSensorCompensationSync();
   ModuleCtrlRightExtruderPosSync();
 
+  GetHWVersion();
+
   LOG_I("dualextruder ready!\n");
 
 out:
   return ret;
+}
+
+uint8_t ToolHeadDualExtruder::GetHWVersion() {
+  CanStdFuncCmd_t cmd;
+  uint8_t buff[2] {0};
+  ErrCode ret;
+
+  cmd.id        = MODULE_FUNC_GET_HW_VERSION;
+  cmd.data      = buff;
+  cmd.length    = 1;
+
+  ret = canhost.SendStdCmdSync(cmd, 2000);
+  if (ret != E_SUCCESS) {
+    LOG_E("failed to get HW Version\n");
+  }
+  else {
+    hw_version_ = buff[0];
+    LOG_I("HW version of 3DP2E: 0x%x\n", hw_version_);
+  }
+
+  return hw_version_;
 }
 
 void ToolHeadDualExtruder::ReportProbeState(uint8_t state[]) {
