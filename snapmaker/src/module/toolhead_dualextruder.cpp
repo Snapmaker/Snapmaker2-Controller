@@ -90,6 +90,8 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
   message_id_t  message_id[50];
   CanStdCmdCallback_t cb = NULL;
 
+  uint16_t hw_ver_msg_id;
+
   ret = ModuleBase::InitModule8p(mac, E0_DIR_PIN, 0);
   if (ret != E_SUCCESS)
     return ret;
