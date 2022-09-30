@@ -132,6 +132,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos);
 
     uint8_t GetHWVersion();
+    void ShowInfo();
 
   protected:
     probe_sensor_t active_probe_sensor_ = PROBE_SENSOR_PROXIMITY_SWITCH;

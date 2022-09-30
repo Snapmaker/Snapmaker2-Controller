@@ -27,13 +27,17 @@
 #include "../service/bed_level.h"
 
 void GcodeSuite::M3000() {
+  printer1->ShowInfo();
+}
+
+void GcodeSuite::M3001() {
   printer1->SelectProbeSensor(PROBE_SENSOR_PROXIMITY_SWITCH);
   printer1->ModuleCtrlProximitySwitchPower(1);
   endstops.enable_z_probe(true);
   do_blocking_move_to_z(current_position[Z_AXIS] - 100);
 }
 
-void GcodeSuite::M3001() {
+void GcodeSuite::M3002() {
   const bool seen_l = parser.seenval('L');
   if (seen_l) {
     uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);
@@ -66,7 +70,7 @@ void GcodeSuite::M3001() {
 
 }
 
-void GcodeSuite::M3002() {
+void GcodeSuite::M3003() {
   const bool seen_l = parser.seenval('L');
   if (seen_l) {
     uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);
@@ -91,7 +95,7 @@ void GcodeSuite::M3002() {
   }
 }
 
-void GcodeSuite::M3003() {
+void GcodeSuite::M3004() {
   const bool seen_l = parser.seenval('L');
   if (seen_l) {
     uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);
@@ -116,7 +120,7 @@ void GcodeSuite::M3003() {
   }
 }
 
-void GcodeSuite::M3004() {
+void GcodeSuite::M3005() {
   const bool seen_l = parser.seenval('L');
   if (seen_l) {
     uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);

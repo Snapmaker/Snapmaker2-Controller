@@ -995,3 +995,11 @@ ErrCode ToolHeadDualExtruder::HmiRequestGetActiveExtruder(SSTP_Event_t &event) {
   return hmi.Send(event);
 }
 
+void ToolHeadDualExtruder::ShowInfo() {
+  LOG_I("active_probe_sensor: %u\n", active_probe_sensor_);
+  LOG_I("hotend_type: 0: %u, 1: %u\n", hotend_type_[0], hotend_type_[1]);
+  LOG_I("hotend_diameter: 0: %u, 1:%u\n", hotend_diameter_[0], hotend_diameter_[1]);
+  LOG_I("Kp: %.3f, Ki: %.3f, Kd: %.3f\n", pid_[0], pid_[1], pid_[2]);
+  LOG_I("z_compensation: 0: %.3f, 1: %.3f\n", z_compensation_[0], z_compensation_[1]);
+}
+

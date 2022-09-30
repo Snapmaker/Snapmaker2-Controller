@@ -90,6 +90,7 @@ void GcodeSuite::M1006() {
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
+  case MODULE_TOOLHEAD_DUALEXTRUDER:
     SERIAL_ECHOLN("3DP");
     break;
 
