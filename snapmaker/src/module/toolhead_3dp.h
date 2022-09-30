@@ -165,6 +165,8 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode HmiGetHotendOffset() { return E_SUCCESS; }
     virtual ErrCode HmiRequestGetActiveExtruder(SSTP_Event_t &event);
 
+    virtual void ShowInfo() {}
+
   protected:
     void IOInit(void);
 
