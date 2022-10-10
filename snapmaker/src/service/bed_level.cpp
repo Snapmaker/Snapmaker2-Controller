@@ -619,7 +619,7 @@ EXIT:
 
 ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
-  float probe_x, probe_y;
+  float probe_x, probe_y, probe_z;
   uint8_t x_index, y_index;
 
   LOG_I("hmi req auto probe %u point\n", event.data[0]);
@@ -644,7 +644,15 @@ ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event)
   planner.synchronize();
 
   printer1->ModuleCtrlProximitySwitchPower(1);
-  z_values[x_index][y_index] = probe_pt(probe_x, probe_y, PROBE_PT_RAISE);
+
+  probe_z  = probe_pt(probe_x, probe_y, PROBE_PT_RAISE);
+  if (isnan(probe_z)) {
+    LOG_E("got a non number!\n");
+    E_FAILURE;
+    goto EXIT;
+  }
+
+  z_values[x_index][y_index] = probe_z;
 
 EXIT:
   event.data   = &err;
