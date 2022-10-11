@@ -1564,7 +1564,7 @@ void homeaxis(const AxisEnum axis) {
   }
 
   if (axis != B_AXIS)
-    do_homing_move(axis, axis_home_dir * -3, get_homing_bump_feedrate(axis));
+    do_homing_move(axis, axis_home_dir * -3, homing_feedrate(axis));
 
   #if HAS_EXTRA_ENDSTOPS
     const bool pos_dir = axis_home_dir > 0;

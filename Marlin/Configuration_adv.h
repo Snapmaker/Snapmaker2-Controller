@@ -473,9 +473,9 @@
 // @section homing
 
 // Homing hits each endstop, retracts by these distances, then does a slower bump.
-#define X_HOME_BUMP_MM 3
-#define Y_HOME_BUMP_MM 3
-#define Z_HOME_BUMP_MM 3
+#define X_HOME_BUMP_MM 1
+#define Y_HOME_BUMP_MM 1
+#define Z_HOME_BUMP_MM 1
 #define B_HOME_BUMP_MM 0
 #define HOMING_BUMP_DIVISOR { 9, 9, 10, 1}  // Re-Bump Speed Divisor (Divides the Homing Feedrate)
 #define QUICK_HOME                     // If homing includes X and Y, do a diagonal move initially
