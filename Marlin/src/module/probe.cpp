@@ -727,11 +727,17 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
   float nx = rx, ny = ry;
   SERIAL_ECHOLNPAIR("ProbeX:", rx, " ProbeY:", ry, "Avtive:", probe_relative);
   if (probe_relative) {
-    if (!position_is_reachable_by_probe(rx, ry)) { return NAN;}  // The given position is in terms of the probe
+    if (!position_is_reachable_by_probe(rx, ry)) {
+      LOG_I("Point is out of workspace!\n");
+      return NAN;
+    }  // The given position is in terms of the probe
     nx -= (X_PROBE_OFFSET_FROM_EXTRUDER);                     // Get the nozzle position
     ny -= (Y_PROBE_OFFSET_FROM_EXTRUDER);
   }
-  else if (!position_is_reachable(nx, ny)) return NAN;        // The given position is in terms of the nozzle
+  else if (!position_is_reachable(nx, ny)) {
+    LOG_I("Point is out of workspace!\n");
+    return NAN;        // The given position is in terms of the nozzle
+  }
 
   const float nz =
     #if ENABLED(DELTA)
@@ -746,8 +752,10 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
   feedrate_mm_s = XY_PROBE_FEEDRATE_MM_S;
 
   // Move the probe to the starting XYZ
-  LOG_I("Move to X: %.2f, Y: %.2f, Z: %.2f\n", nx, ny, nz);
-  do_blocking_move_to(nx, ny, nz);
+  if (nx != rx || ny != ry) {
+    LOG_I("Move to X: %.2f, Y: %.2f, Z: %.2f\n", nx, ny, nz);
+    do_blocking_move_to(nx, ny, nz);
+  }
 
   float measured_z = NAN;
   if (!DEPLOY_PROBE()) {

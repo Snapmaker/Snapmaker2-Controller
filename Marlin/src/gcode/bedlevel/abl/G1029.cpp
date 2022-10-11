@@ -86,7 +86,10 @@ void GcodeSuite::G1029() {
     bilinear_grid_manual();
     for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++) {
       for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
-        z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
+        if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+          z_values[x][y] = DEFAUT_LEVELING_HEIGHT_3DP2E;
+        else
+          z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
         #if ENABLED(EXTENSIBLE_UI)
           ExtUI::onMeshUpdate(x, y, 0);
         #endif
@@ -107,6 +110,11 @@ void GcodeSuite::G1029() {
 
   const bool seen_a = parser.seen("A");
   if (seen_a) {
+
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP) {
+      SERIAL_ECHOLN("cannot do auto leveling without ");
+      return;
+    }
 
     process_cmd_imd("G28");
     set_bed_leveling_enabled(false);

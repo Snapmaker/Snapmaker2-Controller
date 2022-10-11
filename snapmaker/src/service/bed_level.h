@@ -82,11 +82,14 @@ class BedLevelService {
     uint8_t manual_level_index_ = MANUAL_LEVEL_INDEX_INVALID;
     float live_z_offset_[EXTRUDERS] = {0};
     bool  live_z_offset_updated_ = false;
-    float MeshPointZ[GRID_MAX_POINTS];
     float left_extruder_auto_probe_position_;
     float right_extruder_auto_probe_position_;
     float left_extruder_manual_probe_position_;
     float right_extruder_manual_probe_position_;
+    union {
+      float MeshPointZ[GRID_MAX_POINTS];
+      float z_values_tmp[GRID_MAX_NUM][GRID_MAX_NUM];
+    };
 };
 
 extern BedLevelService levelservice;
