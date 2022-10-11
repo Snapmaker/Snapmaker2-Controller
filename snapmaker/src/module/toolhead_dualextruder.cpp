@@ -819,6 +819,9 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     if (new_extruder == 1) {
       ModuleCtrlToolChange(new_extruder);
     }
+
+    // after swtich extruder, just select relative OPTOCOUPLER
+    SelectProbeSensor((probe_sensor_t)(PROBE_SENSOR_LEFT_OPTOCOUPLER + new_extruder));
   }
 
   set_bed_leveling_enabled(leveling_was_active);

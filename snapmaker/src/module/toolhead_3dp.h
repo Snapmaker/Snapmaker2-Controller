@@ -163,7 +163,7 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode HmiSetFanSpeed(SSTP_Event_t &event) { return E_SUCCESS; }
     virtual ErrCode HmiSetHotendOffset(SSTP_Event_t &event) { return E_SUCCESS; }
     virtual ErrCode HmiGetHotendOffset() { return E_SUCCESS; }
-    virtual ErrCode HmiRequestGetActiveExtruder(SSTP_Event_t &event);
+    virtual ErrCode HmiRequestGetActiveExtruder(SSTP_Event_t &event) { return E_SUCCESS; }
 
     virtual void ShowInfo() {}
 
