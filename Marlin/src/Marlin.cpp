@@ -246,9 +246,13 @@ millis_t max_inactive_time, // = 0
   float MAGNET_X_SPAN = 114;
   float MAGNET_Y_SPAN = 114;
 
+  // TODO: update the default offset for model M&S
   float s_home_offset[XN] = S_HOME_OFFSET_DEFAULT;
+  float s_home_offset_3dp2e[XN] = S_HOME_OFFSET_DEFAULT;
   float m_home_offset[XN] = M_HOME_OFFSET_DEFAULT;
+  float m_home_offset_3dp2e[XN] = M_HOME_OFFSET_DEFAULT;
   float l_home_offset[XN] = L_HOME_OFFSET_DEFAULT;
+  float l_home_offset_3dp2e[XN] = L_HOME_OFFSET_3DP2E_DEFAULT;
 
   float print_min_planner_speed = MINIMUM_PRINT_PLANNER_SPEED;
   float laser_min_planner_speed = MINIMUM_LASER_PLANNER_SPEED;
@@ -275,13 +279,22 @@ void set_homeoffset() {
   LOOP_XYZ(i) {
     switch (linear_p->machine_size()) {
       case MACHINE_SIZE_A150:
-        home_offset[i] = s_home_offset[i];
+        if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+          home_offset[i] = s_home_offset_3dp2e[i];
+        else
+          home_offset[i] = s_home_offset[i];
         break;
       case MACHINE_SIZE_A250:
-        home_offset[i] = m_home_offset[i];
+        if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+          home_offset[i] = m_home_offset_3dp2e[i];
+        else
+          home_offset[i] = m_home_offset[i];
         break;
       case MACHINE_SIZE_A350:
-        home_offset[i] = l_home_offset[i];
+        if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+          home_offset[i] = l_home_offset_3dp2e[i];
+        else
+          home_offset[i] = l_home_offset[i];
         break;
       default:
         break;
