@@ -30,6 +30,7 @@
 #include "service/bed_level.h"
 #include "service/quick_stop.h"
 #include "service/power_loss_recovery.h"
+#include "module/module_base.h"
 
 struct SnapmakerHandle {
   TaskHandle_t marlin;

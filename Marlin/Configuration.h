@@ -1058,6 +1058,9 @@ extern uint8_t E_ENABLE_ON;
   extern float s_home_offset[XN];
   extern float m_home_offset[XN];
   extern float l_home_offset[XN];
+  extern float s_home_offset_3dp2e[XN];
+  extern float m_home_offset_3dp2e[XN];
+  extern float l_home_offset_3dp2e[XN];
 
   extern float print_min_planner_speed;
   extern float laser_min_planner_speed;
@@ -1066,6 +1069,7 @@ extern uint8_t E_ENABLE_ON;
 #define S_HOME_OFFSET_DEFAULT {-7, -5, 0, 0}
 #define M_HOME_OFFSET_DEFAULT {-15.5, -7, 0, 0}
 #define L_HOME_OFFSET_DEFAULT {-19, -4, 0, 0}
+#define L_HOME_OFFSET_3DP2E_DEFAULT {-32, -24, 0, 0}
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed
@@ -1226,6 +1230,7 @@ extern uint8_t E_ENABLE_ON;
   #define GRID_MAX_POINTS GRID_MAX_NUM * GRID_MAX_NUM
 //  #define PROBE_MARGIN 30
 #define DEFAUT_LEVELING_HEIGHT  9 // uint: mm
+#define DEFAUT_LEVELING_HEIGHT_3DP2E  50 // uint: mm
 
   // Set the boundaries for probing (where the probe can reach).
   #define LEFT_PROBE_BED_POSITION 30
