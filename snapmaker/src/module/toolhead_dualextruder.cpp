@@ -441,20 +441,20 @@ ErrCode ToolHeadDualExtruder::SetHeater(uint16_t target_temp, uint8_t extrude_in
     return E_HARDWARE;
   }
 
-  hotend_temp_[extrude_index].target = target_temp;
-  LOG_I("Set T%d=%d\n", extrude_index, hotend_temp_[extrude_index].target);
+  target_temp_[extrude_index] = target_temp;
+  LOG_I("Set T%d=%d\n", extrude_index, target_temp_[extrude_index]);
 
   fan_e nozzle_fan_index = DUAL_EXTRUDER_NOZZLE_FAN;
   uint8_t fan_speed = 0;
   uint8_t fan_delay = 0;
-  if (hotend_temp_[extrude_index].target >= 60) {
+  if (target_temp_[extrude_index] >= 60) {
     fan_speed = 255;
-  } else if (hotend_temp_[extrude_index].target == 0) {
+  } else if (target_temp_[extrude_index] == 0) {
     // check if need to delay to turn off fan
-    if (hotend_temp_[extrude_index].current >= 150) {
+    if (cur_temp_[0] >= 150 || cur_temp_[0] >= 150) {
       fan_speed = 0;
       fan_delay = 120;
-    } else if (hotend_temp_[extrude_index].target >= 60) {
+    } else if (cur_temp_[0] >= 60 || cur_temp_[0] >= 60) {
       fan_speed = 0;
       fan_delay = 60;
     } else {
@@ -466,8 +466,8 @@ ErrCode ToolHeadDualExtruder::SetHeater(uint16_t target_temp, uint8_t extrude_in
 
   uint8_t buffer[2*EXTRUDERS];
   for (int i = 0; i < EXTRUDERS; i++) {
-    buffer[2*i + 0] = (uint8_t)(hotend_temp_[i].target>>8);
-    buffer[2*i + 1] = (uint8_t)hotend_temp_[i].target;
+    buffer[2*i + 0] = (uint8_t)(target_temp_[i]>>8);
+    buffer[2*i + 1] = (uint8_t)target_temp_[i];
   }
   CanStdFuncCmd_t cmd;
   cmd.id     = MODULE_FUNC_SET_NOZZLE_TEMP;
