@@ -74,10 +74,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ToolHeadDualExtruder(ModuleDeviceID id): ToolHead3DP(id) {
       for (int i = 0; i < EXTRUDERS; i++) {
         hotend_type_[i] = 0xff;
-      }
-      for (int i = 0; i < EXTRUDERS; i++) {
-        hotend_temp_[i].current = 0;
-        hotend_temp_[i].target  = 0;
+        target_temp_[0] = 0;
       }
     }
 
@@ -137,8 +134,8 @@ class ToolHeadDualExtruder: public ToolHead3DP {
   protected:
     probe_sensor_t active_probe_sensor_ = PROBE_SENSOR_PROXIMITY_SWITCH;
     uint8_t hotend_type_[EXTRUDERS];
+    uint16_t target_temp_[EXTRUDERS];
     float hotend_diameter_[EXTRUDERS];
-    hotend_temp_t hotend_temp_[EXTRUDERS];
     float z_compensation_[EXTRUDERS];
 
   private:
