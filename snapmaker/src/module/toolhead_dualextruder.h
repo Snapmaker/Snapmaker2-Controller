@@ -90,13 +90,13 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     void GetZCompensation(float &left_z_compensation, float &right_z_compensation);
 
     // for hmi interface
-    ErrCode HmiGetHotendType();
-    ErrCode HmiGetFilamentState();
-    ErrCode HmiGetHotendTemp();
+    ErrCode HmiGetHotendType(SSTP_Event_t &event);
+    ErrCode HmiGetFilamentState(SSTP_Event_t &event);
+    ErrCode HmiGetHotendTemp(SSTP_Event_t &event);
     ErrCode HmiRequestToolChange(SSTP_Event_t &event);
     ErrCode HmiSetFanSpeed(SSTP_Event_t &event);
     ErrCode HmiSetHotendOffset(SSTP_Event_t &event);
-    ErrCode HmiGetHotendOffset();
+    ErrCode HmiGetHotendOffset(SSTP_Event_t &event);
     ErrCode HmiRequestGetActiveExtruder(SSTP_Event_t &event);
 
     // module report callback

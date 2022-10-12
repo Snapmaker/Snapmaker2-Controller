@@ -829,8 +829,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 }
 
 // hmi interface
-ErrCode ToolHeadDualExtruder::HmiGetHotendType() {
-  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_HOTEND_TYPE};
+ErrCode ToolHeadDualExtruder::HmiGetHotendType(SSTP_Event_t &event) {
   uint8_t buf[10];
   uint8_t index = 0;
   uint32_t hotend_diameter_scaled;
@@ -854,8 +853,7 @@ ErrCode ToolHeadDualExtruder::HmiGetHotendType() {
   return hmi.Send(event);
 }
 
-ErrCode ToolHeadDualExtruder::HmiGetFilamentState() {
-  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_FILAMENT_STATE};
+ErrCode ToolHeadDualExtruder::HmiGetFilamentState(SSTP_Event_t &event) {
   uint8_t buf[2];
   uint8_t index = 0;
 
@@ -867,8 +865,7 @@ ErrCode ToolHeadDualExtruder::HmiGetFilamentState() {
   return hmi.Send(event);
 }
 
-ErrCode ToolHeadDualExtruder::HmiGetHotendTemp() {
-  SSTP_Event_t event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_HOTEND_TEMP};
+ErrCode ToolHeadDualExtruder::HmiGetHotendTemp(SSTP_Event_t &event) {
   uint8_t buf[8];
   uint8_t index = 0;
   int16_t temp;
@@ -915,8 +912,6 @@ ErrCode ToolHeadDualExtruder::HmiRequestToolChange(SSTP_Event_t &event) {
 
   buf[1] = active_extruder;
 
-  event.id      = EID_SETTING_ACK;
-  event.op_code = SETTINGS_OPC_TOOL_CHANGE;
   event.data    = buf;
   event.length  = 2;
   return hmi.Send(event);
@@ -931,38 +926,45 @@ ErrCode ToolHeadDualExtruder::HmiSetFanSpeed(SSTP_Event_t &event) {
 
   event.data = fan_speed_;
   event.length = 3;
-  event.id = EID_SETTING_ACK;
-  event.op_code = SETTINGS_OPC_SET_FAN_SPEED;
   return hmi.Send(event);
 }
 
 ErrCode ToolHeadDualExtruder::HmiSetHotendOffset(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
+  uint8_t axis;
+
   float tmp_offset;
   float nozzle_offset[XYZ][HOTENDS] = DEFAULT_HOTEND_OFFSETS;
 
-  if (event.length != 5 || event.data[0] > 3) {
+
+  if (event.length != 5 || event.data[0] >= 3) {
+    LOG_E("HmiSetHotendOffset: parameter error!\n");
     err = E_PARAM;
     goto EXIT;
   }
 
-  tmp_offset = (float)(event.data[1]<<24 | event.data[2]<<16 | event.data[3]<<8 | event.data[4])/1000;
-  if (tmp_offset > nozzle_offset[event.data[0]][1] + HOTEND_OFFSET_MAX_DEVIATION || \
-      tmp_offset < nozzle_offset[event.data[0]][1] - HOTEND_OFFSET_MAX_DEVIATION) {
+  axis = event.data[0];
+
+  PDU_TO_LOCAL_WORD(tmp_offset, event.data + 1);
+  tmp_offset /= 1000;
+
+  LOG_E("HmiSetHotendOffset: %.3f, axis: %u!\n", tmp_offset, axis);
+
+  if (tmp_offset > HOTEND_OFFSET_MAX_DEVIATION || tmp_offset < -HOTEND_OFFSET_MAX_DEVIATION) {
     err = E_PARAM;
-  } else {
-    hotend_offset[event.data[0]][1] = tmp_offset;
+    LOG_E("invalid hotend offset!\n");
+  }
+  else {
+    hotend_offset[axis][1] = nozzle_offset[axis][1] + tmp_offset;
   }
 
 EXIT:
   event.data    = &err;
   event.length  = 1;
-  event.id      = EID_SETTING_ACK;
-  event.op_code = SETTINGS_OPC_SET_HOTEND_OFFSET;
   return hmi.Send(event);
 }
 
-ErrCode ToolHeadDualExtruder::HmiGetHotendOffset() {
+ErrCode ToolHeadDualExtruder::HmiGetHotendOffset(SSTP_Event_t &event) {
   uint8_t buf[12];
   uint8_t index = 0;
   int32_t tmp;
@@ -982,19 +984,14 @@ ErrCode ToolHeadDualExtruder::HmiGetHotendOffset() {
   buf[index++] = tmp >> 8;
   buf[index++] = tmp;
 
-  SSTP_Event_t event;
   event.data    = buf;
   event.length  = index;
-  event.id      = EID_SETTING_ACK;
-  event.op_code = SETTINGS_OPC_GET_HOTEND_OFFSET;
   return hmi.Send(event);
 }
 
 ErrCode ToolHeadDualExtruder::HmiRequestGetActiveExtruder(SSTP_Event_t &event) {
   event.data    = &active_extruder;
   event.length  = 1;
-  event.id      = EID_SETTING_ACK;
-  event.op_code = SETTINGS_OPC_GET_ACTIVE_EXTRUDER;
   return hmi.Send(event);
 }
 

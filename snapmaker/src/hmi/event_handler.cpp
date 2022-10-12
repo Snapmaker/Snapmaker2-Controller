@@ -529,15 +529,15 @@ static ErrCode GetSecurityStatus(SSTP_Event_t &event) {
 }
 
 static ErrCode GetHotendType(SSTP_Event_t &event) {
-  return printer1->HmiGetHotendType();
+  return printer1->HmiGetHotendType(event);
 }
 
 static ErrCode GetFilamentState(SSTP_Event_t &event) {
-  return printer1->HmiGetFilamentState();
+  return printer1->HmiGetFilamentState(event);
 }
 
 static ErrCode GetHotendTemp(SSTP_Event_t &event) {
-  return printer1->HmiGetHotendTemp();
+  return printer1->HmiGetHotendTemp(event);
 }
 
 EventCallback_t sysctl_event_cb[SYSCTL_OPC_MAX] = {
@@ -667,7 +667,7 @@ static ErrCode HmiSetHotendOffset(SSTP_Event_t &event) {
 }
 
 static ErrCode HmiGetHotendOffset(SSTP_Event_t &event) {
-  return printer1->HmiGetHotendOffset();
+  return printer1->HmiGetHotendOffset(event);
 }
 
 static ErrCode HmiRequestProbeSensorCal(SSTP_Event_t &event) {
