@@ -43,15 +43,24 @@ void GcodeSuite::M206() {
       set_home_offset((AxisEnum)i, parser.value_linear_units());
       switch (linear_p->machine_size()) {
         case MACHINE_SIZE_A150:
-          s_home_offset[i] = home_offset[i];
+          if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+            s_home_offset_3dp2e[i] = home_offset[i];
+          else
+            s_home_offset[i] = home_offset[i];
           break;
 
         case MACHINE_SIZE_A250:
-          m_home_offset[i] = home_offset[i];
+          if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+            m_home_offset_3dp2e[i] = home_offset[i];
+          else
+            m_home_offset[i] = home_offset[i];
           break;
 
         case MACHINE_SIZE_A350:
-          l_home_offset[i] = home_offset[i];
+          if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+            l_home_offset_3dp2e[i] = home_offset[i];
+          else
+            l_home_offset[i] = home_offset[i];
           break;
 
         default:

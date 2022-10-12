@@ -391,7 +391,12 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    LOOP_XN(i) home_offset[i] = s_home_offset[i];
+    // TODO: update leveling mesh
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+      LOOP_XN(i) home_offset[i] = s_home_offset_3dp2e[i];
+    }
+    else
+      LOOP_XN(i) home_offset[i] = s_home_offset[i];
 
     X_DEF_SIZE = 160;
     Y_DEF_SIZE = 160;
@@ -414,7 +419,13 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    LOOP_XN(i) home_offset[i] = m_home_offset[i];
+    // TODO: update leveling mesh
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+      LOOP_XN(i) home_offset[i] = m_home_offset_3dp2e[i];
+    }
+    else {
+      LOOP_XN(i) home_offset[i] = m_home_offset[i];
+    }
 
     X_DEF_SIZE = 230;
     Y_DEF_SIZE = 250;
@@ -426,8 +437,8 @@ MachineSize Linear::UpdateMachineSize() {
     machine_size_ = MACHINE_SIZE_A250;
   } else if (length_[LINEAR_AXIS_X1] < 400) {
     LOG_I("Model: A350\n");
-    X_MAX_POS = 348;
-    Y_MAX_POS = 357;
+    X_MAX_POS = 358;
+    Y_MAX_POS = 358;
     Z_MAX_POS = 334;
     X_HOME_DIR = -1;
     X_DIR = true;
@@ -436,14 +447,27 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    LOOP_XN(i) home_offset[i] = l_home_offset[i];
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+      LOOP_XN(i) home_offset[i] = l_home_offset_3dp2e[i];
 
-    X_DEF_SIZE = 320;
-    Y_DEF_SIZE = 352;
-    Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
+      // X_DEF_SIZE / 2 + MAGNET_X_SPAN / 2 + homeoffset[x] <= X_MAX_POS
+      X_DEF_SIZE = 320;
+      // Y_DEF_SIZE / 2 + MAGNET_Y_SPAN / 2 + homeoffset[y] <= Y_MAX_POS
+      Y_DEF_SIZE = 340;
+      Z_DEF_SIZE = 290; // unused & spec is lager than actual size.  334 - 6 = 328?
 
-    MAGNET_X_SPAN = 274;
-    MAGNET_Y_SPAN = 304;
+      MAGNET_X_SPAN = 280;
+      MAGNET_Y_SPAN = 300;
+    }
+    else {
+      LOOP_XN(i) home_offset[i] = l_home_offset[i];
+      X_DEF_SIZE = 320;
+      Y_DEF_SIZE = 352;
+      Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
+
+      MAGNET_X_SPAN = 274;
+      MAGNET_Y_SPAN = 304;
+    }
 
     machine_size_ = MACHINE_SIZE_A350;
   }

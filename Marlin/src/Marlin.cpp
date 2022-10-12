@@ -306,11 +306,18 @@ void reset_homeoffset() {
   float s_home_offset_def[XN] = S_HOME_OFFSET_DEFAULT;
   float m_home_offset_def[XN] = M_HOME_OFFSET_DEFAULT;
   float l_home_offset_def[XN] = L_HOME_OFFSET_DEFAULT;
+  // TODO: update default offest for dual-extruder
+  float s_home_offset_3dp2e_def[XN] = S_HOME_OFFSET_DEFAULT;
+  float m_home_offset_3dp2e_def[XN] = M_HOME_OFFSET_DEFAULT;
+  float l_home_offset_3dp2e_def[XN] = L_HOME_OFFSET_3DP2E_DEFAULT;
 
   LOOP_XN(i) {
     s_home_offset[i] = s_home_offset_def[i];
     m_home_offset[i] = m_home_offset_def[i];
     l_home_offset[i] = l_home_offset_def[i];
+    s_home_offset_3dp2e[i] = s_home_offset_3dp2e_def[i];
+    m_home_offset_3dp2e[i] = m_home_offset_3dp2e_def[i];
+    l_home_offset_3dp2e[i] = l_home_offset_3dp2e_def[i];
   }
 
   set_homeoffset();
