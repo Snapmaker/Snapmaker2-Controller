@@ -299,6 +299,9 @@ typedef struct SettingsDataStruct {
   float s_home_offset[XN];
   float m_home_offset[XN];
   float l_home_offset[XN];
+  float m_home_offset_3dp2e[XN];
+  float s_home_offset_3dp2e[XN];
+  float l_home_offset_3dp2e[XN];
   #endif
 
   float print_min_planner_speed;
@@ -1144,6 +1147,12 @@ void MarlinSettings::postprocess() {
         EEPROM_WRITE(m_home_offset[i]);
         _FIELD_TEST(l_home_offset[i]);
         EEPROM_WRITE(l_home_offset[i]);
+        _FIELD_TEST(s_home_offset_3dp2e[i]);
+        EEPROM_WRITE(s_home_offset_3dp2e[i]);
+        _FIELD_TEST(m_home_offset_3dp2e[i]);
+        EEPROM_WRITE(m_home_offset_3dp2e[i]);
+        _FIELD_TEST(l_home_offset_3dp2e[i]);
+        EEPROM_WRITE(l_home_offset_3dp2e[i]);
       }
     }
     #endif //ENABLED(SW_MACHINE_SIZE)
@@ -1898,6 +1907,12 @@ void MarlinSettings::postprocess() {
           EEPROM_READ(m_home_offset[i]);
           _FIELD_TEST(l_home_offset[i]);
           EEPROM_READ(l_home_offset[i]);
+          _FIELD_TEST(s_home_offset_3dp2e[i]);
+          EEPROM_READ(s_home_offset_3dp2e[i]);
+          _FIELD_TEST(m_home_offset_3dp2e[i]);
+          EEPROM_READ(m_home_offset_3dp2e[i]);
+          _FIELD_TEST(l_home_offset_3dp2e[i]);
+          EEPROM_READ(l_home_offset_3dp2e[i]);
         }
       }
       set_homeoffset();
@@ -2686,7 +2701,7 @@ void MarlinSettings::reset() {
     #endif
 
     #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-      float left_z_compensation, right_z_compensation;
+      float left_z_compensation = 1.0, right_z_compensation = 1.0;
       printer1->GetZCompensation(left_z_compensation, right_z_compensation);
       SERIAL_ECHOPAIR("  left_z_compensation: ", left_z_compensation, "  right_z_compensation: ", right_z_compensation, "\n");
     #endif

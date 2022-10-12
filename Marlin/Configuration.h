@@ -872,8 +872,8 @@
 #define X_PROBE_OFFSET_FROM_EXTRUDER 13     // X offset: -left  +right  [of the nozzle]
 #define Y_PROBE_OFFSET_FROM_EXTRUDER 19.15  // Y offset: -front +behind [the nozzle]
 #define Z_PROBE_OFFSET_FROM_EXTRUDER 0      // Z offset: -below +above  [the nozzle]
-#define DUALEXTRUDER_X_PROBE_OFFSET_FROM_EXTRUDER 13
-#define DUALEXTRUDER_Y_PROBE_OFFSET_FROM_EXTRUDER 26
+#define DUALEXTRUDER_X_PROBE_OFFSET_FROM_EXTRUDER 13.7
+#define DUALEXTRUDER_Y_PROBE_OFFSET_FROM_EXTRUDER 26.1
 #define DUALEXTRUDER_Z_PROBE_OFFSET_FROM_EXTRUDER 0
 
 // Certain types of probes need to stay away from edges
@@ -1069,7 +1069,7 @@ extern uint8_t E_ENABLE_ON;
 #define S_HOME_OFFSET_DEFAULT {-7, -5, 0, 0}
 #define M_HOME_OFFSET_DEFAULT {-15.5, -7, 0, 0}
 #define L_HOME_OFFSET_DEFAULT {-19, -4, 0, 0}
-#define L_HOME_OFFSET_3DP2E_DEFAULT {-32, -24, 0, 0}
+#define L_HOME_OFFSET_3DP2E_DEFAULT {-32, -23, 0, 0}
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed
