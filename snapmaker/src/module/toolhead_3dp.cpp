@@ -35,6 +35,8 @@
 
 ToolHead3DP printer_single(MODULE_DEVICE_ID_3DP_SINGLE);
 
+#define MIN_E_STEPS_PER_MM_DUAL_E     (400)
+#define MIN_E_STEPS_PER_MM_SINGLE_E   (100)
 
 ToolHead3DP *printer1 = &printer_single;
 static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
@@ -279,15 +281,25 @@ void ToolHead3DP::Process() {
 }
 
 void ToolHead3DP::UpdateEAxisStepsPerUnit(ModuleToolHeadType type) {
+  float min_steps_per_mm = 0;
+
   switch (type) {
     case MODULE_TOOLHEAD_3DP:
-      planner.settings.axis_steps_per_mm[E_AXIS] = planner.settings.axis_steps_per_mm[0];
+      planner.settings.axis_steps_per_mm[E_AXIS] = planner.settings.e_axis_steps_per_mm_backup[0];
+      min_steps_per_mm = MIN_E_STEPS_PER_MM_SINGLE_E;
       break;
     case MODULE_TOOLHEAD_DUALEXTRUDER:
-      planner.settings.axis_steps_per_mm[E_AXIS] = planner.settings.axis_steps_per_mm[1];
+      planner.settings.axis_steps_per_mm[E_AXIS] = planner.settings.e_axis_steps_per_mm_backup[1];
+      min_steps_per_mm = MIN_E_STEPS_PER_MM_DUAL_E;
       break;
     default:
       return;
+  }
+
+  if (planner.settings.axis_steps_per_mm[E_AXIS] < min_steps_per_mm) {
+    LOG_I("found invalid E lead[%.3f], reset it to [%.3f]\n",
+          planner.settings.axis_steps_per_mm[E_AXIS], min_steps_per_mm);
+    planner.settings.axis_steps_per_mm[E_AXIS] = min_steps_per_mm;
   }
 
   planner.refresh_positioning();

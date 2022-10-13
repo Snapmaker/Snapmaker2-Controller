@@ -132,6 +132,9 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     void ShowInfo();
 
   protected:
+    void CheckLevelingData();
+
+  protected:
     probe_sensor_t active_probe_sensor_ = PROBE_SENSOR_PROXIMITY_SWITCH;
     uint8_t hotend_type_[EXTRUDERS];
     uint16_t target_temp_[EXTRUDERS];
