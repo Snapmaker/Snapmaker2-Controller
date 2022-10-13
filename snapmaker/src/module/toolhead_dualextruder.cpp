@@ -43,6 +43,7 @@
 #define BIAS_hotend_offsetY                    1.2
 #define BIAS_hotend_offsetZ                    1.2
 
+#define MIN_LEVELING_HEIGHT_3DP2E               (35)
 
 ToolHeadDualExtruder printer_dualextruder(MODULE_DEVICE_ID_DUAL_EXTRUDER);
 
@@ -194,10 +195,24 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
 
   GetHWVersion();
 
+  CheckLevelingData();
+
   LOG_I("dualextruder ready!\n");
 
 out:
   return ret;
+}
+
+void ToolHeadDualExtruder::CheckLevelingData() {
+  for (uint32_t i = 0; i < GRID_MAX_POINTS_X; i++) {
+    for (uint32_t j = 0; j < GRID_MAX_POINTS_Y; j++) {
+      if (z_values[i][j] < MIN_LEVELING_HEIGHT_3DP2E) {
+        LOG_I("found a abnormal level data in point[%u][%u], will reset leveling data\n", i, j);
+        reset_bed_level();
+        return;
+      }
+    }
+  }
 }
 
 uint8_t ToolHeadDualExtruder::GetHWVersion() {
