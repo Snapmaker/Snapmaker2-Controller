@@ -99,9 +99,9 @@ extern uint8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
  * TODO: Currently using same Enable pin to all steppers.
  */
 
-#define E1_STEP_PIN        PE13
-#define E1_DIR_PIN         PC10
-#define E1_ENABLE_PIN      PD11
+#define E1_STEP_PIN        e0_step_pin
+#define E1_DIR_PIN         e0_dir_pin
+#define E1_ENABLE_PIN      e0_enable_pin
 
 #define E2_STEP_PIN        -1
 #define E2_DIR_PIN         -1
