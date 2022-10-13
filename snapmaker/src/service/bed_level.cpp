@@ -588,6 +588,8 @@ ErrCode BedLevelService::ProbeSensorCalibraitonLeftExtruderPositionConfirm() {
   set_bed_leveling_enabled(true);
   endstops.enable_z_probe(false);
 
+  settings.save();
+
   return err;
 }
 
