@@ -787,19 +787,21 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
     levelservice.UnapplyLiveZOffset(active_extruder);
 
+    planner.synchronize();
+    set_destination_from_current();
+
     if (current_position[X_AXIS] < X_MIN_POS + hotend_offset_tmp[X_AXIS][1]) {
-      do_blocking_move_to_xy(X_MIN_POS + hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS]);
+      do_blocking_move_to_xy(X_MIN_POS + hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS], 50);
     } else if (current_position[X_AXIS] > X_MAX_POS - hotend_offset_tmp[X_AXIS][1]) {
-      do_blocking_move_to_xy(X_MAX_POS - hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS]);
+      do_blocking_move_to_xy(X_MAX_POS - hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS], 50);
     }
 
     if (current_position[Y_AXIS] < Y_MIN_POS + hotend_offset_tmp[Y_AXIS][1]) {
-      do_blocking_move_to_xy(current_position[X_AXIS], Y_MIN_POS + hotend_offset_tmp[Y_AXIS][1]);
+      do_blocking_move_to_xy(current_position[X_AXIS], Y_MIN_POS + hotend_offset_tmp[Y_AXIS][1], 50);
     } else if (current_position[Y_AXIS] > Y_MAX_POS - hotend_offset_tmp[Y_AXIS][1]) {
-      do_blocking_move_to_xy(current_position[X_AXIS], Y_MAX_POS - hotend_offset_tmp[Y_AXIS][1]);
+      do_blocking_move_to_xy(current_position[X_AXIS], Y_MAX_POS - hotend_offset_tmp[Y_AXIS][1], 50);
     }
 
-    set_destination_from_current();
     current_position[Z_AXIS] += toolchange_settings.z_raise;
     NOMORE(current_position[Z_AXIS], soft_endstop[Z_AXIS].max);
     planner.buffer_line(current_position, feedrate_mm_s, active_extruder);
@@ -827,6 +829,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
     apply_motion_limits(destination);
     do_blocking_move_to(destination);
+
     levelservice.ApplyLiveZOffset(active_extruder);
     planner.synchronize();
     active_extruder = new_extruder;
