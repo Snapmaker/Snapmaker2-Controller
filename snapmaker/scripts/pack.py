@@ -84,7 +84,7 @@ def append_body(output, filename):
 def pack_major_image(controller=None, module=None, screen=None, version=None):
     count = 0
     date  = datetime.datetime.today().strftime('%Y%m%d')
-    version_pattern = r"V\d+\.\d+\.\d+"
+    version_pattern = r"V\d+\.\d+\.\d+.+"
 
     if isinstance(module, Path):
         print("module path: {}".format(module.absolute()))
