@@ -2214,6 +2214,9 @@ void MarlinSettings::reset() {
 
   #if HAS_LEVELING
     reset_bed_level();
+    #if ENABLED(ABL_BILINEAR_SUBDIVISION)
+      bed_level_virt_interpolate();
+    #endif
   #endif
 
   #if HAS_BED_PROBE
