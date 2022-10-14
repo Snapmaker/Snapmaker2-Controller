@@ -762,6 +762,8 @@ void ToolHeadDualExtruder::GetZCompensation(float &left_z_compensation, float &r
 }
 
 ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensation/* = true */) {
+  float z_raise = 0;
+
   planner.synchronize();
 
   const bool leveling_was_active = planner.leveling_active;
@@ -788,6 +790,15 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     levelservice.UnapplyLiveZOffset(active_extruder);
 
     planner.synchronize();
+
+    z_raise = current_position[Z_AXIS] + toolchange_settings.z_raise;
+
+    NOMORE(z_raise, soft_endstop[Z_AXIS].max);
+    z_raise = z_raise - current_position[Z_AXIS];
+
+    current_position[Z_AXIS] += z_raise;
+    do_blocking_move_to_z(current_position[Z_AXIS], 30);
+
     set_destination_from_current();
 
     if (current_position[X_AXIS] < X_MIN_POS + hotend_offset_tmp[X_AXIS][1]) {
@@ -801,11 +812,6 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     } else if (current_position[Y_AXIS] > Y_MAX_POS - hotend_offset_tmp[Y_AXIS][1]) {
       do_blocking_move_to_xy(current_position[X_AXIS], Y_MAX_POS - hotend_offset_tmp[Y_AXIS][1], 50);
     }
-
-    current_position[Z_AXIS] += toolchange_settings.z_raise;
-    NOMORE(current_position[Z_AXIS], soft_endstop[Z_AXIS].max);
-    planner.buffer_line(current_position, feedrate_mm_s, active_extruder);
-    planner.synchronize();
 
     if (new_extruder == 0) {
       ModuleCtrlToolChange(new_extruder);
@@ -829,6 +835,9 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
     apply_motion_limits(destination);
     do_blocking_move_to(destination);
+
+    current_position[Z_AXIS] -= z_raise;
+    do_blocking_move_to_z(current_position[Z_AXIS], 30);
 
     levelservice.ApplyLiveZOffset(active_extruder);
     planner.synchronize();
