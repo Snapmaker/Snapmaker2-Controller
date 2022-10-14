@@ -2576,7 +2576,7 @@ void Temperature::isr() {
     /**
      * Standard heater PWM modulation
      */
-    if(MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
+    if(MODULE_TOOLHEAD_3DP == ModuleBase::toolhead() || MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
       if (pwm_count_tmp >= 127) {
         pwm_count_tmp -= 127;
         #define _PWM_MOD(N,S,T) do{                           \
