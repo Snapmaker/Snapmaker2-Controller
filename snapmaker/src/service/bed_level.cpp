@@ -493,10 +493,9 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
 
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
+   // make sure active responding nozzle and sensor
+  printer1->ModuleCtrlToolChange(0);
   process_cmd_imd("G28");
-
-  // make sure active responding nozzle and sensor
-  printer1->ToolChange(0, false);
   printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
 
   planner.synchronize();
@@ -631,12 +630,12 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
       z_values_tmp[x][y] = 0;
     }
   }
+  // make sure the left nozzle is active
+  printer1->ModuleCtrlToolChange(0);
   process_cmd_imd("G28\n");
+
   snprintf(cmd, 16, "G1029 P%u\n", grid);
   process_cmd_imd(cmd);
-
-  // make sure the left nozzle is active
-  printer1->ToolChange(0, false);
 
   set_bed_leveling_enabled(false);
 
@@ -1009,8 +1008,9 @@ ErrCode BedLevelService::DualExtruderLeftExtruderManualBedDetect() {
 
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
+  // make active left extruder
+  printer1->ModuleCtrlToolChange(0);
   process_cmd_imd("G28");
-  printer1->ToolChange(1, false);
   planner.synchronize();
 
   set_bed_leveling_enabled(false);
