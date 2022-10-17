@@ -152,6 +152,7 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode ModuleCtrlProbeStateSync() { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSetPid(float p, float i, float d) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlToolChange(uint8_t new_extruder) { return E_SUCCESS; }
+    virtual ErrCode ModuleCtrlSetExtruderChecking(bool on_off) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSaveZCompensation(float *val) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0) { return E_SUCCESS; }

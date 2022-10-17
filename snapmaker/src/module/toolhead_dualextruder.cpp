@@ -625,9 +625,6 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderMove(move_type_e type, floa
     case GO_HOME:
     case MOVE_SYNC:
       ret = canhost.SendStdCmdSync(cmd, 20000);
-      // LOG_I("recv, move type: %d, move result: %d\n", recv_buf[0], recv_buf[1]);
-      // 报错
-      // todo
       break;
     case MOVE_ASYNC:
       ret = canhost.SendStdCmd(cmd, 0);
@@ -639,6 +636,12 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderMove(move_type_e type, floa
 
   if (ret != E_SUCCESS) {
     LOG_E("failed to move extruder, ret: %u\n", ret);
+  }
+  else {
+    if (type == GO_HOME) {
+      // enable extruder checking
+      ModuleCtrlSetExtruderChecking(true);
+    }
   }
 
   return ret;
@@ -653,6 +656,20 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlToolChange(uint8_t new_extruder) {
   cmd.id          = MODULE_FUNC_SWITCH_EXTRUDER;
   cmd.data        = buffer;
   cmd.length      = index;
+  return canhost.SendStdCmdSync(cmd, 5000);
+}
+
+ErrCode ToolHeadDualExtruder::ModuleCtrlSetExtruderChecking(bool on_off) {
+  CanStdFuncCmd_t cmd;
+  uint8_t buffer[CAN_FRAME_SIZE];
+
+  #define EXTRUDER_CHECKING_IDLE    (1)
+  #define EXTRUDER_CHECKING_ENABLE  (0)
+
+  buffer[0]     = on_off? EXTRUDER_CHECKING_ENABLE : EXTRUDER_CHECKING_IDLE;
+  cmd.id          = MODULE_SET_EXTRUDER_CHECK;
+  cmd.data        = buffer;
+  cmd.length      = 1;
   return canhost.SendStdCmdSync(cmd, 5000);
 }
 
