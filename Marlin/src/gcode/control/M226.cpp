@@ -37,7 +37,7 @@ void GcodeSuite::M226() {
       if (pin_is_protected(pin))
         protected_pin_err();
       else {
-        int target = LOW;
+        uint32_t target = LOW;
         planner.synchronize();
         pinMode(pin, INPUT);
         switch (pin_state) {

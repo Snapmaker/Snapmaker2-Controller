@@ -70,11 +70,11 @@ enum {
 //
 // Steppers
 //
-extern uint8_t x_step_pin, x_dir_pin, x_enable_pin;
-extern uint8_t y_step_pin, y_dir_pin, y_enable_pin;
-extern uint8_t z_step_pin, z_dir_pin, z_enable_pin;
-extern uint8_t b_step_pin, b_dir_pin, b_enable_pin;
-extern uint8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
+extern int8_t x_step_pin, x_dir_pin, x_enable_pin;
+extern int8_t y_step_pin, y_dir_pin, y_enable_pin;
+extern int8_t z_step_pin, z_dir_pin, z_enable_pin;
+extern int8_t b_step_pin, b_dir_pin, b_enable_pin;
+extern int8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
 #define X_STEP_PIN         x_step_pin
 #define X_DIR_PIN          x_dir_pin
 #define X_ENABLE_PIN       x_enable_pin

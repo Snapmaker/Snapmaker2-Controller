@@ -35,9 +35,9 @@
 void GcodeSuite::G42() {
   if (MOTION_CONDITIONS) {
     const bool hasI = parser.seenval('I');
-    const int8_t ix = hasI ? parser.value_int() : 0;
+    const uint32_t ix = hasI ? parser.value_int() : 0;
     const bool hasJ = parser.seenval('J');
-    const int8_t iy = hasJ ? parser.value_int() : 0;
+    const uint32_t iy = hasJ ? parser.value_int() : 0;
 
     if ((hasI && !WITHIN(ix, 0, GRID_MAX_POINTS_X - 1)) || (hasJ && !WITHIN(iy, 0, GRID_MAX_POINTS_Y - 1))) {
       SERIAL_ECHOLNPGM(MSG_ERR_MESH_XY);
