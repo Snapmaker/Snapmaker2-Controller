@@ -123,6 +123,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode ModuleCtrlRightExtruderPosSync();
     ErrCode ModuleCtrlSetPid(float p, float i, float d);
     ErrCode ModuleCtrlToolChange(uint8_t new_extruder);
+    ErrCode ModuleCtrlSetExtruderChecking(bool on_off);
     ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis);
     ErrCode ModuleCtrlSaveZCompensation(float *val);
     ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0);
