@@ -53,6 +53,8 @@
 #define FAULT_FLAG_UNKNOW_MODEL       (1<<20)
 #define FAULT_FLAG_DOOR_OPENED        (1<<21)
 #define FAULT_FLAG_POWER_DETECT_ERR   (1<<22)
+#define FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH  (1<<23) // active extruder is not target extruder!
+#define FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE     (1<<24) // detect a unknown nozzle or miss nozzle
 #define FAULT_FLAG_UNKNOW             (1<<31)
 
 // this macro mask the bits which are allow to be cleared by screen
@@ -101,6 +103,8 @@ enum ExceptionType : uint8_t {
   ETYPE_SENSOR_COME_OFF,
   ETYPE_LINEAR_MODULE_DIFF_DRIVER,
   ETYPE_LINEAR_MODULE_LEAD_ERROR,
+  ETYPE_3DP2E_EXTRUDER_MISMATCH,
+  ETYPE_3DP2E_UNKNOWN_NOZZLE,
 
   ETYPE_INVALID
 };
