@@ -41,9 +41,9 @@ void GcodeSuite::M3002() {
   const bool seen_l = parser.seenval('L');
   if (seen_l) {
     uint8_t stage = (uint8_t)parser.byteval('L', (uint8_t)0);
-    SSTP_Event_t event;
-    uint8_t buf[10];
-    event.data = buf;
+    // SSTP_Event_t event;
+    // uint8_t buf[10];
+    // event.data = buf;
     switch (stage) {
       case 0:
         levelservice.ProbeSensorCalibrationLeftExtruderAutoProbe();

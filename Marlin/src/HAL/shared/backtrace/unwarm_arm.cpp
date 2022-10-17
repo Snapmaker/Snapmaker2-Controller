@@ -127,7 +127,7 @@ UnwResult UnwStartArm(UnwState * const state) {
       #ifdef UNW_DEBUG
         const bool R = !!(instr & 0x00400000);
       #else
-        constexpr bool R = false;
+        // constexpr bool R = false;
       #endif
       uint8_t rd = (instr & 0x0000F000) >> 12;
       UnwPrintd4("MRS r%d,%s\t; r%d invalidated", rd, R ? "SPSR" : "CPSR", rd);

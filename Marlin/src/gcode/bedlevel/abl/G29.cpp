@@ -313,10 +313,10 @@ G29_TYPE GcodeSuite::G29() {
           // Get nearest i / j from rx / ry
           i = (rx - bilinear_start[X_AXIS] + 0.5 * xGridSpacing) / xGridSpacing;
           j = (ry - bilinear_start[Y_AXIS] + 0.5 * yGridSpacing) / yGridSpacing;
-          i = constrain(i, 0, GRID_MAX_POINTS_X - 1);
-          j = constrain(j, 0, GRID_MAX_POINTS_Y - 1);
+          i = constrain(i, 0, (int8_t)(GRID_MAX_POINTS_X - 1));
+          j = constrain(j, 0, (int8_t)(GRID_MAX_POINTS_Y - 1));
         }
-        if (WITHIN(i, 0, GRID_MAX_POINTS_X - 1) && WITHIN(j, 0, GRID_MAX_POINTS_Y)) {
+        if (WITHIN(i, 0, (int8_t)(GRID_MAX_POINTS_X - 1)) && WITHIN(j, 0, (int8_t)GRID_MAX_POINTS_Y)) {
           set_bed_leveling_enabled(false);
           z_values[i][j] = rz;
           #if ENABLED(ABL_BILINEAR_SUBDIVISION)

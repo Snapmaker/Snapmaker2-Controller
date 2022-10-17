@@ -307,7 +307,7 @@ float bilinear_z_offset(const float raw[XYZ]) {
     #endif
 
     gridx = gx;
-    nextx = MIN(gridx + 1, ABL_BG_POINTS_X - 1);
+    nextx = MIN(gridx + 1, (int8_t)(ABL_BG_POINTS_X - 1));
   }
 
   if (last_y != ry || last_gridx != gridx) {
@@ -324,7 +324,7 @@ float bilinear_z_offset(const float raw[XYZ]) {
       #endif
 
       gridy = gy;
-      nexty = MIN(gridy + 1, ABL_BG_POINTS_Y - 1);
+      nexty = MIN(gridy + 1, (int8_t)(ABL_BG_POINTS_Y - 1));
     }
 
     if (last_gridx != gridx || last_gridy != gridy) {
@@ -472,14 +472,14 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
   static int direction [4][2] = {{1, 0}, {0, 1}, {-1, 0}, {0, -1}};
   memset(visited, 0, sizeof(visited[0][0]) * GRID_MAX_NUM * GRID_MAX_NUM);
 
-  int cur_x = 0;
-  int cur_y = 0;
+  uint32_t cur_x = 0;
+  uint32_t cur_y = 0;
   float z;
 
   int dir_idx = 0;
   do_blocking_move_to_z(15, 10);
 
-  for (int k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
+  for (uint32_t k = 0; k < GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y; ++k) {
     LOG_I("Probing No. %d\n", k);
 
     if (k < (GRID_MAX_POINTS_X * GRID_MAX_POINTS_Y - 1))
@@ -499,8 +499,8 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
         levelservice.SyncPointIndex((uint8_t)(cur_y * GRID_MAX_POINTS_X + cur_x + 1));
     }
 
-    int new_x = cur_x + direction[dir_idx][0];
-    int new_y = cur_y + direction[dir_idx][1];
+    uint32_t new_x = cur_x + direction[dir_idx][0];
+    uint32_t new_y = cur_y + direction[dir_idx][1];
 
     if (new_x >= GRID_MAX_POINTS_X || new_x < 0 || new_y >= GRID_MAX_POINTS_Y || new_y < 0
       || visited[new_x][new_y]) {
@@ -525,8 +525,8 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling) {
 }
 
 void compensate_offset(float offset) {
-  for (int i = 0; i < GRID_MAX_POINTS_X; ++i) {
-    for (int j = 0; j < GRID_MAX_POINTS_Y; ++j) {
+  for (uint32_t i = 0; i < GRID_MAX_POINTS_X; ++i) {
+    for (uint32_t j = 0; j < GRID_MAX_POINTS_Y; ++j) {
       z_values[i][j] -= offset;
     }
   }

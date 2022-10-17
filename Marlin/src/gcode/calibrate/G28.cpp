@@ -262,7 +262,7 @@ void GcodeSuite::G28(const bool always_home_all) {
   // Always home with tool 0 active
   #if HOTENDS > 1
     #if DISABLED(DELTA) || ENABLED(DELTA_HOME_TO_SAFE_ZONE)
-      const uint8_t old_tool_index = active_extruder;
+      // const uint8_t old_tool_index = active_extruder;
     #endif
     // tool_change(0, 0, true);
   #endif

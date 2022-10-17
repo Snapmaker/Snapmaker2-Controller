@@ -2111,11 +2111,11 @@ bool Stepper::is_block_busy(const block_t* const block) {
   return block == vnew;
 }
 
-uint8_t x_step_pin, x_dir_pin, x_enable_pin;
-uint8_t y_step_pin, y_dir_pin, y_enable_pin;
-uint8_t z_step_pin, z_dir_pin, z_enable_pin;
-uint8_t b_step_pin, b_dir_pin, b_enable_pin;
-uint8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
+int8_t x_step_pin, x_dir_pin, x_enable_pin;
+int8_t y_step_pin, y_dir_pin, y_enable_pin;
+int8_t z_step_pin, z_dir_pin, z_enable_pin;
+int8_t b_step_pin, b_dir_pin, b_enable_pin;
+int8_t e0_step_pin, e0_dir_pin, e0_enable_pin;
 
 void Stepper::StepperPinRemap() {
   uint8_t port_to_pin[][STEPPER_PIN_COUNT] = PORT_TO_STEP_PIN;
