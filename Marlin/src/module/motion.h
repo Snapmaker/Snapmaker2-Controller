@@ -55,7 +55,7 @@ extern float current_position[X_TO_E],  // High-level current tool position
              destination[X_TO_E];       // Destination for a move
 
 // Scratch space for a cartesian result
-extern float cartes[XN];
+extern float cartes[X_TO_EN];
 
 // Until kinematics.cpp is created, declare this here
 #if IS_KINEMATIC
