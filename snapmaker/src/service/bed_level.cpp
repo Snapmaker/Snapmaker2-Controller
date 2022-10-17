@@ -493,7 +493,6 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
 
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
-
   // go home will make sure active left extruder
   process_cmd_imd("G28");
   printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
@@ -508,7 +507,11 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
   do_blocking_move_to_xy(x, y, XY_SPEED_FOR_DUAL_EXTRUDER);
   do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
   planner.synchronize();
+  // disable checking
+  printer1->ModuleCtrlSetExtruderChecking(false);
   left_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
+  // enable checking
+  printer1->ModuleCtrlSetExtruderChecking(true);
 
   if (isnan(left_extruder_auto_probe_position_)) {
     err = E_FAILURE;
@@ -534,7 +537,10 @@ ErrCode BedLevelService::ProbeSensorCalibrationRightExtruderAutoProbe() {
   do_blocking_move_to_xy(x, y, XY_SPEED_FOR_DUAL_EXTRUDER);
   do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
   planner.synchronize();
+
+  printer1->ModuleCtrlSetExtruderChecking(false);
   right_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
+  printer1->ModuleCtrlSetExtruderChecking(true);
 
   if (isnan(right_extruder_auto_probe_position_)) {
     err = E_FAILURE;
@@ -686,7 +692,10 @@ ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event)
   // make sure power of probe sensor is turned on
   printer1->ModuleCtrlProximitySwitchPower(1);
 
+  printer1->ModuleCtrlSetExtruderChecking(false);
   z_values_tmp[x_index][y_index]  = probe_pt(probe_x, probe_y, PROBE_PT_RAISE, 0, false);
+  printer1->ModuleCtrlSetExtruderChecking(true);
+
   if (isnan(z_values_tmp[x_index][y_index])) {
     LOG_E("got a non number!\n");
     err = E_FAILURE;
@@ -714,7 +723,9 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
   planner.synchronize();
 
   printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
+  printer1->ModuleCtrlSetExtruderChecking(false);
   left_extruder_auto_probe_position_ = probe_pt(probe_x, probe_y, PROBE_PT_RAISE, 0, false);
+  printer1->ModuleCtrlSetExtruderChecking(true);
   if (isnan(left_extruder_auto_probe_position_)) {
     err = E_FAILURE;
     goto EXIT;
@@ -907,7 +918,9 @@ ErrCode BedLevelService::DualExtruderLeftExtruderAutoBedDetect() {
   do_blocking_move_to_xy(x, y, XY_SPEED_FOR_DUAL_EXTRUDER);
   do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
   planner.synchronize();
+  printer1->ModuleCtrlSetExtruderChecking(false);
   left_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
+  printer1->ModuleCtrlSetExtruderChecking(true);
   endstops.enable_z_probe(false);
 
   if (isnan(left_extruder_auto_probe_position_)) {
@@ -939,7 +952,9 @@ ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
   do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
   planner.synchronize();
 
+  printer1->ModuleCtrlSetExtruderChecking(false);
   right_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
+  printer1->ModuleCtrlSetExtruderChecking(true);
   endstops.enable_z_probe(false);
 
   if (isnan(right_extruder_auto_probe_position_)) {
