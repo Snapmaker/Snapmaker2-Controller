@@ -165,7 +165,7 @@ const float homing_feedrate_mm_s[XN] PROGMEM = {
 };
 
 // Cartesian conversion result goes here:
-float cartes[XN];
+float cartes[X_TO_EN];
 
 #if IS_KINEMATIC
 
