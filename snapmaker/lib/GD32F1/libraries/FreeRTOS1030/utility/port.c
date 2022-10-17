@@ -368,6 +368,7 @@ BaseType_t xPortStartScheduler( void )
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled
 	here already. */
 	//vPortSetupTimerInterrupt();
+	extern void systick_attach_callback(void (*callback)(void));
 	systick_attach_callback(&xPortSysTickHandler);
 	// !!! Maple
 
