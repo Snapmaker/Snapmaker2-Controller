@@ -1027,6 +1027,24 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     }
     break;
 
+  case ETYPE_3DP2E_EXTRUDER_MISMATCH:
+    if (h == EHOST_EXECUTOR) {
+      LOG_E("active extruder mismatch target: %u!\n", active_extruder);
+      new_fault_flag = FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH;
+      action = EACTION_STOP_HEATING_HOTEND | EACTION_PAUSE_WORKING;
+      action_ban = ACTION_BAN_NO_HEATING_HOTEND | ACTION_BAN_NO_WORKING;
+    }
+    break;
+
+  case ETYPE_3DP2E_UNKNOWN_NOZZLE:
+    if (h == EHOST_EXECUTOR) {
+      LOG_E("detect unknown nozzle!\n");
+      new_fault_flag = FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE;
+      action = EACTION_STOP_HEATING_HOTEND | EACTION_PAUSE_WORKING;
+      action_ban = ACTION_BAN_NO_HEATING_HOTEND | ACTION_BAN_NO_WORKING;
+    }
+    break;
+
   default:
     LOG_E("unknown Exception [%d] happened with Host [%d]\n", t, h);
     return E_FAILURE;
@@ -1357,6 +1375,20 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
     }
     break;
 
+  case ETYPE_3DP2E_EXTRUDER_MISMATCH:
+    if (h == EHOST_EXECUTOR) {
+      fault_flag_ &= ~FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH;
+      action_ban = ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND;
+    }
+    break;
+
+  case ETYPE_3DP2E_UNKNOWN_NOZZLE:
+    if (h == EHOST_EXECUTOR) {
+      fault_flag_ &= ~FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE;
+      action_ban = ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND;
+    }
+    break;
+
   default:
     LOG_E("unknown Exception [%d] happened with Host [%d]\n", t, h);
     return E_FAILURE;
@@ -1478,6 +1510,16 @@ void SystemService::MapFaultFlagToException(uint32_t flag, ExceptionHost &host, 
   case FAULT_FLAG_UNKNOW_MODEL:
     host = EHOST_MC;
     type = ETYPE_NO_HOST;
+    break;
+
+  case FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH:
+    host = EHOST_EXECUTOR;
+    type = ETYPE_3DP2E_EXTRUDER_MISMATCH;
+    break;
+
+  case FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE:
+    host = EHOST_EXECUTOR;
+    type = ETYPE_3DP2E_UNKNOWN_NOZZLE;
     break;
 
   default:

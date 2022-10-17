@@ -317,9 +317,10 @@ void ToolHeadDualExtruder::ReportHotendType(uint8_t *data) {
         LOG_I("nozzle_index: %d, type: %d\n", i, hotend_type[i]);
       #endif
     }
+    systemservice.ClearException(EHOST_EXECUTOR, ETYPE_3DP2E_UNKNOWN_NOZZLE);
   } else {
-    // report error
-    // todo
+    systemservice.ThrowException(EHOST_EXECUTOR, ETYPE_3DP2E_UNKNOWN_NOZZLE);
+    hotend_type_initialized_ = false;
   }
 }
 
@@ -327,11 +328,9 @@ void ToolHeadDualExtruder::ReportExtruderInfo(uint8_t *data) {
   uint8_t extruder_state = data[0];
 
   if (extruder_state) {
-    // 报错
-    // TODO
+    systemservice.ThrowException(EHOST_EXECUTOR, ETYPE_3DP2E_EXTRUDER_MISMATCH);
   } else {
-    // 清除错误
-    // TODO
+    systemservice.ClearException(EHOST_EXECUTOR, ETYPE_3DP2E_EXTRUDER_MISMATCH);
   }
 }
 
