@@ -323,6 +323,7 @@ void QuickStopService::EmergencyStop() {
     case MACHINE_TYPE_DUALEXTRUDER:
       printer1->SetFan(1, 0);
       printer1->SetFan(0, 0);
+      printer1->SetFan(2, 0);
       break;
     case MACHINE_TYPE_LASER:
     case MACHINE_TYPE_LASER_10W:
