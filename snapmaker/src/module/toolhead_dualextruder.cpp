@@ -792,6 +792,8 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
     planner.synchronize();
 
+    LOG_I("\norigin pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
+
     z_raise = current_position[Z_AXIS] + toolchange_settings.z_raise;
 
     NOMORE(z_raise, soft_endstop[Z_AXIS].max);
@@ -799,7 +801,11 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
     current_position[Z_AXIS] += z_raise;
 
+    LOG_I("raise: %.3f, endstop max: %.3f, z offset\n", z_raise, soft_endstop[Z_AXIS].max, hotend_offset_tmp[Z_AXIS][1]);
+
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
+
+    LOG_I("start pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
     set_destination_from_current();
 
@@ -833,6 +839,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     current_position[X_AXIS] += xdiff;
     current_position[Y_AXIS] += ydiff;
     current_position[Z_AXIS] += zdiff;
+    LOG_I("offset pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
     sync_plan_position();
 
     apply_motion_limits(destination);
@@ -840,6 +847,8 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
     current_position[Z_AXIS] -= z_raise;
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
+
+    LOG_I("end pos: %.3f, %.3f, %.3f\n\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
     active_extruder = new_extruder;
     // here we should apply live z offset of new extruder!
