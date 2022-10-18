@@ -96,7 +96,7 @@ void GcodeSuite::M106() {
  */
 void GcodeSuite::M107() {
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) return;
+  if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead() && MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead()) return;
     uint8_t p = parser.byteval('P', 0);
     NOMORE(p, 4);
     if(p < 4)

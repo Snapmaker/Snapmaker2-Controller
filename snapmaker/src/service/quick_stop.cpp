@@ -220,6 +220,7 @@ void QuickStopService::Park() {
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
+  case MODULE_TOOLHEAD_DUALEXTRUDER:
     if(thermalManager.temp_hotend[0].current > 180)
       retract = 6;
 
@@ -319,6 +320,7 @@ void QuickStopService::EmergencyStop() {
       cnc.TurnOff();
       break;
     case MACHINE_TYPE_3DPRINT:
+    case MACHINE_TYPE_DUALEXTRUDER:
       printer1->SetFan(1, 0);
       printer1->SetFan(0, 0);
       break;

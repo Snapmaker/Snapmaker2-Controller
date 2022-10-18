@@ -326,12 +326,14 @@ void reset_homeoffset() {
 void set_min_planner_speed() {
   switch (ModuleBase::toolhead()) {
     case MODULE_TOOLHEAD_3DP:
+    case MODULE_TOOLHEAD_DUALEXTRUDER:
       planner.min_planner_speed = print_min_planner_speed;
       break;
     case MODULE_TOOLHEAD_CNC:
       planner.min_planner_speed = cnc_min_planner_speed;
       break;
     case MODULE_TOOLHEAD_LASER:
+    case MODULE_TOOLHEAD_LASER_10W:
       planner.min_planner_speed = laser_min_planner_speed;
       break;
     default:
