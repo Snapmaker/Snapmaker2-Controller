@@ -493,8 +493,8 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
 
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
-   // make sure active responding nozzle and sensor
-  printer1->ModuleCtrlToolChange(0);
+
+  // go home will make sure active left extruder
   process_cmd_imd("G28");
   printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
 
@@ -579,10 +579,10 @@ ErrCode BedLevelService::ProbeSensorCalibraitonLeftExtruderPositionConfirm() {
   LOG_I("hotend_offset_z: %.2f\n", hotend_offset[Z_AXIS][1]);
   printer1->ModuleCtrlSaveHotendOffset(hotend_offset[Z_AXIS][1], Z_AXIS);
 
-  if (current_position[Z_AXIS] + 100 < Z_MAX_POS)
+  if (current_position[Z_AXIS] + 100 < soft_endstop[Z_AXIS].max)
     do_blocking_move_to_z(current_position[Z_AXIS] + 100, Z_SPEED_FOR_DUAL_EXTRUDER);
   else
-    do_blocking_move_to_z(Z_MAX_POS, Z_SPEED_FOR_DUAL_EXTRUDER);
+    do_blocking_move_to_z(soft_endstop[Z_AXIS].max, Z_SPEED_FOR_DUAL_EXTRUDER);
 
   set_bed_leveling_enabled(true);
   endstops.enable_z_probe(false);
@@ -625,13 +625,14 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
 
+  // clear temporary buffer
   for (int x = 0; x < GRID_MAX_NUM; x++) {
     for (int y = 0; y < GRID_MAX_NUM; y++) {
       z_values_tmp[x][y] = 0;
     }
   }
-  // make sure the left nozzle is active
-  printer1->ModuleCtrlToolChange(0);
+
+  // go home will make sure active left extruder
   process_cmd_imd("G28\n");
 
   snprintf(cmd, 16, "G1029 P%u\n", grid);
@@ -653,7 +654,7 @@ EXIT:
 
 ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
-  float probe_x, probe_y, probe_z;
+  float probe_x, probe_y;
   uint8_t x_index, y_index;
 
 
@@ -685,15 +686,11 @@ ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event)
   // make sure power of probe sensor is turned on
   printer1->ModuleCtrlProximitySwitchPower(1);
 
-  probe_z  = probe_pt(probe_x, probe_y, PROBE_PT_RAISE, 0, false);
-  if (isnan(probe_z)) {
+  z_values_tmp[x_index][y_index]  = probe_pt(probe_x, probe_y, PROBE_PT_RAISE, 0, false);
+  if (isnan(z_values_tmp[x_index][y_index])) {
     LOG_E("got a non number!\n");
-    E_FAILURE;
-    goto EXIT;
+    err = E_FAILURE;
   }
-
-  // save data to temporary position, to avoid aborting test
-  z_values_tmp[x_index][y_index] = probe_z;
 
 EXIT:
   event.data   = &err;
@@ -741,10 +738,10 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
   }
 
 EXIT:
-  if (current_position[Z_AXIS] + 100 < Z_MAX_POS)
+  if (current_position[Z_AXIS] + 100 < soft_endstop[Z_AXIS].max)
     do_blocking_move_to_z(current_position[Z_AXIS] + 100, Z_SPEED_FOR_DUAL_EXTRUDER);
   else
-    do_blocking_move_to_z(Z_MAX_POS, Z_SPEED_FOR_DUAL_EXTRUDER);
+    do_blocking_move_to_z(soft_endstop[Z_AXIS].max, Z_SPEED_FOR_DUAL_EXTRUDER);
 
   set_bed_leveling_enabled(true);
   printer1->ModuleCtrlProximitySwitchPower(0);
@@ -856,10 +853,10 @@ ErrCode BedLevelService::FinishDualExtruderManualLeveling(SSTP_Event_t &event) {
   print_bilinear_leveling_grid();
   print_bilinear_leveling_grid_virt();
 
-  if (current_position[Z_AXIS] + 100 < Z_MAX_POS)
+  if (current_position[Z_AXIS] + 100 < soft_endstop[Z_AXIS].max)
     do_blocking_move_to_z(current_position[Z_AXIS] + 100, Z_SPEED_FOR_DUAL_EXTRUDER);
   else
-    do_blocking_move_to_z(Z_MAX_POS, Z_SPEED_FOR_DUAL_EXTRUDER);
+    do_blocking_move_to_z(soft_endstop[Z_AXIS].max, Z_SPEED_FOR_DUAL_EXTRUDER);
 
   set_bed_leveling_enabled(true);
   event.data = &err;
@@ -895,9 +892,10 @@ ErrCode BedLevelService::DualExtruderLeftExtruderAutoBedDetect() {
 
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
+
+  // go home will make sure active left extruder
   process_cmd_imd("G28");
 
-  printer1->ToolChange(0, false);
   planner.synchronize();
 
   set_bed_leveling_enabled(false);
@@ -920,7 +918,7 @@ ErrCode BedLevelService::DualExtruderLeftExtruderAutoBedDetect() {
     set_bed_leveling_enabled(true);
   }
 
-  LOG_I("probed z value: %.2f\n", left_extruder_auto_probe_position_);
+  LOG_I("probed z value: %.3f\n", left_extruder_auto_probe_position_);
 
   return err;
 }
@@ -949,28 +947,35 @@ ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
     right_extruder_auto_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
     return err;
   }
-  LOG_I("probed z value: %.2f\n", right_extruder_auto_probe_position_);
+  LOG_I("probed z value: %.3f\n", right_extruder_auto_probe_position_);
 
   float left_z_compensation = 1, right_z_compensation = 1;
   printer1->GetZCompensation(left_z_compensation, right_z_compensation);
+
   float left_extruder_touch_bed_position  = left_extruder_auto_probe_position_ + left_z_compensation;
   float right_extruder_touch_bed_position = right_extruder_auto_probe_position_ + right_z_compensation;
   hotend_offset[Z_AXIS][1] = left_extruder_touch_bed_position - right_extruder_touch_bed_position;
+
+  LOG_I("compensation: [%.3f, %.3f], bed pos:[%.3f, %.3f]\n", left_z_compensation, right_z_compensation,
+    left_extruder_touch_bed_position, right_extruder_touch_bed_position);
+
   float z_offset = z_values[GRID_MAX_POINTS_X/2][GRID_MAX_POINTS_Y/2] - left_extruder_touch_bed_position;
   for (uint32_t i = 0; i < GRID_MAX_POINTS_X; i++) {
     for (uint32_t j = 0; j < GRID_MAX_POINTS_Y; j++) {
       z_values[i][j] -= z_offset;
     }
   }
+
+  LOG_I("hotend z offset: %.3f, level z offset: %.3f\n", hotend_offset[Z_AXIS][1], z_offset);
   bed_level_virt_interpolate();
   settings.save();
   print_bilinear_leveling_grid();
   print_bilinear_leveling_grid_virt();
 
-  if (current_position[Z_AXIS] + 100 < Z_MAX_POS)
+  if (current_position[Z_AXIS] + 100 < soft_endstop[Z_AXIS].max)
     do_blocking_move_to_z(current_position[Z_AXIS] + 100, Z_SPEED_FOR_DUAL_EXTRUDER);
   else
-    do_blocking_move_to_z(Z_MAX_POS, Z_SPEED_FOR_DUAL_EXTRUDER);
+    do_blocking_move_to_z(soft_endstop[Z_AXIS].max, Z_SPEED_FOR_DUAL_EXTRUDER);
 
   set_bed_leveling_enabled(true);
 
@@ -1048,10 +1053,10 @@ ErrCode BedLevelService::FinishDualExtruderManualBedDetect() {
   print_bilinear_leveling_grid();
   print_bilinear_leveling_grid_virt();
 
-  if (current_position[Z_AXIS] + 100 < Z_MAX_POS)
+  if (current_position[Z_AXIS] + 100 < soft_endstop[Z_AXIS].max)
     do_blocking_move_to_z(current_position[Z_AXIS] + 100, Z_SPEED_FOR_DUAL_EXTRUDER);
   else
-    do_blocking_move_to_z(Z_MAX_POS, Z_SPEED_FOR_DUAL_EXTRUDER);
+    do_blocking_move_to_z(soft_endstop[Z_AXIS].max, Z_SPEED_FOR_DUAL_EXTRUDER);
 
   set_bed_leveling_enabled(true);
 

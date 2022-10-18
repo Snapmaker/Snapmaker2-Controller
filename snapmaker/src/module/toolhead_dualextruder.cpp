@@ -801,7 +801,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
     current_position[Z_AXIS] += z_raise;
 
-    LOG_I("raise: %.3f, endstop max: %.3f, z offset\n", z_raise, soft_endstop[Z_AXIS].max, hotend_offset_tmp[Z_AXIS][1]);
+    LOG_I("raise: %.3f, endstop max: %.3f, z offset: %.3f\n", z_raise, soft_endstop[Z_AXIS].max, hotend_offset_tmp[Z_AXIS][1]);
 
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
 
