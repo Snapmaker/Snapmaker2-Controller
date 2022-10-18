@@ -207,8 +207,9 @@ void ToolHeadDualExtruder::CheckLevelingData() {
   for (uint32_t i = 0; i < GRID_MAX_POINTS_X; i++) {
     for (uint32_t j = 0; j < GRID_MAX_POINTS_Y; j++) {
       if (z_values[i][j] < MIN_LEVELING_HEIGHT_3DP2E) {
-        LOG_I("found a abnormal level data in point[%u][%u], will reset leveling data\n", i, j);
+        LOG_I("found a abnormal level data[%.3f] in point[%u][%u], will reset leveling data\n", z_values[i][j], i, j);
         reset_bed_level();
+        bed_level_virt_interpolate();
         return;
       }
     }
@@ -780,13 +781,13 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
   if (new_extruder != active_extruder) {
     float hotend_offset_tmp[XYZ][EXTRUDERS] = {0};
-    memset(hotend_offset_tmp, 0, sizeof(hotend_offset_tmp));
     memcpy(hotend_offset_tmp, hotend_offset, sizeof(hotend_offset));
 
     if (!use_compensation) {
       hotend_offset_tmp[Z_AXIS][1] = 0;
     }
 
+    // remove live z offset of old extruder
     levelservice.UnapplyLiveZOffset(active_extruder);
 
     planner.synchronize();
@@ -797,6 +798,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     z_raise = z_raise - current_position[Z_AXIS];
 
     current_position[Z_AXIS] += z_raise;
+
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
 
     set_destination_from_current();
@@ -839,9 +841,9 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     current_position[Z_AXIS] -= z_raise;
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
 
-    levelservice.ApplyLiveZOffset(active_extruder);
-    planner.synchronize();
     active_extruder = new_extruder;
+    // here we should apply live z offset of new extruder!
+    levelservice.ApplyLiveZOffset(active_extruder);
 
     if (new_extruder == 1) {
       ModuleCtrlToolChange(new_extruder);

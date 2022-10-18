@@ -308,6 +308,7 @@ void ModuleBase::SetToolhead(ModuleToolHeadType toolhead) {
       for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
         if (z_values[x][y] != DEFAUT_LEVELING_HEIGHT) {
           z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
+          bed_level_virt_interpolate();
           need_saved = true;
         }
       }
