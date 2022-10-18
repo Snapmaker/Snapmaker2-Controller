@@ -389,6 +389,7 @@ int PowerLossRecovery::SaveEnv(void) {
 	break;
 
   case MODULE_TOOLHEAD_3DP:
+  case MODULE_TOOLHEAD_DUALEXTRUDER:
     for (i = 0; i < PP_FAN_COUNT; i++)
       cur_data_.FanSpeed[i] = printer1->fan_speed(i);
     // extruders' temperature
@@ -613,6 +614,7 @@ ErrCode PowerLossRecovery::ResumeWork() {
 
 	switch (pre_data_.toolhead) {
 	case MODULE_TOOLHEAD_3DP:
+  	case MODULE_TOOLHEAD_DUALEXTRUDER:
 		if (runout.is_filament_runout()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			systemservice.SetSystemFaultBit(FAULT_FLAG_FILAMENT);

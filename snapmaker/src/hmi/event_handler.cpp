@@ -297,7 +297,8 @@ void check_and_request_gcode_again() {
     LOG_E("wait gcode pack timeout and req:%d\n", gocde_pack_start_line());
     ack_gcode_event(EID_FILE_GCODE_PACK_ACK, gocde_pack_start_line());
     if(!planner.movesplanned()) { // and no movement planned
-      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && laser->tim_pwm() > 0) {
+      if ((ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER)
+            && laser->tim_pwm() > 0) {
         systemservice.is_laser_on = true;
         laser->TurnOff();
       }
@@ -458,7 +459,8 @@ static ErrCode HandleFileGcodePack(uint8_t *event_buff, uint16_t size) {
     }
     gcode_buf->is_finish_packet = false;
   }
-  if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && systemservice.is_laser_on) {
+  if ((ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER)
+        && systemservice.is_laser_on) {
     systemservice.is_laser_on = false;
     laser->TurnOn();
   }

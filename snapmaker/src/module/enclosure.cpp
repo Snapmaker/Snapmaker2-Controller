@@ -76,13 +76,14 @@ ErrCode Enclosure::Init(MAC_t &mac, uint8_t mac_index) {
 }
 
 ErrCode Enclosure::PostInit() {
-  if (IsOnline() && ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+  if (IsOnline() && (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP ||
+                      ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)) {
     Disable();
   }
 
   // update the state of the door
   PollDoorState();
-  
+
   return E_SUCCESS;
 }
 
