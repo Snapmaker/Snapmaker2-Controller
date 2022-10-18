@@ -112,7 +112,7 @@ void GcodeSuite::G1029() {
   if (seen_a) {
 
     if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP) {
-      SERIAL_ECHOLN("cannot do auto leveling without ");
+      SERIAL_ECHOLN("cannot do auto leveling without 3DP");
       return;
     }
 

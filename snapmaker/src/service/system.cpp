@@ -134,7 +134,7 @@ ErrCode SystemService::PreProcessStop() {
   feedrate_percentage = 100;
 
   // set temp to 0
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
     thermalManager.setTargetBed(0);
     HOTEND_LOOP() { thermalManager.setTargetHotend(0, e); }
 
@@ -339,6 +339,7 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
+  case MODULE_TOOLHEAD_DUALEXTRUDER:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant!\n");
       fault_flag_ |= FAULT_FLAG_FILAMENT;
@@ -373,6 +374,7 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
 ErrCode SystemService::ResumeProcess() {
   switch(ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
+  case MODULE_DEVICE_ID_DUAL_EXTRUDER:
     set_bed_leveling_enabled(true);
     resume_3dp();
     break;
@@ -428,6 +430,7 @@ ErrCode SystemService::ResumeOver() {
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
+  case MODULE_DEVICE_ID_DUAL_EXTRUDER:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
@@ -596,6 +599,7 @@ ErrCode SystemService::StartWork(TriggerSource s) {
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
+  case MODULE_DEVICE_ID_DUAL_EXTRUDER:
     if (runout.is_filament_runout()) {
       fault_flag_ |= FAULT_FLAG_FILAMENT;
       LOG_E("No filemant!\n");
@@ -768,7 +772,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     if (fault_flag_ & FAULT_FLAG_BED_PORT)
       return E_SAME_STATE;
     new_fault_flag = FAULT_FLAG_BED_PORT;
-    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP)
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
     action_ban |= ACTION_BAN_NO_HEATING_BED;
     power_ban = POWER_DOMAIN_BED;
@@ -784,7 +788,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_HEAT_FAIL:
-    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER)
       return E_SUCCESS;
     switch (h) {
     case EHOST_HOTEND0:
@@ -813,7 +817,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_TEMP_RUNAWAY:
-    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER)
       return E_SUCCESS;
     switch (h) {
     case EHOST_HOTEND0:
@@ -841,7 +845,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_TEMP_REDUNDANCY:
-    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP  && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER)
       return E_SUCCESS;
     LOG_E("Not handle exception: TEMP_REDUNDANCY\n");
     return E_FAILURE;
@@ -850,7 +854,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
   case ETYPE_SENSOR_BAD:
     switch (h) {
     case EHOST_HOTEND0:
-      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
+      if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP  && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER)
         return E_SUCCESS;
       if (fault_flag_ & FAULT_FLAG_HOTEND_SENSOR_BAD)
         return E_SAME_STATE;
@@ -866,7 +870,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_BED_SENSOR_BAD;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
         LOG_E("Detected error in sensor of Bed! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
       }
@@ -880,7 +884,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     break;
 
   case ETYPE_BELOW_MINTEMP:
-    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP)
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_3DP  && ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER)
       return E_SUCCESS;
     LOG_E("Not handle exception: BELOW_MINTEMP\n");
     return E_FAILURE;
@@ -893,7 +897,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_HOTEND_MAXTEMP;
       action = EACTION_STOP_HEATING_HOTEND;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("current temp of hotend is higher than MAXTEMP: %d!\n", HEATER_0_MAXTEMP);
@@ -904,7 +908,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_BED_MAXTEMP;
       action = EACTION_STOP_HEATING_BED;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("current temp of Bed is higher than MAXTEMP: %d!\n", BED_MAXTEMP);
@@ -927,7 +931,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       power_disable = POWER_DOMAIN_HOTEND;
       power_ban = POWER_DOMAIN_HOTEND;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING;
       }
@@ -942,7 +946,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       action_ban = ACTION_BAN_NO_HEATING_BED;
       power_disable = POWER_DOMAIN_BED;
       power_ban = POWER_DOMAIN_BED;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("current temp [%.2f] of Bed is more higher than MAXTEMP: %d!\n", thermalManager.degBed(), BED_MAXTEMP + 5);
@@ -963,7 +967,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_HOTEND;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
@@ -976,7 +980,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_BED_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("current temperature of bed dropped abruptly! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
@@ -997,7 +1001,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_HOTEND;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
@@ -1010,7 +1014,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       new_fault_flag = FAULT_FLAG_BED_SENSOR_COMEOFF;
       action = EACTION_STOP_HEATING_BED;
       action_ban = ACTION_BAN_NO_HEATING_BED;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
       }
       LOG_E("Thermistor of bed maybe come off! temp: %.2f / %d\n", thermalManager.degBed(), thermalManager.degTargetBed());
@@ -1275,7 +1279,7 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SHORTCIRCUIT;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
       power_ban = POWER_DOMAIN_HOTEND;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action_ban |= ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING;
       }
       LOG_I("current temp of hotend is now lower than MAX TEMP: %d!\n", HEATER_0_MAXTEMP);
@@ -1304,7 +1308,7 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action_ban |= ACTION_BAN_NO_WORKING;
       }
       LOG_I("abrupt temperature drop in hotend recover.\n");
@@ -1332,7 +1336,7 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
         return E_SAME_STATE;
       fault_flag_ &= ~FAULT_FLAG_HOTEND_SENSOR_COMEOFF;
       action_ban = ACTION_BAN_NO_HEATING_HOTEND;
-      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action_ban |= ACTION_BAN_NO_WORKING;
       }
       LOG_I("fault of HOTEND SENSOR COME OFF is cleared!\n");
@@ -2021,7 +2025,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
       if (active_extruder == 0) {
         feedrate_percentage = extruders_feedrate_percentage[0];
       }
-    } else if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
+    } else if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead() || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
       extruders_feedrate_percentage[0] = (int16_t)param;
       feedrate_percentage = extruders_feedrate_percentage[0];
     } else {
@@ -2046,7 +2050,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 
   case RENV_TYPE_BED_TEMP:
     LOG_I("new bed temp: %.2f\n", param);
-    if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead()) {
+    if (MODULE_TOOLHEAD_3DP != ModuleBase::toolhead() && MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead()) {
       ret = E_INVALID_STATE;
       break;
     }
