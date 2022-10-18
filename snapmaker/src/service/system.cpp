@@ -2025,9 +2025,9 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
       if (active_extruder == 0) {
         feedrate_percentage = extruders_feedrate_percentage[0];
       }
-    } else if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead() || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+    } else if (MODULE_TOOLHEAD_3DP == ModuleBase::toolhead()) {
       extruders_feedrate_percentage[0] = (int16_t)param;
-      feedrate_percentage = extruders_feedrate_percentage[0];
+      feedrate_percentage = (int16_t)param;
     } else {
       feedrate_percentage = (int16_t)param;
     }
@@ -2109,6 +2109,12 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
       ret = E_PARAM;
       break;
     }
+
+    if (MODULE_TOOLHEAD_DUALEXTRUDER != ModuleBase::toolhead()) {
+      ret = E_INVALID_STATE;
+      break;
+    }
+
     extruders_feedrate_percentage[1] = (int16_t)param;
     if (active_extruder == 1) {
       feedrate_percentage = extruders_feedrate_percentage[1];
@@ -2156,9 +2162,16 @@ ErrCode SystemService::GetRuntimeEnv(SSTP_Event_t &event) {
 
   switch (event.data[0]) {
   case RENV_TYPE_FEEDRATE:
-    tmp_i32 = (int)(pl_recovery.pre_data_.feedrate_percentage * 1000.0f);
-    WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
-    LOG_I("feedrate_percentage: %d\n", pl_recovery.pre_data_.feedrate_percentage);
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER || ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
+      tmp_i32 = (int)(extruders_feedrate_percentage[0] * 1000.0f);
+      WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+      LOG_I("feedrate_percentage 0: %d\n", extruders_feedrate_percentage[0]);
+    }
+    else {
+      tmp_i32 = (int)(extruders_feedrate_percentage[0] * 1000.0f);
+      WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+      LOG_I("feedrate_percentage: %d\n", feedrate_percentage);
+    }
     break;
 
   case RENV_TYPE_LASER_POWER:
@@ -2177,6 +2190,26 @@ ErrCode SystemService::GetRuntimeEnv(SSTP_Event_t &event) {
     tmp_i32 = (int)(pl_recovery.pre_data_.cnc_power * 1000);
     WORD_TO_PDU_BYTES(buff+1, tmp_i32);
     LOG_I("cnc power: %d\n", pl_recovery.pre_data_.cnc_power);
+    break;
+
+  case RENV_TYPE_EXTRUDER1_FEEDRATE:
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER) {
+      buff[0] = E_INVALID_STATE;
+      break;
+    }
+    tmp_i32 = (int)(extruders_feedrate_percentage[1] * 1000.0f);
+    WORD_TO_PDU_BYTES(buff+1, (int)tmp_i32);
+    LOG_I("feedrate_percentage 1: %d\n", extruders_feedrate_percentage[1]);
+    break;
+
+  case RENV_TYPE_EXTRUDER1_ZOFFSET:
+    if (ModuleBase::toolhead() != MODULE_TOOLHEAD_DUALEXTRUDER) {
+      buff[0] = E_INVALID_STATE;
+      break;
+    }
+    tmp_i32 = (int)(levelservice.live_z_offset((uint8_t)1) * 1000);
+    WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    LOG_I("live z offset: %.3f\n", levelservice.live_z_offset((uint8_t)1));
     break;
 
   default:
