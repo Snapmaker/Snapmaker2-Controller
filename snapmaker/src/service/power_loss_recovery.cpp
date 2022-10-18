@@ -393,13 +393,14 @@ int PowerLossRecovery::SaveEnv(void) {
     for (i = 0; i < PP_FAN_COUNT; i++)
       cur_data_.FanSpeed[i] = printer1->fan_speed(i);
     // extruders' temperature
-    HOTEND_LOOP() cur_data_.HeaterTemp[e] = thermalManager.temp_hotend[e].target;
+    HOTEND_LOOP() {
+      cur_data_.HeaterTemp[e]       = thermalManager.temp_hotend[e].target;
+      cur_data_.flow_percentage[e]  = planner.flow_percentage[e];
+      cur_data_.extruders_feedrate_percentage[e] = extruders_feedrate_percentage[e];
+    }
     // heated bed
     cur_data_.BedTamp = thermalManager.temp_bed.target;
-		cur_data_.active_extruder = active_extruder;
-		cur_data_.extruders_feedrate_percentage[0] = extruders_feedrate_percentage[0];
-  	HOTEND_LOOP() cur_data_.extruders_feedrate_percentage[e] = extruders_feedrate_percentage[e];
-		HOTEND_LOOP() cur_data_.flow_percentage[e] = planner.flow_percentage[e];
+    cur_data_.active_extruder = active_extruder;
     break;
 
 	default:
@@ -438,20 +439,16 @@ int PowerLossRecovery::SaveEnv(void) {
 }
 
 void PowerLossRecovery::Resume3DP() {
-	if (pre_data_.active_extruder >= EXTRUDERS) {
-		LOG_E("active extruder error\n");
-		return;
-	}
+	HOTEND_LOOP() {
+    // restore feedrate_percentage
+    extruders_feedrate_percentage[e] = pre_data_.extruders_feedrate_percentage[e];
+    // restore flow_percentage
+    planner.flow_percentage[e] = pre_data_.flow_percentage[e];
+    // restore live_z_offset
+    levelservice.live_z_offset(pre_data_.live_z_offset[e], e);
+  }
 
-	// restore live_z_offset
-	HOTEND_LOOP() levelservice.live_z_offset(pre_data_.live_z_offset[e], e);
-
-	// restore feedrate_percentage
-	HOTEND_LOOP() extruders_feedrate_percentage[e] = pre_data_.extruders_feedrate_percentage[e];
 	feedrate_percentage = extruders_feedrate_percentage[pre_data_.active_extruder];
-
-	// restore flow_percentage
-	HOTEND_LOOP() planner.flow_percentage[e] = pre_data_.flow_percentage[e];
 
 	// enable hotend
 	if(pre_data_.BedTamp > BED_MAXTEMP - 15) {
@@ -460,37 +457,36 @@ void PowerLossRecovery::Resume3DP() {
 		pre_data_.BedTamp = BED_MAXTEMP - 15;
 	}
 
-	if (pre_data_.HeaterTemp[0] > HEATER_0_MAXTEMP - 15) {
-		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
-						pre_data_.BedTamp, HEATER_0_MAXTEMP - 15);
-		pre_data_.HeaterTemp[0] = HEATER_0_MAXTEMP - 15;
-	}
+	if (pre_data_.HeaterTemp[pre_data_.active_extruder] < EXTRUDE_MINTEMP)
+		pre_data_.HeaterTemp[pre_data_.active_extruder] = EXTRUDE_MINTEMP;
 
-	if (pre_data_.HeaterTemp[1] > HEATER_1_MAXTEMP - 15) {
-		LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
-						pre_data_.BedTamp, HEATER_1_MAXTEMP - 15);
-		pre_data_.HeaterTemp[1] = HEATER_1_MAXTEMP - 15;
-	}
+  HOTEND_LOOP() {
+    if (pre_data_.HeaterTemp[e] >= thermalManager.temp_range[e].maxtemp - 15) {
+      LOG_W("recorded hotend temp [%f] is larger than %f, limited it.\n",
+						pre_data_.HeaterTemp[e], thermalManager.temp_range[e].maxtemp - 15);
+      pre_data_.HeaterTemp[e] = thermalManager.temp_range[e].maxtemp - 15;
+    }
 
-	if (pre_data_.HeaterTemp[pre_data_.active_extruder] < 180)
-		pre_data_.HeaterTemp[pre_data_.active_extruder] = 180;
+    thermalManager.setTargetHotend(pre_data_.HeaterTemp[e], e);
+  }
+
+	thermalManager.setTargetBed(pre_data_.BedTamp);
 
 	/* when recover 3DP from power-loss, maybe the filament is freezing because
 	 * nozzle has been cooling. If we raise Z in this condition, the model will
 	 * be pulled up, sometimes it will break the model.
-	 * So we heating the hotend to 150 celsius degree before raising Z
+	 * So we heating the hotend to EXTRUDE_MINTEMP celsius degree before raising Z
 	 */
-	thermalManager.setTargetBed(pre_data_.BedTamp);
-	thermalManager.setTargetHotend(pre_data_.HeaterTemp[0], 0);
-	thermalManager.setTargetHotend(pre_data_.HeaterTemp[1], 1);
-
   while (thermalManager.degHotend(pre_data_.active_extruder) < 150) idle();
 
 	RestoreWorkspace();
 
+  // must active responding extruder after go home
+  printer1->ToolChange(pre_data_.active_extruder);
+
 	// waiting temperature reach target
 	thermalManager.wait_for_bed(true);
-	thermalManager.wait_for_hotend(0, true);
+	thermalManager.wait_for_hotend(pre_data_.active_extruder, true);
 
   	// recover FAN speed after heating to save time
 	for (int i = 0; i < PP_FAN_COUNT; i++) {
@@ -582,8 +578,6 @@ void PowerLossRecovery::RestoreWorkspace() {
 
 	planner.synchronize();
 
-	printer1->ToolChange(pre_data_.active_extruder);
-
 	LOG_I("position shift:\n");
 	LOG_I("X: %.2f, Y: %.2f, Z: %.2f, B: %.2f\n", pre_data_.position_shift[0], pre_data_.position_shift[1],
 													pre_data_.position_shift[2],pre_data_.position_shift[3]);
@@ -614,7 +608,12 @@ ErrCode PowerLossRecovery::ResumeWork() {
 
 	switch (pre_data_.toolhead) {
 	case MODULE_TOOLHEAD_3DP:
-  	case MODULE_TOOLHEAD_DUALEXTRUDER:
+  case MODULE_TOOLHEAD_DUALEXTRUDER:
+    if (pre_data_.active_extruder >= EXTRUDERS) {
+      LOG_E("active extruder error\n");
+      return E_HARDWARE;
+    }
+
 		if (runout.is_filament_runout()) {
 			LOG_E("trigger RESTORE: failed, filament runout\n");
 			systemservice.SetSystemFaultBit(FAULT_FLAG_FILAMENT);
