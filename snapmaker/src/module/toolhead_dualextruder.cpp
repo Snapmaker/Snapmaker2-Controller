@@ -779,7 +779,12 @@ void ToolHeadDualExtruder::GetZCompensation(float &left_z_compensation, float &r
 }
 
 ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensation/* = true */) {
-  float z_raise = 0;
+  volatile int32_t xdiff_scaled, ydiff_scaled, zdiff_scaled;
+  volatile float xdiff, ydiff, zdiff;
+  volatile float hotend_offset_tmp[XYZ][HOTENDS] {0};
+  volatile float z_raise = 0;
+
+  uint32_t old_extruder;
 
   planner.synchronize();
 
@@ -796,15 +801,18 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
   }
 
   if (new_extruder != active_extruder) {
-    float hotend_offset_tmp[XYZ][EXTRUDERS] = {0};
-    memcpy(hotend_offset_tmp, hotend_offset, sizeof(hotend_offset));
+    // to avoid power-loss, we record the new extruder here
+    old_extruder = active_extruder;
+    active_extruder = new_extruder;
+    LOOP_XYZ(i) {
+      HOTEND_LOOP() {
+        hotend_offset_tmp[i][e] = hotend_offset[i][e];
+      }
+    }
 
     if (!use_compensation) {
       hotend_offset_tmp[Z_AXIS][1] = 0;
     }
-
-    // remove live z offset of old extruder
-    levelservice.UnapplyLiveZOffset(active_extruder);
 
     planner.synchronize();
 
@@ -822,6 +830,9 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
 
     LOG_I("raised pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
+
+    // remove live z offset of old extruder
+    levelservice.UnapplyLiveZOffset(old_extruder);
 
     set_destination_from_current();
 
@@ -841,12 +852,12 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
       ModuleCtrlToolChange(new_extruder);
     }
 
-    float xdiff = hotend_offset_tmp[X_AXIS][new_extruder] - hotend_offset_tmp[X_AXIS][active_extruder];
-    float ydiff = hotend_offset_tmp[Y_AXIS][new_extruder] - hotend_offset_tmp[Y_AXIS][active_extruder];
-    float zdiff = hotend_offset_tmp[Z_AXIS][new_extruder] - hotend_offset_tmp[Z_AXIS][active_extruder];
-    int32_t xdiff_scaled = xdiff * planner.settings.axis_steps_per_mm[X_AXIS];
-    int32_t ydiff_scaled = ydiff * planner.settings.axis_steps_per_mm[Y_AXIS];
-    int32_t zdiff_scaled = zdiff * planner.settings.axis_steps_per_mm[Z_AXIS];
+    xdiff = hotend_offset_tmp[X_AXIS][new_extruder] - hotend_offset_tmp[X_AXIS][active_extruder];
+    ydiff = hotend_offset_tmp[Y_AXIS][new_extruder] - hotend_offset_tmp[Y_AXIS][active_extruder];
+    zdiff = hotend_offset_tmp[Z_AXIS][new_extruder] - hotend_offset_tmp[Z_AXIS][active_extruder];
+    xdiff_scaled = xdiff * planner.settings.axis_steps_per_mm[X_AXIS];
+    ydiff_scaled = ydiff * planner.settings.axis_steps_per_mm[Y_AXIS];
+    zdiff_scaled = zdiff * planner.settings.axis_steps_per_mm[Z_AXIS];
     // Ensure that the divisor is not zero
     // todo
     xdiff = (float)xdiff_scaled / planner.settings.axis_steps_per_mm[X_AXIS];
@@ -865,14 +876,13 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
       ModuleCtrlToolChange(new_extruder);
     }
 
+    // here we should apply live z offset of new extruder!
+    levelservice.ApplyLiveZOffset(active_extruder);
+
     current_position[Z_AXIS] -= z_raise;
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
 
     LOG_I("descent pos: %.3f, %.3f, %.3f\n\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
-
-    active_extruder = new_extruder;
-    // here we should apply live z offset of new extruder!
-    levelservice.ApplyLiveZOffset(active_extruder);
 
     // after swtich extruder, just select relative OPTOCOUPLER
     SelectProbeSensor((probe_sensor_t)(PROBE_SENSOR_LEFT_OPTOCOUPLER + new_extruder));
