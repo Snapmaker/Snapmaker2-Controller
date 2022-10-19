@@ -317,34 +317,33 @@ uint16_t HAL_adc_get_result(void) {
   return HAL_adc_result;
 }
 
-inline uint32_t SaveSR(void)
-{
-	__asm
-	(
-	"mrs r0, primask\n"
-	"CPSID I\n"
-	"bx lr"
-	);
-}
+// inline uint32_t SaveSR(void)
+// {
+// 	__asm
+// 	(
+// 	"mrs r0, primask\n"
+// 	"CPSID I\n"
+// 	"bx lr"
+// 	);
+// }
 
-inline void RestoreSR(uint32_t Sr)
-{
-	__asm
-	(
-	"msr primask, r0\n"
-	"bx lr"
-	);
-}
+// inline void RestoreSR(uint32_t Sr)
+// {
+// 	__asm
+// 	(
+// 	"msr primask, r0\n"
+// 	"bx lr"
+// 	);
+// }
 
-void EnterCritical(uint8_t option)
-{
-	static uint32_t cpu_sr = 0;
-	if(option == 0)
-		RestoreSR(cpu_sr);
-	else
-		cpu_sr = SaveSR();
-}
-
+// void EnterCritical(uint8_t option)
+// {
+// 	static uint32_t cpu_sr = 0;
+// 	if(option == 0)
+// 		RestoreSR(cpu_sr);
+// 	else
+// 		cpu_sr = SaveSR();
+// }
 
 void HAL_uart_reset_rx(HardwareSerial &serial) {
   usart_reset_rx(serial.c_dev());
