@@ -55,7 +55,7 @@ extern float current_position[X_TO_E],  // High-level current tool position
              destination[X_TO_E];       // Destination for a move
 
 // Scratch space for a cartesian result
-extern float cartes[X_TO_EN];
+extern float cartes[XN];
 
 // Until kinematics.cpp is created, declare this here
 #if IS_KINEMATIC
@@ -170,10 +170,6 @@ inline void set_destination_from_current() { COPY(destination, current_position)
 
 void get_cartesian_from_steppers();
 void set_current_from_steppers_for_axis(const AxisEnum axis);
-#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-  void get_all_cartesian_from_steppers();
-  void set_current_position_from_count_position(const AxisEnum axis);
-#endif
 
 /**
  * sync_plan_position
