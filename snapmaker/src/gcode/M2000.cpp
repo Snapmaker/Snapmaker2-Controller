@@ -23,6 +23,7 @@
 #include "../common/config.h"
 
 #include "../service/system.h"
+#include "../service/bed_level.h"
 
 #include "src/gcode/gcode.h"
 #include "src/gcode/queue.h"
@@ -59,6 +60,7 @@ void GcodeSuite::M2000() {
     SERIAL_ECHOPAIR("X: ", workspace_offset[X_AXIS], ", Y: ", workspace_offset[Y_AXIS], ", Z: ", workspace_offset[Z_AXIS], ", B: ", workspace_offset[B_AXIS], "\n");
     SERIAL_ECHOPAIR("cur position:\n");
     SERIAL_ECHOPAIR("X: ", current_position[X_AXIS], ", Y: ", current_position[Y_AXIS], ", Z: ", current_position[Z_AXIS], ", B: ", current_position[B_AXIS], "\n");
+    LOG_I("live Z offset 0: %.2f, 1: %.2f\n", levelservice.live_z_offset((uint8_t)0), levelservice.live_z_offset((uint8_t)1));
     break;
 
   case 1:
