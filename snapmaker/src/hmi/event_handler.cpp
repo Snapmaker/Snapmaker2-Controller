@@ -931,7 +931,7 @@ static ErrCode StopEMoves(SSTP_Event_t &event) {
   while ((stepper.get_abort_e_moves_state() == false) || (time_elaspe + 1000 > millis()));
 
   // Get E where the steppers were interrupted
-  set_current_position_from_count_position(E_AXIS);
+  current_position[E_AXIS] = planner.get_axis_position_mm(E_AXIS);
 
   // Tell the planner where we actually are
   sync_plan_position();

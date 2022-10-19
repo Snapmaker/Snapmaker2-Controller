@@ -370,13 +370,10 @@ int PowerLossRecovery::SaveEnv(void) {
   cur_data_.accumulator = print_job_timer.duration();
 
   // if power loss, we have record the position to cur_data_.PositionData[]
-	// NOTE that we save native position for XYZ
-	for (i=0; i<NUM_AXIS; i++) {
-		cur_data_.PositionData[i] = current_position[i];
-	}
+  // NOTE that we save native position for XYZ
+  LOOP_X_TO_EN(i) cur_data_.PositionData[i] = current_position[i];
 
-	switch (ModuleBase::toolhead())
-	{
+	switch (ModuleBase::toolhead()) {
 	case MODULE_TOOLHEAD_CNC:
 		cur_data_.cnc_power = cnc.power();
 		break;
@@ -385,8 +382,8 @@ int PowerLossRecovery::SaveEnv(void) {
 	case MODULE_TOOLHEAD_LASER_10W:
 		cur_data_.laser_percent = laser->power();
 		cur_data_.laser_pwm = laser->tim_pwm();
-	    laser->TurnOff();
-	break;
+	  laser->TurnOff();
+	  break;
 
   case MODULE_TOOLHEAD_3DP:
   case MODULE_TOOLHEAD_DUALEXTRUDER:
@@ -481,9 +478,6 @@ void PowerLossRecovery::Resume3DP() {
 
 	RestoreWorkspace();
 
-  // must active responding extruder after go home
-  printer1->ToolChange(pre_data_.active_extruder);
-
 	// waiting temperature reach target
 	thermalManager.wait_for_bed(true);
 	thermalManager.wait_for_hotend(pre_data_.active_extruder, true);
@@ -499,7 +493,7 @@ void PowerLossRecovery::Resume3DP() {
 
 	// try to cut out filament
 	current_position[E_AXIS] -= 6;
-	line_to_current_position(50);
+	line_to_current_position(30);
 	planner.synchronize();
 
 	// E axis will be recovered in ResumeOver() using  cur_data_.PositionData[]
@@ -509,6 +503,11 @@ void PowerLossRecovery::Resume3DP() {
 	// move to target X Y
 	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
 	planner.synchronize();
+
+  // must active responding extruder after leave home position
+  // because we can change toolhead there.
+  if (pre_data_.toolhead == MODULE_TOOLHEAD_DUALEXTRUDER)
+    printer1->ToolChange(pre_data_.active_extruder);
 
 	// move to target Z
 	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 30);
@@ -621,8 +620,10 @@ ErrCode PowerLossRecovery::ResumeWork() {
 			return E_NO_FILAMENT;
 		}
 
-		LOG_I("previous target temp: hotend: %d, bed: %d\n", pre_data_.HeaterTemp[0], pre_data_.BedTamp);
-
+		LOG_I("previous target temp: hotend 0: %d, bed: %d\n", pre_data_.HeaterTemp[0], pre_data_.BedTamp);
+    if (pre_data_.toolhead == MODULE_TOOLHEAD_DUALEXTRUDER) {
+      LOG_I("hotend 0: %d\n", pre_data_.HeaterTemp[1]);
+    }
 		Resume3DP();
 		break;
 
