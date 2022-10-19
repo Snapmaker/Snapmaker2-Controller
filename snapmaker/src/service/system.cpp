@@ -99,8 +99,12 @@ ErrCode SystemService::PauseTrigger(TriggerSource type)
     }
     break;
 
+  case TRIGGER_SOURCE_EXCEPTION:
+    LOG_W("pause by exception!\n");
+    break;
+
   default:
-    LOG_W("invlaid trigger source： %d\n", type);
+    LOG_W("invlaid trigger source: %d\n", type);
     return E_PARAM;
     break;
   }
@@ -1031,8 +1035,9 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
     if (h == EHOST_EXECUTOR) {
       LOG_E("active extruder mismatch target: %u!\n", active_extruder);
       new_fault_flag = FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH;
-      action = EACTION_STOP_HEATING_HOTEND | EACTION_PAUSE_WORKING;
-      action_ban = ACTION_BAN_NO_HEATING_HOTEND | ACTION_BAN_NO_WORKING;
+      // for now didn't handle this exception
+      // action = EACTION_STOP_HEATING_HOTEND | EACTION_PAUSE_WORKING;
+      // action_ban = ACTION_BAN_NO_HEATING_HOTEND | ACTION_BAN_NO_WORKING;
     }
     break;
 
