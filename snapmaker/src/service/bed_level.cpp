@@ -453,7 +453,7 @@ void BedLevelService::ApplyLiveZOffset(uint8_t e) {
   current_position[Z_AXIS] = cur_z;
   sync_plan_position();
 
-  LOG_I("Apply Z offset: %.2f\n", live_z_offset_[e]);
+  LOG_I("Apply hotend[%u] Z offset: %.2f\n", e, live_z_offset_[e]);
 }
 
 void BedLevelService::UnapplyLiveZOffset(uint8_t e) {
@@ -475,7 +475,7 @@ void BedLevelService::UnapplyLiveZOffset(uint8_t e) {
   current_position[Z_AXIS] = cur_z;
   sync_plan_position();
 
-  LOG_I("Unapply Z offset: %.2f\n", live_z_offset_[e]);
+  LOG_I("Unapply hotend[%u] Z offset: %.2f\n", e, live_z_offset_[e]);
 }
 
 
