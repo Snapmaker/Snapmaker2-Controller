@@ -437,8 +437,8 @@ ErrCode SystemService::ResumeOver() {
       return E_NO_FILAMENT;
     }
     // filament has been retracted for 6mm in resume process
-    // we pre-extruder 6.5 to get better print quality
-    current_position[E_AXIS] += 6.5;
+    // we pre-extruder 6 to get better print quality
+    current_position[E_AXIS] += 6;
     line_to_current_position(5);
     planner.synchronize();
     current_position[E_AXIS] = pl_recovery.cur_data_.PositionData[E_AXIS];

@@ -165,7 +165,7 @@ const float homing_feedrate_mm_s[XN] PROGMEM = {
 };
 
 // Cartesian conversion result goes here:
-float cartes[X_TO_EN];
+float cartes[XN];
 
 #if IS_KINEMATIC
 
@@ -301,56 +301,12 @@ void set_current_from_steppers_for_axis(const AxisEnum axis) {
         , true
       #endif
     );
-    const float (&cartes)[X_TO_E] = pos;
   #endif
   if (axis == ALL_AXES)
-    COPY(current_position, cartes);
+    COPY(current_position, pos);
   else
-    current_position[axis] = cartes[axis];
+    current_position[axis] = pos[axis];
 }
-
-#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
-  void get_all_cartesian_from_steppers() {
-    #if ENABLED(DELTA)
-      forward_kinematics_DELTA(
-        planner.get_axis_position_mm(A_AXIS),
-        planner.get_axis_position_mm(B_AXIS),
-        planner.get_axis_position_mm(C_AXIS)
-      );
-    #else
-      #if IS_SCARA
-        forward_kinematics_SCARA(
-          planner.get_axis_position_degrees(A_AXIS),
-          planner.get_axis_position_degrees(B_AXIS)
-        );
-      #else
-        cartes[X_AXIS] = planner.get_axis_position_mm(X_AXIS);
-        cartes[Y_AXIS] = planner.get_axis_position_mm(Y_AXIS);
-      #endif
-      cartes[Z_AXIS] = planner.get_axis_position_mm(Z_AXIS);
-      cartes[B_AXIS] = planner.get_axis_position_mm(B_AXIS);
-      cartes[E_AXIS] = planner.get_axis_position_mm(E_AXIS);
-    #endif
-  }
-
-  void set_current_position_from_count_position(const AxisEnum axis) {
-  get_all_cartesian_from_steppers();
-
-  #if HAS_POSITION_MODIFIERS
-    float pos[X_TO_E] = { cartes[X_AXIS], cartes[Y_AXIS], cartes[Z_AXIS], cartes[B_AXIS], cartes[E_AXIS] };
-    planner.unapply_modifiers(pos
-      #if HAS_LEVELING
-        , true
-      #endif
-    );
-    const float (&cartes)[X_TO_E] = pos;
-  #endif
-  if (axis == ALL_AXES)
-    COPY(current_position, cartes);
-  else
-    current_position[axis] = cartes[axis];
-  }
-#endif
 
 /**
  * Move the planner to the current position from wherever it last moved
