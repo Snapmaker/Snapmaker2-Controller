@@ -821,7 +821,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
 
-    LOG_I("start pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
+    LOG_I("raised pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
     set_destination_from_current();
 
@@ -861,18 +861,18 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     apply_motion_limits(destination);
     do_blocking_move_to(destination);
 
+    if (new_extruder == 1) {
+      ModuleCtrlToolChange(new_extruder);
+    }
+
     current_position[Z_AXIS] -= z_raise;
     do_blocking_move_to_z(current_position[Z_AXIS], 30);
 
-    LOG_I("end pos: %.3f, %.3f, %.3f\n\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
+    LOG_I("descent pos: %.3f, %.3f, %.3f\n\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
     active_extruder = new_extruder;
     // here we should apply live z offset of new extruder!
     levelservice.ApplyLiveZOffset(active_extruder);
-
-    if (new_extruder == 1) {
-      ModuleCtrlToolChange(new_extruder);
-    }
 
     // after swtich extruder, just select relative OPTOCOUPLER
     SelectProbeSensor((probe_sensor_t)(PROBE_SENSOR_LEFT_OPTOCOUPLER + new_extruder));
