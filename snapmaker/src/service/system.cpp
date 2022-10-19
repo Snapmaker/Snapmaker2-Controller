@@ -374,7 +374,7 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
 ErrCode SystemService::ResumeProcess() {
   switch(ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
-  case MODULE_DEVICE_ID_DUAL_EXTRUDER:
+  case MODULE_TOOLHEAD_DUALEXTRUDER:
     set_bed_leveling_enabled(true);
     resume_3dp();
     break;
@@ -430,7 +430,7 @@ ErrCode SystemService::ResumeOver() {
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
-  case MODULE_DEVICE_ID_DUAL_EXTRUDER:
+  case MODULE_TOOLHEAD_DUALEXTRUDER:
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
@@ -599,7 +599,7 @@ ErrCode SystemService::StartWork(TriggerSource s) {
 
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
-  case MODULE_DEVICE_ID_DUAL_EXTRUDER:
+  case MODULE_TOOLHEAD_DUALEXTRUDER:
     if (runout.is_filament_runout()) {
       fault_flag_ |= FAULT_FLAG_FILAMENT;
       LOG_E("No filemant!\n");
