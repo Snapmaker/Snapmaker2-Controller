@@ -784,7 +784,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
   volatile float hotend_offset_tmp[XYZ][HOTENDS] {0};
   volatile float z_raise = 0;
 
-  uint32_t old_extruder;
+  volatile uint32_t old_extruder;
 
   planner.synchronize();
 
@@ -852,9 +852,9 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
       ModuleCtrlToolChange(new_extruder);
     }
 
-    xdiff = hotend_offset_tmp[X_AXIS][new_extruder] - hotend_offset_tmp[X_AXIS][active_extruder];
-    ydiff = hotend_offset_tmp[Y_AXIS][new_extruder] - hotend_offset_tmp[Y_AXIS][active_extruder];
-    zdiff = hotend_offset_tmp[Z_AXIS][new_extruder] - hotend_offset_tmp[Z_AXIS][active_extruder];
+    xdiff = hotend_offset_tmp[X_AXIS][new_extruder] - hotend_offset_tmp[X_AXIS][old_extruder];
+    ydiff = hotend_offset_tmp[Y_AXIS][new_extruder] - hotend_offset_tmp[Y_AXIS][old_extruder];
+    zdiff = hotend_offset_tmp[Z_AXIS][new_extruder] - hotend_offset_tmp[Z_AXIS][old_extruder];
     xdiff_scaled = xdiff * planner.settings.axis_steps_per_mm[X_AXIS];
     ydiff_scaled = ydiff * planner.settings.axis_steps_per_mm[Y_AXIS];
     zdiff_scaled = zdiff * planner.settings.axis_steps_per_mm[Z_AXIS];

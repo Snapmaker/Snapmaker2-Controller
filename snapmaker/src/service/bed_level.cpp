@@ -463,6 +463,7 @@ void BedLevelService::UnapplyLiveZOffset(uint8_t e) {
   }
 
   if ((MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) && (e != active_extruder)) {
+    LOG_E("cannot unapply live z offset of another extruder!\n");
     return;
   }
 
