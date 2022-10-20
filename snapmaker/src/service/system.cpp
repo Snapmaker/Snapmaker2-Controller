@@ -1382,6 +1382,7 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
 
   case ETYPE_3DP2E_EXTRUDER_MISMATCH:
     if (h == EHOST_EXECUTOR) {
+      LOG_I("clear extruder mismatch error!");
       fault_flag_ &= ~FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH;
       action_ban = ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND;
     }
@@ -1389,6 +1390,7 @@ ErrCode SystemService::ClearException(ExceptionHost h, ExceptionType t) {
 
   case ETYPE_3DP2E_UNKNOWN_NOZZLE:
     if (h == EHOST_EXECUTOR) {
+      LOG_I("clear nozzle unknown error!");
       fault_flag_ &= ~FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE;
       action_ban = ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND;
     }
