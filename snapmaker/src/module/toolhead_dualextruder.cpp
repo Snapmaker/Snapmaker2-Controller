@@ -34,6 +34,7 @@
 #include "../../../Marlin/src/feature/bedlevel/bedlevel.h"
 #include "../../../Marlin/src/module/tool_change.h"
 
+#define USE_FDM_INTERRUPT_LOG
 
 #define CAN_FRAME_SIZE                         8
 #define DEFAULT_hotend_offsetX                 26
@@ -314,7 +315,7 @@ void ToolHeadDualExtruder::ReportHotendType(uint8_t *data) {
       }
 
       #ifdef USE_FDM_INTERRUPT_LOG
-        LOG_I("nozzle_index: %d, type: %d\n", i, hotend_type[i]);
+        LOG_I("nozzle_index: %d, type: %d, diameter: %.2f\n", i, hotend_type_[i], hotend_diameter_[i]);
       #endif
     }
     systemservice.ClearException(EHOST_EXECUTOR, ETYPE_3DP2E_UNKNOWN_NOZZLE);
@@ -393,7 +394,7 @@ void ToolHeadDualExtruder::ReportProbeSensorCompensation(uint8_t *data) {
   z_compensation_[e] = (float)((data[1] << 24) | (data[2] << 16) | (data[3] << 8) | data[4]) / 1000;
 
   #ifdef USE_FDM_INTERRUPT_LOG
-    LOG_I("extruder: %d, compensation: %f\n", e, compensation);
+    LOG_I("extruder: %d, compensation: %f\n", e, z_compensation_[e]);
   #endif
 }
 
@@ -407,7 +408,7 @@ void ToolHeadDualExtruder::ReportRightExtruderPos(uint8_t *data) {
 ErrCode ToolHeadDualExtruder::ModuleCtrlProximitySwitchPower(uint8_t state) {
   CanStdFuncCmd_t cmd;
   uint8_t can_buffer[CAN_FRAME_SIZE];
-
+  ErrCode ret = E_SUCCESS;
   uint8_t index = 0;
   can_buffer[index++] = state;
 
@@ -415,7 +416,11 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlProximitySwitchPower(uint8_t state) {
   cmd.data      = can_buffer;
   cmd.length    = index;
 
-  return canhost.SendStdCmdSync(cmd, 2000);
+  if ((ret = canhost.SendStdCmdSync(cmd, 2000)) != E_SUCCESS) {
+    LOG_E("failed to set Proximity power!\n");
+  }
+
+  return ret;
 }
 
 ErrCode ToolHeadDualExtruder::SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time /* =0 */) {
@@ -651,17 +656,23 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlToolChange(uint8_t new_extruder) {
   CanStdFuncCmd_t cmd;
   uint8_t buffer[CAN_FRAME_SIZE];
   uint8_t index = 0;
+  ErrCode ret = E_SUCCESS;
 
   buffer[index++] = new_extruder;
   cmd.id          = MODULE_FUNC_SWITCH_EXTRUDER;
   cmd.data        = buffer;
   cmd.length      = index;
-  return canhost.SendStdCmdSync(cmd, 5000);
+  if ((ret = canhost.SendStdCmdSync(cmd, 5000)) != E_SUCCESS) {
+    LOG_E("failed to switch extruder!\n");
+  }
+
+  return ret;
 }
 
 ErrCode ToolHeadDualExtruder::ModuleCtrlSetExtruderChecking(bool on_off) {
   CanStdFuncCmd_t cmd;
   uint8_t buffer[CAN_FRAME_SIZE];
+  ErrCode ret = E_SUCCESS;
 
   #define EXTRUDER_CHECKING_IDLE    (1)
   #define EXTRUDER_CHECKING_ENABLE  (0)
@@ -670,7 +681,11 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlSetExtruderChecking(bool on_off) {
   cmd.id          = MODULE_SET_EXTRUDER_CHECK;
   cmd.data        = buffer;
   cmd.length      = 1;
-  return canhost.SendStdCmdSync(cmd, 5000);
+  if ((ret = canhost.SendStdCmd(cmd)) != E_SUCCESS) {
+    LOG_E("failed to set extruder checking!\n");
+  }
+
+  return ret;
 }
 
 ErrCode ToolHeadDualExtruder::ModuleCtrlSaveHotendOffset(float offset, uint8_t axis) {
@@ -1062,7 +1077,7 @@ ErrCode ToolHeadDualExtruder::HmiRequestGetActiveExtruder(SSTP_Event_t &event) {
 void ToolHeadDualExtruder::ShowInfo() {
   LOG_I("active_probe_sensor: %u\n", active_probe_sensor_);
   LOG_I("hotend_type: 0: %u, 1: %u\n", hotend_type_[0], hotend_type_[1]);
-  LOG_I("hotend_diameter: 0: %u, 1:%u\n", hotend_diameter_[0], hotend_diameter_[1]);
+  LOG_I("hotend_diameter: 0: %.2f, 1:%.2f\n", hotend_diameter_[0], hotend_diameter_[1]);
   LOG_I("Kp: %.3f, Ki: %.3f, Kd: %.3f\n", pid_[0], pid_[1], pid_[2]);
   LOG_I("z_compensation: 0: %.3f, 1: %.3f\n", z_compensation_[0], z_compensation_[1]);
 }
