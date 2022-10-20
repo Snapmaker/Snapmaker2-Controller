@@ -2054,6 +2054,7 @@ ErrCode SystemService::SendHomeAndCoordinateStatus(SSTP_Event_t &event) {
 
 ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
   ErrCode ret = E_SUCCESS;
+  volatile uint32_t type = event.data[0];
 
   float param;
 
@@ -2061,7 +2062,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 
   param /= 1000;
 
-  switch (event.data[0]) {
+  switch (type) {
   case RENV_TYPE_FEEDRATE:
     if (param > 500 || param < 0) {
       LOG_E("invalid feedrate scaling: %.2f\n", param);
@@ -2189,8 +2190,18 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     ret = levelservice.UpdateLiveZOffset(param, 1);
     break;
 
+  case RENV_TYPE_EXTRUDER0_FLOW_RATE:
+  case RENV_TYPE_EXTRUDER1_FLOW_RATE:
+    type -= RENV_TYPE_EXTRUDER0_FLOW_RATE;
+    taskENTER_CRITICAL();
+    planner.flow_percentage[type] = param;
+    planner.refresh_e_factor(type);
+    taskEXIT_CRITICAL();
+    LOG_I("set extruder[%d] flow rate: %.2f\n", type, param);
+    break;
+
   default:
-    LOG_E("invalid parameter type\n", event.data[0]);
+    LOG_E("invalid parameter type\n", type);
     ret = E_PARAM;
     break;
   }
@@ -2204,12 +2215,13 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 ErrCode SystemService::GetRuntimeEnv(SSTP_Event_t &event) {
   int   tmp_i32;
   uint8_t buff[5];
+  volatile uint32_t type = event.data[0];
 
-  LOG_I("SC get env: %u\n", event.data[0]);
+  LOG_I("SC get env: %u\n", type);
 
   buff[0] = E_SUCCESS;
 
-  switch (event.data[0]) {
+  switch (type) {
   case RENV_TYPE_FEEDRATE:
     if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER || ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) {
       tmp_i32 = (int)(extruders_feedrate_percentage[0] * 1000.0f);
@@ -2261,9 +2273,17 @@ ErrCode SystemService::GetRuntimeEnv(SSTP_Event_t &event) {
     LOG_I("live z offset: %.3f\n", levelservice.live_z_offset((uint8_t)1));
     break;
 
+  case RENV_TYPE_EXTRUDER0_FLOW_RATE:
+  case RENV_TYPE_EXTRUDER1_FLOW_RATE:
+    type -= RENV_TYPE_EXTRUDER0_FLOW_RATE;
+    tmp_i32 = (int32_t)(planner.flow_percentage[type] * 1000);
+    WORD_TO_PDU_BYTES(buff+1, tmp_i32);
+    LOG_I("get extruder[%d] flow rate: %.2f\n", type, planner.flow_percentage[type]);
+    break;
+
   default:
     buff[0] = E_FAILURE;
-    LOG_I("cannot get this env: %u\n", event.data[0]);
+    LOG_I("cannot get this env: %u\n", type);
     break;
   }
 
