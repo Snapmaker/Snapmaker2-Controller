@@ -146,7 +146,7 @@ class ToolHead3DP: public ModuleBase {
     // for dualextruder
     virtual ErrCode ToolChange(uint8_t new_extruder, bool use_compensation = true) { return E_SUCCESS; }
     virtual void SelectProbeSensor(probe_sensor_t sensor) { return; }
-    virtual void SetZCompensation(float &left_val, float &right_val) { return; }
+    virtual void SetZCompensation(float comp, uint32_t e = 0) { return; }
     void GetZCompensation(float &left_z_compensation, float &right_z_compensation) { return; }
     virtual ErrCode ModuleCtrlProximitySwitchPower(uint8_t state) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlProbeStateSync() { return E_SUCCESS; }
@@ -154,7 +154,6 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode ModuleCtrlToolChange(uint8_t new_extruder) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSetExtruderChecking(bool on_off) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis) { return E_SUCCESS; }
-    virtual ErrCode ModuleCtrlSaveZCompensation(float *val) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos) { return E_SUCCESS; }
     virtual ErrCode HmiGetHotendType(SSTP_Event_t &event) { return E_SUCCESS; }
