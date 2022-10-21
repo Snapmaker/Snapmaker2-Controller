@@ -576,24 +576,21 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderPosSync() {
 
 ErrCode ToolHeadDualExtruder::ModuleCtrlSetPid(float p, float i, float d) {
   CanStdFuncCmd_t cmd;
-  uint32_t val[3];
   uint8_t buffer[CAN_FRAME_SIZE];
   uint8_t index = 0;
+
+  int32_t tmp_i32;
 
   pid_[0] = p;
   pid_[1] = i;
   pid_[2] = d;
-  val[0] = (uint32_t)(p*1000);
-  val[1] = (uint32_t)(i*1000);
-  val[2] = (uint32_t)(d*1000);
 
   for (int32_t i = 0; i < 3; i++) {
     index = 0;
     buffer[index++] = i;
-    buffer[index++] = (uint8_t)(val[i]>>24);
-    buffer[index++] = (uint8_t)(val[i]>>16);
-    buffer[index++] = (uint8_t)(val[i]>>8);
-    buffer[index++] = (uint8_t)(val[i]);
+    tmp_i32 = (int32_t)(pid_[i] * 1000);
+    WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, index);
+
     cmd.id     = MODULE_FUNC_SET_3DP_PID;
     cmd.data   = buffer;
     cmd.length = index;
@@ -613,22 +610,19 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderMove(move_type_e type, floa
   CanStdFuncCmd_t cmd;
   uint8_t buffer[CAN_FRAME_SIZE];
   int32_t scaled_dest;
-  scaled_dest = (int32_t)(destination * 1000);
 
   uint8_t index = 0;
   buffer[index++] = (uint8_t)type;
-  buffer[index++] = (scaled_dest >> 24) & 0xff;
-  buffer[index++] = (scaled_dest >> 16) & 0xff;
-  buffer[index++] = (scaled_dest >> 8) & 0xff;
-  buffer[index++] = scaled_dest & 0xff;
 
   cmd.id     = MODULE_FUNC_MOVE_TO_DEST;
   cmd.data   = buffer;
   cmd.length = index;
 
   switch (type) {
-    case GO_HOME:
     case MOVE_SYNC:
+      scaled_dest = (int32_t)(destination * 1000);
+      WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, scaled_dest, index);
+    case GO_HOME:
       ret = canhost.SendStdCmdSync(cmd, 20000);
       break;
     case MOVE_ASYNC:
@@ -694,41 +688,36 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlSaveHotendOffset(float offset, uint8_t a
   uint8_t index = 0;
 
   buffer[index++] = axis;
-  buffer[index++] = ((uint8_t *)&offset)[0];
-  buffer[index++] = ((uint8_t *)&offset)[1];
-  buffer[index++] = ((uint8_t *)&offset)[2];
-  buffer[index++] = ((uint8_t *)&offset)[3];
-  cmd.id          = MODULE_FUNC_SET_HOTEND_OFFSET;
-  cmd.data        = buffer;
-  cmd.length      = index;
+  *(float *)(buffer + 1) = offset;
+
+  cmd.id      = MODULE_FUNC_SET_HOTEND_OFFSET;
+  cmd.data    = buffer;
+  cmd.length  = index + 4;
   return canhost.SendStdCmd(cmd, 0);
 }
 
-ErrCode ToolHeadDualExtruder::ModuleCtrlSaveZCompensation(float *val) {
+ErrCode ToolHeadDualExtruder::ModuleCtrlSaveZCompensation(float comp, uint32_t e) {
   ErrCode ret = E_SUCCESS;
   CanStdFuncCmd_t cmd;
   uint8_t buffer[CAN_FRAME_SIZE];
-  uint8_t index;
-  float scaled_compensation;
+  uint8_t index = 0;
 
-  for (uint32_t i = 0; i < EXTRUDERS; i++) {
-    index = 0;
-    buffer[index++]  = i;
-    scaled_compensation = val[i];
-    LOG_I("scaled_compensation: %f\n", scaled_compensation);
-    buffer[index++]  = ((uint8_t *)&scaled_compensation)[0];
-    buffer[index++]  = ((uint8_t *)&scaled_compensation)[1];
-    buffer[index++]  = ((uint8_t *)&scaled_compensation)[2];
-    buffer[index++]  = ((uint8_t *)&scaled_compensation)[3];
-    cmd.id           = MODULE_FUNC_SET_PROBE_SENSOR_COMPENSATION;
-    cmd.data         = buffer;
-    cmd.length       = index;
-    ret = canhost.SendStdCmd(cmd, 0);
+  index = 0;
+  buffer[index++] = e;
 
-    if (ret != E_SUCCESS) {
-      LOG_E("failed to set z compensation, ret: %u\n", ret);
-      return ret;
-    }
+  // little ending
+  *(float *)(buffer + 1) = comp;
+
+  LOG_I("save compensation[%u]: %f\n", comp, e);
+
+  cmd.id      = MODULE_FUNC_SET_PROBE_SENSOR_COMPENSATION;
+  cmd.data    = buffer;
+  cmd.length  = index + 4;
+
+  ret = canhost.SendStdCmd(cmd, 0);
+
+  if (ret != E_SUCCESS) {
+    LOG_E("failed to set z compensation, ret: %u\n", ret);
   }
 
   return ret;
@@ -738,19 +727,16 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlSetRightExtruderPosition(float raise_for
   CanStdFuncCmd_t cmd;
   uint8_t buffer[CAN_FRAME_SIZE];
   uint8_t index = 0;
+  int32_t tmp_i32;
 
   LOG_I("set raise for home pos: %f, z_max_pos: %f\n", raise_for_home_pos, z_max_pos);
-  uint32_t raise_for_home_pos_scaled = raise_for_home_pos * 1000;
-  uint32_t z_max_pos_scaled = z_max_pos * 1000;
-  index = 0;
-  buffer[index++] = (raise_for_home_pos_scaled >> 24) & 0xff;
-  buffer[index++] = (raise_for_home_pos_scaled >> 16) & 0xff;
-  buffer[index++] = (raise_for_home_pos_scaled >> 8) & 0xff;
-  buffer[index++] = raise_for_home_pos_scaled & 0xff;
-  buffer[index++] = (z_max_pos_scaled >> 24) & 0xff;
-  buffer[index++] = (z_max_pos_scaled >> 16) & 0xff;
-  buffer[index++] = (z_max_pos_scaled >> 8) & 0xff;
-  buffer[index++] = z_max_pos_scaled & 0xff;
+
+  tmp_i32 = raise_for_home_pos * 1000;
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, index);
+
+  tmp_i32 = z_max_pos * 1000;
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, tmp_i32, index);
+
   cmd.id          = MODULE_FUNC_SET_RIGHT_EXTRUDER_POS;
   cmd.data        = buffer;
   cmd.length      = index;
@@ -782,10 +768,9 @@ void ToolHeadDualExtruder::SelectProbeSensor(probe_sensor_t sensor) {
   active_probe_sensor_ = sensor;
 }
 
-void ToolHeadDualExtruder::SetZCompensation(float &left_val, float &right_val) {
-  z_compensation_[0] = left_val;
-  z_compensation_[1] = right_val;
-  ModuleCtrlSaveZCompensation(z_compensation_);
+void ToolHeadDualExtruder::SetZCompensation(float comp, uint32_t e) {
+  z_compensation_[e] = comp;
+  ModuleCtrlSaveZCompensation(z_compensation_[e], e);
 }
 
 void ToolHeadDualExtruder::GetZCompensation(float &left_z_compensation, float &right_z_compensation) {
@@ -909,26 +894,21 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
 
 // hmi interface
 ErrCode ToolHeadDualExtruder::HmiGetHotendType(SSTP_Event_t &event) {
-  uint8_t buf[10];
-  uint8_t index = 0;
-  uint32_t hotend_diameter_scaled;
+  uint8_t buff[10];
+  int32_t tmp_i32;
 
-  buf[index++] = hotend_type_[0];
-  hotend_diameter_scaled = (uint32_t)(hotend_diameter_[0] * 1000);
-  buf[index++] = (hotend_diameter_scaled >> 24) & 0xff;
-  buf[index++] = (hotend_diameter_scaled >> 16) & 0xff;
-  buf[index++] = (hotend_diameter_scaled >> 8)  & 0xff;
-  buf[index++] = hotend_diameter_scaled & 0xff;
+  int i = 0;
 
-  buf[index++] = hotend_type_[1];
-  hotend_diameter_scaled = (uint32_t)(hotend_diameter_[1] * 1000);
-  buf[index++] = (hotend_diameter_scaled >> 24) & 0xff;
-  buf[index++] = (hotend_diameter_scaled >> 16) & 0xff;
-  buf[index++] = (hotend_diameter_scaled >> 8)  & 0xff;
-  buf[index++] = hotend_diameter_scaled & 0xff;
+  buff[i++] = hotend_type_[0];
+  tmp_i32 = (int32_t)(hotend_diameter_[0] * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
+  buff[i++] = hotend_type_[1];
+  tmp_i32 = (int32_t)(hotend_diameter_[1] * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
 
-  event.data   = buf;
-  event.length = index;
+
+  event.data   = buff;
+  event.length = (uint16_t)i;
   return hmi.Send(event);
 }
 
@@ -945,25 +925,23 @@ ErrCode ToolHeadDualExtruder::HmiGetFilamentState(SSTP_Event_t &event) {
 }
 
 ErrCode ToolHeadDualExtruder::HmiGetHotendTemp(SSTP_Event_t &event) {
-  uint8_t buf[8];
-  uint8_t index = 0;
-  int16_t temp;
+  uint8_t buff[8];
+  int16_t tmp_i16;
 
-  temp = (int16_t)thermalManager.degHotend(0);
-  buf[index++] = ((uint8_t *)&temp)[1];
-  buf[index++] = ((uint8_t *)&temp)[0];
-  temp = (int16_t)thermalManager.degTargetHotend(0);
-  buf[index++] = ((uint8_t *)&temp)[1];
-  buf[index++] = ((uint8_t *)&temp)[0];
-  temp = (int16_t)thermalManager.degHotend(1);
-  buf[index++] = ((uint8_t *)&temp)[1];
-  buf[index++] = ((uint8_t *)&temp)[0];
-  temp = (int16_t)thermalManager.degTargetHotend(1);
-  buf[index++] = ((uint8_t *)&temp)[1];
-  buf[index++] = ((uint8_t *)&temp)[0];
+  int i = 0;
 
-  event.data   = buf;
-  event.length = index;
+  tmp_i16 = (int16_t)thermalManager.degHotend(0);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
+  tmp_i16 = (int16_t)thermalManager.degTargetHotend(0);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
+
+  tmp_i16 = (int16_t)thermalManager.degHotend(1);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
+  tmp_i16 = (int16_t)thermalManager.degTargetHotend(1);
+  HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
+
+  event.data   = buff;
+  event.length = (uint16_t)i;
   return hmi.Send(event);
 }
 
@@ -1035,6 +1013,7 @@ ErrCode ToolHeadDualExtruder::HmiSetHotendOffset(SSTP_Event_t &event) {
   }
   else {
     hotend_offset[axis][1] = nozzle_offset[axis][1] + tmp_offset;
+    ModuleCtrlSaveHotendOffset(hotend_offset[axis][1], axis);
   }
 
 EXIT:
@@ -1044,27 +1023,23 @@ EXIT:
 }
 
 ErrCode ToolHeadDualExtruder::HmiGetHotendOffset(SSTP_Event_t &event) {
-  uint8_t buf[12];
-  uint8_t index = 0;
-  int32_t tmp;
-  tmp = hotend_offset[X_AXIS][1] * 1000;
-  buf[index++] = tmp >> 24;
-  buf[index++] = tmp >> 16;
-  buf[index++] = tmp >> 8;
-  buf[index++] = tmp;
-  tmp = hotend_offset[Y_AXIS][1] * 1000;
-  buf[index++] = tmp >> 24;
-  buf[index++] = tmp >> 16;
-  buf[index++] = tmp >> 8;
-  buf[index++] = tmp;
-  tmp = hotend_offset[Z_AXIS][1] * 1000;
-  buf[index++] = tmp >> 24;
-  buf[index++] = tmp >> 16;
-  buf[index++] = tmp >> 8;
-  buf[index++] = tmp;
+  uint8_t buff[12];
 
-  event.data    = buf;
-  event.length  = index;
+
+  int32_t   tmp_i32;
+  int i = 0;
+
+  tmp_i32 = (int32_t)(hotend_offset[X_AXIS][1] * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
+
+  tmp_i32 = (int32_t)(hotend_offset[Y_AXIS][1] * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
+
+  tmp_i32 = (int32_t)(hotend_offset[Z_AXIS][1] * 1000);
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buff, tmp_i32, i);
+
+  event.data    = buff;
+  event.length  = (uint16_t)i;
   return hmi.Send(event);
 }
 

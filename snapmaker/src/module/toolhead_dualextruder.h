@@ -86,7 +86,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     bool filament_state();
     bool filament_state(uint8_t e);
     void SelectProbeSensor(probe_sensor_t sensor);
-    void SetZCompensation(float &left_val, float &right_val);
+    void SetZCompensation(float comp, uint32_t e = 0);
     void GetZCompensation(float &left_z_compensation, float &right_z_compensation);
 
     // for hmi interface
@@ -125,7 +125,6 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode ModuleCtrlToolChange(uint8_t new_extruder);
     ErrCode ModuleCtrlSetExtruderChecking(bool on_off);
     ErrCode ModuleCtrlSaveHotendOffset(float offset, uint8_t axis);
-    ErrCode ModuleCtrlSaveZCompensation(float *val);
     ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0);
     ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos);
 
@@ -134,6 +133,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
 
   protected:
     void CheckLevelingData();
+    ErrCode ModuleCtrlSaveZCompensation(float comp, uint32_t e = 0);
 
   protected:
     probe_sensor_t active_probe_sensor_ = PROBE_SENSOR_PROXIMITY_SWITCH;
