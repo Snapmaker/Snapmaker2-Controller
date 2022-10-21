@@ -580,7 +580,8 @@ ErrCode BedLevelService::ProbeSensorCalibraitonLeftExtruderPositionConfirm() {
   float left_z_compensation  = left_extruder_manual_probe_position_ - CALIBRATION_PAPER_THICKNESS - left_extruder_auto_probe_position_;
   float right_z_compensation = right_extruder_manual_probe_position_ - CALIBRATION_PAPER_THICKNESS - right_extruder_auto_probe_position_;
   LOG_I("z_compensation: %.2f, %.2f\n", left_z_compensation, right_z_compensation);
-  printer1->SetZCompensation(left_z_compensation, right_z_compensation);
+  printer1->SetZCompensation(left_z_compensation, 0);
+  printer1->SetZCompensation(right_z_compensation, 1);
 
   hotend_offset[Z_AXIS][1] = left_extruder_manual_probe_position_ - right_extruder_manual_probe_position_;
   LOG_I("hotend_offset_z: %.2f\n", hotend_offset[Z_AXIS][1]);
