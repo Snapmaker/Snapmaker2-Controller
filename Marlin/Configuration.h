@@ -1068,6 +1068,7 @@ extern uint8_t E_ENABLE_ON;
 
 #define S_HOME_OFFSET_DEFAULT {-7, -5, 0, 0}
 #define M_HOME_OFFSET_DEFAULT {-15.5, -7, 0, 0}
+#define M_HOME_OFFSET_3DP2E_DEFAULT {-28, -20, 0, 0}
 #define L_HOME_OFFSET_DEFAULT {-19, -4, 0, 0}
 #define L_HOME_OFFSET_3DP2E_DEFAULT {-32, -23, 0, 0}
 #endif //DISABLE(SW_MACHINE_SIZE)
