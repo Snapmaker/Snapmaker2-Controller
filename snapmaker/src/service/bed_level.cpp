@@ -735,8 +735,15 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
 
   LOG_I("hmi req exit 3dp2e manual leveling\n");
 
+  // move to center or left-front of Bed
   x_index     = (uint8_t)(GRID_MAX_POINTS_X / 2);
+  if (!(GRID_MAX_POINTS_X % 2) && (x_index > 0))
+    x_index--;
+
   y_index     = (uint8_t)(GRID_MAX_POINTS_Y / 2);
+  if (!(GRID_MAX_POINTS_Y % 2) && (y_index > 0))
+    y_index--;
+
   probe_x     = _GET_MESH_X(x_index);
   probe_y     = _GET_MESH_Y(y_index);
 
