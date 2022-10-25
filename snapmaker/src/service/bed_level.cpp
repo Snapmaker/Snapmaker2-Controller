@@ -492,8 +492,9 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
   ErrCode err = E_SUCCESS;
   LOG_I("hmi request left probe sensor auto calibration\n");
 
-  live_z_offset_[0] = 0;
-  live_z_offset_[1] = 0;
+  live_z_offset_temp_[0] = live_z_offset_[0];
+  live_z_offset_temp_[1] = live_z_offset_[1];
+  live_z_offset_[0] = live_z_offset_[1] = 0;
   // go home will make sure active left extruder
   process_cmd_imd("G28");
   printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
@@ -517,6 +518,7 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
   if (isnan(left_extruder_auto_probe_position_)) {
     err = E_FAILURE;
     left_extruder_auto_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
+    left_extruder_manual_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
   }
 
   LOG_I("probed z value: %.2f\n", left_extruder_auto_probe_position_);
@@ -546,6 +548,7 @@ ErrCode BedLevelService::ProbeSensorCalibrationRightExtruderAutoProbe() {
   if (isnan(right_extruder_auto_probe_position_)) {
     err = E_FAILURE;
     right_extruder_auto_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
+    right_extruder_manual_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
   }
 
   endstops.enable_z_probe(false);
@@ -606,6 +609,22 @@ ErrCode BedLevelService::ProbeSensorCalibraitonRightExtruderPositionConfirm() {
   right_extruder_manual_probe_position_ = current_position[Z_AXIS];
   LOG_I("confirm right extruder manual probe position: %.3f\n", right_extruder_manual_probe_position_);
   return err;
+}
+
+ErrCode BedLevelService::ProbeSensorCalibraitonAbort() {
+  live_z_offset_[0] = live_z_offset_temp_[0];
+  live_z_offset_[1] = live_z_offset_temp_[1];
+  LOG_I("ProbeSensorCalibraitonAbort, live z0: %.2f, z1: %.2f\n", live_z_offset_[0], live_z_offset_[1]);
+  left_extruder_auto_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
+  right_extruder_auto_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
+  left_extruder_manual_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
+  right_extruder_manual_probe_position_ = INIT_Z_FOR_DUAL_EXTRUDER;
+
+  printer1->ToolChange(0, false);
+  set_bed_leveling_enabled(true);
+  printer1->ModuleCtrlSetExtruderChecking(true);
+
+  return E_SUCCESS;
 }
 
 ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
