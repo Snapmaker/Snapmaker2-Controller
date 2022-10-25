@@ -688,13 +688,16 @@ static ErrCode HmiRequestProbeSensorCal(SSTP_Event_t &event) {
       err = levelservice.ProbeSensorCalibrationRightExtruderAutoProbe();
       break;
     case 2:
-      err = levelservice.ProbeSensorCalibrationRightExtruderManualProbe();
+      err = levelservice.ProbeSensorCalibraitonRightExtruderPositionConfirm();
       break;
     case 3:
       err = levelservice.ProbeSensorCalibrationLeftExtruderManualProbe();
       break;
     case 4:
       err = levelservice.ProbeSensorCalibraitonLeftExtruderPositionConfirm();
+      break;
+    case 5:
+      err = levelservice.ProbeSensorCalibraitonAbort();
       break;
     default:
       err = E_PARAM;

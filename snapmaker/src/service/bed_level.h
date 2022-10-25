@@ -62,6 +62,7 @@ class BedLevelService {
     ErrCode ProbeSensorCalibrationRightExtruderManualProbe();
     ErrCode ProbeSensorCalibraitonLeftExtruderPositionConfirm();
     ErrCode ProbeSensorCalibraitonRightExtruderPositionConfirm();
+    ErrCode ProbeSensorCalibraitonAbort();
     ErrCode DoDualExtruderAutoLeveling(SSTP_Event_t &event);
     ErrCode DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event);
     ErrCode FinishDualExtruderAutoLeveling(SSTP_Event_t &event);
@@ -81,6 +82,7 @@ class BedLevelService {
     uint8_t probe_point_;
     uint8_t manual_level_index_ = MANUAL_LEVEL_INDEX_INVALID;
     float live_z_offset_[EXTRUDERS] = {0};
+    float live_z_offset_temp_[EXTRUDERS] = {0};
     bool  live_z_offset_updated_ = false;
     float left_extruder_auto_probe_position_;
     float right_extruder_auto_probe_position_;
