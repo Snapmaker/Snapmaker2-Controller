@@ -248,7 +248,7 @@ millis_t max_inactive_time, // = 0
 
   // TODO: update the default offset for model M&S
   float s_home_offset[XN] = S_HOME_OFFSET_DEFAULT;
-  float s_home_offset_3dp2e[XN] = S_HOME_OFFSET_DEFAULT;
+  float s_home_offset_3dp2e[XN] = S_HOME_OFFSET_3DP2E_DEFAULT;
   float m_home_offset[XN] = M_HOME_OFFSET_DEFAULT;
   float m_home_offset_3dp2e[XN] = M_HOME_OFFSET_3DP2E_DEFAULT;
   float l_home_offset[XN] = L_HOME_OFFSET_DEFAULT;
@@ -307,7 +307,7 @@ void reset_homeoffset() {
   float m_home_offset_def[XN] = M_HOME_OFFSET_DEFAULT;
   float l_home_offset_def[XN] = L_HOME_OFFSET_DEFAULT;
   // TODO: update default offest for dual-extruder
-  float s_home_offset_3dp2e_def[XN] = S_HOME_OFFSET_DEFAULT;
+  float s_home_offset_3dp2e_def[XN] = S_HOME_OFFSET_3DP2E_DEFAULT;
   float m_home_offset_3dp2e_def[XN] = M_HOME_OFFSET_3DP2E_DEFAULT;
   float l_home_offset_3dp2e_def[XN] = L_HOME_OFFSET_3DP2E_DEFAULT;
 

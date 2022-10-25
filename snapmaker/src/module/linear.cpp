@@ -394,16 +394,25 @@ MachineSize Linear::UpdateMachineSize() {
     // TODO: update leveling mesh
     if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
       LOOP_XN(i) home_offset[i] = s_home_offset_3dp2e[i];
+      // #define S_HOME_OFFSET_3DP2E_DEFAULT {-21, -17, 0, 0}
+
+      // X_DEF_SIZE / 2 + MAGNET_X_SPAN / 2 + homeoffset[x] <= X_MAX_POS
+      X_DEF_SIZE = 146;
+      Y_DEF_SIZE = 148;
+      Z_DEF_SIZE = 145;
+
+      MAGNET_X_SPAN = 116;  // X_DEF_SIZE - 30
+      MAGNET_Y_SPAN = 118;  // Y_DEF_SIZE - 30
     }
-    else
+    else {
       LOOP_XN(i) home_offset[i] = s_home_offset[i];
+      X_DEF_SIZE = 160;
+      Y_DEF_SIZE = 160;
+      Z_DEF_SIZE = 145;
 
-    X_DEF_SIZE = 160;
-    Y_DEF_SIZE = 160;
-    Z_DEF_SIZE = 145;
-
-    MAGNET_X_SPAN = 114;
-    MAGNET_Y_SPAN = 114;
+      MAGNET_X_SPAN = 114;
+      MAGNET_Y_SPAN = 114;
+    }
 
     machine_size_ = MACHINE_SIZE_A150;
 
