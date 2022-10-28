@@ -487,6 +487,9 @@ void PowerLossRecovery::Resume3DP() {
 		printer1->SetFan(i, pre_data_.FanSpeed[i]);
 	}
 
+	if (pre_data_.toolhead == MODULE_TOOLHEAD_DUALEXTRUDER)
+    printer1->ToolChange(pre_data_.active_extruder);
+
 	current_position[E_AXIS] += 20;
 	line_to_current_position(5);
 	planner.synchronize();
@@ -503,11 +506,6 @@ void PowerLossRecovery::Resume3DP() {
 	// move to target X Y
 	move_to_limited_xy(pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS], 50);
 	planner.synchronize();
-
-  // must active responding extruder after leave home position
-  // because we can change toolhead there.
-  if (pre_data_.toolhead == MODULE_TOOLHEAD_DUALEXTRUDER)
-    printer1->ToolChange(pre_data_.active_extruder);
 
 	// move to target Z
 	move_to_limited_z(pre_data_.PositionData[Z_AXIS], 30);
@@ -622,7 +620,7 @@ ErrCode PowerLossRecovery::ResumeWork() {
 
 		LOG_I("previous target temp: hotend 0: %d, bed: %d\n", pre_data_.HeaterTemp[0], pre_data_.BedTamp);
     if (pre_data_.toolhead == MODULE_TOOLHEAD_DUALEXTRUDER) {
-      LOG_I("hotend 0: %d\n", pre_data_.HeaterTemp[1]);
+      LOG_I("hotend 1: %d\n", pre_data_.HeaterTemp[1]);
     }
 		Resume3DP();
 		break;
