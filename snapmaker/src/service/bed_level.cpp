@@ -538,8 +538,9 @@ ErrCode BedLevelService::ProbeSensorCalibrationRightExtruderAutoProbe() {
   endstops.enable_z_probe(true);
 
   do_blocking_move_to_xy(x, y, XY_SPEED_FOR_DUAL_EXTRUDER);
-  do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
-  planner.synchronize();
+  if (current_position[Z_AXIS] > INIT_Z_FOR_DUAL_EXTRUDER) {
+    do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
+  }
 
   printer1->ModuleCtrlSetExtruderChecking(false);
   right_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
@@ -977,8 +978,9 @@ ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
   float x, y;
   get_center_coordinates_of_bed(x, y);
   do_blocking_move_to_xy(x, y, XY_SPEED_FOR_DUAL_EXTRUDER);
-  do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
-  planner.synchronize();
+  if (current_position[Z_AXIS] > INIT_Z_FOR_DUAL_EXTRUDER) {
+    do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
+  }
 
   printer1->ModuleCtrlSetExtruderChecking(false);
   right_extruder_auto_probe_position_ = probe_pt(x, y, PROBE_PT_RAISE, 0, false);
