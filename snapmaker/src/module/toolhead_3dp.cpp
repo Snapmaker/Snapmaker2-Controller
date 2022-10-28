@@ -216,6 +216,9 @@ ErrCode ToolHead3DP::SetPID(uint8_t index, float value, uint8_t extrude_index) {
   uint8_t  buffer[5];
   uint32_t scale_val = (uint32_t)(value * 1000);
 
+  if (extrude_index > 0)
+    return E_HARDWARE;
+
   buffer[0] = index;
 
   buffer[1] = (uint8_t)(scale_val>>24);
@@ -232,6 +235,10 @@ ErrCode ToolHead3DP::SetPID(uint8_t index, float value, uint8_t extrude_index) {
 
 float * ToolHead3DP::GetPID(uint8_t extrude_index) {
   CanStdFuncCmd_t cmd = {MODULE_FUNC_REPORT_3DP_PID, 0, NULL};
+
+  if (extrude_index > 0)
+    return 0;
+
   canhost.SendStdCmd(cmd, 0);
   vTaskDelay(pdMS_TO_TICKS(200));
   return pid_;
@@ -242,6 +249,9 @@ ErrCode ToolHead3DP::SetHeater(uint16_t target_temp, uint8_t extrude_index) {
   CanStdFuncCmd_t cmd;
 
   uint8_t buffer[2];
+
+  if (extrude_index > 0)
+    return E_HARDWARE;
 
   buffer[0] = (uint8_t)(target_temp>>8);
   buffer[1] = (uint8_t)target_temp;
