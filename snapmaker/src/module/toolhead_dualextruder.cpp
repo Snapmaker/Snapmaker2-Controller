@@ -784,6 +784,8 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
   volatile float hotend_offset_tmp[XYZ][HOTENDS] {0};
   volatile float z_raise = 0;
 
+  float pre_position[X_TO_E];
+
   volatile uint32_t old_extruder;
 
   planner.synchronize();
@@ -834,7 +836,8 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     // remove live z offset of old extruder
     levelservice.UnapplyLiveZOffset(old_extruder);
 
-    set_destination_from_current();
+    //set_destination_from_current();
+    COPY(pre_position, current_position);
 
     if (current_position[X_AXIS] < X_MIN_POS + hotend_offset_tmp[X_AXIS][1]) {
       do_blocking_move_to_xy(X_MIN_POS + hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS], 50);
@@ -869,8 +872,8 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     LOG_I("offset pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
     sync_plan_position();
 
-    apply_motion_limits(destination);
-    do_blocking_move_to(destination);
+    apply_motion_limits(pre_position);
+    do_blocking_move_to(pre_position);
 
     if (new_extruder == 1) {
       ModuleCtrlToolChange(new_extruder);
