@@ -317,6 +317,10 @@ void GcodeSuite::G28(const bool always_home_all) {
       if (MODULE_TOOLHEAD_DUALEXTRUDER == ModuleBase::toolhead()) {
         printer1->ModuleCtrlRightExtruderMove(GO_HOME);
         active_extruder = 0;
+        // update software endstop
+        update_software_endstops(X_AXIS);
+        update_software_endstops(Y_AXIS);
+        update_software_endstops(Z_AXIS);
       }
     #endif
 
