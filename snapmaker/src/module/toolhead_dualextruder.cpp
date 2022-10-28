@@ -803,9 +803,6 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
   }
 
   if (new_extruder != active_extruder) {
-    // to avoid power-loss, we record the new extruder here
-    old_extruder = active_extruder;
-    active_extruder = new_extruder;
     LOOP_XYZ(i) {
       HOTEND_LOOP() {
         hotend_offset_tmp[i][e] = hotend_offset[i][e];
@@ -823,18 +820,20 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     z_raise = current_position[Z_AXIS] + toolchange_settings.z_raise;
 
     NOMORE(z_raise, soft_endstop[Z_AXIS].max);
-    z_raise = z_raise - current_position[Z_AXIS];
 
-    current_position[Z_AXIS] += z_raise;
+    z_raise = z_raise - current_position[Z_AXIS];
 
     LOG_I("raise: %.3f, endstop max: %.3f, z offset: %.3f\n", z_raise, soft_endstop[Z_AXIS].max, hotend_offset_tmp[Z_AXIS][1]);
 
-    do_blocking_move_to_z(current_position[Z_AXIS], 30);
+    do_blocking_move_to_z(current_position[Z_AXIS] + z_raise, 30);
 
     LOG_I("raised pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
-    // remove live z offset of old extruder
-    levelservice.UnapplyLiveZOffset(old_extruder);
+    // remove live z offset of old extruder after raise Z, cause Z will fall in unapplying live offset
+    levelservice.UnapplyLiveZOffset(active_extruder);
+    // to avoid power-loss, we record the new extruder  after unapply z offset!
+    old_extruder = active_extruder;
+    active_extruder = new_extruder;
 
     //set_destination_from_current();
     COPY(pre_position, current_position);
@@ -882,8 +881,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     // here we should apply live z offset of new extruder!
     levelservice.ApplyLiveZOffset(active_extruder);
 
-    current_position[Z_AXIS] -= z_raise;
-    do_blocking_move_to_z(current_position[Z_AXIS], 30);
+    do_blocking_move_to_z(current_position[Z_AXIS] - z_raise, 30);
 
     LOG_I("descent pos: %.3f, %.3f, %.3f\n\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
