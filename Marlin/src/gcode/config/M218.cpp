@@ -31,6 +31,10 @@
   #include "../../module/planner.h"
 #endif
 
+#if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
+  #include "../../../../snapmaker/src/module/toolhead_dualextruder.h"
+#endif
+
 /**
  * M218 - set hotend offset (in linear units)
  *
@@ -44,9 +48,21 @@ void GcodeSuite::M218() {
   const int8_t target_extruder = get_target_extruder_from_command();
   if (target_extruder < 0) return;
 
-  if (parser.seenval('X')) hotend_offset[X_AXIS][target_extruder] = parser.value_linear_units();
-  if (parser.seenval('Y')) hotend_offset[Y_AXIS][target_extruder] = parser.value_linear_units();
-  if (parser.seenval('Z')) hotend_offset[Z_AXIS][target_extruder] = parser.value_linear_units();
+  if (parser.seenval('X')) {
+    hotend_offset[X_AXIS][target_extruder] = parser.value_linear_units();
+    if (target_extruder)
+      printer1->ModuleCtrlSaveHotendOffset(hotend_offset[X_AXIS][1], X_AXIS);
+  }
+  if (parser.seenval('Y')) {
+    hotend_offset[Y_AXIS][target_extruder] = parser.value_linear_units();
+    if (target_extruder)
+      printer1->ModuleCtrlSaveHotendOffset(hotend_offset[Y_AXIS][1], Y_AXIS);
+  }
+  if (parser.seenval('Z')) {
+    hotend_offset[Z_AXIS][target_extruder] = parser.value_linear_units();
+    if (target_extruder)
+      printer1->ModuleCtrlSaveHotendOffset(hotend_offset[Z_AXIS][1], Z_AXIS);
+  }
 
   if (!parser.seen("XYZ")) {
     SERIAL_ECHO_START();
