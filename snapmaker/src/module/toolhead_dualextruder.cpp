@@ -838,17 +838,20 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     //set_destination_from_current();
     COPY(pre_position, current_position);
 
-    if (current_position[X_AXIS] < X_MIN_POS + hotend_offset_tmp[X_AXIS][1]) {
-      do_blocking_move_to_xy(X_MIN_POS + hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS], 50);
-    } else if (current_position[X_AXIS] > X_MAX_POS - hotend_offset_tmp[X_AXIS][1]) {
-      do_blocking_move_to_xy(X_MAX_POS - hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS], 50);
+    if (new_extruder > old_extruder) {
+      // left -> right, toolhead will move to left, make sure there is enough space in left for the moving
+      if (current_position[X_AXIS] < X_MIN_POS + hotend_offset_tmp[X_AXIS][1]) {
+        do_blocking_move_to_xy(X_MIN_POS + hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS], 50);
+      }
+    }
+    else {
+      // right -> left, toolhead will move to right, make sure there is enough space in right for the moving
+      if (current_position[X_AXIS] > X_MAX_POS - hotend_offset_tmp[X_AXIS][1]) {
+        do_blocking_move_to_xy(X_MAX_POS - hotend_offset_tmp[X_AXIS][1], current_position[Y_AXIS], 50);
+      }
     }
 
-    if (current_position[Y_AXIS] < Y_MIN_POS + hotend_offset_tmp[Y_AXIS][1]) {
-      do_blocking_move_to_xy(current_position[X_AXIS], Y_MIN_POS + hotend_offset_tmp[Y_AXIS][1], 50);
-    } else if (current_position[Y_AXIS] > Y_MAX_POS - hotend_offset_tmp[Y_AXIS][1]) {
-      do_blocking_move_to_xy(current_position[X_AXIS], Y_MAX_POS - hotend_offset_tmp[Y_AXIS][1], 50);
-    }
+    update_software_endstops(X_AXIS, old_extruder, new_extruder);
 
     if (new_extruder == 0) {
       ModuleCtrlToolChange(new_extruder);

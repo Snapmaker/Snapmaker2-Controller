@@ -241,9 +241,9 @@ void QuickStopService::Park() {
     // move X to max position of home dir
     // move Y to max position
     if (X_HOME_DIR > 0)
-      move_to_limited_xy(X_MAX_POS, Y_MAX_POS, 60);
+      move_to_limited_xy(soft_endstop[X_AXIS].max, Y_MAX_POS, 60);
     else
-      move_to_limited_xy(0, Y_MAX_POS, 60);
+      move_to_limited_xy(soft_endstop[X_AXIS].min, Y_MAX_POS, 60);
     break;
 
   case MODULE_TOOLHEAD_LASER:
