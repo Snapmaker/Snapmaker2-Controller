@@ -752,7 +752,7 @@ void Temperature::_temp_error(const int8_t heater, PGM_P const serial_msg, PGM_P
 
 void Temperature::max_temp_error(const int8_t heater) {
   _temp_error(heater, PSTR(MSG_T_MAXTEMP), TEMP_ERR_PSTR(MSG_ERR_MAXTEMP, heater));
-  systemservice.ThrowException((ExceptionHost)heater,ETYPE_OVERRUN_MAXTEMP_AGAIN);
+  systemservice.ThrowException((ExceptionHost)heater,ETYPE_OVERRUN_MAXTEMP);
 }
 
 void Temperature::min_temp_error(const int8_t heater) {

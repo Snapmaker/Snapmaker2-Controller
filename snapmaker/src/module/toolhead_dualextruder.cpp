@@ -266,12 +266,12 @@ void ToolHeadDualExtruder::ReportProbeState(uint8_t state[]) {
 #define ERR_INVALID_NOZZLE_BIT_MASK   (1)
 void ToolHeadDualExtruder::ReportTemperature(uint8_t *data) {
   cur_temp_[0] = data[0] << 8 | data[1];
-  if (data[2] & ERR_OVERTEMP_BIT_MASK) {
-    systemservice.ThrowException(EHOST_HOTEND0, ETYPE_OVERRUN_MAXTEMP_AGAIN);
+  if (data[2] & (1<<ERR_OVERTEMP_BIT_MASK)) {
+    systemservice.ThrowException(EHOST_HOTEND0, ETYPE_OVERRUN_MAXTEMP);
   }
   cur_temp_[1] = data[4] << 8 | data[5];
-  if (data[2] & ERR_OVERTEMP_BIT_MASK) {
-    systemservice.ThrowException(EHOST_HOTEND1, ETYPE_OVERRUN_MAXTEMP_AGAIN);
+  if (data[6] & (1<<ERR_OVERTEMP_BIT_MASK)) {
+    systemservice.ThrowException(EHOST_HOTEND1, ETYPE_OVERRUN_MAXTEMP);
   }
 }
 
@@ -473,7 +473,7 @@ ErrCode ToolHeadDualExtruder::SetHeater(uint16_t target_temp, uint8_t extrude_in
     return E_HARDWARE;
   }
 
-  if (action_ban & ACTION_BAN_NO_HEATING_HOTEND) {
+  if (target_temp > 0 && (action_ban & ACTION_BAN_NO_HEATING_HOTEND)) {
     LOG_E("cannot heating hotend cause exception: 0x%x\n", action_ban);
     return E_EXCEPTION;
   }

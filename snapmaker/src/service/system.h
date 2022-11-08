@@ -230,9 +230,9 @@ public:
   void SetSystemFaultBit(uint32_t BitsToSet);
 
   void CheckException();
-  ErrCode ThrowException(ExceptionHost h, ExceptionType t);
-  ErrCode ThrowExceptionISR(ExceptionHost h, ExceptionType t);
-  ErrCode ClearException(ExceptionHost h, ExceptionType t);
+  ErrCode ThrowException(const ExceptionHost h, const ExceptionType t);
+  ErrCode ThrowExceptionISR(const ExceptionHost h, const ExceptionType t);
+  ErrCode ClearException(const ExceptionHost h, const ExceptionType t);
   ErrCode ClearExceptionByFaultFlag(uint32_t flag);
 
   ErrCode PauseTrigger(TriggerSource type);
