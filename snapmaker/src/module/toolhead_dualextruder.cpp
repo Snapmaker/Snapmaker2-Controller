@@ -53,6 +53,9 @@ static void CallbackAckProbeState(CanStdDataFrame_t &cmd) {
 }
 
 static void CallbackAckNozzleTemp(CanStdDataFrame_t &cmd) {
+  if (cmd.id.bits.length < 8)
+    return;
+
   printer_dualextruder.ReportTemperature(cmd.data);
 }
 
@@ -181,22 +184,22 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
   mac_index_ = mac_index;
   UpdateEAxisStepsPerUnit(MODULE_TOOLHEAD_DUALEXTRUDER);
   SetToolhead(MODULE_TOOLHEAD_DUALEXTRUDER);
-  UpdateHotendMaxTemp(315, 0);
-  UpdateHotendMaxTemp(315, 1);
+  UpdateHotendMaxTemp(300, 0);
+  UpdateHotendMaxTemp(300, 1);
   printer1 = this;
 
   // sync the state of sensors
+  GetHWVersion();
+
   ModuleCtrlProbeStateSync();
   ModuleCtrlPidSync();
-  ModuleCtrlHotendTypeSync();
   ModuleCtrlFilamentStateSync();
   ModuleCtrlHotendOffsetSync();
   ModuleCtrlZProbeSensorCompensationSync();
   ModuleCtrlRightExtruderPosSync();
 
-  GetHWVersion();
-
   CheckLevelingData();
+  ModuleCtrlHotendTypeSync();
 
   LOG_I("dualextruder ready!\n");
 
@@ -258,9 +261,18 @@ void ToolHeadDualExtruder::ReportProbeState(uint8_t state[]) {
   }
 }
 
+
+#define ERR_OVERTEMP_BIT_MASK         (0)
+#define ERR_INVALID_NOZZLE_BIT_MASK   (1)
 void ToolHeadDualExtruder::ReportTemperature(uint8_t *data) {
   cur_temp_[0] = data[0] << 8 | data[1];
+  if (data[2] & ERR_OVERTEMP_BIT_MASK) {
+    systemservice.ThrowException(EHOST_HOTEND0, ETYPE_OVERRUN_MAXTEMP_AGAIN);
+  }
   cur_temp_[1] = data[4] << 8 | data[5];
+  if (data[2] & ERR_OVERTEMP_BIT_MASK) {
+    systemservice.ThrowException(EHOST_HOTEND1, ETYPE_OVERRUN_MAXTEMP_AGAIN);
+  }
 }
 
 void ToolHeadDualExtruder::ReportPID(uint8_t *data) {
@@ -459,6 +471,11 @@ ErrCode ToolHeadDualExtruder::SetHeater(uint16_t target_temp, uint8_t extrude_in
   if (hotend_type_[extrude_index] == 0xff) {
     LOG_E("hotend %d is invalid\n", extrude_index);
     return E_HARDWARE;
+  }
+
+  if (action_ban & ACTION_BAN_NO_HEATING_HOTEND) {
+    LOG_E("cannot heating hotend cause exception: 0x%x\n", action_ban);
+    return E_EXCEPTION;
   }
 
   target_temp_[extrude_index] = target_temp;

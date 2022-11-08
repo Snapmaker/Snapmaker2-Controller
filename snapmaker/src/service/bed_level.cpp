@@ -490,7 +490,8 @@ void BedLevelService::SaveLiveZOffset() {
 // for dualextruder
 ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
   ErrCode err = E_SUCCESS;
-  LOG_I("hmi request left probe sensor auto calibration\n");
+
+  LOG_I("ProbeSensorCalibrationLeftExtruder\n");
 
   live_z_offset_temp_[0] = live_z_offset_[0];
   live_z_offset_temp_[1] = live_z_offset_[1];
@@ -633,6 +634,12 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
   uint8_t grid = 3;
   char cmd[16];
 
+  uint32_t fault = systemservice.GetFaultFlag();
+  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+    err = E_HARDWARE;
+    goto EXIT;
+  }
+
   if (event.length > 0) {
     if (event.data[0] > 11 || event.data[0] < 2) {
       LOG_E("grid [%u] is out of range [2:11], set to default: 3\n", event.data[0]);
@@ -685,6 +692,11 @@ ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event)
   float probe_x, probe_y;
   uint8_t x_index, y_index;
 
+  uint32_t fault = systemservice.GetFaultFlag();
+  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+    err = E_HARDWARE;
+    goto EXIT;
+  }
 
   probe_point_ = event.data[0] - 1;
   if (probe_point_ > GRID_MAX_POINTS_INDEX) {
@@ -735,6 +747,12 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
   uint8_t x_index, y_index;
 
   LOG_I("hmi req exit 3dp2e manual leveling\n");
+
+  uint32_t fault = systemservice.GetFaultFlag();
+  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+    err = E_HARDWARE;
+    goto EXIT;
+  }
 
   // move to center or left-front of Bed
   x_index     = (uint8_t)(GRID_MAX_POINTS_X / 2);
@@ -807,6 +825,12 @@ ErrCode BedLevelService::DoDualExtruderManualLeveling(SSTP_Event_t &event) {
     }
   }
 
+  i = systemservice.GetFaultFlag();
+  if (i & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+    err = E_HARDWARE;
+    goto EXIT;
+  }
+
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
   process_cmd_imd("G28");
@@ -838,14 +862,21 @@ EXIT:
 ErrCode BedLevelService::DualExtruderManualLevelingProbePoint(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
   uint8_t index;
+  uint32_t fault;
 
   if (!event.length) {
     LOG_E("Need to specify point index!\n");
     err = E_PARAM;
-    goto EXIT;
+    goto out;
   } else {
     index = event.data[0];
     LOG_I("SC req move to pont: %d\n", index);
+  }
+
+  fault = systemservice.GetFaultFlag();
+  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+    err = E_EXCEPTION;
+    goto out;
   }
 
   if ((index <= GRID_MAX_POINTS_INDEX) && (index > 0)) {
@@ -868,7 +899,7 @@ ErrCode BedLevelService::DualExtruderManualLevelingProbePoint(SSTP_Event_t &even
     err = E_PARAM;
   }
 
-EXIT:
+out:
   event.data = &err;
   event.length = 1;
 
@@ -907,6 +938,12 @@ ErrCode BedLevelService::FinishDualExtruderManualLeveling(SSTP_Event_t &event) {
 ErrCode BedLevelService::DualExtruderAutoBedDetect(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
 
+  uint32_t fault = systemservice.GetFaultFlag();
+  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+    err = E_HARDWARE;
+    goto EXIT;
+  }
+
   switch (event.data[0]) {
     case 0:
       err = DualExtruderLeftExtruderAutoBedDetect();
@@ -921,6 +958,7 @@ ErrCode BedLevelService::DualExtruderAutoBedDetect(SSTP_Event_t &event) {
 
   LOG_I("auto bed detect ret = %u\n", err);
 
+EXIT:
   event.data = &err;
   event.length = 1;
   return hmi.Send(event);
@@ -1032,6 +1070,12 @@ ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
 ErrCode BedLevelService::DualExtruderManualBedDetect(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
 
+  uint32_t fault = systemservice.GetFaultFlag();
+  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+    err = E_HARDWARE;
+    goto EXIT;
+  }
+
   switch (event.data[0]) {
     case 0:
       err = DualExtruderLeftExtruderManualBedDetect();
@@ -1047,6 +1091,7 @@ ErrCode BedLevelService::DualExtruderManualBedDetect(SSTP_Event_t &event) {
       break;
   }
 
+EXIT:
   event.data = &err;
   event.length = 1;
   return hmi.Send(event);

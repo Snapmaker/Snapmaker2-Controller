@@ -326,3 +326,14 @@ void ToolHead3DP::UpdateHotendMaxTemp(int16_t temp, uint8_t e/* = 0*/) {
   }
 }
 
+void ToolHead3DP::SetTemp(int16_t temp, uint8_t extrude_index) {
+  if (extrude_index >= 1)
+    return;
+
+  cur_temp_[0] = temp;
+
+  if (cur_temp_[0] > thermalManager.temp_range[0].maxtemp) {
+    systemservice.ThrowException(EHOST_HOTEND0, ETYPE_OVERRUN_MAXTEMP_AGAIN);
+  }
+}
+
