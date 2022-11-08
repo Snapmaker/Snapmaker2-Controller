@@ -1003,10 +1003,9 @@ void Temperature::manage_heater() {
         }
       }
 
-      if (temp_hotend[e].current > temp_range[e].maxtemp)
-        systemservice.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP_AGAIN);
-      else if (temp_hotend[e].current > temp_range[e].maxtemp)
-        systemservice.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP);
+      // comment below code cause will check over-temperature error in callback that receive temperautre of toolhead
+      // if (temp_hotend[e].current > temp_range[e].maxtemp)
+      //   systemservice.ThrowException((ExceptionHost)(e), ETYPE_OVERRUN_MAXTEMP);
 
       #if ENABLED(THERMAL_PROTECTION_HOTENDS)
         // Check for thermal runaway

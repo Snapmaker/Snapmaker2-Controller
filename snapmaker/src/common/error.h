@@ -50,6 +50,8 @@ typedef uint8_t ErrCode;
 
 #define E_INVALID_CMD     (COMMON_ERR_BASE + 10)     /* invalid event id or operation code */
 
+#define E_EXCEPTION       (COMMON_ERR_BASE + 11)     /* prevent action as system exceptions */
+
 
 #define DATA_LINK_ERR_BASE (COMMON_ERR_BASE + 190)
 

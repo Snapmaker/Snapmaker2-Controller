@@ -897,6 +897,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
   case ETYPE_OVERRUN_MAXTEMP:
     switch (h) {
     case EHOST_HOTEND0:
+    case EHOST_HOTEND1:
       if (fault_flag_ & FAULT_FLAG_HOTEND_MAXTEMP)
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_HOTEND_MAXTEMP;
@@ -928,6 +929,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
   case ETYPE_OVERRUN_MAXTEMP_AGAIN:
     switch (h) {
     case EHOST_HOTEND0:
+    case EHOST_HOTEND1:
       if (fault_flag_ & FAULT_FLAG_HOTEND_SHORTCIRCUIT)
         return E_SAME_STATE;
       new_fault_flag = FAULT_FLAG_HOTEND_SHORTCIRCUIT;
@@ -939,7 +941,8 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING | ACTION_BAN_NO_MOVING;
       }
-      LOG_E("current temp [%.2f] of hotend is more higher than MAXTEMP: %d!\n", thermalManager.degHotend(0), HEATER_0_MAXTEMP + 10);
+      LOG_E("temp [%.2f] of hotend[%u] is more higher than MAXTEMP: %d!\n", thermalManager.degHotend(0), h,
+            thermalManager.temp_range[h].maxtemp);
       break;
 
     case EHOST_BED:
@@ -953,7 +956,7 @@ ErrCode SystemService::ThrowException(ExceptionHost h, ExceptionType t) {
       if (ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP || ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         action |= EACTION_STOP_WORKING;
       }
-      LOG_E("current temp [%.2f] of Bed is more higher than MAXTEMP: %d!\n", thermalManager.degBed(), BED_MAXTEMP + 5);
+      LOG_E("temp [%.2f] of Bed is more higher than MAXTEMP: %d!\n", thermalManager.degBed(), BED_MAXTEMP + 5);
       break;
 
     default:

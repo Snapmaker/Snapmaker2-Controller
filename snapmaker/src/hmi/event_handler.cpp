@@ -674,9 +674,16 @@ static ErrCode HmiGetHotendOffset(SSTP_Event_t &event) {
 
 static ErrCode HmiRequestProbeSensorCal(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
+  uint32_t fault;
 
   if (event.length != 1) {
     err = E_PARAM;
+    goto EXIT;
+  }
+
+  fault = systemservice.GetFaultFlag();
+  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+    err = E_HARDWARE;
     goto EXIT;
   }
 
