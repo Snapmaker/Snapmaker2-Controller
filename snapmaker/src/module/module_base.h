@@ -52,6 +52,8 @@
 #define MODULE_TYPE_STATIC  (1)
 #define MODULE_TYPE_DYNAMIC (0)
 
+#define MODULE_HW_VER_INVALID (0xFFFF)
+
 typedef unsigned short func_id_t;
 typedef unsigned short message_id_t;
 

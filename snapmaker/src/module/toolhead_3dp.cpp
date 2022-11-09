@@ -286,8 +286,6 @@ void ToolHead3DP::Process() {
   if (++timer_in_process_ < 100) return;
 
   timer_in_process_ = 0;
-
-
 }
 
 void ToolHead3DP::UpdateEAxisStepsPerUnit(ModuleToolHeadType type) {

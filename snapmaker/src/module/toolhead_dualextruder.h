@@ -109,6 +109,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     void ReportHotendOffset(uint8_t *data);
     void ReportProbeSensorCompensation(uint8_t *data);
     void ReportRightExtruderPos(uint8_t *data);
+    void ReportHWVersion(uint8_t *data);
 
     // set module
     ErrCode ModuleCtrlProximitySwitchPower(uint8_t state);
@@ -128,8 +129,10 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     ErrCode ModuleCtrlRightExtruderMove(move_type_e type, float destination = 0);
     ErrCode ModuleCtrlSetRightExtruderPosition(float raise_for_home_pos, float z_max_pos);
 
-    uint8_t GetHWVersion();
+    void GetHWVersion();
     void ShowInfo();
+
+    void Process();
 
   protected:
     void CheckLevelingData();
@@ -145,7 +148,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
   private:
     uint8_t mac_index_ = MODULE_MAC_INDEX_INVALID;
     bool hotend_type_initialized_ = false;
-    uint8_t hw_version_ = 0xff;
+    uint16_t hw_version_ = MODULE_HW_VER_INVALID;
 };
 
 extern ToolHeadDualExtruder printer_dualextruder;

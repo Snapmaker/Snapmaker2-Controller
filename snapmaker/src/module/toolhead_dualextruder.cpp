@@ -87,6 +87,10 @@ static void CallbackAckReportRightExtruderPos(CanStdDataFrame_t &cmd) {
   printer_dualextruder.ReportRightExtruderPos(cmd.data);
 }
 
+static void CallbackAckReportHWVersion(CanStdDataFrame_t &cmd) {
+  printer_dualextruder.ReportHWVersion(cmd.data);
+}
+
 ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
   ErrCode ret;
   CanExtCmd_t cmd;
@@ -160,6 +164,10 @@ ErrCode ToolHeadDualExtruder::Init(MAC_t &mac, uint8_t mac_index) {
       cb = CallbackAckReportRightExtruderPos;
       break;
 
+    case MODULE_FUNC_GET_HW_VERSION:
+      cb = CallbackAckReportHWVersion;
+      break;
+
     default:
       cb = NULL;
       break;
@@ -220,25 +228,19 @@ void ToolHeadDualExtruder::CheckLevelingData() {
   }
 }
 
-uint8_t ToolHeadDualExtruder::GetHWVersion() {
+void ToolHeadDualExtruder::GetHWVersion() {
   CanStdFuncCmd_t cmd;
-  uint8_t buff[2] {0};
+  uint8_t buff[2] {0xff, 0xff};
   ErrCode ret;
 
   cmd.id        = MODULE_FUNC_GET_HW_VERSION;
   cmd.data      = buff;
-  cmd.length    = 1;
+  cmd.length    = 2;
 
-  ret = canhost.SendStdCmdSync(cmd, 2000);
+  ret = canhost.SendStdCmd(cmd);
   if (ret != E_SUCCESS) {
-    LOG_E("failed to get HW Version\n");
+    LOG_E("failed to get HW Version: ret[%u]\n", ret);
   }
-  else {
-    hw_version_ = buff[0];
-    LOG_I("HW version of 3DP2E: 0x%x\n", hw_version_);
-  }
-
-  return hw_version_;
 }
 
 void ToolHeadDualExtruder::ReportProbeState(uint8_t state[]) {
@@ -415,6 +417,15 @@ void ToolHeadDualExtruder::ReportRightExtruderPos(uint8_t *data) {
   float z_max_pos = (float)(data[4] << 24 | data[5] << 16 | data[6] << 8 | data[7]) / 1000;
 
   LOG_I("raise_for_home_pos: %f, z_max_pos: %f\n", raise_for_home_pos, z_max_pos);
+}
+
+void ToolHeadDualExtruder::ReportHWVersion(uint8_t *data) {
+  if ((data[0] ^ data[1]) != 0xff) {
+    LOG_E("errors in hw ver:[0x%x, 0x%x]\n", data[0], data[1]);
+    return;
+  }
+  hw_version_ = data[0];
+  LOG_I("HW version of 3DP2E: 0x%x\n", hw_version_);
 }
 
 ErrCode ToolHeadDualExtruder::ModuleCtrlProximitySwitchPower(uint8_t state) {
@@ -1078,3 +1089,11 @@ void ToolHeadDualExtruder::ShowInfo() {
   LOG_I("z_compensation: 0: %.3f, 1: %.3f\n", z_compensation_[0], z_compensation_[1]);
 }
 
+void ToolHeadDualExtruder::Process() {
+  if (++timer_in_process_ < 100) return;
+  timer_in_process_ = 0;
+
+  if (hw_version_ == MODULE_HW_VER_INVALID) {
+    GetHWVersion();
+  }
+}
