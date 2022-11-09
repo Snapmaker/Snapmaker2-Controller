@@ -69,7 +69,7 @@ class ToolHead3DP: public ModuleBase {
     void UpdatePID(uint8_t index, float val) {if (index < 3) pid_[index]=val;};
     virtual ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index=0);
     void GetFilamentState();
-    void Process();
+    virtual void Process();
 
     bool IsOnline(uint8_t head_index=0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; };
 
@@ -172,10 +172,10 @@ class ToolHead3DP: public ModuleBase {
     uint8_t probe_state_ = 0;
     uint8_t filament_state_;
     float pid_[3];
+    uint16_t timer_in_process_;
 
   private:
     uint8_t mac_index_;
-    uint16_t timer_in_process_;
 };
 
 extern ToolHead3DP printer_single;
