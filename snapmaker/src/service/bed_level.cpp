@@ -635,7 +635,8 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
   char cmd[16];
 
   uint32_t fault = systemservice.GetFaultFlag();
-  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (fault & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
+    LOG_E("cannot start leveling cause exception: 0x%x\n", fault);
     err = E_HARDWARE;
     goto EXIT;
   }
@@ -693,7 +694,8 @@ ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event)
   uint8_t x_index, y_index;
 
   uint32_t fault = systemservice.GetFaultFlag();
-  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (fault & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
+    LOG_E("cannot start leveling cause exception: 0x%x\n", fault);
     err = E_HARDWARE;
     goto EXIT;
   }
@@ -749,7 +751,8 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
   LOG_I("hmi req exit 3dp2e manual leveling\n");
 
   uint32_t fault = systemservice.GetFaultFlag();
-  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (fault & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
+    LOG_E("cannot do leveling cause exception: 0x%x\n", fault);
     err = E_HARDWARE;
     goto EXIT;
   }
@@ -874,7 +877,8 @@ ErrCode BedLevelService::DualExtruderManualLevelingProbePoint(SSTP_Event_t &even
   }
 
   fault = systemservice.GetFaultFlag();
-  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (fault & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
+    LOG_E("cannot do leveling cause exception: 0x%x\n", fault);
     err = E_EXCEPTION;
     goto out;
   }
@@ -939,7 +943,8 @@ ErrCode BedLevelService::DualExtruderAutoBedDetect(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
 
   uint32_t fault = systemservice.GetFaultFlag();
-  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (fault & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
+    LOG_E("cannot do leveling cause exception: 0x%x\n", fault);
     err = E_HARDWARE;
     goto EXIT;
   }
@@ -1071,7 +1076,8 @@ ErrCode BedLevelService::DualExtruderManualBedDetect(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
 
   uint32_t fault = systemservice.GetFaultFlag();
-  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (fault & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
+    LOG_E("cannot do leveling cause exception: 0x%x\n", fault);
     err = E_HARDWARE;
     goto EXIT;
   }
