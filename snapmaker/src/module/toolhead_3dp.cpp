@@ -97,6 +97,9 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
 
   LOG_I("\tGot toolhead 3DP!\n");
 
+  // update max temp firstly, CAN callback will use it to judge max_temp error
+  UpdateHotendMaxTemp(275);
+
   // we have configured 3DP in same port
   if (mac_index_ != MODULE_MAC_INDEX_INVALID)
     return E_SAME_STATE;
@@ -180,7 +183,6 @@ ErrCode ToolHead3DP::Init(MAC_t &mac, uint8_t mac_index) {
   IOInit();
   UpdateEAxisStepsPerUnit(MODULE_TOOLHEAD_3DP);
   SetToolhead(MODULE_TOOLHEAD_3DP);
-  UpdateHotendMaxTemp(275);
   printer1 = this;
 
 out:
@@ -330,7 +332,7 @@ void ToolHead3DP::SetTemp(int16_t temp, uint8_t extrude_index) {
 
   cur_temp_[0] = temp;
 
-  if (cur_temp_[0] > thermalManager.temp_range[0].maxtemp) {
+  if ((cur_temp_[0]/10) > thermalManager.temp_range[0].maxtemp) {
     systemservice.ThrowException(EHOST_HOTEND0, ETYPE_OVERRUN_MAXTEMP);
   }
 }
