@@ -329,13 +329,7 @@ class ModuleBase {
     static void LockMarlinUart(LockMarlinUartSource source=LOCK_SOURCE_NONE);
     static void UnlockMarlinUart();
     static void ReportMarlinUart();
-    static void StaticProcess() {
-      if (++timer_in_static_process_ < 100) return;
-
-      timer_in_static_process_ = 0;
-
-      ReportMarlinUart();
-    }
+    static void StaticProcess();
 
     static ErrCode SetMAC(SSTP_Event_t &event);
     static ErrCode GetMAC(SSTP_Event_t &event);
@@ -351,7 +345,7 @@ class ModuleBase {
     uint16_t device_id() { return device_id_; }
 
   protected:
-    static void SetToolhead(ModuleToolHeadType toolhead);
+    void SetToolhead(ModuleToolHeadType toolhead);
 
   protected:
     uint16_t device_id_;

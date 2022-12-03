@@ -319,3 +319,18 @@ void ModuleBase::SetToolhead(ModuleToolHeadType toolhead) {
   if (need_saved)
     settings.save();
 }
+
+
+void ModuleBase::StaticProcess() {
+  laser_1_6_w.Process();
+  enclosure.Process();
+  emergency_stop.Process();
+  purifier.Process();
+  printer_dualextruder.Process();
+  laser_10w.Process();
+
+  if (++timer_in_static_process_ < 100) return;
+  timer_in_static_process_ = 0;
+
+  ReportMarlinUart();
+}
