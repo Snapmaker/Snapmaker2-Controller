@@ -171,14 +171,31 @@ ErrCode CanHost::SendStdCmd(CanStdFuncCmd_t &function, uint8_t sub_index) {
 
 
 void CanHost::SendHeartbeat() {
-  CanPacket_t packet = {CAN_CH_1, CAN_FRAME_STD_REMOTE, 0x01, 0, 0};
+  CanPacket_t packet;
+
+  // to avoid accessing adddress over 0x8040000, by Scott
+  packet.ft = CAN_FRAME_STD_REMOTE;
+  packet.ch = CAN_CH_1;
+  packet.id = 0x01;
+  packet.length = 0;
+  packet.data = NULL;
+
   can.Write(packet);
   packet.ch = CAN_CH_2;
   can.Write(packet);
 }
 
 void CanHost::SendEmergencyStop() {
-  CanPacket_t packet = {CAN_CH_1, CAN_FRAME_STD_REMOTE, 0x02, 0, 0};
+  CanPacket_t packet;
+
+  // to avoid accessing adddress over 0x8040000, by Scott
+  packet.ft = CAN_FRAME_STD_REMOTE;
+  packet.ch = CAN_CH_1;
+  packet.id = 0x02;
+  packet.length = 0;
+  packet.data = NULL;
+
+
   can.Write(packet);
   packet.ch = CAN_CH_2;
   can.Write(packet);
