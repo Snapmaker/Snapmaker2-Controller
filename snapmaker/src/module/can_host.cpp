@@ -498,8 +498,6 @@ void CanHost::EventHandler(void *parameter) {
     }
 
     ModuleBase::StaticProcess();
-    for (int i = 0; static_modules[i] != NULL; i++)
-      static_modules[i]->Process();
 
     vTaskDelay(pdMS_TO_TICKS(receiver_speed_));
   }
