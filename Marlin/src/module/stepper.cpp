@@ -1281,8 +1281,8 @@ static char pre_inter_str[] = ", ";
 HAL_STEP_TIMER_ISR() {
   #if ENABLED(DEBUG_ISR_LATENCY)
     hal_timer_t latency = HAL_timer_get_count(STEP_TIMER_NUM);
-    if (latency > 4) {
-      SERIAL_ECHOLNPAIR(latency_str, latency, pre_inter_str, Stepper::pre_isr_ticks);
+    if (latency > 10*STEPPER_TIMER_TICKS_PER_US) {
+      SERIAL_ECHOLNPAIR(latency_str, latency/STEPPER_TIMER_TICKS_PER_US, pre_inter_str, Stepper::pre_isr_ticks/STEPPER_TIMER_TICKS_PER_US);
     }
   #endif
 
