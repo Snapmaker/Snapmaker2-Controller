@@ -35,7 +35,7 @@
 
 #include <libmaple/libmaple_types.h>
 #include <libmaple/dma.h>
-
+#include <libmaple/usart.h>
 #include "Print.h"
 #include "boards.h"
 #include "Stream.h"
@@ -166,23 +166,27 @@ public:
     struct usart_dev* c_dev(void) { return this->usart_device; }
 
     void check_dma();
+    void dma_rx_isr();
+    void uart_isr();
 private:
     void init_dma();
     bool try_dma_tx();
+    void rx_process();
+    void dump_rx_data(uint8_t *buff, uint32_t len);
 
     struct usart_dev *usart_device;
     struct dma_dev *dma_device;
-    dma_channel tx_ch;
+    dma_channel dma_tx_ch;
+    dma_channel dma_rx_ch;
 
     uint8_t uart_num;
 
-    uint8_t bkp_tx_buff[512];
+    uint8_t bkp_tx_buff[USART_TX_BUF_SIZE];
     uint8_t *write_buff;
-    uint8_t bkp_rx_buff[512];
-    uint8_t *read_buff;
-
     uint32_t write_index;
-    uint32_t read_index;
+
+    uint8_t read_buff[USART_RX_BUF_SIZE/2];
+    uint32_t read_pos;
 
     uint8 tx_pin;
     uint8 rx_pin;
