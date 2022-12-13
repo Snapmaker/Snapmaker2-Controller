@@ -34,6 +34,7 @@
 #define _WIRISH_HARDWARESERIAL_H_
 
 #include <libmaple/libmaple_types.h>
+#include <libmaple/dma.h>
 
 #include "Print.h"
 #include "boards.h"
@@ -110,7 +111,8 @@ struct usart_dev;
 #define DEFINE_HWSERIAL(name, n)                                   \
 	HardwareSerial name(USART##n,                                  \
 						BOARD_USART##n##_TX_PIN,                   \
-						BOARD_USART##n##_RX_PIN)
+						BOARD_USART##n##_RX_PIN,                    \
+                        n)
 
 #define DEFINE_HWSERIAL_UART(name, n)                             \
 	HardwareSerial name(UART##n,                                  \
@@ -128,6 +130,11 @@ public:
     HardwareSerial(struct usart_dev *usart_device,
                    uint8 tx_pin,
                    uint8 rx_pin);
+
+    HardwareSerial(struct usart_dev *usart_device,
+                   uint8 tx_pin,
+                   uint8 rx_pin,
+                   uint8 ch);
 
     /* Set up/tear down */
     void begin(uint32 baud);
@@ -158,7 +165,14 @@ public:
     /* FIXME [0.0.13] documentation */
     struct usart_dev* c_dev(void) { return this->usart_device; }
 private:
+    void init_dma();
+
     struct usart_dev *usart_device;
+    struct dma_dev *dma_device;
+    dma_channel tx_ch;
+
+    uint8 uart_num;
+
     uint8 tx_pin;
     uint8 rx_pin;
   protected:
