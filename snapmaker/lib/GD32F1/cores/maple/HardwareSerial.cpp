@@ -47,6 +47,16 @@ HardwareSerial::HardwareSerial(usart_dev *usart_device,
     this->rx_pin = rx_pin;
 }
 
+HardwareSerial::HardwareSerial(struct usart_dev *usart_device,
+                uint8 tx_pin,
+                uint8 rx_pin,
+                uint8 n) {
+    this->usart_device = usart_device;
+    this->tx_pin = tx_pin;
+    this->rx_pin = rx_pin;
+    this->uart_num = n;
+}
+
 /*
  * Set up/tear down
  */
@@ -70,6 +80,53 @@ void HardwareSerial::begin(uint32 baud)
 {
 	begin(baud,SERIAL_8N1);
 }
+
+void HardwareSerial::init_dma() {
+    dma_tube_config dma_cfg;
+    usart_reg_map *regs = usart_device->regs;
+
+    switch (uart_num) {
+    // usart 1
+    case 1:
+        dma_device = DMA1;
+        dma_init(DMA1);
+        // USART TX
+        dma_cfg.tube_req_src = DMA_REQ_SRC_USART1_TX;
+        dma_cfg.tube_dst = &regs->DR;
+        dma_cfg.tube_dst_size = DMA_SIZE_8BITS;
+        dma_cfg.tube_src = usart_device->tx_buf;
+        dma_cfg.tube_src_size = DMA_SIZE_8BITS;
+        dma_cfg.tube_nr_xfers = USART_TX_BUF_SIZE;
+        dma_cfg.target_data = 0;
+        dma_cfg.tube_flags = DMA_CFG_SRC_INC;
+        dma_tube_cfg(DMA1, DMA_CH4, &dma_cfg);
+        tx_ch = DMA_CH4;
+
+        // RX
+        dma_cfg.tube_req_src = DMA_REQ_SRC_USART1_RX;
+        dma_cfg.tube_dst = usart_device->rx_buf;
+        dma_cfg.tube_dst_size = DMA_SIZE_8BITS;
+        dma_cfg.tube_src = &regs->DR;
+        dma_cfg.tube_src_size = DMA_SIZE_8BITS;
+        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE;
+        dma_cfg.target_data = 0;
+        dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_CMPLT_IE;
+        dma_tube_cfg(DMA1, DMA_CH5, &dma_cfg);
+        dma_enable(DMA1, DMA_CH5);
+        break;
+
+    case 2:
+        break;
+
+    case 3:
+        break;
+
+    default:
+        break;
+    }
+
+}
+
 /*
  * Roger Clark.
  * Note. The config parameter is not currently used. This is a work in progress.
@@ -80,6 +137,7 @@ void HardwareSerial::begin(uint32 baud)
 void HardwareSerial::begin(uint32 baud, uint8_t config)
 {
  //   ASSERT(baud <= this->usart_device->max_baud);// Roger Clark. Assert doesn't do anything useful, we may as well save the space in flash and ram etc
+    init_dma();
 
     if (baud > this->usart_device->max_baud) {
         return;
@@ -87,6 +145,7 @@ void HardwareSerial::begin(uint32 baud, uint8_t config)
 
     const stm32_pin_info *txi = &PIN_MAP[this->tx_pin];
     const stm32_pin_info *rxi = &PIN_MAP[this->rx_pin];
+    usart_reg_map *regs = usart_device->regs;
 
     disable_timer_if_necessary(txi->timer_device, txi->timer_channel);
 
@@ -96,6 +155,7 @@ void HardwareSerial::begin(uint32 baud, uint8_t config)
                              txi->gpio_device, txi->gpio_bit,
                              config);
     usart_set_baud_rate(this->usart_device, USART_USE_PCLK, baud);
+    regs->CR3 |= (USART_CR3_DMAT | USART_CR3_DMAR);
     usart_enable(this->usart_device);
 }
 
