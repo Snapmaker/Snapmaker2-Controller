@@ -79,33 +79,33 @@ static usart_dev usart3 = {
 /** USART3 device */
 usart_dev *USART3 = &usart3;
 
-#if defined(STM32_HIGH_DENSITY) || defined(STM32_XL_DENSITY) || (STM32_F1_LINE == STM32_F1_LINE_CONNECTIVITY)
-static ring_buffer uart4_rb;
-static ring_buffer uart4_wb;
-static usart_dev uart4 = {
-    .regs     = UART4_BASE,
-    .rb       = &uart4_rb,
-    .wb       = &uart4_wb,
-    .max_baud = 2250000UL,
-    .clk_id   = RCC_UART4,
-    .irq_num  = NVIC_UART4,
-};
-/** UART4 device */
-usart_dev *UART4 = &uart4;
+// #if defined(STM32_HIGH_DENSITY) || defined(STM32_XL_DENSITY) || (STM32_F1_LINE == STM32_F1_LINE_CONNECTIVITY)
+// static ring_buffer uart4_rb;
+// static ring_buffer uart4_wb;
+// static usart_dev uart4 = {
+//     .regs     = UART4_BASE,
+//     .rb       = &uart4_rb,
+//     .wb       = &uart4_wb,
+//     .max_baud = 2250000UL,
+//     .clk_id   = RCC_UART4,
+//     .irq_num  = NVIC_UART4,
+// };
+// /** UART4 device */
+// usart_dev *UART4 = &uart4;
 
-static ring_buffer uart5_rb;
-static ring_buffer uart5_wb;
-static usart_dev uart5 = {
-    .regs     = UART5_BASE,
-    .rb       = &uart5_rb,
-    .wb       = &uart5_wb,
-    .max_baud = 2250000UL,
-    .clk_id   = RCC_UART5,
-    .irq_num  = NVIC_UART5,
-};
-/** UART5 device */
-usart_dev *UART5 = &uart5;
-#endif
+// static ring_buffer uart5_rb;
+// static ring_buffer uart5_wb;
+// static usart_dev uart5 = {
+//     .regs     = UART5_BASE,
+//     .rb       = &uart5_rb,
+//     .wb       = &uart5_wb,
+//     .max_baud = 2250000UL,
+//     .clk_id   = RCC_UART5,
+//     .irq_num  = NVIC_UART5,
+// };
+// /** UART5 device */
+// usart_dev *UART5 = &uart5;
+// #endif
 
 /*
  * Routines
@@ -118,8 +118,8 @@ void usart_config_gpios_async(usart_dev *udev,
     gpio_set_mode(rx_dev, rx, GPIO_INPUT_FLOATING);
     gpio_set_mode(tx_dev, tx, GPIO_AF_OUTPUT_PP);
 /*
-CR1 bit 12 Word length 0=8  1=9 
-CR1 bit 11 wake (default value is 0) we can safely set this value to 0 (zero) each time 
+CR1 bit 12 Word length 0=8  1=9
+CR1 bit 11 wake (default value is 0) we can safely set this value to 0 (zero) each time
 CR1 bit 10 parity enable (1 = enabled)
 CR1 bit 9  Parity selection 0 = Even  1 = Odd
 CR2 bits 13 and 12  00 = 1 01 = 0.5 10 = 2 11 = 1.5
@@ -130,22 +130,22 @@ Word length of 9 bit with parity is not supported.
 	0B00 0000
 	0B10 0000
 	0B00 1000
-	0B10 1000	
+	0B10 1000
 
 	0B00 0010
 	0B10 0010
 	0B00 1010
-	0B10 1010	
+	0B10 1010
 
 	0B00 0011
 	0B10 0011
 	0B00 1011
-	0B10 1011		
-	
+	0B10 1011
+
 #define SERIAL_8N1	0B 0000 0000
 #define SERIAL_8N2	0B 0010 0000
 #define SERIAL_9N1	0B 0000 1000
-#define SERIAL_9N2	0B 0010 1000	
+#define SERIAL_9N2	0B 0010 1000
 
 #define SERIAL_8E1	0B 0000 1010
 #define SERIAL_8E2	0B 0010 1010
@@ -190,10 +190,10 @@ void usart_foreach(void (*fn)(usart_dev*)) {
     fn(USART1);
     fn(USART2);
     fn(USART3);
-#if defined(STM32_HIGH_DENSITY) || (STM32_F1_LINE == STM32_F1_LINE_CONNECTIVITY)
-    fn(UART4);
-    fn(UART5);
-#endif
+// #if defined(STM32_HIGH_DENSITY) || (STM32_F1_LINE == STM32_F1_LINE_CONNECTIVITY)
+//     fn(UART4);
+//     fn(UART5);
+// #endif
 }
 
 /*
@@ -212,12 +212,12 @@ __weak void __irq_usart3(void) {
     usart_irq(&usart3_rb, &usart3_wb, USART3_BASE);
 }
 
-#if defined(STM32_HIGH_DENSITY) || (STM32_F1_LINE == STM32_F1_LINE_CONNECTIVITY)
-__weak void __irq_uart4(void) {
-    usart_irq(&uart4_rb, &uart4_wb, UART4_BASE);
-}
+// #if defined(STM32_HIGH_DENSITY) || (STM32_F1_LINE == STM32_F1_LINE_CONNECTIVITY)
+// __weak void __irq_uart4(void) {
+//     usart_irq(&uart4_rb, &uart4_wb, UART4_BASE);
+// }
 
-__weak void __irq_uart5(void) {
-    usart_irq(&uart5_rb, &uart5_wb, UART5_BASE);
-}
-#endif
+// __weak void __irq_uart5(void) {
+//     usart_irq(&uart5_rb, &uart5_wb, UART5_BASE);
+// }
+// #endif
