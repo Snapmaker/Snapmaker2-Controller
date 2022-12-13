@@ -164,14 +164,25 @@ public:
     /* Escape hatch into libmaple */
     /* FIXME [0.0.13] documentation */
     struct usart_dev* c_dev(void) { return this->usart_device; }
+
+    void check_dma();
 private:
     void init_dma();
+    bool try_dma_tx();
 
     struct usart_dev *usart_device;
     struct dma_dev *dma_device;
     dma_channel tx_ch;
 
-    uint8 uart_num;
+    uint8_t uart_num;
+
+    uint8_t bkp_tx_buff[512];
+    uint8_t *write_buff;
+    uint8_t bkp_rx_buff[512];
+    uint8_t *read_buff;
+
+    uint32_t write_index;
+    uint32_t read_index;
 
     uint8 tx_pin;
     uint8 rx_pin;

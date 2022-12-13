@@ -830,6 +830,8 @@ void idle(
     #endif
   );
 
+  Serial.check_dma();
+
   thermalManager.manage_heater();
 
   #if ENABLED(PRINTCOUNTER)
