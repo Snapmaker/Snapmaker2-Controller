@@ -137,5 +137,7 @@ ErrCode UartHost::Send(SSTP_Event_t &event) {
   if (ret == pdPASS)
     xSemaphoreGive(mlock_uart_);
 
+  serial_->check_dma();
+
   return E_SUCCESS;
 }
