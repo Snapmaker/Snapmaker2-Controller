@@ -39,33 +39,60 @@
 
 #include "../../../../src/hmi/gcode_result_handler.h"
 
+extern "C" {
+
+void __irq_usart1(void) {
+    Serial.uart_isr();
+}
+
+void __irq_usart2(void) {
+    Serial1.uart_isr();
+}
+
+void __irq_usart3(void) {
+    Serial2.uart_isr();
+}
+
+void __irq_uart4(void) {
+
+}
+
+void __irq_uart5(void) {
+
+}
+
+}
+
+// UART3 TX
 static void dma_isr_ch2() {
     dma_clear_isr_bits(DMA1, DMA_CH1);
     dma_disable(DMA1, DMA_CH2);
 }
 
-// static void dma_isr_ch3() {
-//     dma_disable(DMA1, DMA_CH3);
-//     dma_clear_isr_bits(DMA1, DMA_CH1);
-// }
+// UART3 RX
+static void dma_isr_ch3() {
+    Serial2.dma_rx_isr();
+}
 
+// UART1 TX
 static void dma_isr_ch4() {
-    dma_clear_isr_bits(DMA1, DMA_CH1);
+    dma_clear_isr_bits(DMA1, DMA_CH4);
     dma_disable(DMA1, DMA_CH4);
 }
 
-// static void dma_isr_ch5() {
-//     dma_disable(DMA1, DMA_CH5);
-//     dma_clear_isr_bits(DMA1, DMA_CH1);
-// }
+// UART1 RX
+static void dma_isr_ch5() {
+    Serial.dma_rx_isr();
+}
 
-// static void dma_isr_ch6() {
-//     dma_disable(DMA1, DMA_CH6);
-//     dma_clear_isr_bits(DMA1, DMA_CH1);
-// }
+// UART2 RX
+static void dma_isr_ch6() {
+    Serial1.dma_rx_isr();
+}
 
+// UART2 TX
 static void dma_isr_ch7() {
-    dma_clear_isr_bits(DMA1, DMA_CH1);
+    dma_clear_isr_bits(DMA1, DMA_CH7);
     dma_disable(DMA1, DMA_CH7);
 }
 
@@ -77,9 +104,8 @@ HardwareSerial::HardwareSerial(usart_dev *usart_device,
     this->tx_pin = tx_pin;
     this->rx_pin = rx_pin;
     write_index = 0;
-    read_index = 0;
+    read_pos = 0;
     write_buff = usart_device->tx_buf;
-    read_buff = usart_device->rx_buf;
 }
 
 HardwareSerial::HardwareSerial(struct usart_dev *usart_device,
@@ -91,9 +117,8 @@ HardwareSerial::HardwareSerial(struct usart_dev *usart_device,
     this->rx_pin = rx_pin;
     this->uart_num = n;
     write_index = 0;
-    read_index = 0;
+    read_pos = 0;
     write_buff = usart_device->tx_buf;
-    read_buff = usart_device->rx_buf;
 }
 
 /*
@@ -136,7 +161,7 @@ void HardwareSerial::init_dma()
     // usart 1
     case 1:
         // TX
-        tx_ch = DMA_CH4;
+        dma_tx_ch = DMA_CH4;
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART1_TX;
         dma_cfg.tube_dst = &regs->DR;
         dma_cfg.tube_src = write_buff;
@@ -145,23 +170,26 @@ void HardwareSerial::init_dma()
         dma_cfg.tube_flags = DMA_CFG_SRC_INC | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH4, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH4, DMA_PRIORITY_MEDIUM);
-        nvic_irq_set_priority(DMA1->handlers[DMA_CH4 - 1].irq_line, 6);
+        nvic_irq_set_priority(DMA1->handlers[DMA_CH4 - 1].irq_line, 4);
         dma_attach_interrupt(DMA1, DMA_CH4, dma_isr_ch4);
 
         // RX
+        dma_rx_ch = DMA_CH5;
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART1_RX;
         dma_cfg.tube_dst = read_buff;
         dma_cfg.tube_src = &regs->DR;
-        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE;
-        dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_CMPLT_IE;
+        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE/2;
+        dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_HALF_CMPLT_IE | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH5, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH5, DMA_PRIORITY_HIGH);
+        nvic_irq_set_priority(DMA1->handlers[DMA_CH5 - 1].irq_line, 7);
+        dma_attach_interrupt(DMA1, DMA_CH5, dma_isr_ch5);
         dma_enable(DMA1, DMA_CH5);
         break;
 
     case 2:
         // TX
-        tx_ch = DMA_CH7;
+        dma_tx_ch = DMA_CH7;
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART2_TX;
         dma_cfg.tube_dst = &regs->DR;
         dma_cfg.tube_src = usart_device->tx_buf;
@@ -170,23 +198,26 @@ void HardwareSerial::init_dma()
         dma_cfg.tube_flags = DMA_CFG_SRC_INC | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH7, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH7, DMA_PRIORITY_MEDIUM);
-        nvic_irq_set_priority(DMA1->handlers[DMA_CH7 - 1].irq_line, 5);
+        nvic_irq_set_priority(DMA1->handlers[DMA_CH7 - 1].irq_line, 3);
         dma_attach_interrupt(DMA1, DMA_CH7, dma_isr_ch7);
 
         // RX
+        dma_rx_ch = DMA_CH6;
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART2_RX;
-        dma_cfg.tube_dst = usart_device->rx_buf;
+        dma_cfg.tube_dst = read_buff;
         dma_cfg.tube_src = &regs->DR;
-        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE;
-        dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_CMPLT_IE;
+        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE/2;
+        dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_HALF_CMPLT_IE | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH6, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH6, DMA_PRIORITY_HIGH);
+        nvic_irq_set_priority(DMA1->handlers[DMA_CH6 - 1].irq_line, 6);
+        dma_attach_interrupt(DMA1, DMA_CH6, dma_isr_ch6);
         dma_enable(DMA1, DMA_CH6);
         break;
 
     case 3:
         // TX
-        tx_ch = DMA_CH2;
+        dma_tx_ch = DMA_CH2;
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART3_TX;
         dma_cfg.tube_dst = &regs->DR;
         dma_cfg.tube_src = usart_device->tx_buf;
@@ -195,17 +226,20 @@ void HardwareSerial::init_dma()
         dma_cfg.tube_flags = DMA_CFG_SRC_INC | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH2, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH2, DMA_PRIORITY_MEDIUM);
-        nvic_irq_set_priority(DMA1->handlers[DMA_CH2 - 1].irq_line, 7);
+        nvic_irq_set_priority(DMA1->handlers[DMA_CH2 - 1].irq_line, 5);
         dma_attach_interrupt(DMA1, DMA_CH2, dma_isr_ch2);
 
         // RX
+        dma_rx_ch = DMA_CH3;
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART3_RX;
-        dma_cfg.tube_dst = usart_device->rx_buf;
+        dma_cfg.tube_dst = read_buff;
         dma_cfg.tube_src = &regs->DR;
-        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE;
-        dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_CMPLT_IE;
+        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE/2;
+        dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_HALF_CMPLT_IE | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH3, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH3, DMA_PRIORITY_HIGH);
+        nvic_irq_set_priority(DMA1->handlers[DMA_CH3 - 1].irq_line, 8);
+        dma_attach_interrupt(DMA1, DMA_CH3, dma_isr_ch3);
         dma_enable(DMA1, DMA_CH3);
         break;
 
@@ -213,7 +247,7 @@ void HardwareSerial::init_dma()
         return;
     }
 
-    dma_clear_isr_bits(dma_device, tx_ch);
+    dma_clear_isr_bits(dma_device, dma_tx_ch);
 }
 
 void HardwareSerial::check_dma()
@@ -222,30 +256,77 @@ void HardwareSerial::check_dma()
         try_dma_tx();
 }
 
+void HardwareSerial::dump_rx_data(uint8_t *buff, uint32_t len)
+{
+    for (uint32_t i = 0; i < len; i++) {
+        rb_push_insert(usart_device->rb, buff[i]);
+    }
+}
+
+void HardwareSerial::rx_process()
+{
+    uint32_t cur_pos;
+    cur_pos = USART_RX_BUF_SIZE/2 - dma_get_count(dma_device, dma_rx_ch);
+
+    if (cur_pos != read_pos) {
+        if (cur_pos > read_pos) {
+            dump_rx_data(&read_buff[read_pos], cur_pos - read_pos);
+        }
+        else {
+            dump_rx_data(&read_buff[read_pos], USART_RX_BUF_SIZE/2 - read_pos);
+            if (cur_pos > 0)
+                dump_rx_data(&read_buff[0], cur_pos);
+        }
+
+        read_pos = cur_pos;
+    }
+}
+
+void HardwareSerial::dma_rx_isr()
+{
+    dma_irq_cause cause = dma_get_irq_cause(dma_device, dma_rx_ch);
+
+    if (cause == DMA_TRANSFER_HALF_COMPLETE || cause == DMA_TRANSFER_COMPLETE) {
+        rx_process();
+    }
+}
+
+void HardwareSerial::uart_isr()
+{
+    usart_reg_map *regs = usart_device->regs;
+    volatile uint32_t tmp;
+
+    if (regs->SR & USART_SR_IDLE) {
+        tmp = regs->DR; // to clear IDLE flag
+        rx_process();
+        tmp = tmp;
+    }
+}
+
 #include "MapleFreeRTOS1030.h"
 bool HardwareSerial::try_dma_tx()
 {
     // if dma is transferring, cannot switch TX buffer
-    if (dma_is_channel_enabled(dma_device, tx_ch))
+    if (dma_is_channel_enabled(dma_device, dma_tx_ch))
         return false;
 
     taskENTER_CRITICAL();
 
-    dma_disable(dma_device, tx_ch);
-    dma_clear_isr_bits(dma_device, tx_ch);
+    dma_disable(dma_device, dma_tx_ch);
+    dma_clear_isr_bits(dma_device, dma_tx_ch);
 
 
     if (((uint32_t)write_buff) != ((uint32_t)(usart_device->tx_buf))) {
         write_buff = usart_device->tx_buf;
-        dma_set_mem_addr(dma_device, tx_ch, bkp_tx_buff);
+        dma_set_mem_addr(dma_device, dma_tx_ch, bkp_tx_buff);
     }
     else {
         write_buff = &bkp_tx_buff[0];
-        dma_set_mem_addr(dma_device, tx_ch, usart_device->tx_buf);
+        dma_set_mem_addr(dma_device, dma_tx_ch, usart_device->tx_buf);
     }
-    dma_set_num_transfers(dma_device, tx_ch, write_index);
+    dma_set_num_transfers(dma_device, dma_tx_ch, write_index);
     write_index = 0;
-    dma_enable(dma_device, tx_ch);
+    dma_enable(dma_device, dma_tx_ch);
     taskEXIT_CRITICAL();
 
     return true;
@@ -280,7 +361,10 @@ void HardwareSerial::begin(uint32 baud, uint8_t config)
                              config);
     usart_set_baud_rate(this->usart_device, USART_USE_PCLK, baud);
     regs->CR3 |= (USART_CR3_DMAT | USART_CR3_DMAR);
-    usart_enable(this->usart_device);
+    // usart_enable(this->usart_device);
+
+    regs->CR1 |= (USART_CR1_TE | USART_CR1_RE | USART_CR1_IDLEIE);// don't change the word length etc, and 'or' in the patten not overwrite |USART_CR1_M_8N1);
+    regs->CR1 |= USART_CR1_UE;
 }
 
 void HardwareSerial::end(void) {

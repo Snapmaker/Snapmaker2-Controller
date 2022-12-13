@@ -378,7 +378,7 @@ typedef struct usart_reg_map {
  */
 
 #ifndef USART_RX_BUF_SIZE
-#define USART_RX_BUF_SIZE               512
+#define USART_RX_BUF_SIZE               1024
 #endif
 
 #ifndef USART_TX_BUF_SIZE
