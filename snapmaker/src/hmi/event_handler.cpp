@@ -934,6 +934,7 @@ EXIT:
 }
 
 static ErrCode StopEMoves(SSTP_Event_t &event) {
+  ErrCode err = E_SUCCESS;
   stepper.e_moves_quick_stop_triggered();
 
   uint32_t time_elaspe = millis();
@@ -946,7 +947,9 @@ static ErrCode StopEMoves(SSTP_Event_t &event) {
   // Tell the planner where we actually are
   sync_plan_position();
 
-  return E_SUCCESS;
+  event.data   = &err;
+  event.length = 1;
+  return hmi.Send(event);
 }
 
 EventCallback_t motion_event_cb[MOTION_OPC_MAX] = {
