@@ -29,8 +29,8 @@
 #include "src/libs/hex_print_routines.h"
 
 #define LOG_HEAD  "SSTP: "
-#define TIMEOUT_FOR_HEADER      (2)
-#define TIMEOUT_FOR_NEXT_BYTE   (1)
+#define TIMEOUT_FOR_HEADER      (20)
+#define TIMEOUT_FOR_NEXT_BYTE   (5)
 
 // min br = 115200bps, = 14.4 bytes/ms
 // max data length = 516 bytes in transferring FW
@@ -313,7 +313,7 @@ uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
    * so we will have independent event_id and maybe more one op_code.
    * If yes, need to calculate them into checksum
    */
- 
+
   if (size > 0) {
     // data field exists
     if (event.op_code < SSTP_INVALID_OP_CODE) {
@@ -324,7 +324,7 @@ uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
       // No independent op_code
       checksum = (event.id<<8 | event.data[0]);
       start = 1;
-    } 
+    }
   }
   else {
     // no data field
@@ -351,7 +351,7 @@ uint16_t ProtocolSSTP::CalcChecksum(SSTP_Event_t &event) {
 out:
   while (checksum > 0xffff)
     checksum = ((checksum >> 16) & 0xffff) + (checksum & 0xffff);
- 
+
   checksum = ~checksum;
   return (uint16_t)checksum;
 }
