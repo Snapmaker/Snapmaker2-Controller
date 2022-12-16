@@ -491,6 +491,7 @@ void GcodeSuite::G28(const bool always_home_all) {
     if(((ModuleBase::toolhead() == MODULE_TOOLHEAD_3DP) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)) \
         && (all_axes_homed())) {
       set_bed_leveling_enabled(true);
+      z_home_position = current_position[Z_AXIS] + 1;
       levelservice.ApplyLiveZOffset();
     }
   #endif
