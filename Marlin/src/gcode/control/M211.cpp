@@ -45,6 +45,7 @@ void GcodeSuite::M211() {
   SERIAL_ECHOPAIR(    MSG_X, LOGICAL_X_POSITION(soft_endstop[X_AXIS].max));
   SERIAL_ECHOPAIR(" " MSG_Y, LOGICAL_Y_POSITION(soft_endstop[Y_AXIS].max));
   SERIAL_ECHOLNPAIR(" " MSG_Z, LOGICAL_Z_POSITION(soft_endstop[Z_AXIS].max));
+  SERIAL_ECHOLNPAIR(" z home limited", LOGICAL_Z_POSITION(z_home_position));
 }
 
 #endif

@@ -488,7 +488,7 @@ void clean_up_after_endstop_or_probe_move() {
 
   // Software Endstops are based on the configured limits.
   axis_limits_t soft_endstop[XYZ] = { { X_MIN_BED, X_MAX_BED }, { Y_MIN_BED, Y_MAX_BED }, { Z_MIN_POS, Z_MAX_POS } };
-
+  float z_home_position;
   /**
    * Software endstops can be used to monitor the open end of
    * an axis that has a hardware endstop on the other end. Or
@@ -627,7 +627,10 @@ void clean_up_after_endstop_or_probe_move() {
         NOLESS(target[Z_AXIS], soft_endstop[Z_AXIS].min);
       #endif
       #if !HAS_SOFTWARE_ENDSTOPS || ENABLED(MAX_SOFTWARE_ENDSTOP_Z)
-        NOMORE(target[Z_AXIS], soft_endstop[Z_AXIS].max);
+        if (planner.leveling_active)
+          NOMORE(target[Z_AXIS], z_home_position);
+        else
+          NOMORE(target[Z_AXIS], soft_endstop[Z_AXIS].max);
       #endif
   }
 
@@ -1715,6 +1718,7 @@ void homeaxis(const AxisEnum axis) {
     soft_endstop[X_AXIS].max = X_MAX_POS;
     soft_endstop[Y_AXIS].max = Y_MAX_POS;
     soft_endstop[Z_AXIS].max = Z_MAX_POS;
+    z_home_position = Z_MAX_POS;
     #endif
     max_length_P[X_AXIS] = X_MAX_POS - X_MIN_POS;
     max_length_P[Y_AXIS] = Y_MAX_POS - Y_MIN_POS;
