@@ -150,6 +150,7 @@ typedef struct { float min, max; } axis_limits_t;
 #if HAS_SOFTWARE_ENDSTOPS
   extern bool soft_endstops_enabled;
   extern axis_limits_t soft_endstop[XYZ];
+  extern float z_home_position;
   void apply_motion_limits(float target[XYZ]);
   void update_software_endstops(const AxisEnum axis
     #if HAS_HOTEND_OFFSET
