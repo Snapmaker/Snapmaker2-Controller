@@ -1697,7 +1697,7 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
   // save last feedrate
-  tmp_f32 = MMS_SCALED(extruders_feedrate_percentage[0]) * 60;
+  tmp_f32 = MMS_SCALED(feedrate_mm_s) * 60;
   tmp_i16 = (int16_t)tmp_f32;
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
@@ -1738,9 +1738,6 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
     tmp_i16 = (int16_t)thermalManager.degHotend(1);
     HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
     tmp_i16 = (int16_t)thermalManager.degTargetHotend(1);
-    HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
-    tmp_f32 = MMS_SCALED(extruders_feedrate_percentage[1]) * 60;
-    tmp_i16 = (int16_t)tmp_f32;
     HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
   }
 
