@@ -78,7 +78,7 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
 
   // if it doesn't have enough bytes in ring buffer for header, just return
   while (rb_full_count(rb) < (SSTP_PDU_HEADER_SIZE - 1)) {
-    vTaskDelay(pdMS_TO_TICKS(1));
+    vTaskDelay(pdMS_TO_TICKS(5));
     if (++timeout > TIMEOUT_FOR_HEADER) {
       SERIAL_ECHOLN(LOG_HEAD "timeout to wait for PDU header");
       return E_NO_HEADER;
@@ -95,7 +95,7 @@ ErrCode ProtocolSSTP::Parse(ring_buffer *rb, uint8_t *out, uint16_t &size) {
       if (c != -1)
         break;
       else {
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(pdMS_TO_TICKS(5));
         if (++timeout > TIMEOUT_FOR_NEXT_BYTE) {
           SERIAL_ECHOLNPAIR(LOG_HEAD "not enough bytes for header, just got ", i);
           return E_NO_HEADER;
