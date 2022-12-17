@@ -119,7 +119,7 @@ struct usart_dev;
 						BOARD_USART##n##_TX_PIN,                   \
 						BOARD_USART##n##_RX_PIN)
 
-#define HWSERIAL_RX_BUFFER_SIZE (1024)
+#define HWSERIAL_RX_BUFFER_SIZE (600)
 
 /* Roger clark. Changed class inheritance from Print to Stream.
  * Also added new functions for peek() and availableForWrite()
