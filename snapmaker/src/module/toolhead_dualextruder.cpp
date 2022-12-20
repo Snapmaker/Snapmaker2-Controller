@@ -1090,6 +1090,9 @@ void ToolHeadDualExtruder::ShowInfo() {
 }
 
 void ToolHeadDualExtruder::Process() {
+  if (mac_index_ == MODULE_MAC_INDEX_INVALID)
+    return;
+
   if (++timer_in_process_ < 100) return;
   timer_in_process_ = 0;
 
