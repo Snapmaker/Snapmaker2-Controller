@@ -1192,7 +1192,7 @@
 
 // The cache size used when transferring Gcode in bulk
 #define HMI_GCODE_PACK_SIZE 512
-#define HMI_GCODE_PACK_BUF_COUNT 2
+#define HMI_GCODE_PACK_BUF_COUNT 8
 
 // Transmission to Host Buffer Size
 // To save 386 bytes of PROGMEM (and TX_BUFFER_SIZE+3 bytes of RAM) set to 0.
