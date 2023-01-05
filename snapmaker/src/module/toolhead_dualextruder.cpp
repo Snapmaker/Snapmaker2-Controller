@@ -495,14 +495,16 @@ ErrCode ToolHeadDualExtruder::SetHeater(uint16_t target_temp, uint8_t extrude_in
   fan_e nozzle_fan_index = DUAL_EXTRUDER_NOZZLE_FAN;
   uint8_t fan_speed = 0;
   uint8_t fan_delay = 0;
-  if (target_temp_[extrude_index] >= 60) {
+
+  if (target_temp >= 50) {
     fan_speed = 255;
-  } else if (target_temp_[extrude_index] == 0) {
+  }
+  else {
     // check if need to delay to turn off fan
-    if (cur_temp_[0] >= 150 || cur_temp_[0] >= 150) {
+    if (cur_temp_[0] >= 150 || cur_temp_[1] >= 150) {
       fan_speed = 0;
       fan_delay = 120;
-    } else if (cur_temp_[0] >= 60 || cur_temp_[0] >= 60) {
+    } else if (cur_temp_[0] >= 50 || cur_temp_[1] >= 50) {
       fan_speed = 0;
       fan_delay = 60;
     } else {

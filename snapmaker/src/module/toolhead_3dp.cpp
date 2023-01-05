@@ -258,17 +258,16 @@ ErrCode ToolHead3DP::SetHeater(uint16_t target_temp, uint8_t extrude_index) {
   buffer[0] = (uint8_t)(target_temp>>8);
   buffer[1] = (uint8_t)target_temp;
 
-  if (target_temp > 60) {
+  if (target_temp >= 50) {
     SetFan(1, 255);
   }
-
   // if we turn off heating
-  if (target_temp == 0) {
+  else {
     // check if need to delay to turn off fan
     if (cur_temp_[extrude_index] > 150) {
       SetFan(1, 0, 120);
     }
-    else if (cur_temp_[extrude_index] > 60) {
+    else if (cur_temp_[extrude_index] > 50) {
       SetFan(1, 0, 60);
     }
     else {
