@@ -119,7 +119,8 @@ float destination[X_TO_E]; // = { 0 }
 
 // The active extruder (tool). Set with T<extruder> command.
 #if EXTRUDERS > 1
-  uint8_t active_extruder; // = 0
+  uint8_t active_extruder = 0; // = 0
+  uint8_t actual_extruder = 0; // = 0
 #endif
 
 // Extruder offsets

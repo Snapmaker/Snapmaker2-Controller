@@ -493,6 +493,10 @@ void GcodeSuite::G28(const bool always_home_all) {
       set_bed_leveling_enabled(true);
       z_home_position = current_position[Z_AXIS] + 1;
       levelservice.ApplyLiveZOffset();
+
+      if (actual_extruder != active_extruder) {
+        printer1->ToolChange(actual_extruder);
+      }
     }
   #endif
 
