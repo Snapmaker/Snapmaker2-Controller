@@ -225,16 +225,16 @@ static void hmi_task(void *param) {
 
     systemservice.CheckIfSendWaitEvent();
 
-    if (ret != E_SUCCESS) {
+    if (ret == E_NO_RESRC) {
       // no command, sleep 10ms for next command
       vTaskDelay(pdMS_TO_TICKS(10));
-      continue;
     }
+
+    if (ret != E_SUCCESS)
+      continue;
 
     // execute or send out one command
     DispatchEvent(&dispather_param);
-
-    vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 
