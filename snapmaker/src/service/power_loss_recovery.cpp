@@ -397,7 +397,7 @@ int PowerLossRecovery::SaveEnv(void) {
     }
     // heated bed
     cur_data_.BedTamp = thermalManager.temp_bed.target;
-    cur_data_.active_extruder = active_extruder;
+    cur_data_.active_extruder = actual_extruder;
     break;
 
 	default:

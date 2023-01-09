@@ -864,6 +864,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     // to avoid power-loss, we record the new extruder  after unapply z offset!
     old_extruder = active_extruder;
     active_extruder = new_extruder;
+    actual_extruder = new_extruder;
 
     //set_destination_from_current();
     COPY(pre_position, current_position);
@@ -882,6 +883,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     }
 
     update_software_endstops(X_AXIS, old_extruder, new_extruder);
+    update_software_endstops(Z_AXIS, old_extruder, new_extruder);
 
     if (new_extruder == 0) {
       ModuleCtrlToolChange(new_extruder);
