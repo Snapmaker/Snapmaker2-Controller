@@ -604,11 +604,9 @@ ErrCode CanHost::InitModules(MAC_t &mac) {
     }
   }
 
-  // it is dynamic modules
-  ret = InitDynamicModule(mac, mac_index);
-  if (ret == E_SUCCESS) {
-    mac.bits.configured = 1;
-  }
+  // for now, to save resource, we won't init unknow modules
+  // but it can be upgraded
+  LOG_I("\nUnknown module! id=%u, ch=%u\n", MODULE_GET_DEVICE_ID(mac.val), mac.bits.channel);
 
 out:
   // if doesn't exist, record it in array
