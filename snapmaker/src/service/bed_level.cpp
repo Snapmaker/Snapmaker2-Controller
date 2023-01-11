@@ -496,8 +496,10 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
   live_z_offset_temp_[0] = live_z_offset_[0];
   live_z_offset_temp_[1] = live_z_offset_[1];
   live_z_offset_[0] = live_z_offset_[1] = 0;
+
+  feedrate_percentage = 100;
   // go home will make sure active left extruder
-  process_cmd_imd("G28");
+  process_cmd_imd("G28 N");
   printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
 
   planner.synchronize();
@@ -657,6 +659,8 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
   }
 
   LOG_I("hmi req 3dp2e auto leveling, grid: %u\n", event.data[0]);
+
+  feedrate_percentage = 100;
 
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
@@ -836,7 +840,10 @@ ErrCode BedLevelService::DoDualExtruderManualLeveling(SSTP_Event_t &event) {
 
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
-  process_cmd_imd("G28");
+
+  feedrate_percentage = 100;
+
+  process_cmd_imd("G28 N");
   snprintf(cmd, 16, "G1029 P%u\n", grid);
   process_cmd_imd(cmd);
   set_bed_leveling_enabled(false);
@@ -949,6 +956,8 @@ ErrCode BedLevelService::DualExtruderAutoBedDetect(SSTP_Event_t &event) {
     goto EXIT;
   }
 
+  feedrate_percentage = 100;
+
   switch (event.data[0]) {
     case 0:
       err = DualExtruderLeftExtruderAutoBedDetect();
@@ -976,8 +985,10 @@ ErrCode BedLevelService::DualExtruderLeftExtruderAutoBedDetect() {
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
 
+  feedrate_percentage = 100;
+
   // go home will make sure active left extruder
-  process_cmd_imd("G28");
+  process_cmd_imd("G28 N");
 
   planner.synchronize();
 
@@ -1082,6 +1093,8 @@ ErrCode BedLevelService::DualExtruderManualBedDetect(SSTP_Event_t &event) {
     goto EXIT;
   }
 
+  feedrate_percentage = 100;
+
   switch (event.data[0]) {
     case 0:
       err = DualExtruderLeftExtruderManualBedDetect();
@@ -1109,9 +1122,11 @@ ErrCode BedLevelService::DualExtruderLeftExtruderManualBedDetect() {
 
   live_z_offset_[0] = 0;
   live_z_offset_[1] = 0;
+
+  feedrate_percentage = 100;
+
   // make active left extruder
-  printer1->ModuleCtrlToolChange(0);
-  process_cmd_imd("G28");
+  process_cmd_imd("G28 N");
   planner.synchronize();
 
   set_bed_leveling_enabled(false);
