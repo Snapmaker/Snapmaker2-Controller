@@ -799,14 +799,14 @@ ErrCode SystemService::ThrowException(const ExceptionHost h, const ExceptionType
     case EHOST_HOTEND1:
       new_fault_flag = FAULT_FLAG_HOTEND_HEATFAIL;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_HOTEND;
-      LOG_E("heating failed for hotend, please check heating module & sensor! temp: %.2f / %d\n",
-        thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+      LOG_E("heating failed for hotend[%u] temp: %.2f / %d\n", h,
+        thermalManager.degHotend(h), thermalManager.degTargetHotend(h));
       break;
 
     case EHOST_BED:
       new_fault_flag = FAULT_FLAG_BED_HEATFAIL;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED;
-      LOG_E("heating failed for bed, please check heating module & sensor! temp: %.2f / %d\n",
+      LOG_E("heating failed for bed! temp: %.2f / %d\n",
         thermalManager.degBed(), thermalManager.degTargetBed());
       break;
 
@@ -825,7 +825,7 @@ ErrCode SystemService::ThrowException(const ExceptionHost h, const ExceptionType
     case EHOST_HOTEND1:
       new_fault_flag = FAULT_FLAG_HOTEND_RUNWAWY;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
-      LOG_E("thermal run away of hotend! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+      LOG_E("thermal run away of hotend[%u]! temp: %.2f / %d\n", h, thermalManager.degHotend(h), thermalManager.degTargetHotend(h));
       break;
 
     case EHOST_BED:
@@ -860,7 +860,7 @@ ErrCode SystemService::ThrowException(const ExceptionHost h, const ExceptionType
       new_fault_flag = FAULT_FLAG_HOTEND_SENSOR_BAD;
       action = EACTION_STOP_WORKING | EACTION_STOP_HEATING_BED | EACTION_STOP_HEATING_HOTEND;
       action_ban |= (ACTION_BAN_NO_WORKING | ACTION_BAN_NO_HEATING_HOTEND);
-      LOG_E("Detected error in sensor of Hotend! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+      LOG_E("Detected error in sensor of Hotend[%u]! temp: %.2f / %d\n", h, thermalManager.degHotend(h), thermalManager.degTargetHotend(h));
       break;
 
     case EHOST_BED:
@@ -920,7 +920,7 @@ ErrCode SystemService::ThrowException(const ExceptionHost h, const ExceptionType
     switch (h) {
     case EHOST_HOTEND0:
     case EHOST_HOTEND1:
-      LOG_E("won't handle MAXTEMP_AGAIN with hotend[%u], temp[%.1f]\n", h, thermalManager.degHotend(0), h);
+      LOG_E("won't handle MAXTEMP_AGAIN with hotend[%u], temp[%.1f]\n", h, thermalManager.degHotend(h));
       break;
 
     case EHOST_BED:
@@ -953,7 +953,7 @@ ErrCode SystemService::ThrowException(const ExceptionHost h, const ExceptionType
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("temperature of hotend dropped abruptly! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+      LOG_E("temperature of hotend[%u] dropped abruptly! temp: %.2f / %d\n", h, thermalManager.degHotend(h), thermalManager.degTargetHotend(h));
       break;
 
     case EHOST_BED:
@@ -984,7 +984,7 @@ ErrCode SystemService::ThrowException(const ExceptionHost h, const ExceptionType
         action |= EACTION_STOP_WORKING;
         action_ban |= ACTION_BAN_NO_WORKING;
       }
-      LOG_E("Thermistor of hotend maybe come off! temp: %.2f / %d\n", thermalManager.degHotend(0), thermalManager.degTargetHotend(0));
+      LOG_E("Thermistor of hotend[%u] maybe come off! temp: %.2f / %d\n", h, thermalManager.degHotend(h), thermalManager.degTargetHotend(h));
       break;
 
     case EHOST_BED:
