@@ -673,7 +673,7 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
   }
 
   // go home will make sure active left extruder
-  process_cmd_imd("G28\n");
+  process_cmd_imd("G28 N\n");
 
   snprintf(cmd, 16, "G1029 P%u\n", grid);
   process_cmd_imd(cmd);
