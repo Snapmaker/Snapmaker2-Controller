@@ -752,7 +752,7 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
   float probe_x, probe_y;
   uint8_t x_index, y_index;
 
-  LOG_I("hmi req exit 3dp2e manual leveling\n");
+  LOG_I("hmi req exit 3dp2e auto leveling\n");
 
   uint32_t fault = systemservice.GetFaultFlag();
   if (fault & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
@@ -1022,7 +1022,7 @@ ErrCode BedLevelService::DualExtruderLeftExtruderAutoBedDetect() {
 
 ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
   ErrCode err = E_SUCCESS;
-  LOG_I("hmi request left auto bed detect\n");
+  LOG_I("hmi request right auto bed detect\n");
 
   // TODO: need to check if leveling disable
   printer1->ToolChange(1, false);
