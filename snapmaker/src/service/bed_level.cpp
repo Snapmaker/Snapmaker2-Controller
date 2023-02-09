@@ -808,6 +808,7 @@ EXIT:
   else
     do_blocking_move_to_z(soft_endstop[Z_AXIS].max, Z_SPEED_FOR_DUAL_EXTRUDER);
 
+  endstops.enable_z_probe(false);
   set_bed_leveling_enabled(true);
   printer1->ModuleCtrlProximitySwitchPower(0);
   event.data   = &err;
