@@ -44,27 +44,28 @@ typedef struct {
   int16_t target;
 }hotend_temp_t;
 
+#define INVALID_HOTEND_TYPE (0xff)
 #define HOTEND_INFO_MAX 22
 const hotend_type_info_t hotend_info[HOTEND_INFO_MAX] = {{.model = 2, .diameter = 0.4}, \
                                                          {.model = 1, .diameter = 0.6}, \
                                                          {.model = 1, .diameter = 0.8}, \
                                                          {.model = 1, .diameter = 0.4},\
                                                          {.model = 1, .diameter = 0.2},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
                                                          {.model = 2, .diameter = 0.4},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
-                                                         {.model = 0xff, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
                                                          {.model = 0, .diameter = 0.4}, \
                                                          {.model = 0, .diameter = 0.8}, \
                                                         };
@@ -73,7 +74,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
   public:
     ToolHeadDualExtruder(ModuleDeviceID id): ToolHead3DP(id) {
       for (int i = 0; i < EXTRUDERS; i++) {
-        hotend_type_[i] = 0xff;
+        hotend_type_[i] = INVALID_HOTEND_TYPE;
         target_temp_[0] = 0;
       }
     }
@@ -147,7 +148,6 @@ class ToolHeadDualExtruder: public ToolHead3DP {
 
   private:
     uint8_t mac_index_ = MODULE_MAC_INDEX_INVALID;
-    bool hotend_type_initialized_ = false;
     uint16_t hw_version_ = MODULE_HW_VER_INVALID;
 };
 
