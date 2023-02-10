@@ -320,23 +320,26 @@ void ToolHeadDualExtruder::ReportFilamentState(uint8_t state[]) {
 }
 
 void ToolHeadDualExtruder::ReportHotendType(uint8_t *data) {
-  if (hotend_type_initialized_ == false) {
-    hotend_type_initialized_ = true;
+  if (hotend_type_[0] == INVALID_HOTEND_TYPE || hotend_type_[1] == INVALID_HOTEND_TYPE) {
     for (uint32_t i = 0; i < EXTRUDERS; i++) {
       if (data[i] < HOTEND_INFO_MAX) {
         hotend_type_[i] = hotend_info[data[i]].model;
         hotend_diameter_[i] = hotend_info[data[i]].diameter;
       }
-
-      #ifdef USE_FDM_INTERRUPT_LOG
-        LOG_I("nozzle_index: %d, type: %d, diameter: %.2f\n", i, hotend_type_[i], hotend_diameter_[i]);
-      #endif
     }
-    systemservice.ClearException(EHOST_EXECUTOR, ETYPE_3DP2E_UNKNOWN_NOZZLE);
-  } else {
-    systemservice.ThrowException(EHOST_EXECUTOR, ETYPE_3DP2E_UNKNOWN_NOZZLE);
-    hotend_type_initialized_ = false;
   }
+
+  if (hotend_type_[0] == INVALID_HOTEND_TYPE || hotend_type_[1] == INVALID_HOTEND_TYPE) {
+    systemservice.ThrowException(EHOST_EXECUTOR, ETYPE_3DP2E_UNKNOWN_NOZZLE);
+  }
+  else {
+    systemservice.ClearException(EHOST_EXECUTOR, ETYPE_3DP2E_UNKNOWN_NOZZLE);
+  }
+
+  #ifdef USE_FDM_INTERRUPT_LOG
+    LOG_I("nozzle_index: 0, type: %d, diameter: %.2f\n", hotend_type_[0], hotend_diameter_[0]);
+    LOG_I("nozzle_index: 1, type: %d, diameter: %.2f\n", hotend_type_[1], hotend_diameter_[1]);
+  #endif
 }
 
 void ToolHeadDualExtruder::ReportExtruderInfo(uint8_t *data) {
@@ -535,7 +538,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlProbeStateSync() {
   cmd.data    = NULL;
   cmd.length  = 0;
   ErrCode ret = canhost.SendStdCmd(cmd, 0);
-  vTaskDelay(pdMS_TO_TICKS(5));
+  vTaskDelay(pdMS_TO_TICKS(100));
   return ret;
 }
 
@@ -546,7 +549,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlPidSync() {
   cmd.data    = NULL;
   cmd.length  = 0;
   ErrCode ret = canhost.SendStdCmd(cmd, 0);
-  vTaskDelay(pdMS_TO_TICKS(5));
+  vTaskDelay(pdMS_TO_TICKS(100));
   return ret;
 }
 
@@ -557,7 +560,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlHotendTypeSync() {
   cmd.data    = NULL;
   cmd.length  = 0;
   ErrCode ret = canhost.SendStdCmd(cmd, 0);
-  vTaskDelay(pdMS_TO_TICKS(5));
+  vTaskDelay(pdMS_TO_TICKS(100));
   return ret;
 }
 
@@ -568,7 +571,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlFilamentStateSync() {
   cmd.data    = NULL;
   cmd.length  = 0;
   ErrCode ret = canhost.SendStdCmd(cmd, 0);
-  vTaskDelay(pdMS_TO_TICKS(5));
+  vTaskDelay(pdMS_TO_TICKS(100));
   return ret;
 }
 
@@ -579,7 +582,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlHotendOffsetSync() {
   cmd.data    = NULL;
   cmd.length  = 0;
   ErrCode ret = canhost.SendStdCmd(cmd, 0);
-  vTaskDelay(pdMS_TO_TICKS(5));
+  vTaskDelay(pdMS_TO_TICKS(100));
   return ret;
 }
 
@@ -590,7 +593,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlZProbeSensorCompensationSync() {
   cmd.data    = NULL;
   cmd.length  = 0;
   ErrCode ret = canhost.SendStdCmd(cmd, 0);
-  vTaskDelay(pdMS_TO_TICKS(5));
+  vTaskDelay(pdMS_TO_TICKS(100));
   return ret;
 }
 
@@ -601,7 +604,7 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlRightExtruderPosSync() {
   cmd.data    = NULL;
   cmd.length  = 0;
   ErrCode ret = canhost.SendStdCmd(cmd, 0);
-  vTaskDelay(pdMS_TO_TICKS(5));
+  vTaskDelay(pdMS_TO_TICKS(100));
   return ret;
 }
 
@@ -1087,6 +1090,8 @@ ErrCode ToolHeadDualExtruder::HmiRequestGetActiveExtruder(SSTP_Event_t &event) {
 }
 
 void ToolHeadDualExtruder::ShowInfo() {
+  ModuleCtrlHotendTypeSync();
+
   LOG_I("active_probe_sensor: %u\n", active_probe_sensor_);
   LOG_I("hotend_type: 0: %u, 1: %u\n", hotend_type_[0], hotend_type_[1]);
   LOG_I("hotend_diameter: 0: %.2f, 1:%.2f\n", hotend_diameter_[0], hotend_diameter_[1]);
