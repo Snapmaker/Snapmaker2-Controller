@@ -326,6 +326,10 @@ void ToolHeadDualExtruder::ReportHotendType(uint8_t *data) {
         hotend_type_[i] = hotend_info[data[i]].model;
         hotend_diameter_[i] = hotend_info[data[i]].diameter;
       }
+      else {
+        hotend_type_[i] = hotend_info[HOTEND_INFO_MAX].model;
+        hotend_diameter_[i] = hotend_info[HOTEND_INFO_MAX].diameter;
+      }
     }
   }
 
