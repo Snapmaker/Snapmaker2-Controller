@@ -45,8 +45,8 @@ typedef struct {
 }hotend_temp_t;
 
 #define INVALID_HOTEND_TYPE (0xff)
-#define HOTEND_INFO_MAX 22
-const hotend_type_info_t hotend_info[HOTEND_INFO_MAX] = {{.model = 2, .diameter = 0.4}, \
+#define HOTEND_INFO_MAX 10
+const hotend_type_info_t hotend_info[HOTEND_INFO_MAX + 1] = {{.model = 2, .diameter = 0.4}, \
                                                          {.model = 1, .diameter = 0.6}, \
                                                          {.model = 1, .diameter = 0.8}, \
                                                          {.model = 1, .diameter = 0.4},\
@@ -56,18 +56,7 @@ const hotend_type_info_t hotend_info[HOTEND_INFO_MAX] = {{.model = 2, .diameter 
                                                          {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
                                                          {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
                                                          {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = 2, .diameter = 0.4},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0},\
-                                                         {.model = 0, .diameter = 0.4}, \
-                                                         {.model = 0, .diameter = 0.8}, \
+                                                         {.model = INVALID_HOTEND_TYPE, .diameter = 0}\
                                                         };
 
 class ToolHeadDualExtruder: public ToolHead3DP {
