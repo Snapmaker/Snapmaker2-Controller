@@ -66,6 +66,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
         hotend_type_[i] = INVALID_HOTEND_TYPE;
         target_temp_[0] = 0;
       }
+      backup_position_valid = false;
     }
 
     //
@@ -78,6 +79,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     void SelectProbeSensor(probe_sensor_t sensor);
     void SetZCompensation(float comp, uint32_t e = 0);
     void GetZCompensation(float &left_z_compensation, float &right_z_compensation);
+    bool GetToolChangePrePosition(float *position, uint8_t size);
 
     // for hmi interface
     ErrCode HmiGetHotendType(SSTP_Event_t &event);
@@ -138,6 +140,8 @@ class ToolHeadDualExtruder: public ToolHead3DP {
   private:
     uint8_t mac_index_ = MODULE_MAC_INDEX_INVALID;
     uint16_t hw_version_ = MODULE_HW_VER_INVALID;
+    bool backup_position_valid;
+    float backup_current_position[X_TO_E];
 };
 
 extern ToolHeadDualExtruder printer_dualextruder;

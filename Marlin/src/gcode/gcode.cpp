@@ -48,6 +48,7 @@ GcodeSuite gcode;
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
   #include "../../../snapmaker/src/module/module_base.h"
   #include "../snapmaker/src/module/toolhead_laser.h"
+  #include "../snapmaker/src/service/system.h"
 #endif
 
 #include "../Marlin.h" // for idle() and suspend_auto_report
@@ -831,7 +832,11 @@ void GcodeSuite::execute_command(void) {
     }
     break;
 
-    case 'T': T(parser.codenum); break;                           // Tn: Tool Change
+    case 'T':
+      systemservice.tool_changing = true;
+      T(parser.codenum);                      // Tn: Tool Change
+      systemservice.tool_changing = false;
+    break;
 
     default: parser.unknown_command_error();
   }

@@ -829,7 +829,6 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
   planner.synchronize();
 
   const bool leveling_was_active = planner.leveling_active;
-  set_bed_leveling_enabled(false);
 
   if (new_extruder >= EXTRUDERS) {
     return E_PARAM;
@@ -852,6 +851,12 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     }
 
     planner.synchronize();
+    taskENTER_CRITICAL();
+    LOOP_X_TO_EN(i) backup_current_position[i] = current_position[i];
+    backup_position_valid = true;
+    taskEXIT_CRITICAL();
+
+    set_bed_leveling_enabled(false);
 
     LOG_I("\norigin pos: %.3f, %.3f, %.3f\n", current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS]);
 
@@ -933,6 +938,10 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
   }
 
   set_bed_leveling_enabled(leveling_was_active);
+  taskENTER_CRITICAL();
+  backup_position_valid = false;
+  taskEXIT_CRITICAL();
+
   return E_SUCCESS;
 }
 
@@ -1113,4 +1122,13 @@ void ToolHeadDualExtruder::Process() {
   if (hw_version_ == MODULE_HW_VER_INVALID) {
     GetHWVersion();
   }
+}
+
+bool ToolHeadDualExtruder::GetToolChangePrePosition(float *position, uint8_t size) {
+  bool ret = false;
+  if (position && size >= X_TO_E) {
+    LOOP_X_TO_EN(i) position[i] = backup_current_position[i];
+    ret = backup_position_valid;
+  }
+  return ret;
 }

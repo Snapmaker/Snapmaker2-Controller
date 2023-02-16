@@ -26,6 +26,7 @@
 #include "../module/toolhead_3dp.h"
 #include "../module/toolhead_cnc.h"
 #include "../module/toolhead_laser.h"
+#include "../module/toolhead_dualextruder.h"
 
 #include "../snapmaker.h"
 
@@ -71,6 +72,12 @@ ErrCode SystemService::PauseTrigger(TriggerSource type)
   if (cur_status_ != SYSTAT_WORK && cur_status_!= SYSTAT_RESUME_WAITING) {
     LOG_W("cannot pause in current status: %d\n", cur_status_);
     return E_NO_SWITCHING_STA;
+  }
+
+  while (tool_changing) {
+    vTaskDelay(200);
+    need_pre_extrusion = false;
+    LOG_I("pause trigger: wait machine tool_change finish\n");
   }
 
   // here the operations can be performed many times
@@ -280,14 +287,17 @@ void inline SystemService::RestoreXYZ(void) {
 }
 
 void inline SystemService::resume_3dp(void) {
-	current_position[E_AXIS] += 20;
-	line_to_current_position(5);
-	planner.synchronize();
+  if (need_pre_extrusion) {
+    current_position[E_AXIS] += 20;
+    line_to_current_position(5);
+    planner.synchronize();
 
-	// try to cut out filament
-	current_position[E_AXIS] -= 6;
-	line_to_current_position(50);
-	planner.synchronize();
+    // try to cut out filament
+    current_position[E_AXIS] -= 6;
+    line_to_current_position(50);
+    planner.synchronize();
+  }
+  need_pre_extrusion = true;
 }
 
 
@@ -1792,6 +1802,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
   case SYSCTL_OPC_START_WORK:
     LOG_I("SC req START work\n");
     err = StartWork(TRIGGER_SOURCE_SC);
+    need_pre_extrusion = true;
     if (err == E_SUCCESS)
       current_line_ = 0;
     break;
@@ -1812,6 +1823,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
     }
     else {
       err = ResumeProcess();
+      need_pre_extrusion = true;
       if (err == E_SUCCESS) {
         pl_recovery.SaveCmdLine(pl_recovery.cur_data_.FilePosition);
         if (pl_recovery.cur_data_.FilePosition > 0) {
@@ -1835,6 +1847,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
   case SYSCTL_OPC_STOP:
   case SYSCTL_OPC_FINISH:
     LOG_I("SC req %s\n", (event.op_code == SYSCTL_OPC_STOP)? "STOP" : "FINISH");
+    need_pre_extrusion = true;
     err = StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
     if (err == E_SUCCESS)
       need_ack = false;
@@ -2404,5 +2417,13 @@ ErrCode SystemService::CallbackPostQS(QuickStopSource source) {
   }
 
   return E_SUCCESS;
+}
+
+bool SystemService::GetBackupCurrentPosition(float *position, uint8_t size) {
+  bool ret = false;
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+    ret = printer_dualextruder.GetToolChangePrePosition(position, size);
+  }
+  return ret;
 }
 
