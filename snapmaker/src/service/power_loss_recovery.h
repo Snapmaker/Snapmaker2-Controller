@@ -85,6 +85,8 @@ typedef struct __attribute__((aligned (4))) {
 	int16_t extruders_feedrate_percentage[EXTRUDERS];
 	float   live_z_offset[EXTRUDERS];
 	int16_t flow_percentage[EXTRUDERS];
+
+	bool too_changing;
 } PowerLossRecoveryData_t;
 
 

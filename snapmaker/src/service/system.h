@@ -293,6 +293,8 @@ public:
   ErrCode CallbackPreQS(QuickStopSource source);
   ErrCode CallbackPostQS(QuickStopSource source);
 
+  bool GetBackupCurrentPosition(float *position, uint8_t size);
+
   uint32_t current_line() { return current_line_; }
   void     current_line(uint32_t line) { current_line_ = line; }
   ErrCode CheckIfSendWaitEvent();
@@ -314,6 +316,8 @@ public:
 
   bool is_waiting_gcode = false;
   bool is_laser_on = false;
+  bool tool_changing = false;
+  bool need_pre_extrusion = true;
 
 private:
   uint8_t TriggleStat;

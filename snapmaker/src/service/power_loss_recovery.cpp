@@ -343,6 +343,7 @@ void PowerLossRecovery::MaskPowerPanicData(void)
 int PowerLossRecovery::SaveEnv(void) {
   int     i = 0;
   uint8_t *pBuff;
+	float backup_position[X_TO_E];
 
 	LOOP_XN(idx) cur_data_.position_shift[idx] = position_shift[idx];
 
@@ -398,6 +399,12 @@ int PowerLossRecovery::SaveEnv(void) {
     // heated bed
     cur_data_.BedTamp = thermalManager.temp_bed.target;
     cur_data_.active_extruder = actual_extruder;
+
+		if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER && systemservice.tool_changing \
+			  && systemservice.GetBackupCurrentPosition(backup_position, sizeof(backup_position))) {
+			LOOP_X_TO_EN(i) cur_data_.PositionData[i] = backup_position[i];
+			cur_data_.too_changing = true;
+		}
     break;
 
 	default:
@@ -490,9 +497,11 @@ void PowerLossRecovery::Resume3DP() {
 	if (pre_data_.toolhead == MODULE_TOOLHEAD_DUALEXTRUDER)
     printer1->ToolChange(pre_data_.active_extruder);
 
-	current_position[E_AXIS] += 20;
-	line_to_current_position(5);
-	planner.synchronize();
+	if (!pre_data_.too_changing) {
+		current_position[E_AXIS] += 20;
+		line_to_current_position(5);
+		planner.synchronize();
+	}
 
 	// try to cut out filament
 	current_position[E_AXIS] -= 6;
