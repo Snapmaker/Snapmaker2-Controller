@@ -896,6 +896,7 @@ ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensa
     }
 
     update_software_endstops(X_AXIS, old_extruder, new_extruder);
+    update_software_endstops(Y_AXIS, old_extruder, new_extruder);
     update_software_endstops(Z_AXIS, old_extruder, new_extruder);
 
     if (new_extruder == 0) {
