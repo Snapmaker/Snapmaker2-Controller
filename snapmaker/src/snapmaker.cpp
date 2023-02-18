@@ -31,6 +31,7 @@
 // marlin headers
 #include "src/module/endstops.h"
 #include "src/feature/runout.h"
+#include "src/gcode/gcode.h"
 #include "flash_stm32.h"
 #include "hmi/gcode_result_handler.h"
 
@@ -314,6 +315,11 @@ void SnapmakerSetupPost() {
     enable_power_domain(POWER_DOMAIN_SCREEN);
     SERIAL_ECHOLN("Screen exists!\n");
   }
+
+  // forced update of speed parameters
+  process_cmd_imd("M201 X1000 Y1000");
+  process_cmd_imd("M203 X100 Y100 Z40 E40");
+  process_cmd_imd("M204 S1000");
 
   // power on the modules by default
   enable_all_steppers();
