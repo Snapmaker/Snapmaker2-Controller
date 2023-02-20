@@ -106,7 +106,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     // set module
     ErrCode ModuleCtrlProximitySwitchPower(uint8_t state);
     ErrCode SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time = 0);
-    ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index = 0);
+    ErrCode SetHeater(int16_t target_temp, uint8_t extrude_index = 0);
     ErrCode ModuleCtrlProbeStateSync();
     ErrCode ModuleCtrlPidSync();
     ErrCode ModuleCtrlHotendTypeSync();

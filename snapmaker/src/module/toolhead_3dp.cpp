@@ -247,7 +247,7 @@ float * ToolHead3DP::GetPID(uint8_t extrude_index) {
 }
 
 
-ErrCode ToolHead3DP::SetHeater(uint16_t target_temp, uint8_t extrude_index) {
+ErrCode ToolHead3DP::SetHeater(int16_t target_temp, uint8_t extrude_index) {
   CanStdFuncCmd_t cmd;
 
   uint8_t buffer[2];
@@ -317,10 +317,10 @@ void ToolHead3DP::UpdateEAxisStepsPerUnit(ModuleToolHeadType type) {
 void ToolHead3DP::UpdateHotendMaxTemp(int16_t temp, uint8_t e/* = 0*/) {
   switch (e) {
     case 0:
-      thermalManager.temp_range[0].maxtemp = temp + 15;
+      thermalManager.temp_range[0].maxtemp = temp + HOTEND_OVERSHOOT;
       break;
     case 1:
-      thermalManager.temp_range[1].maxtemp = temp + 15;
+      thermalManager.temp_range[1].maxtemp = temp + HOTEND_OVERSHOOT;
       break;
   }
 }

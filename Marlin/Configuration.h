@@ -398,6 +398,8 @@
 
 #define TEMP_CHAMBER_HYSTERESIS  3  // (°C) Temperature proximity considered "close enough" to the target
 
+#define HOTEND_OVERSHOOT  (15)
+
 // Below this temperature the heater will be switched off
 // because it probably indicates a broken thermistor wire.
 #define HEATER_0_MINTEMP   5
