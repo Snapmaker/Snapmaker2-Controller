@@ -482,7 +482,7 @@ ErrCode ToolHeadDualExtruder::SetFan(uint8_t fan_index, uint8_t speed, uint8_t d
   return canhost.SendStdCmd(cmd, 0);
 }
 
-ErrCode ToolHeadDualExtruder::SetHeater(uint16_t target_temp, uint8_t extrude_index /*=0*/) {
+ErrCode ToolHeadDualExtruder::SetHeater(int16_t target_temp, uint8_t extrude_index /*=0*/) {
   if (extrude_index >= EXTRUDERS) {
     return E_PARAM;
   }

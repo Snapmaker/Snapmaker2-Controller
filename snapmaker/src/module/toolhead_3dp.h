@@ -67,7 +67,7 @@ class ToolHead3DP: public ModuleBase {
     ErrCode SetPID(uint8_t index, float value, uint8_t extrude_index=0);
     float * GetPID(uint8_t extrude_index=0);
     void UpdatePID(uint8_t index, float val) {if (index < 3) pid_[index]=val;};
-    virtual ErrCode SetHeater(uint16_t target_temp, uint8_t extrude_index=0);
+    virtual ErrCode SetHeater(int16_t target_temp, uint8_t extrude_index=0);
     void GetFilamentState();
     virtual void Process();
 
