@@ -28,5 +28,7 @@
 void GcodeSuite::M1999() {
   SERIAL_ECHOLN("will reboot machine");
   disable_power_domain(POWER_DOMAIN_ALL);
-  WatchDogInit();
+  millis_t next_ms = millis() + 1000;
+  while (PENDING(millis(), next_ms));
+  nvic_sys_reset();
 }

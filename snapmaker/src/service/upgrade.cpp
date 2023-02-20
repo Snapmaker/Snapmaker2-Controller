@@ -190,10 +190,12 @@ ErrCode UpgradeService::EndUpgarde(SSTP_Event_t &event) {
 
     FLASH_Lock();
 
-    WatchDogInit();
     taskEXIT_CRITICAL();
 
-    return hmi.Send(event);
+    hmi.Send(event);
+    nvic_sys_reset();
+
+    return E_SUCCESS;
   }
   else {
     hmi.Send(event);

@@ -32,7 +32,8 @@
  *  625 reload value (counts down to 0)
  *  use 1250 for 8 seconds
  */
-#define STM32F1_WD_RELOAD 625
+// 3125 -> 20s
+#define STM32F1_WD_RELOAD (3125)
 
 // Arduino STM32F1 core now has watchdog support
 
