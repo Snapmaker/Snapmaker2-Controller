@@ -52,7 +52,7 @@ void watchdogSetup(void) {
  * @details The watchdog clock is 40Khz. We need a 4 seconds interval, so use a /256 preescaler and 625 reload value (counts down to 0)
  */
 void watchdog_init(void) {
-  //iwdg_init(IWDG_PRE_256, STM32F1_WD_RELOAD);
+  iwdg_init(IWDG_PRE_256, STM32F1_WD_RELOAD);
 }
 
 #endif // USE_WATCHDOG

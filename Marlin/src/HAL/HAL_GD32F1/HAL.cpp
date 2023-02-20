@@ -222,13 +222,35 @@ void cli(void) { noInterrupts(); }
 void sei(void) { interrupts(); }
 */
 
-void HAL_clear_reset_source(void) { }
+void HAL_clear_reset_source(void) {
+  RCC_BASE->CSR |= RCC_CSR_RMVF_BIT;
+}
 
-/**
- * TODO: Check this and change or remove.
- * currently returns 1 that's equal to poweron reset.
- */
-uint8_t HAL_get_reset_source(void) { return 1; }
+uint8_t HAL_get_reset_source(void) { 
+  uint8_t sta = 0;
+  uint32_t reg = RCC_BASE->CSR;
+  if (reg & (RCC_CSR_WWDGRSTF_BIT | RCC_CSR_IWDGRSTF_BIT)) {
+    sta |= RST_WATCHDOG;
+  }
+
+  if (reg & RCC_CSR_SFTRSTF_BIT) {
+    sta |= RST_SOFTWARE;
+  }
+
+  if (reg & RCC_CSR_PINRSTF_BIT) {
+    sta |= RST_EXTERNAL;
+  }
+
+  if (reg & RCC_CSR_PORRSTF_BIT) {
+    sta |= RST_POWER_ON;
+  }
+
+  if (reg & RCC_CSR_LPWRRSTF_BIT) {
+    sta |= RST_BROWN_OUT;
+  }
+
+  return sta; 
+}
 
 void _delay_ms(const int delay_ms) { delay(delay_ms); }
 
