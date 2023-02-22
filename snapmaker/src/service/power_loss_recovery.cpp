@@ -87,6 +87,7 @@ void PowerLossRecovery::Init(void) {
 			systemservice.ThrowException(EHOST_MC, ETYPE_POWER_LOSS);
 
 			if ((pre_data_.live_z_offset[0] != 0) || (pre_data_.live_z_offset[1] != 0)) {
+				LOG_I("PL: previous live z0: %.3f, previous live z1: %.3f\n", levelservice.live_z_offset((uint8_t)0), levelservice.live_z_offset((uint8_t)1));
 				LOG_I("PL: changed live z0: %.3f, changed live z1: %.3f\n", pre_data_.live_z_offset[0], pre_data_.live_z_offset[1]);
 				levelservice.live_z_offset(pre_data_.live_z_offset[0], 0);
 				levelservice.live_z_offset(pre_data_.live_z_offset[1], 1);
@@ -448,8 +449,6 @@ void PowerLossRecovery::Resume3DP() {
     extruders_feedrate_percentage[e] = pre_data_.extruders_feedrate_percentage[e];
     // restore flow_percentage
     planner.flow_percentage[e] = pre_data_.flow_percentage[e];
-    // restore live_z_offset
-    levelservice.live_z_offset(pre_data_.live_z_offset[e], e);
   }
 
 	feedrate_percentage = extruders_feedrate_percentage[pre_data_.active_extruder];

@@ -146,6 +146,8 @@ static void main_loop(void *param) {
   // waiting for initializing modules
   xEventGroupWaitBits(((SnapmakerHandle_t)param)->event_group, EVENT_GROUP_MODULE_READY, pdFALSE, pdTRUE, pdMS_TO_TICKS(10000));
 
+  // to reduce log covered by can events
+  vTaskDelay(pdMS_TO_TICKS(100));
   // init power-loss recovery after initializing modules
   // because we need to check if current toolhead is same with previous
   pl_recovery.Init();
