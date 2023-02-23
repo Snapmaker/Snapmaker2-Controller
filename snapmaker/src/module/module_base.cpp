@@ -306,8 +306,8 @@ void ModuleBase::SetToolhead(ModuleToolHeadType toolhead) {
   if (toolhead != MODULE_TOOLHEAD_3DP && toolhead != MODULE_TOOLHEAD_DUALEXTRUDER) {
     for (uint8_t x = 0; x < GRID_MAX_POINTS_X; x++)
       for (uint8_t y = 0; y < GRID_MAX_POINTS_Y; y++) {
-        if (z_values[x][y] != DEFAUT_LEVELING_HEIGHT) {
-          z_values[x][y] = DEFAUT_LEVELING_HEIGHT;
+        if (z_values[x][y] != DEFAUT_LEVELING_HEIGHT && z_values[x][y] != DEFAUT_LEVELING_HEIGHT_3DP2E) {
+          z_values[x][y] = DEFAUT_LEVELING_HEIGHT_3DP2E;
           bed_level_virt_interpolate();
           need_saved = true;
         }

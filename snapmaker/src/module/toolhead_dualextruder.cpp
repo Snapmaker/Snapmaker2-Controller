@@ -44,7 +44,6 @@
 #define BIAS_hotend_offsetY                    1.2
 #define BIAS_hotend_offsetZ                    1.2
 
-#define MIN_LEVELING_HEIGHT_3DP2E               (35)
 
 ToolHeadDualExtruder printer_dualextruder(MODULE_DEVICE_ID_DUAL_EXTRUDER);
 

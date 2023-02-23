@@ -26,6 +26,8 @@
 #include "can_host.h"
 #include "../common/config.h"
 
+#define MIN_LEVELING_HEIGHT_3DP2E               (35)
+
 typedef struct {
   uint8_t model;
   float diameter;
