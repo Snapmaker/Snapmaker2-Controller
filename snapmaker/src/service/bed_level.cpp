@@ -32,6 +32,8 @@
 #include "src/feature/bedlevel/abl/abl.h"
 #include "src/feature/bedlevel/bedlevel.h"
 
+#include "../module/toolhead_dualextruder.h"
+
 #define CALIBRATION_PAPER_THICKNESS 0.1
 
 #define INIT_Z_FOR_DUAL_EXTRUDER    (50)  // mm
@@ -364,7 +366,8 @@ ErrCode BedLevelService::ExitLeveling(SSTP_Event_t &event) {
 }
 
 ErrCode BedLevelService::IsLeveled(SSTP_Event_t &event) {
-  uint8_t level_status = z_values[0][0] != DEFAUT_LEVELING_HEIGHT;
+  uint8_t level_status = ((z_values[0][0] != DEFAUT_LEVELING_HEIGHT) && \
+                          (z_values[0][0] != DEFAUT_LEVELING_HEIGHT_3DP2E));
 
   LOG_I("SC req is leveled:%d\n", level_status);
 
@@ -739,6 +742,11 @@ ErrCode BedLevelService::DualExtruderAutoLevelingProbePoint(SSTP_Event_t &event)
   if (isnan(z_values_tmp[x_index][y_index])) {
     LOG_E("got a non number!\n");
     err = E_FAILURE;
+  }
+
+  if (z_values_tmp[x_index][y_index] < MIN_LEVELING_HEIGHT_3DP2E) {
+    LOG_E("got a invalid height: %.3f\n", z_values_tmp[x_index][y_index]);
+    err = E_INVALID_STATE;
   }
 
 EXIT:
