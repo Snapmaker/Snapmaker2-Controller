@@ -682,7 +682,7 @@ static ErrCode HmiRequestProbeSensorCal(SSTP_Event_t &event) {
   }
 
   fault = systemservice.GetFaultFlag();
-  if (fault & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (fault & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
     err = E_HARDWARE;
     goto EXIT;
   }
