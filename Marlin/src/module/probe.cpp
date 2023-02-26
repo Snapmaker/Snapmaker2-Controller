@@ -725,7 +725,7 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
 
   // TODO: Adapt for SCARA, where the offset rotates
   float nx = rx, ny = ry;
-  SERIAL_ECHOLNPAIR("ProbeX:", rx, " ProbeY:", ry, "Avtive:", probe_relative);
+  SERIAL_ECHOLNPAIR("ProbeX:", rx, " ProbeY:", ry, " Active:", probe_relative);
   if (probe_relative) {
     if (!position_is_reachable_by_probe(rx, ry)) {
       LOG_I("Point is out of workspace!\n");
