@@ -743,9 +743,9 @@ ErrCode ToolHeadDualExtruder::ModuleCtrlSaveZCompensation(float comp, uint32_t e
   buffer[index++] = e;
 
   // little ending
-  *(float *)(buffer + 1) = comp;
+  WORD_TO_PDU_BYTES_INDEX_MOVE(buffer, comp, index);
 
-  LOG_I("save compensation[%u]: %f\n", comp, e);
+  LOG_I("save compensation[%u]: %f\n", e, comp);
 
   cmd.id      = MODULE_FUNC_SET_PROBE_SENSOR_COMPENSATION;
   cmd.data    = buffer;
@@ -807,7 +807,7 @@ void ToolHeadDualExtruder::SelectProbeSensor(probe_sensor_t sensor) {
 
 void ToolHeadDualExtruder::SetZCompensation(float comp, uint32_t e) {
   z_compensation_[e] = comp;
-  ModuleCtrlSaveZCompensation(z_compensation_[e], e);
+  ModuleCtrlSaveZCompensation(comp, e);
 }
 
 void ToolHeadDualExtruder::GetZCompensation(float &left_z_compensation, float &right_z_compensation) {
