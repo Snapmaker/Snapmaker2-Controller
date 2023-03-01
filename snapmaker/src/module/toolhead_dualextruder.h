@@ -69,6 +69,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
         target_temp_[0] = 0;
       }
       backup_position_valid = false;
+      has_sync = false;
     }
 
     //
@@ -144,6 +145,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     uint16_t hw_version_ = MODULE_HW_VER_INVALID;
     bool backup_position_valid;
     float backup_current_position[X_TO_E];
+    bool has_sync;
 };
 
 extern ToolHeadDualExtruder printer_dualextruder;
