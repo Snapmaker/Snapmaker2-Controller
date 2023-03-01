@@ -1063,6 +1063,7 @@ extern uint8_t E_ENABLE_ON;
   extern float s_home_offset_3dp2e[XN];
   extern float m_home_offset_3dp2e[XN];
   extern float l_home_offset_3dp2e[XN];
+  extern float l_home_offset_laser[XN];
 
   extern float print_min_planner_speed;
   extern float laser_min_planner_speed;
@@ -1074,6 +1075,7 @@ extern uint8_t E_ENABLE_ON;
 #define M_HOME_OFFSET_3DP2E_DEFAULT {-28, -20, 0, 0}
 #define L_HOME_OFFSET_DEFAULT {-19, -4, 0, 0}
 #define L_HOME_OFFSET_3DP2E_DEFAULT {-32, -23, 0, 0}
+#define L_HOME_OFFSET_LASER_DEFAULT {-19, -10, 0, 0}  // to fit camera capture
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed

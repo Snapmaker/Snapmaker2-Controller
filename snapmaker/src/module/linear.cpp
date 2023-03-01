@@ -483,6 +483,22 @@ MachineSize Linear::UpdateMachineSize() {
       MAGNET_X_SPAN = 280;
       MAGNET_Y_SPAN = 300;
     }
+    else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER || 
+          ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
+      LOOP_XN(i) {
+        home_offset[i] = l_home_offset_laser[i];
+        update_workspace_offset((AxisEnum)i);
+      }
+      X_DEF_SIZE = 320;
+      Y_DEF_SIZE = 352;
+      Z_DEF_SIZE = 330; 
+
+      X_MAX_POS = 345;
+      Y_MAX_POS = 357;
+
+      MAGNET_X_SPAN = 274;
+      MAGNET_Y_SPAN = 304;
+    }
     else {
       LOOP_XN(i) {
         home_offset[i] = l_home_offset[i];
