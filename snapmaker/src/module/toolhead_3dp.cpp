@@ -208,6 +208,8 @@ ErrCode ToolHead3DP::SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time
 
   fan_speed_[fan_index] = speed;
 
+  LOG_I("fan_index: %d, speed: %d\n", fan_index, fan_speed_[fan_index]);
+
   return canhost.SendStdCmd(cmd, 0);
 }
 
@@ -258,23 +260,6 @@ ErrCode ToolHead3DP::SetHeater(int16_t target_temp, uint8_t extrude_index) {
   buffer[0] = (uint8_t)(target_temp>>8);
   buffer[1] = (uint8_t)target_temp;
 
-  if (target_temp >= 50) {
-    SetFan(1, 255);
-  }
-  // if we turn off heating
-  else {
-    // check if need to delay to turn off fan
-    if (cur_temp_[extrude_index] > 150) {
-      SetFan(1, 0, 120);
-    }
-    else if (cur_temp_[extrude_index] > 50) {
-      SetFan(1, 0, 60);
-    }
-    else {
-      SetFan(1, 0);
-    }
-  }
-
   cmd.id     = MODULE_FUNC_SET_NOZZLE_TEMP;
   cmd.data   = buffer;
   cmd.length = 2;
@@ -284,9 +269,15 @@ ErrCode ToolHead3DP::SetHeater(int16_t target_temp, uint8_t extrude_index) {
 
 
 void ToolHead3DP::Process() {
+
+  if (mac_index_ == MODULE_MAC_INDEX_INVALID)
+    return;
+
   if (++timer_in_process_ < 100) return;
 
   timer_in_process_ = 0;
+
+  NozzleFanCtrlCheck();
 }
 
 void ToolHead3DP::UpdateEAxisStepsPerUnit(ModuleToolHeadType type) {
@@ -333,6 +324,46 @@ void ToolHead3DP::SetTemp(int16_t temp, uint8_t extrude_index) {
 
   if ((cur_temp_[0]/10) > thermalManager.temp_range[0].maxtemp) {
     systemservice.ThrowException(EHOST_HOTEND0, ETYPE_OVERRUN_MAXTEMP);
+  }
+}
+
+void ToolHead3DP::NozzleFanCtrlCheck(void) {
+  uint8_t nozzle_fan_index = 0XFF;
+  uint8_t enable_fan = 0xFF;
+  uint8_t i = 0;
+  uint8_t extruders = 1;
+
+  if (device_id() == MODULE_DEVICE_ID_DUAL_EXTRUDER) {
+    nozzle_fan_index = DUAL_EXTRUDER_NOZZLE_FAN;
+    extruders = 2;
+  }
+  else {
+    nozzle_fan_index = SINGLE_EXTRUDER_NOZZLE_FAN;
+  }
+
+  // detects the temperature of the hot end and determines whether the fan needs to be turned on
+  for (i = 0; i < extruders; i++) {
+    if (thermalManager.degTargetHotend(i) >= NOZZLE_FAN_AUTO_ENABLE_TEMP || thermalManager.degHotend(i) >= NOZZLE_FAN_AUTO_ENABLE_TEMP) {
+      enable_fan = 1;
+    }
+  }
+
+  // detects the current temperature of the hot end to determine if the fan needs to be turned off
+  if (enable_fan == 0xFF) {
+    for (i = 0; i < extruders; i++) {
+      if (thermalManager.degHotend(i) > NOZZLE_FAN_AUTO_DISABLE_TEMP)
+        break;
+    }
+
+    if (i >= extruders)
+      enable_fan = 0;
+  }
+
+  if (enable_fan != 0xFF && nozzle_fan_index != 0xFF) {
+    if ((enable_fan == 0 && fan_speed_[nozzle_fan_index]) || (enable_fan == 1 && fan_speed_[nozzle_fan_index] != 255)) {
+      LOG_I("%s nozzle fan\n", enable_fan ? "enable" : "disable");
+      SetFan(nozzle_fan_index, enable_fan ? 255 : 0);
+    }
   }
 }
 

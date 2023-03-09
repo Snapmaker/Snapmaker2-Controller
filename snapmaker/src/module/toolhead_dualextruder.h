@@ -33,14 +33,6 @@ typedef struct {
   float diameter;
 }hotend_type_info_t;
 
-typedef enum {
-  SINGLE_EXTRUDER_MODULE_FAN       = 0,
-  SINGLE_EXTRUDER_NOZZLE_FAN       = 1,
-  DUAL_EXTRUDER_LEFT_MODULE_FAN    = 0,
-  DUAL_EXTRUDER_RIGHT_MODULE_FAN   = 1,
-  DUAL_EXTRUDER_NOZZLE_FAN         = 2,
-}fan_e;
-
 typedef struct {
   int16_t current;
   int16_t target;
