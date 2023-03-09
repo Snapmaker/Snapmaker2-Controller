@@ -30,6 +30,9 @@
 
 #define EXTRUDERS 2
 
+#define NOZZLE_FAN_AUTO_ENABLE_TEMP           60
+#define NOZZLE_FAN_AUTO_DISABLE_TEMP          58
+
 typedef enum {
   PROBE_SENSOR_PROXIMITY_SWITCH,
   PROBE_SENSOR_LEFT_OPTOCOUPLER,
@@ -44,6 +47,14 @@ typedef enum {
   MOVE_SYNC,
   MOVE_ASYNC,
 }move_type_e;
+
+typedef enum {
+  SINGLE_EXTRUDER_MODULE_FAN       = 0,
+  SINGLE_EXTRUDER_NOZZLE_FAN       = 1,
+  DUAL_EXTRUDER_LEFT_MODULE_FAN    = 0,
+  DUAL_EXTRUDER_RIGHT_MODULE_FAN   = 1,
+  DUAL_EXTRUDER_NOZZLE_FAN         = 2,
+}fan_e;
 
 class ToolHead3DP: public ModuleBase {
   public:
@@ -70,6 +81,7 @@ class ToolHead3DP: public ModuleBase {
     virtual ErrCode SetHeater(int16_t target_temp, uint8_t extrude_index=0);
     void GetFilamentState();
     virtual void Process();
+    void NozzleFanCtrlCheck(void);
 
     bool IsOnline(uint8_t head_index=0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; };
 

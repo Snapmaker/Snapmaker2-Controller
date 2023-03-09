@@ -326,6 +326,7 @@ void ModuleBase::StaticProcess() {
   enclosure.Process();
   emergency_stop.Process();
   purifier.Process();
+  printer_single.Process();
   printer_dualextruder.Process();
   laser_10w.Process();
 

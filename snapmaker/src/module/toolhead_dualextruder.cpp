@@ -475,7 +475,16 @@ ErrCode ToolHeadDualExtruder::SetFan(uint8_t fan_index, uint8_t speed, uint8_t d
 
   cmd.data   = buffer;
   cmd.length = index;
+
   fan_speed_[fan_index] = speed;
+  LOG_I("fan_index: %d, speed: %d\n", fan_index, fan_speed_[fan_index]);
+
+  // the current fdm_2extruder module synchronizes the left and right fans
+  if (fan_index >= 0 && fan_index <= 1) {
+    fan_speed_[0] = speed;
+    fan_speed_[1] = speed;
+  }
+
   return canhost.SendStdCmd(cmd, 0);
 }
 
@@ -497,27 +506,6 @@ ErrCode ToolHeadDualExtruder::SetHeater(int16_t target_temp, uint8_t extrude_ind
   target_temp_[extrude_index] = target_temp;
   LOG_I("Set T%d=%d\n", extrude_index, target_temp_[extrude_index]);
 
-  fan_e nozzle_fan_index = DUAL_EXTRUDER_NOZZLE_FAN;
-  uint8_t fan_speed = 0;
-  uint8_t fan_delay = 0;
-
-  if (target_temp >= 50) {
-    fan_speed = 255;
-  }
-  else {
-    // check if need to delay to turn off fan
-    if (cur_temp_[0] >= 150 || cur_temp_[1] >= 150) {
-      fan_speed = 0;
-      fan_delay = 120;
-    } else if (cur_temp_[0] >= 50 || cur_temp_[1] >= 50) {
-      fan_speed = 0;
-      fan_delay = 60;
-    } else {
-      fan_speed = 0;
-      fan_delay = 0;
-    }
-  }
-  SetFan((uint8_t)nozzle_fan_index, fan_speed, fan_delay);
 
   uint8_t buffer[2*EXTRUDERS];
   for (int i = 0; i < EXTRUDERS; i++) {
@@ -1126,6 +1114,8 @@ void ToolHeadDualExtruder::Process() {
     ModuleCtrlHotendTypeSync();
     ModuleCtrlZProbeSensorCompensationSync();
   }
+
+  NozzleFanCtrlCheck();
 }
 
 bool ToolHeadDualExtruder::GetToolChangePrePosition(float *position, uint8_t size) {
