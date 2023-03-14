@@ -31,9 +31,9 @@ void report_M92(const bool echo=true, const int8_t e=-1) {
   SERIAL_ECHOPAIR(" Z", LINEAR_UNIT(planner.settings.axis_steps_per_mm[Z_AXIS]));
   SERIAL_ECHOPAIR(" B", LINEAR_UNIT(planner.settings.axis_steps_per_mm[B_AXIS]));
   #if DISABLED(DISTINCT_E_FACTORS)
-    SERIAL_ECHOPAIR("Current E", VOLUMETRIC_UNIT(planner.settings.axis_steps_per_mm[E_AXIS]));
+    SERIAL_ECHOPAIR(" Current E", VOLUMETRIC_UNIT(planner.settings.axis_steps_per_mm[E_AXIS]));
     SERIAL_ECHOPAIR(", BACKUP SINGLE E", VOLUMETRIC_UNIT(planner.settings.e_axis_steps_per_mm_backup[0]));
-    SERIAL_ECHOPAIR("BACKUP DUAL E", VOLUMETRIC_UNIT(planner.settings.e_axis_steps_per_mm_backup[1]));
+    SERIAL_ECHOPAIR(", BACKUP DUAL E", VOLUMETRIC_UNIT(planner.settings.e_axis_steps_per_mm_backup[1]));
   #endif
   SERIAL_EOL();
 
