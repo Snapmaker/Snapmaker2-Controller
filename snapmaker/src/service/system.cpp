@@ -293,7 +293,10 @@ void inline SystemService::resume_3dp(void) {
     planner.synchronize();
 
     // try to cut out filament
-    current_position[E_AXIS] -= 6;
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+      current_position[E_AXIS] -= DUAL_EXTRUDER_RESUME_RETRACT_E_LENGTH;
+    else
+      current_position[E_AXIS] -= SINGLE_RESUME_RETRACT_E_LENGTH;
     line_to_current_position(50);
     planner.synchronize();
   }
@@ -452,7 +455,10 @@ ErrCode SystemService::ResumeOver() {
     }
     // filament has been retracted for 6mm in resume process
     // we pre-extruder 6.2 to get better print quality
-    current_position[E_AXIS] += 6.2;
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+      current_position[E_AXIS] += (DUAL_EXTRUDER_RESUME_RETRACT_E_LENGTH + 0.2);
+    else
+      current_position[E_AXIS] += SINGLE_RESUME_RETRACT_E_LENGTH;
     line_to_current_position(5);
     planner.synchronize();
     current_position[E_AXIS] = pl_recovery.cur_data_.PositionData[E_AXIS];
