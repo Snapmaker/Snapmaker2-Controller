@@ -108,6 +108,8 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   Function_t    function;
   message_id_t  message_id[12];
 
+  LOG_I("\tGot toolhead Laser!\n");
+
   if (axis_to_port[E_AXIS] != PORT_8PIN_1) {
     LOG_E("toolhead Laser failed: Please use the <M1029 E1> set E port\n");
     return E_HARDWARE;
@@ -116,8 +118,6 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   ret = ModuleBase::InitModule8p(mac, E0_DIR_PIN, 0);
   if (ret != E_SUCCESS)
     return ret;
-
-  LOG_I("\tGot toolhead Laser!\n");
 
   // we have configured Laser in same port
   if (mac_index_ != MODULE_MAC_INDEX_INVALID)
@@ -280,6 +280,8 @@ void ToolHeadLaser::SetPowerLimit(float limit) {
   SetPower(limit);
   power_limit_pwm_ = power_pwm_;
 
+  LOG_I("laser limit: &u\n", power_limit_pwm_);
+
   SetPower(cur_power);
 
   // check if we need to change current output
@@ -433,7 +435,7 @@ ErrCode ToolHeadLaser::DoManualFocusing(SSTP_Event_t &event) {
 
   float max_z_speed;
 
-  LOG_I("SC req manual focusing\n");
+  LOG_I("SC req manual focusing, limit: %d\n", power_limit_pwm_);
 
   if (!all_axes_homed()) {
     LOG_E("Machine is not be homed!\n");
@@ -492,7 +494,7 @@ ErrCode ToolHeadLaser::DoAutoFocusing(SSTP_Event_t &event) {
   float line_len_short = 5;
   float line_len_long = 10;
 
-  LOG_I("SC req auto focusing\n");
+  LOG_I("SC req auto focusing, limit: %u\n", power_limit_pwm_);
 
   if (!all_axes_homed()) {
     LOG_E("Machine is not be homed!\n");

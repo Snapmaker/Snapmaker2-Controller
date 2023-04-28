@@ -728,14 +728,14 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
   SERIAL_ECHOLNPAIR("ProbeX:", rx, " ProbeY:", ry, " Active:", probe_relative);
   if (probe_relative) {
     if (!position_is_reachable_by_probe(rx, ry)) {
-      LOG_I("Point is out of workspace!\n");
+      LOG_E("Point is out of workspace!\n");
       return NAN;
     }  // The given position is in terms of the probe
     nx -= (X_PROBE_OFFSET_FROM_EXTRUDER);                     // Get the nozzle position
     ny -= (Y_PROBE_OFFSET_FROM_EXTRUDER);
   }
   else if (!position_is_reachable(nx, ny)) {
-    LOG_I("Point is out of workspace!\n");
+    LOG_E("Point is out of workspace!\n");
     return NAN;        // The given position is in terms of the nozzle
   }
 
@@ -764,8 +764,15 @@ float probe_pt(const float &rx, const float &ry, const ProbePtRaise raise_after/
     const bool big_raise = raise_after == PROBE_PT_BIG_RAISE;
     if (big_raise || raise_after == PROBE_PT_RAISE)
       do_blocking_move_to_z(current_position[Z_AXIS] + (big_raise ? 25 : Z_CLEARANCE_BETWEEN_PROBES), MMM_TO_MMS(Z_PROBE_SPEED_FAST));
-    else if (raise_after == PROBE_PT_STOW)
-      if (STOW_PROBE()) measured_z = NAN;
+    else if (raise_after == PROBE_PT_STOW) {
+      if (STOW_PROBE()) {
+      LOG_E("stow failed!\n");
+        measured_z = NAN;
+      }
+    }
+  }
+  else {
+    LOG_E("deploy failed!\n");
   }
 
   if (verbose_level > 2) {
