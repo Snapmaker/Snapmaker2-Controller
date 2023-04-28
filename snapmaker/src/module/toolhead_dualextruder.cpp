@@ -414,7 +414,7 @@ void ToolHeadDualExtruder::ReportProbeSensorCompensation(uint8_t *data) {
   #ifdef USE_FDM_INTERRUPT_LOG
     LOG_I("origin extruder: %d, compensation: %f\n", e, z_compensation_[e]);
   #endif
-  z_compensation_[e] -= 0.05;
+  z_compensation_[e] -= Z_COMPENSATION_ADJUST;
 }
 
 void ToolHeadDualExtruder::ReportRightExtruderPos(uint8_t *data) {
