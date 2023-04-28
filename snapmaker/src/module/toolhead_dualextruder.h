@@ -28,6 +28,8 @@
 
 #define MIN_LEVELING_HEIGHT_3DP2E               (35)
 
+#define Z_COMPENSATION_ADJUST (0.05)
+
 typedef struct {
   uint8_t model;
   float diameter;
