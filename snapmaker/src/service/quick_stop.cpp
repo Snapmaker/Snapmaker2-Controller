@@ -221,12 +221,21 @@ void QuickStopService::Park() {
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
   case MODULE_TOOLHEAD_DUALEXTRUDER:
-    if(thermalManager.temp_hotend[0].current > 180)
-      retract = 6;
+    // PREVENT_COLD_EXTRUSION protection is enabled without further temperature determination
+    // if(thermalManager.temp_hotend[0].current > 180) {
+      if (ModuleBase::toolhead() ==  MODULE_TOOLHEAD_DUALEXTRUDER)
+        retract = DUAL_EXTRUDER_RESUME_RETRACT_E_LENGTH;
+      else
+        retract = SINGLE_RESUME_RETRACT_E_LENGTH;
+    // }
 
     // for power loss, we don't have enough time
     if (source_ == QS_SOURCE_POWER_LOSS) {
-      current_position[E_AXIS] -= 2;
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+        current_position[E_AXIS] -= DUAL_EXTRUDER_POWER_LOSS_RETRACT_E_LENGTH;
+      else
+        current_position[E_AXIS] -= SINGLE_POWER_LOSS_RETRACT_E_LENGTH;
+
       line_to_current_position(60);
       Z_enable;
       move_to_limited_ze(current_position[Z_AXIS] + 5, current_position[E_AXIS] - retract + 1, 20);

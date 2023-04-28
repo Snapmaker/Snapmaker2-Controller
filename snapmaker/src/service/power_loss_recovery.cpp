@@ -503,7 +503,10 @@ void PowerLossRecovery::Resume3DP() {
 	}
 
 	// try to cut out filament
-	current_position[E_AXIS] -= 6;
+	if (ModuleBase::toolhead() ==  MODULE_TOOLHEAD_DUALEXTRUDER)
+		current_position[E_AXIS] -= DUAL_EXTRUDER_RESUME_RETRACT_E_LENGTH;
+	else
+		current_position[E_AXIS] -= SINGLE_RESUME_RETRACT_E_LENGTH;
 	line_to_current_position(30);
 	planner.synchronize();
 
