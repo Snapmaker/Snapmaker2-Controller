@@ -462,13 +462,16 @@ void CanHost::EventHandler(void *parameter) {
   // read all mac
   while (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {
     LOG_I("\nNew Module: 0x%08X\n", mac.val);
-    InitModules(mac);
+    if (InitModules(mac) != E_SUCCESS) {
+      LOG_E("failed to init module: %08x: \n", mac.val);
+    }
   }
 
   linear_p->UpdateMachineSize();
 
   for (int i = 0; static_modules[i] != NULL; i++) {
-      static_modules[i]->PostInit();
+    if (static_modules[i]->PostInit() != E_SUCCESS)
+      LOG_E("PostInit failed: 0x%08x\n", static_modules[i]->mac());
   }
   // broadcase modules have been initialized
   xEventGroupSetBits(event_group, EVENT_GROUP_MODULE_READY);
@@ -476,7 +479,9 @@ void CanHost::EventHandler(void *parameter) {
   for (;;) {
     if (can.Read(CAN_FRAME_EXT_REMOTE, (uint8_t *)&mac, 1)) {
       LOG_I("New Module: 0x%08X\n", mac.val);
-      InitModules(mac);
+      if (InitModules(mac) != E_SUCCESS) {
+        LOG_E("failed to init module: %08x: \n", mac.val);
+      }
     }
 
     for (;;) {
