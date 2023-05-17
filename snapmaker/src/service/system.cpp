@@ -458,7 +458,7 @@ ErrCode SystemService::ResumeOver() {
     if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
       current_position[E_AXIS] += (DUAL_EXTRUDER_RESUME_RETRACT_E_LENGTH + 0.2);
     else
-      current_position[E_AXIS] += SINGLE_RESUME_RETRACT_E_LENGTH;
+      current_position[E_AXIS] += (SINGLE_RESUME_RETRACT_E_LENGTH + 0.2);
     line_to_current_position(5);
     planner.synchronize();
     current_position[E_AXIS] = pl_recovery.cur_data_.PositionData[E_AXIS];
