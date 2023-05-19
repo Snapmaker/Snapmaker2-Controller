@@ -29,6 +29,8 @@
 #include "src/gcode/queue.h"
 #include "src/core/macros.h"
 
+#include "../module/linear.h"
+
 #if HAS_POSITION_SHIFT
   // The distance that XYZ has been offset by G92. Reset by G28.
   extern float position_shift[XN];
@@ -61,6 +63,7 @@ void GcodeSuite::M2000() {
     SERIAL_ECHOPAIR("cur position:\n");
     SERIAL_ECHOPAIR("X: ", current_position[X_AXIS], ", Y: ", current_position[Y_AXIS], ", Z: ", current_position[Z_AXIS], ", B: ", current_position[B_AXIS], "\n");
     LOG_I("live Z offset 0: %.2f, 1: %.2f\n", levelservice.live_z_offset((uint8_t)0), levelservice.live_z_offset((uint8_t)1));
+    LOG_I("X_MAX_POS: %f, Y_MAX_POS: %f, Z_MAX_POS: %f\n", X_MAX_POS, Y_MAX_POS, Z_MAX_POS);
     break;
 
   case 1:
@@ -94,6 +97,30 @@ void GcodeSuite::M2000() {
       return;
     }
     systemservice.ClearExceptionByFaultFlag(1<<(l-1));
+    break;
+
+  // change 11
+  case 11:
+    {
+      if (parser.seenval('I')) {
+        if (systemservice.GetCurrentStatus() == SYSTAT_IDLE && linear_p->machine_size() != MACHINE_SIZE_UNKNOWN) {
+          bool new_s = parser.boolval('I', quick_change_adapter);
+          if (new_s != quick_change_adapter) {
+            quick_change_adapter = new_s;
+            linear.UpdateMachinePosition();
+            set_all_unhomed();
+          }
+          LOG_I("set adapter state: %d, integration toolhead: %d\n", quick_change_adapter, integration_toolhead);
+        }
+        else {
+          LOG_I("set adapter state fail, sys_sta: %d, machine_size: %d, quick_change_adapter: %d, integration_toolhead: %d\n", \
+              systemservice.GetCurrentStatus(), linear_p->machine_size(), quick_change_adapter, integration_toolhead);
+        }
+      }
+      else {
+        LOG_I("adapter state: %d, integration toolhead: %d\n", quick_change_adapter, integration_toolhead);
+      }
+    }
     break;
   }
 

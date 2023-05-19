@@ -370,6 +370,7 @@ int PowerLossRecovery::SaveEnv(void) {
 	}
 
   cur_data_.accumulator = print_job_timer.duration();
+	cur_data_.adapter = quick_change_adapter;
 
   // if power loss, we have record the position to cur_data_.PositionData[]
   // NOTE that we save native position for XYZ
@@ -609,6 +610,11 @@ ErrCode PowerLossRecovery::ResumeWork() {
 	if (pre_data_.Valid == 0) {
 		LOG_E("previous power-loss data is invalid!\n");
 		return E_NO_RESRC;
+	}
+
+	if (pre_data_.adapter != quick_change_adapter) {
+		LOG_E("quick_change_adapter mismatch, save adapter: %d, cur adapter: %d\n", pre_data_.adapter, quick_change_adapter);
+		return E_INVALID_STATE;
 	}
 
 	LOG_I("restore point: X:%.2f, Y: %.2f, Z: %.2f, B: %.2f, E: %.2f)\n", pre_data_.PositionData[X_AXIS], pre_data_.PositionData[Y_AXIS],

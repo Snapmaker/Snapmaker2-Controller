@@ -87,6 +87,7 @@ typedef struct __attribute__((aligned (4))) {
 	int16_t flow_percentage[EXTRUDERS];
 
 	bool too_changing;
+	bool adapter;
 } PowerLossRecoveryData_t;
 
 

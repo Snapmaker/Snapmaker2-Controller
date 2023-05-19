@@ -1065,6 +1065,9 @@ extern uint8_t E_ENABLE_ON;
   extern float l_home_offset_3dp2e[XN];
   extern float l_home_offset_laser[XN];
 
+  extern bool integration_toolhead;
+  extern bool quick_change_adapter;
+
   extern float print_min_planner_speed;
   extern float laser_min_planner_speed;
   extern float cnc_min_planner_speed;
