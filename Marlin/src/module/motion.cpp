@@ -1692,6 +1692,7 @@ void homeaxis(const AxisEnum axis) {
    */
   void UpdateMachineDefines()
   {
+    // TODO: update the following variable information by quick_change_adapter & integration_toolhead
     base_min_pos_P[X_AXIS] = X_MIN_POS;
     base_min_pos_P[Y_AXIS] = Y_MIN_POS;
     base_min_pos_P[Z_AXIS] = Z_MIN_POS;

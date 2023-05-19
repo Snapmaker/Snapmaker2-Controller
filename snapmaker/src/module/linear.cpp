@@ -372,9 +372,9 @@ MachineSize Linear::UpdateMachineSize() {
     return (machine_size_ = MACHINE_SIZE_UNKNOWN);
   } else if (length_[LINEAR_AXIS_X1] < 200) {
     LOG_I("Model: A150\n");
-    X_MAX_POS = 167;
-    Y_MAX_POS = 165;
-    Z_MAX_POS = 150;
+    // X_MAX_POS = 167;
+    // Y_MAX_POS = 165;
+    // Z_MAX_POS = 150;
     X_HOME_DIR = 1;
     X_DIR = false;
     Y_HOME_DIR = 1;
@@ -415,9 +415,9 @@ MachineSize Linear::UpdateMachineSize() {
 
   } else if (length_[LINEAR_AXIS_X1] < 300) {
     LOG_I("Model: A250\n");
-    X_MAX_POS = 260;
-    Y_MAX_POS = 260;
-    Z_MAX_POS = 235;
+    // X_MAX_POS = 260;
+    // Y_MAX_POS = 260;
+    // Z_MAX_POS = 235;
     X_HOME_DIR = -1;
     X_DIR = true;
     Y_HOME_DIR = 1;
@@ -425,42 +425,42 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    // TODO: update leveling mesh
-    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
-      // #define M_HOME_OFFSET_3DP2E_DEFAULT {-28, -20, 0, 0}
+    // // TODO: update leveling mesh
+    // if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+    //   // #define M_HOME_OFFSET_3DP2E_DEFAULT {-28, -20, 0, 0}
 
-      LOOP_XN(i) {
-        home_offset[i] = m_home_offset_3dp2e[i];
-        update_workspace_offset((AxisEnum)i);
-      }
-      // X_DEF_SIZE / 2 + MAGNET_X_SPAN / 2 + homeoffset[x] <= X_MAX_POS
-      X_DEF_SIZE = 232;
-      // Y_DEF_SIZE / 2 + MAGNET_Y_SPAN / 2 + homeoffset[y] <= Y_MAX_POS
-      Y_DEF_SIZE = 240;
-      Z_DEF_SIZE = 235; // unused & spec is lager than actual size.  334 - 6 = 328?
+    //   LOOP_XN(i) {
+    //     home_offset[i] = m_home_offset_3dp2e[i];
+    //     update_workspace_offset((AxisEnum)i);
+    //   }
+    //   // X_DEF_SIZE / 2 + MAGNET_X_SPAN / 2 + homeoffset[x] <= X_MAX_POS
+    //   X_DEF_SIZE = 232;
+    //   // Y_DEF_SIZE / 2 + MAGNET_Y_SPAN / 2 + homeoffset[y] <= Y_MAX_POS
+    //   Y_DEF_SIZE = 240;
+    //   Z_DEF_SIZE = 235; // unused & spec is lager than actual size.  334 - 6 = 328?
 
-      MAGNET_X_SPAN = 200;
-      MAGNET_Y_SPAN = 205;
-    }
-    else {
-      LOOP_XN(i) {
-        home_offset[i] = m_home_offset[i];
-        update_workspace_offset((AxisEnum)i);
-      }
-      X_DEF_SIZE = 230;
-      Y_DEF_SIZE = 250;
-      Z_DEF_SIZE = 235;
+    //   MAGNET_X_SPAN = 200;
+    //   MAGNET_Y_SPAN = 205;
+    // }
+    // else {
+    //   LOOP_XN(i) {
+    //     home_offset[i] = m_home_offset[i];
+    //     update_workspace_offset((AxisEnum)i);
+    //   }
+    //   X_DEF_SIZE = 230;
+    //   Y_DEF_SIZE = 250;
+    //   Z_DEF_SIZE = 235;
 
-      MAGNET_X_SPAN = 184;
-      MAGNET_Y_SPAN = 204;
-    }
+    //   MAGNET_X_SPAN = 184;
+    //   MAGNET_Y_SPAN = 204;
+    // }
 
     machine_size_ = MACHINE_SIZE_A250;
   } else if (length_[LINEAR_AXIS_X1] < 400) {
     LOG_I("Model: A350\n");
-    X_MAX_POS = 358;
-    Y_MAX_POS = 358;
-    Z_MAX_POS = 334;
+    // X_MAX_POS = 358;
+    // Y_MAX_POS = 358;
+    // Z_MAX_POS = 334;
     X_HOME_DIR = -1;
     X_DIR = true;
     Y_HOME_DIR = 1;
@@ -468,60 +468,257 @@ MachineSize Linear::UpdateMachineSize() {
     Z_HOME_DIR = 1;
     Z_DIR = false;
 
-    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
-      LOOP_XN(i) {
-        home_offset[i] = l_home_offset_3dp2e[i];
-        update_workspace_offset((AxisEnum)i);
-      }
+    // if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+    //   LOOP_XN(i) {
+    //     home_offset[i] = l_home_offset_3dp2e[i];
+    //     update_workspace_offset((AxisEnum)i);
+    //   }
 
-      // X_DEF_SIZE / 2 + MAGNET_X_SPAN / 2 + homeoffset[x] <= X_MAX_POS
-      X_DEF_SIZE = 320;
-      // Y_DEF_SIZE / 2 + MAGNET_Y_SPAN / 2 + homeoffset[y] <= Y_MAX_POS
-      Y_DEF_SIZE = 340;
-      Z_DEF_SIZE = 290; // unused & spec is lager than actual size.  334 - 6 = 328?
+    //   // X_DEF_SIZE / 2 + MAGNET_X_SPAN / 2 + homeoffset[x] <= X_MAX_POS
+    //   X_DEF_SIZE = 320;
+    //   // Y_DEF_SIZE / 2 + MAGNET_Y_SPAN / 2 + homeoffset[y] <= Y_MAX_POS
+    //   Y_DEF_SIZE = 340;
+    //   Z_DEF_SIZE = 290; // unused & spec is lager than actual size.  334 - 6 = 328?
 
-      MAGNET_X_SPAN = 280;
-      MAGNET_Y_SPAN = 300;
-    }
-    else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER || 
-          ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
-      LOOP_XN(i) {
-        home_offset[i] = l_home_offset_laser[i];
-        update_workspace_offset((AxisEnum)i);
-      }
-      X_DEF_SIZE = 320;
-      Y_DEF_SIZE = 352;
-      Z_DEF_SIZE = 330; 
+    //   MAGNET_X_SPAN = 280;
+    //   MAGNET_Y_SPAN = 300;
+    // }
+    // else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER || 
+    //       ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
+    //   LOOP_XN(i) {
+    //     home_offset[i] = l_home_offset_laser[i];
+    //     update_workspace_offset((AxisEnum)i);
+    //   }
+    //   X_DEF_SIZE = 320;
+    //   Y_DEF_SIZE = 352;
+    //   Z_DEF_SIZE = 330;
 
-      X_MAX_POS = 345;
-      Y_MAX_POS = 357;
+    //   X_MAX_POS = 345;
+    //   Y_MAX_POS = 357;
 
-      MAGNET_X_SPAN = 274;
-      MAGNET_Y_SPAN = 304;
-    }
-    else {
-      LOOP_XN(i) {
-        home_offset[i] = l_home_offset[i];
-        update_workspace_offset((AxisEnum)i);
-      }
-      X_DEF_SIZE = 320;
-      Y_DEF_SIZE = 352;
-      Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
+    //   MAGNET_X_SPAN = 274;
+    //   MAGNET_Y_SPAN = 304;
+    // }
+    // else {
+    //   LOOP_XN(i) {
+    //     home_offset[i] = l_home_offset[i];
+    //     update_workspace_offset((AxisEnum)i);
+    //   }
+    //   X_DEF_SIZE = 320;
+    //   Y_DEF_SIZE = 352;
+    //   Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
 
-      MAGNET_X_SPAN = 274;
-      MAGNET_Y_SPAN = 304;
-    }
+    //   MAGNET_X_SPAN = 274;
+    //   MAGNET_Y_SPAN = 304;
+    // }
 
     machine_size_ = MACHINE_SIZE_A350;
   }
 
-  UpdateMachineDefines();
+  UpdateMachinePosition();
+  // UpdateMachineDefines();
   endstops.reinit_hit_status();
   PollEndstop(LINEAR_AXIS_ALL);
   systemservice.ClearException(EHOST_MC, ETYPE_NO_HOST);
   return machine_size_;
 }
 
+// update the corresponding axis travel
+void Linear::UpdateMachinePosition(void) {
+  LOG_I("quick swap: %u, integration toolhead: %u, machine_size_: %d\n", quick_change_adapter, integration_toolhead, linear_p->machine_size());
+
+  // in order to keep the leveling points the same as before, the value of DEF_SIZE & MAGNET_SPAN is not modified.
+  switch (linear_p->machine_size()) {
+    case MACHINE_SIZE_A150:
+      // A150 does not support quick change adapter, coordinates remain the same
+      X_MAX_POS = 167;
+      Y_MAX_POS = 165;
+      Z_MAX_POS = 150;
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+        LOOP_XN(i) {
+          // #define S_HOME_OFFSET_3DP2E_DEFAULT {-21, -17, 0, 0}
+          home_offset[i] = s_home_offset_3dp2e[i];
+          update_workspace_offset((AxisEnum)i);
+        }
+
+        X_DEF_SIZE = 146;
+        Y_DEF_SIZE = 148;
+        Z_DEF_SIZE = 145;
+
+        MAGNET_X_SPAN = 116;  // X_DEF_SIZE - 30
+        MAGNET_Y_SPAN = 118;  // Y_DEF_SIZE - 30
+      }
+      else {
+        LOOP_XN(i) {
+          home_offset[i] = s_home_offset[i];
+          update_workspace_offset((AxisEnum)i);
+        }
+        X_DEF_SIZE = 160;
+        Y_DEF_SIZE = 160;
+        Z_DEF_SIZE = 145;
+
+        MAGNET_X_SPAN = 114;
+        MAGNET_Y_SPAN = 114;
+      }
+    break;
+
+    case MACHINE_SIZE_A250:
+      // is the machine with quick change adapter
+      if (quick_change_adapter) {
+        if (!integration_toolhead) {
+          X_MAX_POS = 260;
+          Y_MAX_POS = 245;
+          Z_MAX_POS = 220;
+        }
+        else {
+          // TODO: support this combination in the future
+          X_MAX_POS = 260;
+          Y_MAX_POS = 245;
+          Z_MAX_POS = 220;
+        }
+      }
+      else {
+        if (!integration_toolhead) {
+          X_MAX_POS = 260;
+          Y_MAX_POS = 260;
+          Z_MAX_POS = 235;
+        }
+        else {
+          // TODO: support this combination in the future
+          X_MAX_POS = 260;
+          Y_MAX_POS = 260;
+          Z_MAX_POS = 235;
+        }
+      }
+
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+        // #define M_HOME_OFFSET_3DP2E_DEFAULT {-28, -20, 0, 0}
+        LOOP_XN(i) {
+          home_offset[i] = m_home_offset_3dp2e[i];
+          update_workspace_offset((AxisEnum)i);
+        }
+        X_DEF_SIZE = 232;
+        Y_DEF_SIZE = 240;
+        Z_DEF_SIZE = 235;                 // unused currently
+
+        MAGNET_X_SPAN = 200;
+        MAGNET_Y_SPAN = 205;
+      }
+      else {
+        LOOP_XN(i) {
+          home_offset[i] = m_home_offset[i];
+          update_workspace_offset((AxisEnum)i);
+        }
+        X_DEF_SIZE = 230;
+        Y_DEF_SIZE = 250;
+        Z_DEF_SIZE = 235;                 // unused currently
+
+        MAGNET_X_SPAN = 184;
+        MAGNET_Y_SPAN = 204;
+      }
+    break;
+
+    case MACHINE_SIZE_A350:
+      // is the machine with quick change adapter
+      if (quick_change_adapter) {
+        if (!integration_toolhead) {
+          X_MAX_POS = 358;
+          Y_MAX_POS = 343;
+          Z_MAX_POS = 319;
+        }
+        else {
+          // TODO: support this combination in the future
+          X_MAX_POS = 358;
+          Y_MAX_POS = 343;
+          Z_MAX_POS = 319;
+        }
+      }
+      else {
+        if (!integration_toolhead) {
+          X_MAX_POS = 358;
+          Y_MAX_POS = 358;
+          Z_MAX_POS = 334;
+        }
+        else {
+          // TODO: support this combination in the future
+          X_MAX_POS = 358;
+          Y_MAX_POS = 358;
+          Z_MAX_POS = 334;
+        }
+      }
+
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
+        LOOP_XN(i) {
+          home_offset[i] = l_home_offset_3dp2e[i];
+          update_workspace_offset((AxisEnum)i);
+        }
+
+        X_DEF_SIZE = 320;
+        Y_DEF_SIZE = 340;
+        Z_DEF_SIZE = 290; // unused & spec is lager than actual size.  334 - 6 = 328?
+
+        MAGNET_X_SPAN = 280;
+        MAGNET_Y_SPAN = 300;
+      }
+      else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER ||
+            ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
+        LOOP_XN(i) {
+          home_offset[i] = l_home_offset_laser[i];
+          update_workspace_offset((AxisEnum)i);
+        }
+
+        X_DEF_SIZE = 320;
+        Y_DEF_SIZE = 352;
+        Z_DEF_SIZE = 330;
+
+        if (quick_change_adapter) {
+          if (!integration_toolhead) {
+            X_MAX_POS = 345;
+            Y_MAX_POS = 342;
+          }
+          else {
+            // TODO: support this combination in the future
+            X_MAX_POS = 345;
+            Y_MAX_POS = 342;
+          }
+        }
+        else {
+          if (!integration_toolhead) {
+            X_MAX_POS = 345;
+            Y_MAX_POS = 357;
+          }
+          else {
+            // TODO: support this combination in the future
+            X_MAX_POS = 345;
+            Y_MAX_POS = 357;
+          }
+        }
+
+        MAGNET_X_SPAN = 274;
+        MAGNET_Y_SPAN = 304;
+      }
+      else {
+        LOOP_XN(i) {
+          home_offset[i] = l_home_offset[i];
+          update_workspace_offset((AxisEnum)i);
+        }
+        X_DEF_SIZE = 320;
+        Y_DEF_SIZE = 352;
+        Z_DEF_SIZE = 330; // unused & spec is lager than actual size.  334 - 6 = 328?
+
+        MAGNET_X_SPAN = 274;
+        MAGNET_Y_SPAN = 304;
+      }
+    break;
+
+    default:
+      break;
+  }
+
+  LOG_I("X_MAX_POS: %f, Y_MAX_POS: %f, Z_MAX_POS: %f\n", X_MAX_POS, Y_MAX_POS, Z_MAX_POS);
+  LOOP_XN(i) update_workspace_offset((AxisEnum)i);
+  UpdateMachineDefines();
+}
 
 ErrCode Linear::SetLengthOrLead(SSTP_Event_t &event, uint8_t ext_cmd) {
   CanExtCmd_t cmd;

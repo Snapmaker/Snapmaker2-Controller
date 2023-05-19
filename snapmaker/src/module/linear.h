@@ -67,6 +67,7 @@ class Linear: public ModuleBase  {
     ErrCode PollEndstop(LinearAxisType axis);
 
     MachineSize UpdateMachineSize();
+    void UpdateMachinePosition();
 
     ErrCode SetLength(SSTP_Event_t &event) { return SetLengthOrLead(event, MODULE_EXT_CMD_LINEAR_LENGTH_REQ); }
     ErrCode GetLength(SSTP_Event_t &event) { return GetLengthOrLead(event, MODULE_EXT_CMD_LINEAR_LENGTH_REQ); }
