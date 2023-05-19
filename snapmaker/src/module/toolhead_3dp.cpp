@@ -198,6 +198,11 @@ ErrCode ToolHead3DP::SetFan(uint8_t fan_index, uint8_t speed, uint8_t delay_time
   buffer[0] = delay_time;
   buffer[1] = speed;
 
+  if (fan_index > SINGLE_EXTRUDER_NOZZLE_FAN) {
+    LOG_W("setup failed: unsupported fan_index, fan_index: %d, speed: %d\n", fan_index, speed);
+    return E_PARAM;
+  }
+
   if (fan_index)
     cmd.id = MODULE_FUNC_SET_FAN2;
   else
