@@ -44,6 +44,7 @@
 #include "src/libs/hex_print_routines.h"
 #include "src/gcode/gcode.h"
 #include "src/gcode/queue.h"
+#include "src/module/configuration_store.h"
 
 
 #define EVENT_ATTR_HAVE_MOTION  0x1
@@ -753,6 +754,69 @@ static ErrCode HmiRequestGetActiveExtruder(SSTP_Event_t &event) {
   return printer1->HmiRequestGetActiveExtruder(event);
 }
 
+static ErrCode HmiRequestGetMachineKitInfo(SSTP_Event_t &event) {
+  uint8_t buf_info[10];
+  uint16_t data_len = 0;
+  SSTP_Event_t event_hmi = {EID_SETTING_ACK, SETTINGS_OPC_GET_MACHINE_KIT_INFO};
+
+  buf_info[data_len++] = E_SUCCESS;
+  buf_info[data_len++] = quick_change_adapter;
+  buf_info[data_len++] = integration_toolhead;
+  event_hmi.data   = buf_info;
+  event_hmi.length = data_len;
+
+  LOG_I("hmi get kit status, quick_change_adapter: %d, integration_toolhead: %d\n", quick_change_adapter, integration_toolhead);
+
+  return hmi.Send(event_hmi);
+}
+
+static ErrCode HmiRequestSetMachineKitInfo(SSTP_Event_t &event) {
+  uint8_t quick_kit = 0;
+  ErrCode err = E_SUCCESS;
+  SSTP_Event_t event_hmi = {EID_SETTING_ACK, SETTINGS_OPC_SET_MACHINE_KIT_INFO};
+
+  if (event.length < 1) {
+    LOG_E("set machine kit: length error!!!\n");
+    err = E_PARAM;
+    goto END;
+  }
+
+  quick_kit = event.data[0];
+  LOG_I("hmi request set machine kit: %d\n", quick_kit);
+
+  // only these two types are currently supported,
+  if (quick_kit != 0 && quick_kit != 1) {
+    LOG_E("set machine kit: param error!!!\n");
+    err = E_PARAM;
+    goto END;
+  }
+
+  if (systemservice.GetCurrentStatus() != SYSTAT_IDLE) {
+    LOG_E("set machine kit: system_sta: %d, current system state does not allow setting!!!\n", systemservice.GetCurrentStatus());
+    err = E_INVALID_STATE;
+    goto END;
+  }
+
+  if (linear_p->machine_size() == MACHINE_SIZE_UNKNOWN || linear_p->machine_size() == MACHINE_SIZE_A150) {
+    LOG_E("set machine kit: machine_size: %d, current machine type does not allow setting!!!\n", linear_p->machine_size());
+    err = E_HARDWARE;
+    goto END;
+  }
+
+  if (quick_kit != quick_change_adapter) {
+    quick_change_adapter = !!quick_kit;
+    settings.save();
+  }
+
+  linear.UpdateMachinePosition();
+  set_all_unhomed();
+
+END:
+  event_hmi.data   = &err;
+  event_hmi.length = 1;
+  return hmi.Send(event_hmi);;
+}
+
 EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   UNDEFINED_CALLBACK,
   /* SETTINGS_OPC_SET_MACHINE_SIZE */ UNDEFINED_CALLBACK,
@@ -793,6 +857,12 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_SET_DUALEXTRUDER_MANUAL_LEVELING_POINT]  =  */{EVENT_ATTR_HAVE_MOTION,    HmiSetDualExtruderManualLevelingPoint},
   /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_MANUAL_LEVELING]     =  */{EVENT_ATTR_HAVE_MOTION,    HmiFinishDualExtruderManualLeveling},
   /* [SETTINGS_OPC_GET_ACTIVE_EXTRUDER]    =  */{EVENT_ATTR_DEFAULT,    HmiRequestGetActiveExtruder},
+  /* [RESERVED] */                               UNDEFINED_CALLBACK,
+  /* [RESERVED] */                               UNDEFINED_CALLBACK,
+  /* [RESERVED] */                               UNDEFINED_CALLBACK,
+  /* [RESERVED] */                               UNDEFINED_CALLBACK,
+  /* [SETTINGS_OPC_GET_MACHINE_KIT_INFO]   =  */{EVENT_ATTR_DEFAULT,    HmiRequestGetMachineKitInfo},
+  /* [SETTINGS_OPC_SET_MACHINE_KIT_INFO]   =  */{EVENT_ATTR_DEFAULT,    HmiRequestSetMachineKitInfo},
 };
 
 

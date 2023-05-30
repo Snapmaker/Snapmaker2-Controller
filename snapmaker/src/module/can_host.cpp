@@ -469,6 +469,10 @@ void CanHost::EventHandler(void *parameter) {
 
   linear_p->UpdateMachineSize();
 
+  if (linear_p->machine_size() == MACHINE_SIZE_A150) {
+    quick_change_adapter = false;
+  }
+
   for (int i = 0; static_modules[i] != NULL; i++) {
     if (static_modules[i]->PostInit() != E_SUCCESS)
       LOG_E("PostInit failed: 0x%08x\n", static_modules[i]->mac());
