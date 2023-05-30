@@ -256,7 +256,7 @@ millis_t max_inactive_time, // = 0
   float l_home_offset_laser[XN] = L_HOME_OFFSET_LASER_DEFAULT;
 
   bool integration_toolhead = false;
-  bool quick_change_adapter = 0;
+  bool quick_change_adapter = false;   /*if more types need to be supported you need to modify the variable type of quick_change_adapter*/
 
   float print_min_planner_speed = MINIMUM_PRINT_PLANNER_SPEED;
   float laser_min_planner_speed = MINIMUM_LASER_PLANNER_SPEED;
