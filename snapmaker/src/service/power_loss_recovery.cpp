@@ -383,6 +383,8 @@ int PowerLossRecovery::SaveEnv(void) {
 
 	case MODULE_TOOLHEAD_LASER:
 	case MODULE_TOOLHEAD_LASER_10W:
+  case MODULE_TOOLHEAD_LASER_20W:
+  case MODULE_TOOLHEAD_LASER_40W:
 		cur_data_.laser_percent = laser->power();
 		cur_data_.laser_pwm = laser->tim_pwm();
 	  laser->TurnOff();
@@ -576,6 +578,19 @@ void PowerLossRecovery::ResumeLaser() {
 
 	// just change laser power but not enable output
 	laser->SetPower(pre_data_.laser_percent);
+
+	if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+		laser->SetCrossLightCAN(false);
+		float ox, oy;
+		if (E_SUCCESS == laser->GetCrossLightOffsetCAN(ox, oy)) {
+			LOG_I("PL: Set laser crosslight offset: %f, %f\n", ox, oy);
+			laser_crosslight_offset[X_AXIS] = ox;
+			laser_crosslight_offset[Y_AXIS] = oy;
+		}
+		else {
+			LOG_W("PL: Failed to get crosslight offset, work may be skewed!!!\n");
+		}
+	}
 }
 
 
@@ -659,6 +674,8 @@ ErrCode PowerLossRecovery::ResumeWork() {
 
 	case MODULE_TOOLHEAD_LASER:
 	case MODULE_TOOLHEAD_LASER_10W:
+  case MODULE_TOOLHEAD_LASER_20W:
+  case MODULE_TOOLHEAD_LASER_40W:
 		if (enclosure.DoorOpened()) {
 			LOG_E("trigger RESTORE: failed, door is open\n");
 			return E_DOOR_OPENED;

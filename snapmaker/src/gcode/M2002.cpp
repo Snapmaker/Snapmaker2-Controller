@@ -34,7 +34,8 @@
 **/
 
 void GcodeSuite::M2002() {
-  if (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_10W) {
+  if (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_10W && ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_20W &&\
+      ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_40W) {
     return;
   }
   const bool seen_s = parser.seen('S');
@@ -92,14 +93,108 @@ void GcodeSuite::M2002() {
 
   const bool seen_t = parser.seenval('T');
   if (seen_t) {
-    int8_t buf[2] = {50, 20};
-    buf[0] = (int8_t)parser.byteval('T', (int8_t)55);
-    SSTP_Event_t event;
-    event.op_code = 0x16;
-    event.data = (uint8_t *)buf;
-    event.length = 2;
-    event.id = 9;
+    uint8_t test_cmd_code = (uint8_t)parser.byteval('T', 0);
 
-    laser->SetProtectTemp(event);
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W && test_cmd_code > 2) {
+      LOG_W("module does not support current gcode\n");
+      return;
+    }
+
+    switch (test_cmd_code)
+    {
+      // Log laser info
+      case 0:
+      {
+        laser->PrintInfo();
+        break;
+      }
+
+      // Set laser power
+      case 1:
+      {
+        float power = (float)parser.floatval('P', 0.0);
+        laser->SetOutput(power);
+        break;
+      }
+
+      // Set fan
+      case 2:
+      {
+        uint8_t fs = parser.byteval('P', 0);
+        laser->SetFanPower(fs);
+        break;
+      }
+
+      // Set crosslight
+      case 3:
+      {
+        uint8_t sw = parser.byteval('P', 0);
+        laser->SetCrossLightCAN(sw);
+        break;
+      }
+
+      // Get crosslight
+      case 4:
+      {
+        bool sw;
+        laser->GetCrossLightCAN(sw);
+        break;
+      }
+
+      // set fire sensor sensitivity
+      case 5:
+      {
+        uint8 fss = parser.byteval('P', 0);
+        laser->SetFireSensorSensitivityCAN(fss);
+        break;
+      }
+
+      // Get fire sensor sensitivity
+      case 6:
+      {
+        uint8 fss;
+        laser->GetFireSensorSensitivityCAN(fss);
+        break;
+      }
+
+      // set crosslight offset
+      case 7:
+      {
+        float x, y;
+        x = parser.floatval('X', 0);
+        y = parser.floatval('Y', 0);
+        laser->SetCrossLightOffsetCAN(x, y);
+        break;
+      }
+
+      // Get crosslight offset
+      case 8:
+      {
+        float x, y;
+        laser->GetCrossLightOffsetCAN(x, y);
+        break;
+      }
+
+      // set fire sensor rawdata report time
+      case 9:
+      {
+        uint16 itv = parser.ushortval('P', 0);
+        laser->SetFireSensorReportTime(itv);
+        break;
+      }
+
+      // HMI get crosslight offset test
+      case 10:
+      {
+        SSTP_Event_t e;
+        laser->GetCrosslightOffset(e);
+        break;
+      }
+
+      default:
+      {
+        break;
+      }
+    }
   }
 }

@@ -754,6 +754,34 @@ static ErrCode HmiRequestGetActiveExtruder(SSTP_Event_t &event) {
   return printer1->HmiRequestGetActiveExtruder(event);
 }
 
+static ErrCode HmiSetCrossLight(SSTP_Event_t &event) {
+  return laser->SetCrossLight(event);
+}
+
+static ErrCode HmiGetCrossLight(SSTP_Event_t &event) {
+  return laser->GetCrossLight(event);
+}
+
+static ErrCode HmiSetFireSensorSensitivity(SSTP_Event_t &event) {
+  return laser->SetFireSensorSensitivity(event);
+}
+
+static ErrCode HmiGetFireSensorSensitivity(SSTP_Event_t &event) {
+  return laser->GetFireSensorSensitivity(event);
+}
+
+static ErrCode HmiSetFireSensorReportTime(SSTP_Event_t &event) {
+  return laser->SetFireSensorReportTime(event);
+}
+
+static ErrCode HmiSetCrosslightOffset(SSTP_Event_t &event) {
+  return laser->SetCrosslightOffset(event);
+}
+
+static ErrCode HmiGetCrosslightOffset(SSTP_Event_t &event) {
+  return laser->GetCrosslightOffset(event);
+}
+
 static ErrCode HmiRequestGetMachineKitInfo(SSTP_Event_t &event) {
   uint8_t buf_info[10];
   uint16_t data_len = 0;
@@ -850,19 +878,26 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_PROBE_SENSOR_CAL]       =  */{EVENT_ATTR_HAVE_MOTION,      HmiRequestProbeSensorCal},
   /* SETTINGS_OPC_AUTO_BED_POSITION_DET    =  */{EVENT_ATTR_HAVE_MOTION,      HmiRequestAutoBedPositionDet},
   /* SETTINGS_OPC_MANUAL_BED_POSITION_DET  =  */{EVENT_ATTR_HAVE_MOTION,      HmiRequestManualBedPositionDet},
-  /* [SETTINGS_OPC_DO_DUALEXTRUDER_AUTO_LEVELING]         =  */{EVENT_ATTR_HAVE_MOTION,      HmiRequestDoDualExtruderAutoLeveling},
-  /* [SETTINGS_OPC_SET_DUALEXTRUDER_AUTO_LEVELING_POINT]  =  */{EVENT_ATTR_HAVE_MOTION,      HmiSetDualExtruderAutoLevelingPoint},
-  /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_AUTO_LEVELING]     =  */{EVENT_ATTR_HAVE_MOTION,      HmiFinishDualExtruderAutoLeveling},
+  /* [SETTINGS_OPC_DO_DUALEXTRUDER_AUTO_LEVELING]           =  */{EVENT_ATTR_HAVE_MOTION,    HmiRequestDoDualExtruderAutoLeveling},
+  /* [SETTINGS_OPC_SET_DUALEXTRUDER_AUTO_LEVELING_POINT]    =  */{EVENT_ATTR_HAVE_MOTION,    HmiSetDualExtruderAutoLevelingPoint},
+  /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_AUTO_LEVELING]       =  */{EVENT_ATTR_HAVE_MOTION,    HmiFinishDualExtruderAutoLeveling},
   /* [SETTINGS_OPC_DO_DUALEXTRUDER_MANUAL_LEVELING]         =  */{EVENT_ATTR_HAVE_MOTION,    HmiRequestDoDualExtruderManualLeveling},
   /* [SETTINGS_OPC_SET_DUALEXTRUDER_MANUAL_LEVELING_POINT]  =  */{EVENT_ATTR_HAVE_MOTION,    HmiSetDualExtruderManualLevelingPoint},
   /* [SETTINGS_OPC_FINISH_DUALEXTRUDER_MANUAL_LEVELING]     =  */{EVENT_ATTR_HAVE_MOTION,    HmiFinishDualExtruderManualLeveling},
-  /* [SETTINGS_OPC_GET_ACTIVE_EXTRUDER]    =  */{EVENT_ATTR_DEFAULT,    HmiRequestGetActiveExtruder},
-  /* [RESERVED] */                               UNDEFINED_CALLBACK,
-  /* [RESERVED] */                               UNDEFINED_CALLBACK,
-  /* [RESERVED] */                               UNDEFINED_CALLBACK,
-  /* [RESERVED] */                               UNDEFINED_CALLBACK,
-  /* [SETTINGS_OPC_GET_MACHINE_KIT_INFO]   =  */{EVENT_ATTR_DEFAULT,    HmiRequestGetMachineKitInfo},
-  /* [SETTINGS_OPC_SET_MACHINE_KIT_INFO]   =  */{EVENT_ATTR_DEFAULT,    HmiRequestSetMachineKitInfo},
+  /* [SETTINGS_OPC_GET_ACTIVE_EXTRUDER]                     =  */{EVENT_ATTR_DEFAULT,        HmiRequestGetActiveExtruder},
+  /* [RESERVED] */                                                UNDEFINED_CALLBACK,
+  /* [RESERVED] */                                                UNDEFINED_CALLBACK,
+  /* [RESERVED] */                                                UNDEFINED_CALLBACK,
+  /* [RESERVED] */                                                UNDEFINED_CALLBACK,
+  /* [SETTINGS_OPC_GET_MACHINE_KIT_INFO]                    =  */{EVENT_ATTR_DEFAULT,    HmiRequestGetMachineKitInfo},
+  /* [SETTINGS_OPC_SET_MACHINE_KIT_INFO]                    =  */{EVENT_ATTR_DEFAULT,    HmiRequestSetMachineKitInfo},
+  /* [SETTINGS_OPC_SET_CROSSLIGHT]                          =  */{EVENT_ATTR_DEFAULT,    HmiSetCrossLight},
+  /* [SETTINGS_OPC_GET_CROSSLIGHT]                          =  */{EVENT_ATTR_DEFAULT,    HmiGetCrossLight},
+  /* [SETTINGS_OPC_SET_FIRE_SENSOR_SENSITIVITY]             =  */{EVENT_ATTR_DEFAULT,    HmiSetFireSensorSensitivity},
+  /* [SETTINGS_OPC_GET_FIRE_SENSOR_SENSITIVITY]             =  */{EVENT_ATTR_DEFAULT,    HmiGetFireSensorSensitivity},
+  /* [SETTINGS_OPC_SET_FIRE_SENSOR_REPORT_TIME]             =  */{EVENT_ATTR_DEFAULT,    HmiSetFireSensorReportTime},
+  /* [SETTINGS_OPC_SET_CROSSLIGHT_OFFSET]                   =  */{EVENT_ATTR_DEFAULT,    HmiSetCrosslightOffset},
+  /* [SETTINGS_OPC_GET_CROSSLIGHT_OFFSET]                   =  */{EVENT_ATTR_DEFAULT,    HmiGetCrosslightOffset},
 };
 
 

@@ -31,6 +31,12 @@
 #define TOOLHEAD_LASER_POWER_SAFE_LIMIT   (0.5)
 #define TOOLHEAD_LASER_POWER_NORMAL_LIMIT (100)
 #define TOOLHEAD_LASER_CAMERA_FOCUS_MAX   (65000)  // mm*1000
+#define INVALID_OFFSET                    (-10000)
+
+#define FIRE_DETECT_SENSITIVITY_DIS       (0)
+#define FIRE_DETECT_SENSITIVITY_LOW       (1)
+#define FIRE_DETECT_SENSITIVITY_MID       (2)
+#define FIRE_DETECT_SENSITIVITY_HIGHT     (3)
 
 enum ToolheadLaserFanState {
   TOOLHEAD_LASER_FAN_STATE_OPEN,
@@ -83,10 +89,10 @@ enum LaserCameraCommand {
   S_RECV_FAIL = 0xff,
 };
 
-enum LASER_10W_STATUS {
-  LASER_10W_ENABLE,
-  LASER_10W_WAIT_DISABLE,
-  LASER_10W_DISABLE,
+enum LASER_STATUS {
+  LASER_ENABLE,
+  LASER_WAIT_DISABLE,
+  LASER_DISABLE,
 };
 
 
@@ -110,14 +116,18 @@ class ToolHeadLaser: public ModuleBase {
       imu_temperature_   = 0;
       need_to_turnoff_laser_ = false;
       need_to_tell_hmi_ = false;
-      laser_10w_status_ = LASER_10W_DISABLE;
+      laser_status_ = LASER_DISABLE;
       laser_pwm_pin_checked_ = false;
       pwm_pin_pullup_state_ = 0xff;
       pwm_pin_pulldown_state_ = 0xff;
+      fire_sensor_sensitivity_ = 0;
+      fire_sensor_trigger_ = false;
+      crosslight_offset_x = crosslight_offset_y = INVALID_OFFSET;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
     void TurnoffLaserIfNeeded();
+    void PrintInfo(void);
 
     void TurnOn();
     void PwmCtrlDirectly(uint8_t duty);
@@ -131,6 +141,15 @@ class ToolHeadLaser: public ModuleBase {
 
     void TryCloseFan();
     bool IsOnline(uint8_t sub_index = 0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; }
+
+    ErrCode SetCrossLightCAN(bool sw);
+    ErrCode GetCrossLightCAN(bool &sw);
+    ErrCode SetFireSensorSensitivityCAN(uint8 sen);
+    ErrCode GetFireSensorSensitivityCAN(uint8 &sen);
+    ErrCode SetFireSensorReportTime(uint16 itv);
+    ErrCode SetCrossLightOffsetCAN(float x, float y);
+    ErrCode GetCrossLightOffsetCAN(float &x, float &y);
+    ErrCode CheckCrossLightOffset(float x_offset, float y_offset);
 
     // callbacks for HMI event
     ErrCode GetFocus(SSTP_Event_t &event);
@@ -153,6 +172,14 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode SetProtectTemp(SSTP_Event_t &event);
     ErrCode LaserControl(uint8_t state);
     ErrCode LaserGetHWVersion();
+    ErrCode SetCrossLight(SSTP_Event_t &event);
+    ErrCode GetCrossLight(SSTP_Event_t &event);
+    ErrCode SetFireSensorSensitivity(SSTP_Event_t &event);
+    ErrCode GetFireSensorSensitivity(SSTP_Event_t &event);
+    ErrCode SetFireSensorReportTime(SSTP_Event_t &event);
+    ErrCode SetCrosslightOffset(SSTP_Event_t &event);
+    ErrCode GetCrosslightOffset(SSTP_Event_t &event);
+
     void TellSecurityStatus();
     uint8_t LaserGetPwmPinState();
     void LaserConfirmPinState();
@@ -193,7 +220,7 @@ class ToolHeadLaser: public ModuleBase {
     uint16_t power_pwm_;
     uint8_t  fan_state_;
     uint16_t fan_tick_;
-    uint16_t laser_10w_tick_ = 0;
+    uint16_t laser_tick_ = 0;
 
     // save orignal value from module
     uint16_t focus_;
@@ -213,8 +240,16 @@ class ToolHeadLaser: public ModuleBase {
     int8_t imu_temperature_;
     bool need_to_turnoff_laser_;
     bool need_to_tell_hmi_;
-    LASER_10W_STATUS laser_10w_status_;
-  
+    bool fire_sensor_trigger_;
+    bool fire_sensor_sensitivity_update_;
+    uint8_t fire_sensor_sensitivity_;
+    uint16_t fire_sensor_rawdata_;
+    bool crosslight_offset_update_;
+    float crosslight_offset_x, crosslight_offset_y;
+    LASER_STATUS laser_status_;
+    bool cross_light_state_update_;
+    bool cross_light_state_;
+
   // Laser Inline Power functions
   public:
     /**
@@ -236,5 +271,7 @@ class ToolHeadLaser: public ModuleBase {
 extern ToolHeadLaser *laser;
 extern ToolHeadLaser laser_1_6_w;
 extern ToolHeadLaser laser_10w;
+extern ToolHeadLaser laser_20w;
+extern ToolHeadLaser laser_40w;
 
 #endif  // #ifndef TOOLHEAD_LASER_H_

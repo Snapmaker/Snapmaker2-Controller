@@ -206,6 +206,9 @@ float cartes[XN];
   float workspace_offset[XN] = { 0 };
 #endif
 
+// laser crosslight offset
+float laser_crosslight_offset[XN] = { 0 };
+
 #if HAS_ABL_NOT_UBL
   float xy_probe_feedrate_mm_s = MMM_TO_MMS(XY_PROBE_SPEED);
 #endif

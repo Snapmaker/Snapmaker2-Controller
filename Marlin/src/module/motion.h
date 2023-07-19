@@ -274,6 +274,9 @@ void homeaxis(const AxisEnum axis);
 #define RAW_Z_POSITION(POS)     LOGICAL_TO_NATIVE(POS, Z_AXIS)
 #define RAW_B_POSITION(POS)     LOGICAL_TO_NATIVE(POS, B_AXIS)
 
+// laser crosslight offset
+extern float laser_crosslight_offset[XN];
+
 /**
  * position_is_reachable family of functions
  */
