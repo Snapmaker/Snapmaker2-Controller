@@ -338,6 +338,8 @@ void set_min_planner_speed() {
       break;
     case MODULE_TOOLHEAD_LASER:
     case MODULE_TOOLHEAD_LASER_10W:
+    case MODULE_TOOLHEAD_LASER_20W:
+    case MODULE_TOOLHEAD_LASER_40W:
       planner.min_planner_speed = laser_min_planner_speed;
       break;
     default:

@@ -257,6 +257,8 @@ void QuickStopService::Park() {
 
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
+  case MODULE_TOOLHEAD_LASER_20W:
+  case MODULE_TOOLHEAD_LASER_40W:
     // In the case of laser, we don't raise Z.
     if (source_ == QS_SOURCE_STOP) {
       move_to_limited_z(Z_MAX_POS, 30);
@@ -306,7 +308,11 @@ void QuickStopService::TurnOffPower() {
 
   BreathLightClose();
 
-  if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W)) {
+  if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+  ) {
     // The laser movement stops immediately with no risk of damaging the model
     disable_power_domain(POWER_DOMAIN_1);
   }
@@ -315,7 +321,10 @@ void QuickStopService::TurnOffPower() {
 void QuickStopService::HandleProtection() {
   if (source_ != QS_SOURCE_SECURITY) return;
 
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W ||
+      ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W ||
+      ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W
+  ) {
       // don't do nothing
   }
 }
@@ -336,6 +345,8 @@ void QuickStopService::EmergencyStop() {
       break;
     case MACHINE_TYPE_LASER:
     case MACHINE_TYPE_LASER_10W:
+    case MACHINE_TYPE_LASER_20W:
+    case MACHINE_TYPE_LASER_40W:
       laser->SetCameraLight(0);
       laser->SetFanPower(0);
       break;

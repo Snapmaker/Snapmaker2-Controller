@@ -55,6 +55,8 @@ ModuleBase *static_modules[] = {
   &purifier,
   &printer_dualextruder,
   &laser_10w,
+  &laser_20w,
+  &laser_40w,
   NULL
 };
 
@@ -333,6 +335,8 @@ void ModuleBase::StaticProcess() {
   printer_single.Process();
   printer_dualextruder.Process();
   laser_10w.Process();
+  laser_20w.Process();
+  laser_40w.Process();
 
   if (++timer_in_static_process_ < 100) return;
   timer_in_static_process_ = 0;

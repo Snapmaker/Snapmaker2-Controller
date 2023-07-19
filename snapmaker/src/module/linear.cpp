@@ -661,7 +661,9 @@ void Linear::UpdateMachinePosition(void) {
         MAGNET_Y_SPAN = 300;
       }
       else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER ||
-            ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
+               ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W || \
+               ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W || \
+               ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W) {
         LOOP_XN(i) {
           home_offset[i] = l_home_offset_laser[i];
           update_workspace_offset((AxisEnum)i);

@@ -159,11 +159,20 @@ ErrCode SystemService::PreProcessStop() {
 
   print_job_timer.stop();
 
-  if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W)) {
+  if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+  ) {
     laser->TurnOff();
     is_waiting_gcode = false;
     is_laser_on = false;
   }
+
+  // always reset the laser crosslight offset
+  laser_crosslight_offset[X_AXIS] = INVALID_OFFSET;
+  laser_crosslight_offset[Y_AXIS] = INVALID_OFFSET;
+
   gocde_pack_start_line(0);
   return E_SUCCESS;
 }
@@ -311,7 +320,18 @@ void inline SystemService::resume_cnc(void) {
 }
 
 void inline SystemService::resume_laser(void) {
-
+  if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+    laser->SetCrossLightCAN(false);
+    float ox, oy;
+    if (E_SUCCESS == laser->GetCrossLightOffsetCAN(ox, oy)) {
+      LOG_I("Set laser crosslight offset: %f, %f\n", ox, oy);
+      laser_crosslight_offset[X_AXIS] = ox;
+      laser_crosslight_offset[Y_AXIS] = oy;
+    }
+    else {
+      LOG_W("Failed to get crosslight offset, work may be skewed!!!\n");
+    }
+  }
 }
 
 /**
@@ -367,6 +387,8 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
   case MODULE_TOOLHEAD_CNC:
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
+  case MODULE_TOOLHEAD_LASER_20W:
+  case MODULE_TOOLHEAD_LASER_40W:
     if (enclosure.DoorOpened()) {
       LOG_E("Door is opened!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
@@ -402,6 +424,8 @@ ErrCode SystemService::ResumeProcess() {
 
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
+  case MODULE_TOOLHEAD_LASER_20W:
+  case MODULE_TOOLHEAD_LASER_40W:
     resume_laser();
     break;
 
@@ -468,13 +492,19 @@ ErrCode SystemService::ResumeOver() {
   case MODULE_TOOLHEAD_CNC:
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
+  case MODULE_TOOLHEAD_LASER_20W:
+  case MODULE_TOOLHEAD_LASER_40W:
     if (enclosure.DoorOpened()) {
       LOG_E("Door is opened, please close the door!\n");
       PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
       return E_DOOR_OPENED;
     }
 
-    if ((MODULE_TOOLHEAD_LASER == ModuleBase::toolhead()) || (MODULE_TOOLHEAD_LASER_10W == ModuleBase::toolhead())) {
+    if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) ||
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+    ) {
       if (pl_recovery.cur_data_.laser_pwm > 0)
         laser->TurnOn();
     }
@@ -629,8 +659,23 @@ ErrCode SystemService::StartWork(TriggerSource s) {
 
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
+  case MODULE_TOOLHEAD_LASER_20W:
+  case MODULE_TOOLHEAD_LASER_40W:
     is_laser_on = false;
     is_waiting_gcode = false;
+    if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+      laser->SetCrossLightCAN(false);
+      float ox, oy;
+      if (E_SUCCESS == laser->GetCrossLightOffsetCAN(ox, oy)) {
+        LOG_I("StartWork: Set laser crosslight offset: %f, %f\n", ox, oy);
+        laser_crosslight_offset[X_AXIS] = ox;
+        laser_crosslight_offset[Y_AXIS] = oy;
+      }
+      else {
+        LOG_W("StartWork: Failed to get crosslight offset, work may be skewed!!!\n");
+      }
+    }
+
   case MODULE_TOOLHEAD_CNC:
     if (enclosure.DoorOpened()) {
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
@@ -1717,7 +1762,10 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   tmp_i16 = (int16_t)tmp_f32;
   HWORD_TO_PDU_BYTES_INDE_MOVE(buff, tmp_i16, i);
 
-  if (ModuleBase::toolhead() == MACHINE_TYPE_LASER || ModuleBase::toolhead() == MACHINE_TYPE_LASER_10W) {
+  if (ModuleBase::toolhead() == MACHINE_TYPE_LASER ||
+      ModuleBase::toolhead() == MACHINE_TYPE_LASER_10W ||
+      ModuleBase::toolhead() == MACHINE_TYPE_LASER_20W ||
+      ModuleBase::toolhead() == MACHINE_TYPE_LASER_40W) {
     // laser power
     tmp_u32 = (uint32_t)(laser->power() * 1000);
   } else if (ModuleBase::toolhead() == MACHINE_TYPE_CNC) {
@@ -1782,7 +1830,10 @@ ErrCode SystemService::SendException(uint32_t fault) {
 }
 
 ErrCode SystemService::SendSecurityStatus () {
-  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) {
+  if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+  ) {
     laser->SendSecurityStatus();
   }
 
@@ -2109,7 +2160,11 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 
   case RENV_TYPE_LASER_POWER:
     LOG_I("new laser power: %.2f\n", param);
-    if ((MODULE_TOOLHEAD_LASER != ModuleBase::toolhead()) && (MODULE_TOOLHEAD_LASER_10W != ModuleBase::toolhead())) {
+    if ((ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER) &&
+        (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_10W) &&
+        (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_20W) &&
+        (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_40W)
+    ) {
       ret = E_INVALID_STATE;
       break;
     }
@@ -2351,7 +2406,11 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
     // reset the status of filament monitor
     runout.reset();
     // make sure laser is off
-    if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) || (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W)) {
+    if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) ||
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+    ) {
       laser->TurnOff();
     }
     break;
