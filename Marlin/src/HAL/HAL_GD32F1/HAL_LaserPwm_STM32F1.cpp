@@ -10,7 +10,7 @@
 /**
  *Tim1PwmInit:Initialize Tim1 for laser pwm
  */
-void Tim1PwmInit() {
+void Tim1PwmInit(unsigned short prescaler, unsigned short period) {
 	TIM_DeInit(TIM1);
 
 	TIM_TimeBaseInitTypeDef TIM_TimeBaseInitStruct;
@@ -46,8 +46,10 @@ void Tim1PwmInit() {
 
 	TIM_TimeBaseInitStruct.TIM_ClockDivision = 0;
 	TIM_TimeBaseInitStruct.TIM_CounterMode = TIM_CounterMode_Up;
-	TIM_TimeBaseInitStruct.TIM_Prescaler = 1862;//959;//1862;//1344;
-	TIM_TimeBaseInitStruct.TIM_Period = 255;
+	// TIM_TimeBaseInitStruct.TIM_Prescaler = 1862;//959;//1862;//1344;
+	// TIM_TimeBaseInitStruct.TIM_Period = 255;
+	TIM_TimeBaseInitStruct.TIM_Prescaler = prescaler;
+	TIM_TimeBaseInitStruct.TIM_Period = period;
 	TIM_TimeBaseInitStruct.TIM_RepetitionCounter = 0;
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseInitStruct);
 	TIM_ARRPreloadConfig(TIM1, DISABLE);
