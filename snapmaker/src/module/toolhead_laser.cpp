@@ -53,7 +53,7 @@ ToolHeadLaser *laser = &laser_1_6_w;
 
 extern void Tim1SetCCR4(uint16_t pwm);
 extern uint16_t Tim1GetCCR4();
-extern void Tim1PwmInit();
+extern void Tim1PwmInit(unsigned short prescaler, unsigned short period);
 
 static __attribute__((section(".data"))) uint8_t power_table_1_6W[]= {
   0,
@@ -223,10 +223,13 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
 
   ret = canhost.BindMessageID(cmd, message_id);
 
-  Tim1PwmInit();
-
-  if (MODULE_DEVICE_ID_10W_LASER == device_id() || MODULE_DEVICE_ID_1_6_W_LASER == device_id())
+  if (MODULE_DEVICE_ID_10W_LASER == device_id() || MODULE_DEVICE_ID_1_6_W_LASER == device_id()) {
+    Tim1PwmInit(1862, 255);     // 1.6w & 10w, no modification of the old laser control frequency for the time being  // 250Hz
     esp32_.Init(&MSerial3, EXECUTOR_SERIAL_IRQ_PRIORITY);
+  }
+  else {
+    Tim1PwmInit(93, 255);       // 5kHz
+  }
 
   mac_index_ = mac_index;
   state_     = TOOLHEAD_LASER_STATE_OFF;
