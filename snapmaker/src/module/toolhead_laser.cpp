@@ -136,7 +136,7 @@ static void CallbackAckGetCrossLight(CanStdDataFrame_t &cmd) {
 }
 
 static void CallbackAckGetFireSensorSensitivity(CanStdDataFrame_t &cmd) {
-  laser->fire_sensor_sensitivity_ = cmd.data[0];
+  laser->fire_sensor_trigger_value_ = cmd.data[0] | (cmd.data[1] << 8);
   laser->fire_sensor_sensitivity_update_ = true;
 }
 
@@ -274,6 +274,7 @@ void ToolHeadLaser::PrintInfo(void) {
     float x_offset, y_offset;
     GetCrossLightOffsetCAN(x_offset, y_offset);
   }
+
   LOG_I("power limit pwm %d\n", power_limit_pwm_);
   LOG_I("power_pwm_ %d\n", power_pwm_);
   LOG_I("power_val_ %f\n", power_val_);
@@ -281,8 +282,9 @@ void ToolHeadLaser::PrintInfo(void) {
   LOG_I("laser_temperature_ %d\n", laser_temperature_);
   LOG_I("imu_temperature_ %d\n", imu_temperature_);
   LOG_I("fire_sensor_trigger_: %s\n", fire_sensor_trigger_ ? "TRIGGER" : "NORMAL");
-  LOG_I("fire_sensor_sensitivity_ %d\n", fire_sensor_sensitivity_);
+  LOG_I("fire_sensor_trigger_adc_value_ %d\n", fire_sensor_trigger_value_);
   LOG_I("crosslight_offset_x %f, crosslight_offset_y %f\n", crosslight_offset_x, crosslight_offset_y);
+  LOG_I("half_power_mode_: %s\n", half_power_mode_ ? "OPEN" : "CLOSE");
 }
 
 uint16_t ToolHeadLaser::tim_pwm() {
@@ -478,24 +480,25 @@ ErrCode ToolHeadLaser::GetCrossLightCAN(bool &sw) {
   }
 }
 
-ErrCode ToolHeadLaser::SetFireSensorSensitivityCAN(uint8 sen) {
+ErrCode ToolHeadLaser::SetFireSensorSensitivityCAN(uint16 sen) {
   CanStdFuncCmd_t cmd;
-  uint8_t buffer[1];
+  uint8_t buffer[8];
 
-  LOG_I("Set FireSensorSensitivity: %d\n", sen);
+  LOG_I("Set FireSensorSensitivity adc value: %d\n", sen);
 
-  if (sen > FIRE_DETECT_SENSITIVITY_HIGHT)
-    sen = FIRE_DETECT_SENSITIVITY_HIGHT;
+  if (sen > FIRE_DETECT_TRIGGER_LIMIT_ADC_VALUE)
+    sen = FIRE_DETECT_TRIGGER_DISABLE_ADC_VALUE;
 
-  buffer[0]     = sen;
+  buffer[0]     = sen & 0xFF;
+  buffer[1]     = (sen >> 8) & 0xFF;
   cmd.id        = MODULE_FUNC_SET_FIRE_SENSOR_SENSITIVITY;
   cmd.data      = buffer;
-  cmd.length    = 1;
+  cmd.length    = 2;
 
   return canhost.SendStdCmd(cmd);
 }
 
-ErrCode ToolHeadLaser::GetFireSensorSensitivityCAN(uint8 &sen) {
+ErrCode ToolHeadLaser::GetFireSensorSensitivityCAN(uint16 &sen) {
   CanStdFuncCmd_t cmd;
 
   cmd.id        = MODULE_FUNC_GET_FIRE_SENSOR_SENSITIVITY;
@@ -503,19 +506,19 @@ ErrCode ToolHeadLaser::GetFireSensorSensitivityCAN(uint8 &sen) {
   fire_sensor_sensitivity_update_ = false;
   ErrCode ret = canhost.SendStdCmd(cmd);
   if (E_SUCCESS != ret) {
-    LOG_E("Get FireSensorSensitivity Light send msg failed, ret: %d\n", ret);
+    LOG_E("Get FireSensorSensitivity send msg failed, ret: %d\n", ret);
     return ret;
   }
 
   int32_t max_try = 500;
   while(!fire_sensor_sensitivity_update_ && max_try--) vTaskDelay(pdMS_TO_TICKS(1));
   if (max_try >= 0) {
-    sen = fire_sensor_sensitivity_;
-    LOG_I("Get FireSensorSensitivity: %d\n", sen);
+    sen = fire_sensor_trigger_value_;
+    LOG_I("Get FireSensorSensitivity adc value: %d\n", sen);
     return E_SUCCESS;
   }
   else {
-    LOG_E("Get FireSensorSensitivity Light time out\n");
+    LOG_E("Get FireSensorSensitivity adc value time out\n");
     return E_TIMEOUT;
   }
 }
@@ -1138,7 +1141,7 @@ ErrCode ToolHeadLaser::SendSecurityStatus() {
   buff[3] = laser->roll_ & 0xff;
   buff[4] = laser->pitch_ >> 8;
   buff[5] = laser->pitch_ & 0xff;
-  buff[6] = laser->fire_sensor_sensitivity_;
+  buff[6] = laser->fire_sensor_trigger_;
 
   event.length = 7;
   event.data = buff;
@@ -1242,6 +1245,24 @@ ErrCode ToolHeadLaser::LaserControl(uint8_t state) {
   return E_SUCCESS;
 }
 
+ErrCode ToolHeadLaser::LaserBranchCtrl(bool onoff) {
+  CanStdFuncCmd_t cmd;
+  uint8_t can_buffer[8];
+
+  can_buffer[0] = onoff;
+  cmd.id        = MODULE_FUNC_LASER_BRANCH_CTRL;
+  cmd.data      = can_buffer;
+  cmd.length    = 1;
+
+  ErrCode ret;
+  ret = canhost.SendStdCmdSync(cmd, 2000);
+  if (ret != E_SUCCESS) {
+    return ret;
+  }
+  half_power_mode_ = onoff;
+  return E_SUCCESS;
+}
+
 ErrCode ToolHeadLaser::LaserGetHWVersion() {
   CanStdFuncCmd_t cmd;
   uint8_t buff[1] = {0};
@@ -1299,12 +1320,12 @@ ErrCode ToolHeadLaser::GetCrossLight(SSTP_Event_t &event) {
 ErrCode ToolHeadLaser::SetFireSensorSensitivity(SSTP_Event_t &event) {
   uint8_t buff[1];
 
-  if (event.length < 1) {
+  if (event.length < 2) {
     LOG_E("Hmi SetFireSensorSensitivity parameter error\n");
     buff[0] = E_PARAM;
   }
   else {
-    buff[0] = SetFireSensorSensitivityCAN(event.data[0]);
+    buff[0] = SetFireSensorSensitivityCAN(event.data[0] | (event.data[1] << 8));
   }
 
   SSTP_Event_t event_hmi = {EID_SETTING_ACK, SETTINGS_OPC_SET_FIRE_SENSOR_SENSITIVITY};
@@ -1315,13 +1336,14 @@ ErrCode ToolHeadLaser::SetFireSensorSensitivity(SSTP_Event_t &event) {
 }
 
 ErrCode ToolHeadLaser::GetFireSensorSensitivity(SSTP_Event_t &event) {
-  uint8 fss;
-  uint8_t buff[2];
+  uint16_t fss;
+  uint8_t buff[8];
 
   SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_GET_FIRE_SENSOR_SENSITIVITY};
   buff[0] = GetFireSensorSensitivityCAN(fss);
-  buff[1] = fss;
-  event_tmp.length = 2;
+  buff[1] = fss & 0xFF;
+  buff[2] = (fss >> 8) & 0xFF;
+  event_tmp.length = 3;
   event_tmp.data = buff;
 
   return hmi.Send(event_tmp);
