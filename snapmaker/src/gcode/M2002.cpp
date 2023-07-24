@@ -144,7 +144,7 @@ void GcodeSuite::M2002() {
       // set fire sensor sensitivity
       case 5:
       {
-        uint8 fss = parser.byteval('P', 0);
+        uint16_t fss = parser.ushortval('P', 0xFFFF);
         laser->SetFireSensorSensitivityCAN(fss);
         break;
       }
@@ -152,7 +152,7 @@ void GcodeSuite::M2002() {
       // Get fire sensor sensitivity
       case 6:
       {
-        uint8 fss;
+        uint16 fss;
         laser->GetFireSensorSensitivityCAN(fss);
         break;
       }
@@ -183,8 +183,15 @@ void GcodeSuite::M2002() {
         break;
       }
 
-      // HMI get crosslight offset test
       case 10:
+      {
+        uint8_t onoff = parser.byteval('P', 0);
+        laser->LaserBranchCtrl(!!onoff);
+        break;
+      }
+
+      // HMI get crosslight offset test
+      case 11:
       {
         SSTP_Event_t e;
         laser->GetCrosslightOffset(e);

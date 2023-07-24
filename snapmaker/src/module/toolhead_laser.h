@@ -33,10 +33,9 @@
 #define TOOLHEAD_LASER_CAMERA_FOCUS_MAX   (65000)  // mm*1000
 #define INVALID_OFFSET                    (-10000)
 
-#define FIRE_DETECT_SENSITIVITY_DIS       (0)
-#define FIRE_DETECT_SENSITIVITY_LOW       (1)
-#define FIRE_DETECT_SENSITIVITY_MID       (2)
-#define FIRE_DETECT_SENSITIVITY_HIGHT     (3)
+
+#define FIRE_DETECT_TRIGGER_LIMIT_ADC_VALUE     (4095)
+#define FIRE_DETECT_TRIGGER_DISABLE_ADC_VALUE   (0xFFFF)
 
 enum ToolheadLaserFanState {
   TOOLHEAD_LASER_FAN_STATE_OPEN,
@@ -120,9 +119,10 @@ class ToolHeadLaser: public ModuleBase {
       laser_pwm_pin_checked_ = false;
       pwm_pin_pullup_state_ = 0xff;
       pwm_pin_pulldown_state_ = 0xff;
-      fire_sensor_sensitivity_ = 0;
+      fire_sensor_trigger_value_ = 0;
       fire_sensor_trigger_ = false;
       crosslight_offset_x = crosslight_offset_y = INVALID_OFFSET;
+      half_power_mode_ = false;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -144,8 +144,8 @@ class ToolHeadLaser: public ModuleBase {
 
     ErrCode SetCrossLightCAN(bool sw);
     ErrCode GetCrossLightCAN(bool &sw);
-    ErrCode SetFireSensorSensitivityCAN(uint8 sen);
-    ErrCode GetFireSensorSensitivityCAN(uint8 &sen);
+    ErrCode SetFireSensorSensitivityCAN(uint16 sen);
+    ErrCode GetFireSensorSensitivityCAN(uint16 &sen);
     ErrCode SetFireSensorReportTime(uint16 itv);
     ErrCode SetCrossLightOffsetCAN(float x, float y);
     ErrCode GetCrossLightOffsetCAN(float &x, float &y);
@@ -171,6 +171,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode GetOnlineSyncId(SSTP_Event_t &event);
     ErrCode SetProtectTemp(SSTP_Event_t &event);
     ErrCode LaserControl(uint8_t state);
+    ErrCode LaserBranchCtrl(bool onoff);
     ErrCode LaserGetHWVersion();
     ErrCode SetCrossLight(SSTP_Event_t &event);
     ErrCode GetCrossLight(SSTP_Event_t &event);
@@ -242,13 +243,14 @@ class ToolHeadLaser: public ModuleBase {
     bool need_to_tell_hmi_;
     bool fire_sensor_trigger_;
     bool fire_sensor_sensitivity_update_;
-    uint8_t fire_sensor_sensitivity_;
+    uint16_t fire_sensor_trigger_value_;
     uint16_t fire_sensor_rawdata_;
     bool crosslight_offset_update_;
     float crosslight_offset_x, crosslight_offset_y;
     LASER_STATUS laser_status_;
     bool cross_light_state_update_;
     bool cross_light_state_;
+    bool half_power_mode_;
 
   // Laser Inline Power functions
   public:
