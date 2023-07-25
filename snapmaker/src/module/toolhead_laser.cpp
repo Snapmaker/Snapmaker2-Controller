@@ -269,6 +269,12 @@ void ToolHeadLaser::TurnoffLaserIfNeeded() {
   }
 }
 
+bool ToolHeadLaser::SetAirPumpSwitch(bool onoff) {
+  LOG_I("set air pump switch: %s\n", onoff ? "open" : "close");
+  air_pump_switch_ = !!onoff;
+  return air_pump_switch_;
+}
+
 void ToolHeadLaser::PrintInfo(void) {
   if (laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) {
     float x_offset, y_offset;
