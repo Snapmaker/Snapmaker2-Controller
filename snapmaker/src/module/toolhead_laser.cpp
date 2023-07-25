@@ -1255,6 +1255,9 @@ ErrCode ToolHeadLaser::LaserBranchCtrl(bool onoff) {
   CanStdFuncCmd_t cmd;
   uint8_t can_buffer[8];
 
+  if (MODULE_DEVICE_ID_40W_LASER != device_id())
+    return E_FAILURE;
+
   can_buffer[0] = onoff;
   cmd.id        = MODULE_FUNC_LASER_BRANCH_CTRL;
   cmd.data      = can_buffer;
