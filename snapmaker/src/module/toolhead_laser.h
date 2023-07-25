@@ -123,6 +123,7 @@ class ToolHeadLaser: public ModuleBase {
       fire_sensor_trigger_ = false;
       crosslight_offset_x = crosslight_offset_y = INVALID_OFFSET;
       half_power_mode_ = false;
+      air_pump_switch_ = false;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -141,6 +142,9 @@ class ToolHeadLaser: public ModuleBase {
 
     void TryCloseFan();
     bool IsOnline(uint8_t sub_index = 0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; }
+
+    bool SetAirPumpSwitch(bool onoff);
+    bool GetAirPumpSwitch(void) { return air_pump_switch_; }
 
     ErrCode SetCrossLightCAN(bool sw);
     ErrCode GetCrossLightCAN(bool &sw);
@@ -251,6 +255,7 @@ class ToolHeadLaser: public ModuleBase {
     bool cross_light_state_update_;
     bool cross_light_state_;
     bool half_power_mode_;
+    bool air_pump_switch_;
 
   // Laser Inline Power functions
   public:

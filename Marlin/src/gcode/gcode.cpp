@@ -335,9 +335,9 @@ void GcodeSuite::execute_command(void) {
       #endif
 
       // Coolant controls: Ignore silently
-      // case 7:
-      // case 8:
-      // case 9: break;
+      case 7: M7_M8(false); break;
+      case 8: M7_M8(true);  break;
+      case 9: M9();         break;
 
       #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
         case 12: M12(); break;                                    // M12: Synchronize and optionally force a CLC set

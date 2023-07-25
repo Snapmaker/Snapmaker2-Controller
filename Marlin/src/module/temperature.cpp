@@ -34,6 +34,7 @@
 
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
   #include "snapmaker.h"
+  #include "../../../snapmaker/src/module/toolhead_laser.h"
 #endif
 
 #define MAX6675_SEPARATE_SPI EITHER(HEATER_0_USES_MAX6675, HEATER_1_USES_MAX6675) && PIN_EXISTS(MAX6675_SCK, MAX6675_DO)
@@ -2682,6 +2683,12 @@ void Temperature::isr() {
     } // 3D printer
     else {
       //WRITE_HEATER_0(0);
+      if(MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+        if (laser->GetAirPumpSwitch())
+          WRITE_HEATER_BED(HIGH);
+        else
+          WRITE_HEATER_BED(LOW);
+      }
     } // CNC and Laser
 
   #else // SLOW_PWM_HEATERS
