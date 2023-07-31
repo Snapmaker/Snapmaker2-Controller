@@ -115,7 +115,9 @@ static void CallbackAckReportSecurity(CanStdDataFrame_t &cmd) {
   laser->roll_ = (cmd.data[3] << 8) | cmd.data[4];
   laser->laser_temperature_ = cmd.data[5];
   laser->imu_temperature_ = (int8_t)cmd.data[6];
-  laser->fire_sensor_trigger_ = cmd.data[7];
+
+  if ((laser->device_id() == MODULE_DEVICE_ID_40W_LASER || laser->device_id() == MODULE_DEVICE_ID_20W_LASER))
+    laser->fire_sensor_trigger_ = cmd.data[7];
 
   laser->need_to_tell_hmi_ = true;
 
@@ -161,7 +163,7 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   Function_t    function;
   message_id_t  message_id[32];
 
-  LOG_I("\tGot toolhead Laser!\n");
+  LOG_I("\tGot toolhead Laser! device id %d\n", device_id_);
 
   if (axis_to_port[E_AXIS] != PORT_8PIN_1) {
     LOG_E("toolhead Laser failed: Please use the <M1029 E1> set E port\n");
@@ -1268,7 +1270,7 @@ ErrCode ToolHeadLaser::LaserBranchCtrl(bool onoff) {
   if (ret != E_SUCCESS) {
     return ret;
   }
-  half_power_mode_ = onoff;
+  half_power_mode_ = !onoff;
   return E_SUCCESS;
 }
 
