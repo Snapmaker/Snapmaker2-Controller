@@ -1842,7 +1842,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
   block->flag = 0x00;
 
   block->laser.status = laser_inline.status;
-  block->laser.power = laser_inline.power;
+  block->laser.power = laser_inline.status.isEnabled ? laser_inline.power : 0;
 
   // Set direction bits
   block->direction_bits = dm;

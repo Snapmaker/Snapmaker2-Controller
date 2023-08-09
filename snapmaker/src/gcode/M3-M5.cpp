@@ -63,13 +63,23 @@
 
 void GcodeSuite::M3_M4(const bool is_M4) {
   float power = NAN; // nullable power
+  float power_pwm = NAN;
+
   if (parser.seen('P'))
     power = parser.value_float();
   else if (parser.seen('S'))
-    power = parser.value_float() * 100.0f / 255.0f;
-  
-  if (laser->IsOnline() && parser.seen('I') && !isnan(power)) {
-    laser->SetOutputInline(power);
+    power_pwm = parser.value_float();
+
+  if (laser->IsOnline() && parser.seen('I') && (!isnan(power) || !isnan(power_pwm))) {
+    planner.laser_inline.status.isEnabled = true;
+    if (!isnan(power_pwm)) {
+      LIMIT(power_pwm, 0, 255);
+      laser->SetOutputInline((uint16_t)power_pwm);
+    }
+    else {
+      LIMIT(power, 0, 100);
+      laser->SetOutputInline(power);
+    }
     return;
   }
 
@@ -83,9 +93,12 @@ void GcodeSuite::M3_M4(const bool is_M4) {
    * Then needed to AND the uint16_t result with 0x00FF to make sure we only wrote the byte of interest.
    */
 
-  if(laser->IsOnline()) {
+  if (laser->IsOnline()) {
     if(!isnan(power)) {
       laser->SetOutput(power);
+    }
+    else if (!isnan(power_pwm)) {
+      laser->SetOutput(power_pwm * 100 / 255);
     }
     else {
       laser->TurnOn();
@@ -104,10 +117,11 @@ void GcodeSuite::M3_M4(const bool is_M4) {
  */
 void GcodeSuite::M5() {
   if (laser->IsOnline() && parser.seen('I')) {
-    laser->SetOutputInline(0);
+    laser->SetOutputInline((uint16_t)0);
+    laser->InlineDisable();
     return;
   }
-  
+
   planner.synchronize();
   //set_spindle_laser_enabled(false);
   if(laser->IsOnline()) {
