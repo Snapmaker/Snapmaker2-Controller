@@ -40,7 +40,7 @@
 
 
 #define LASER_CLOSE_FAN_DELAY     (300)
-#define LASER_DISABLE_DELAY       (2)
+#define LASER_DISABLE_DELAY       (5)
 
 #define TimSetPwm(n)  Tim1SetCCR4(n)
 #define TimGetPwm()  Tim1GetCCR4()
@@ -226,11 +226,11 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   ret = canhost.BindMessageID(cmd, message_id);
 
   if (MODULE_DEVICE_ID_10W_LASER == device_id() || MODULE_DEVICE_ID_1_6_W_LASER == device_id()) {
-    Tim1PwmInit(1862, 255);     // 1.6w & 10w, no modification of the old laser control frequency for the time being  // 250Hz
+    Tim1PwmInit(1862, 254);     // 1.6w & 10w, no modification of the old laser control frequency for the time being  // 250Hz
     esp32_.Init(&MSerial3, EXECUTOR_SERIAL_IRQ_PRIORITY);
   }
   else {
-    Tim1PwmInit(93, 255);       // 5kHz
+    Tim1PwmInit(93, 254);       // 5kHz
   }
 
   mac_index_ = mac_index;
@@ -260,19 +260,26 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
 
 void ToolHeadLaser::TurnoffLaserIfNeeded() {
   bool is_disable_laser = (laser_status_ == LASER_WAIT_DISABLE) && (++laser_tick_ > LASER_DISABLE_DELAY);
+
+  if (state_ == TOOLHEAD_LASER_STATE_ON)
+    laser_tick_ = 0;
+
   if (laser->need_to_turnoff_laser_) {
     // The module is exception and needs to be turn off
     laser->need_to_turnoff_laser_ = false;
     TurnOff();
     is_disable_laser = true;
   }
+
   if (is_disable_laser) {
+    LOG_I("close Laser control\n");
     LaserControl(0);
   }
 }
 
-bool ToolHeadLaser::SetAirPumpSwitch(bool onoff) {
-  LOG_I("set air pump switch: %s\n", onoff ? "open" : "close");
+bool ToolHeadLaser::SetAirPumpSwitch(bool onoff, bool output_log) {
+  if (output_log)
+    LOG_I("set air pump switch: %s\n", onoff ? "open" : "close");
   air_pump_switch_ = !!onoff;
   return air_pump_switch_;
 }
@@ -320,9 +327,14 @@ void ToolHeadLaser::TurnOn() {
     // Stop waiting disable
     laser_status_ = LASER_ENABLE;
   }
+
+  uint16_t tmp_pwm = power_pwm_;
+  NOMORE(tmp_pwm, power_limit_pwm_);
+  CheckFan(tmp_pwm);
+  tim_pwm(tmp_pwm);
+
   state_ = TOOLHEAD_LASER_STATE_ON;
-  CheckFan(power_pwm_);
-  tim_pwm(power_pwm_);
+
 }
 
 void ToolHeadLaser::PwmCtrlDirectly(uint8_t duty) {
@@ -356,43 +368,48 @@ void ToolHeadLaser::SetOutput(float power) {
   TurnOn();
 }
 
-
-void ToolHeadLaser::SetPower(float power) {
+uint16_t ToolHeadLaser::PowerConversionPwm(float power) {
   int   integer;
   float decimal;
+  uint16_t tmp_power_pwm;
 
+  LIMIT(power, 0.0f, 100.0f);
+  integer = (int)power;
+  decimal = power - integer;
+  tmp_power_pwm = (uint16_t)(power_table_[integer] + (power_table_[integer + 1] - power_table_[integer]) * decimal);
+
+  return tmp_power_pwm;
+}
+
+
+
+void ToolHeadLaser::SetPower(float power) {
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
     return;
 
-  // limit to valid range of the table
   LIMIT(power, 0.0f, 100.0f);
   power_val_ = power;
 
-  integer = (int)power;
-  decimal = power - integer;
-
   // even if random data is read by exceeding the table data, it will be discarded when multiplying by 0
-  power_pwm_ = (uint16_t)(power_table_[integer] + (power_table_[integer + 1] - power_table_[integer]) * decimal);
+  power_pwm_ = PowerConversionPwm(power);
 
   if (power_pwm_ > power_limit_pwm_)
     power_pwm_ = power_limit_pwm_;
+
+  // LOG_I("set power_pwm_: %d\n", power_pwm_);
 }
 
 
 void ToolHeadLaser::SetPowerLimit(float limit) {
-  float cur_power = power_val_;
 
   if (limit > TOOLHEAD_LASER_POWER_NORMAL_LIMIT)
     limit = TOOLHEAD_LASER_POWER_NORMAL_LIMIT;
 
-  // Compute limit PWM value
-  power_limit_pwm_ = 255;
-  SetPower(limit);
-  power_limit_pwm_ = power_pwm_;
+  power_limit_pwm_ = PowerConversionPwm(limit);
 
-  LOG_I("laser limit: &u\n", power_limit_pwm_);
+  LOG_I("laser limit: %u\n", power_limit_pwm_);
 
-  SetPower(cur_power);
+  SetPower(power_val_);
 
   // check if we need to change current output
   if (state_ == TOOLHEAD_LASER_STATE_ON)
@@ -440,12 +457,15 @@ void ToolHeadLaser::TryCloseFan() {
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
     return;
 
-  if (fan_state_ == TOOLHEAD_LASER_FAN_STATE_TO_BE_CLOSED) {
+  if (fan_state_ == TOOLHEAD_LASER_FAN_STATE_TO_BE_CLOSED && state_ == TOOLHEAD_LASER_STATE_OFF) {
     if (++fan_tick_ > LASER_CLOSE_FAN_DELAY) {
       fan_tick_  = 0;
       fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
       SetFanPower(0);
     }
+  }
+  else {
+    fan_tick_ = 0;
   }
 }
 
@@ -1481,31 +1501,39 @@ void ToolHeadLaser::InlineDisable() {
 
 
 void ToolHeadLaser::SetOutputInline(float power) {
-  CheckFan(power);
-
-  SetPower(power);
-  planner.laser_inline.power = power_pwm_;
-
-  if (power_pwm_ > 0)
-    planner.laser_inline.status.isEnabled = true;
-  else
-    planner.laser_inline.status.isEnabled = false;
-
-  if ((laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER ||
-      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) && power_pwm_ > 0) {
-    if (laser_status_ == LASER_DISABLE) {
-      // Send the enable command only when the power is disabled
-      LaserControl(1);
-    }
-    // Stop waiting disable
-    laser_status_ = LASER_ENABLE;
-  }
+  uint16_t power_pwm;
+  power_pwm = PowerConversionPwm(power);
+  SetOutputInline(power_pwm);
 }
 
+void ToolHeadLaser::SetOutputInline(uint16_t power_pwm) {
+  CheckFan(power_pwm);
+  planner.laser_inline.power = power_pwm;
+  if ((laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER ||
+      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER)) {
+    if (power_pwm > 0) {
+      if (laser_status_ == LASER_DISABLE) {
+        // Send the enable command only when the power is disabled
+        LaserControl(1);
+      }
+      // Stop waiting disable
+      laser_status_ = LASER_ENABLE;
+      laser_tick_ = 0;
+    }
+    // else {
+      // if (laser_status_ != LASER_DISABLE) {
+      //   laser_status_ = LASER_WAIT_DISABLE;
+      // }
+    // }
+  }
+}
 
 void ToolHeadLaser::TurnOn_ISR(uint16_t power_pwm) {
   if (power_pwm > power_limit_pwm_)
     power_pwm = power_limit_pwm_;
+
+  power_pwm_ = power_pwm;
+  power_val_ = power_pwm * 100 / 255;
 
   if (power_pwm > 0)
     state_ = TOOLHEAD_LASER_STATE_ON;

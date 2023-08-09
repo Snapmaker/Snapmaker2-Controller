@@ -139,11 +139,12 @@ class ToolHeadLaser: public ModuleBase {
     void SetPower(float power);       // change power_val_ and power_pwm_ but not change actual output
     void SetOutput(float power);      // change power_val_, power_pwm_ and actual output
     void SetPowerLimit(float limit);  // change power_val_, power_pwm_ and power_limit_, may change actual output if current output is beyond limit
+    uint16_t PowerConversionPwm(float power);
 
     void TryCloseFan();
     bool IsOnline(uint8_t sub_index = 0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; }
 
-    bool SetAirPumpSwitch(bool onoff);
+    bool SetAirPumpSwitch(bool onoff, bool output_log=true);
     bool GetAirPumpSwitch(void) { return air_pump_switch_; }
 
     ErrCode SetCrossLightCAN(bool sw);
@@ -269,6 +270,7 @@ class ToolHeadLaser: public ModuleBase {
 
     // Set the power for subsequent movement blocks
     void SetOutputInline(float power);
+    void SetOutputInline(uint16_t power_pwm);
 
     // Optimized TurnOn function for use from the Stepper ISR
     void TurnOn_ISR(uint16_t power_pwm);

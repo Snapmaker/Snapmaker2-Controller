@@ -49,6 +49,7 @@ GcodeSuite gcode;
   #include "../../../snapmaker/src/module/module_base.h"
   #include "../snapmaker/src/module/toolhead_laser.h"
   #include "../snapmaker/src/service/system.h"
+  #include "../../../snapmaker/src/common/debug.h"
 #endif
 
 #include "../Marlin.h" // for idle() and suspend_auto_report
@@ -133,16 +134,32 @@ void GcodeSuite::get_destination_from_command() {
     M165();
   #endif
 
-  // Set the laser power in the planner to configure this move
-  float power = NAN; // nullable power
-  if (parser.seen('P'))
-    power = parser.value_float();
-  else if (parser.seen('S'))
-    power = parser.value_float() * 100.0f / 255.0f;
-
   // If no power given treat as non-inline
-  if (laser->IsOnline() && !isnan(power))
-    laser->SetOutputInline(power);
+  if (laser->IsOnline()) {
+    // Set the laser power in the planner to configure this move
+    float power = NAN; // nullable power
+    float power_pwm = NAN; // nullable power
+    if (parser.seen('P'))
+      power = parser.value_float();
+    else if (parser.seen('S'))
+      power_pwm = parser.value_float();
+
+    if (!isnan(power) || !isnan(power_pwm)) {
+      planner.laser_inline.status.isEnabled = true;
+      if (!isnan(power_pwm)) {
+        LIMIT(power_pwm, 0, 255);
+        laser->SetOutputInline((uint16_t)power_pwm);
+      }
+      else {
+        LIMIT(power, 0, 100);
+        laser->SetOutputInline(power);
+      }
+      // LOG_I("S: %f, P: %f\n", power_pwm, power);
+    }
+    else if (parser.codenum == 0) {
+      laser->SetOutputInline((uint16_t)0.0);
+    }
+  }
 }
 
 /**
