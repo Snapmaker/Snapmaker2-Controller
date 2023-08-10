@@ -28,10 +28,11 @@
 
 #include "src/module/planner.h"
 
-#define TOOLHEAD_LASER_POWER_SAFE_LIMIT   (0.5)
-#define TOOLHEAD_LASER_POWER_NORMAL_LIMIT (100)
-#define TOOLHEAD_LASER_CAMERA_FOCUS_MAX   (65000)  // mm*1000
-#define INVALID_OFFSET                    (-10000)
+#define TOOLHEAD_LASER_POWER_SAFE_LIMIT             (0.5)
+#define TOOLHEAD_LASER_20W_40W_POWER_SAFE_LIMIT     (0.1)
+#define TOOLHEAD_LASER_POWER_NORMAL_LIMIT           (100)
+#define TOOLHEAD_LASER_CAMERA_FOCUS_MAX             (65000)  // mm*1000
+#define INVALID_OFFSET                              (-10000)
 
 
 #define FIRE_DETECT_TRIGGER_LIMIT_ADC_VALUE     (4095)
@@ -146,6 +147,7 @@ class ToolHeadLaser: public ModuleBase {
 
     bool SetAirPumpSwitch(bool onoff, bool output_log=true);
     bool GetAirPumpSwitch(void) { return air_pump_switch_; }
+    bool GetHalfPowerMode(void) { return half_power_mode_; }
 
     ErrCode SetCrossLightCAN(bool sw);
     ErrCode GetCrossLightCAN(bool &sw);

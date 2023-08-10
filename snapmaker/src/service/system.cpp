@@ -165,6 +165,7 @@ ErrCode SystemService::PreProcessStop() {
       (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
   ) {
     laser->TurnOff();
+    laser->SetAirPumpSwitch(false, false);
     is_waiting_gcode = false;
     is_laser_on = false;
   }
@@ -320,7 +321,10 @@ void inline SystemService::resume_cnc(void) {
 }
 
 void inline SystemService::resume_laser(void) {
+  planner.laser_inline.status.isEnabled = pl_recovery.cur_data_.laser_inline_enable;
+  LOG_I("resume laser inline enable: %s\n", planner.laser_inline.status.isEnabled ? "ON" : "OFF");
   if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+    laser->SetAirPumpSwitch(pl_recovery.cur_data_.air_pump_switch);
     laser->SetCrossLightCAN(false);
     float ox, oy;
     if (E_SUCCESS == laser->GetCrossLightOffsetCAN(ox, oy)) {
@@ -2022,6 +2026,12 @@ ErrCode SystemService::RecoverFromPowerLoss(SSTP_Event_t &event) {
     if (err == E_SUCCESS) {
       systemservice.SetCurrentStatus(SYSTAT_RESUME_WAITING);
       systemservice.SetWorkingPort(WORKING_PORT_SC);
+      if (laser->IsOnline()) {
+        if (planner.laser_inline.status.isEnabled)
+          laser->SetOutputInline(pl_recovery.pre_data_.laser_percent);
+        else
+          laser->SetOutputInline((uint16_t)0);
+      }
       pl_recovery.cur_data_.FilePosition = pl_recovery.pre_data_.FilePosition;
       if (pl_recovery.cur_data_.FilePosition > 0)
         current_line_ =  pl_recovery.cur_data_.FilePosition - 1;

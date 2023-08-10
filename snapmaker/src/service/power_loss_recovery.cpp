@@ -387,6 +387,9 @@ int PowerLossRecovery::SaveEnv(void) {
   case MODULE_TOOLHEAD_LASER_40W:
 		cur_data_.laser_percent = laser->power();
 		cur_data_.laser_pwm = laser->tim_pwm();
+		cur_data_.air_pump_switch = laser->GetAirPumpSwitch();
+		cur_data_.half_power_mode = laser->GetHalfPowerMode();
+		cur_data_.laser_inline_enable = laser_inline_enable_;
 	  laser->TurnOff();
 	  break;
 
@@ -575,11 +578,15 @@ void PowerLossRecovery::ResumeLaser() {
 	// and there will check if cur_data_.laser_pwm is larger than 0
 	// So we recover the value to them
 	cur_data_.laser_pwm = pre_data_.laser_pwm;
+	cur_data_.laser_percent = pre_data_.laser_percent;
 
 	// just change laser power but not enable output
 	laser->SetPower(pre_data_.laser_percent);
 
 	if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+		if (MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead())
+			laser->LaserBranchCtrl(!pre_data_.half_power_mode);
+		laser->SetAirPumpSwitch(pre_data_.air_pump_switch);
 		laser->SetCrossLightCAN(false);
 		float ox, oy;
 		if (E_SUCCESS == laser->GetCrossLightOffsetCAN(ox, oy)) {
@@ -591,6 +598,10 @@ void PowerLossRecovery::ResumeLaser() {
 			LOG_W("PL: Failed to get crosslight offset, work may be skewed!!!\n");
 		}
 	}
+
+	planner.laser_inline.status.isEnabled = pl_recovery.cur_data_.laser_inline_enable = pl_recovery.pre_data_.laser_inline_enable;
+	laser->SetOutputInline((uint16_t)0);
+	LOG_I("restore laser inline enable: %s\n", planner.laser_inline.status.isEnabled ? "ON" : "OFF");
 }
 
 
@@ -683,6 +694,7 @@ ErrCode PowerLossRecovery::ResumeWork() {
 
 		LOG_I("previous recorded target Laser power is %.2f\n", pre_data_.laser_percent);
 		LOG_I("previous recorded target laser PWM is 0x%x\n", pre_data_.laser_pwm);
+		LOG_I("previous recorded laser inline enable: %d\n", pre_data_.laser_inline_enable);
 
 		ResumeLaser();
 		break;

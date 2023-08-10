@@ -126,8 +126,13 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     * triggered by PAUSE, just save env and switch to next state
     */
     case QS_SOURCE_PAUSE:
-      if (blk)
+      if (blk) {
         pl_recovery.SaveCmdLine(blk->filePos);
+        pl_recovery.SaveLaserInlineState(blk->laser.status.isEnabled);
+      }
+      else {
+        pl_recovery.SaveLaserInlineState(planner.laser_inline.status.isEnabled);
+      }
 
       // if power-loss appear atfer finishing PAUSE, won't save env again
       if (systemservice.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
@@ -263,6 +268,7 @@ void QuickStopService::Park() {
     if (source_ == QS_SOURCE_STOP) {
       move_to_limited_z(Z_MAX_POS, 30);
     }
+    laser->SetAirPumpSwitch(false, false);
     break;
 
   case MODULE_TOOLHEAD_CNC:
