@@ -300,6 +300,7 @@ void ToolHeadLaser::PrintInfo(void) {
   LOG_I("fire_sensor_trigger_adc_value_ %d\n", fire_sensor_trigger_value_);
   LOG_I("crosslight_offset_x %f, crosslight_offset_y %f\n", crosslight_offset_x, crosslight_offset_y);
   LOG_I("half_power_mode_: %s\n", half_power_mode_ ? "OPEN" : "CLOSE");
+  LOG_I("inline enable: %d, inline power pwm: %d\n", planner.laser_inline.status.isEnabled, planner.laser_inline.power);
 }
 
 uint16_t ToolHeadLaser::tim_pwm() {

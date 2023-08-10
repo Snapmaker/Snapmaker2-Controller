@@ -1643,6 +1643,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
       axis_did_move = 0;
       // when a block is outputed, we record it position in file if it has
       pl_recovery.SaveCmdLine(current_block->filePos);
+      pl_recovery.SaveLaserInlineState(current_block->laser.status.isEnabled);
       current_block = NULL;
       planner.discard_current_block();
     }
