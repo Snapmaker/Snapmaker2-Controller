@@ -30,6 +30,7 @@
 #include "src/core/macros.h"
 
 #include "../module/linear.h"
+#include "../module/toolhead_laser.h"
 
 #if HAS_POSITION_SHIFT
   // The distance that XYZ has been offset by G92. Reset by G28.
@@ -48,7 +49,7 @@
 extern float current_position[X_TO_E];
 
 void GcodeSuite::M2000() {
-  uint8_t l;
+  uint8_t l = (uint8_t)parser.byteval('L', (uint8_t)0XFF);
   uint8_t s = (uint8_t)parser.byteval('S', (uint8_t)0);
 
   switch (s) {
@@ -121,6 +122,21 @@ void GcodeSuite::M2000() {
         LOG_I("adapter state: %d, integration toolhead: %d\n", quick_change_adapter, integration_toolhead);
       }
     }
+    break;
+  }
+
+  switch (l) {
+    case 23:
+      if (laser->IsOnline() && laser->device_id() == MODULE_DEVICE_ID_40W_LASER) {
+        if (parser.seenval('P')) {
+          uint8_t onoff = parser.byteval('P', 0);
+          LOG_I("set half power mode: %s\n", onoff ? "disable" : "enable");
+          laser->LaserBranchCtrl(!!onoff);
+        }
+      }
+    break;
+
+    default:
     break;
   }
 
