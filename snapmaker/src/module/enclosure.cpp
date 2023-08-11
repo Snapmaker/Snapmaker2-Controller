@@ -184,8 +184,12 @@ void Enclosure::Enable() {
 void Enclosure::HandleDoorOpened() {
   LOG_I("door opened!\n");
   systemservice.PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
-  if (laser->IsOnline())
-    laser->SetPowerLimit(TOOLHEAD_LASER_POWER_SAFE_LIMIT);
+  if (laser->IsOnline()) {
+    if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead())
+      laser->SetPowerLimit(TOOLHEAD_LASER_20W_40W_POWER_SAFE_LIMIT);
+    else
+      laser->SetPowerLimit(TOOLHEAD_LASER_POWER_SAFE_LIMIT);
+  }
 
   event_state_ = ENCLOSURE_EVENT_STATE_OPENED;
 }
