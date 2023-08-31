@@ -265,7 +265,7 @@ void QuickStopService::Park() {
   case MODULE_TOOLHEAD_LASER_20W:
   case MODULE_TOOLHEAD_LASER_40W:
     // In the case of laser, we don't raise Z.
-    if (source_ == QS_SOURCE_STOP) {
+    if (source_ == QS_SOURCE_STOP || laser->security_status_) {
       move_to_limited_z(Z_MAX_POS, 30);
     }
     laser->SetAirPumpSwitch(false, false);
