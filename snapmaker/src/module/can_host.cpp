@@ -132,7 +132,7 @@ message_id_t CanHost::GetMessageID(func_id_t function_id, uint8_t sub_index) {
 ErrCode CanHost::SendStdCmd(CanStdMesgCmd_t &message) {
   CanPacket_t  packet;
 
-  if (message.id > MODULE_SUPPORT_CONNECTED_MAX)
+  if (message.id > MODULE_SUPPORT_MESSAGE_ID_MAX)
     return E_PARAM;
 
   if (map_message_function_[message.id].function.id == MODULE_FUNCTION_ID_INVALID)
