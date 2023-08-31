@@ -1357,7 +1357,7 @@ ErrCode ToolHeadLaser::SetFireSensorSensitivity(SSTP_Event_t &event) {
     buff[0] = E_PARAM;
   }
   else {
-    buff[0] = SetFireSensorSensitivityCAN(event.data[0] | (event.data[1] << 8));
+    buff[0] = SetFireSensorSensitivityCAN((event.data[0] << 8) | event.data[1]);
   }
 
   SSTP_Event_t event_hmi = {EID_SETTING_ACK, SETTINGS_OPC_SET_FIRE_SENSOR_SENSITIVITY};
@@ -1373,8 +1373,8 @@ ErrCode ToolHeadLaser::GetFireSensorSensitivity(SSTP_Event_t &event) {
 
   SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_GET_FIRE_SENSOR_SENSITIVITY};
   buff[0] = GetFireSensorSensitivityCAN(fss);
-  buff[1] = fss & 0xFF;
-  buff[2] = (fss >> 8) & 0xFF;
+  buff[1] = (fss >> 8) & 0xFF;
+  buff[2] = fss & 0xFF;
   event_tmp.length = 3;
   event_tmp.data = buff;
 
@@ -1389,7 +1389,7 @@ ErrCode ToolHeadLaser::SetFireSensorReportTime(SSTP_Event_t &event) {
     buff[0] = E_PARAM;
   }
   else {
-    buff[0] = SetFireSensorReportTime(event.data[0] | (event.data[1]<<8));
+    buff[0] = SetFireSensorReportTime((event.data[0] << 8) | event.data[1]);
   }
 
   SSTP_Event_t event_hmi = {EID_SETTING_ACK, SETTINGS_OPC_SET_FIRE_SENSOR_REPORT_TIME};
@@ -1406,7 +1406,10 @@ ErrCode ToolHeadLaser::SetCrosslightOffset(SSTP_Event_t &event) {
     buff[0] = E_PARAM;
   }
   else {
-    int32_t ix = *(int32_t *)(&event.data[0]), iy = *(int32_t *)(&event.data[4]);
+    // int32_t ix = *(int32_t *)(&event.data[0]), iy = *(int32_t *)(&event.data[4]);
+    // float fx = (float)ix / 1000.0, fy = (float)iy / 1000.0;
+    int32_t ix = (event.data[0] << 24) | (event.data[1] << 16) | (event.data[2] << 8) | (event.data[3] << 0);
+    int32_t iy = (event.data[4] << 24) | (event.data[5] << 16) | (event.data[6] << 8) | (event.data[7] << 0);
     float fx = (float)ix / 1000.0, fy = (float)iy / 1000.0;
     buff[0] = SetCrossLightOffsetCAN(fx, fy);
   }
@@ -1419,12 +1422,27 @@ ErrCode ToolHeadLaser::SetCrosslightOffset(SSTP_Event_t &event) {
 
 ErrCode ToolHeadLaser::GetCrosslightOffset(SSTP_Event_t &event) {
   float fx, fy;
-  uint8_t buff[9];
+  uint8_t buff[20];
+  uint16_t len = 0;
 
   SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_GET_CROSSLIGHT_OFFSET};
-  buff[0] = GetCrossLightOffsetCAN(fx, fy);
-  int32_t *x = (int32_t *)&buff[1], *y = (int32_t *)&buff[1+4];
-  *x = (int32_t)(fx * 1000), *y = (int32_t)(fy * 1000);
+  buff[len++] = GetCrossLightOffsetCAN(fx, fy);
+  // int32_t *x = (int32_t *)&buff[1], *y = (int32_t *)&buff[1+4];
+  // *x = (int32_t)(fx * 1000), *y = (int32_t)(fy * 1000);
+  fx *= 1000;
+  fy *= 1000;
+  buff[len++] = (((int32_t)fx) >> 24) & 0xFF;
+  buff[len++] = (((int32_t)fx) >> 16) & 0xFF;
+  buff[len++] = (((int32_t)fx) >> 8) & 0xFF;
+  buff[len++] = (((int32_t)fx) >> 0) & 0xFF;
+
+  buff[len++] = (((int32_t)fy) >> 24) & 0xFF;
+  buff[len++] = (((int32_t)fy) >> 16) & 0xFF;
+  buff[len++] = (((int32_t)fy) >> 8) & 0xFF;
+  buff[len++] = (((int32_t)fy) >> 0) & 0xFF;
+  // fot (int i = 0; i < 4; i++) {
+  //   buff[i + 1] = ((int)fx) >> (8 * (3 -i))
+  // }
   event_tmp.length = 9;
   event_tmp.data = buff;
   return hmi.Send(event_tmp);
