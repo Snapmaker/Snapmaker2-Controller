@@ -284,6 +284,14 @@ bool ToolHeadLaser::SetAirPumpSwitch(bool onoff, bool output_log) {
   return air_pump_switch_;
 }
 
+bool ToolHeadLaser::SetWeakLightOriginMode(bool mode) {
+  if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+    weak_light_origin_mode_ = mode;
+    LOG_I("set weak_light_origin_mode: %d\n", weak_light_origin_mode_);
+  }
+  return weak_light_origin_mode_;
+}
+
 void ToolHeadLaser::PrintInfo(void) {
   if (laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) {
     float x_offset, y_offset;
@@ -1444,6 +1452,27 @@ ErrCode ToolHeadLaser::GetCrosslightOffset(SSTP_Event_t &event) {
   //   buff[i + 1] = ((int)fx) >> (8 * (3 -i))
   // }
   event_tmp.length = 9;
+  event_tmp.data = buff;
+  return hmi.Send(event_tmp);
+}
+
+ErrCode ToolHeadLaser::SetWeakLightOriginWork(SSTP_Event_t &event) {
+  uint8_t buff[20];
+  uint16_t len = 0;
+
+  SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_SET_WEAK_LIGHT_ORIGIN_MODE};
+  LOG_I("HMI set weak light origin mode: %d\n", event.data[0]);
+  if (systemservice.GetCurrentStatus() == SYSTAT_WORK) {
+    LOG_E("No changes are allowed during work\n");
+    buff[len++] = E_FAILURE;
+  }
+  else {
+    weak_light_origin_mode_ = !!event.data[0];
+    buff[len++] = E_SUCCESS;
+  }
+
+  buff[len++] = weak_light_origin_mode_;
+  event_tmp.length = len;
   event_tmp.data = buff;
   return hmi.Send(event_tmp);
 }

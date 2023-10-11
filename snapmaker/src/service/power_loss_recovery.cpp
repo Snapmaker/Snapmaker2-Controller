@@ -390,6 +390,7 @@ int PowerLossRecovery::SaveEnv(void) {
 		cur_data_.air_pump_switch = laser->GetAirPumpSwitch();
 		cur_data_.half_power_mode = laser->GetHalfPowerMode();
 		cur_data_.laser_inline_enable = laser_inline_enable_;
+		cur_data_.weak_light_origin_mode = laser->GetWeakLightOriginMode();
 	  laser->TurnOff();
 	  break;
 
@@ -587,6 +588,7 @@ void PowerLossRecovery::ResumeLaser() {
 		if (MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead())
 			laser->LaserBranchCtrl(!pre_data_.half_power_mode);
 		laser->SetAirPumpSwitch(pre_data_.air_pump_switch);
+		laser->SetWeakLightOriginMode(pre_data_.weak_light_origin_mode);
 		laser->SetCrossLightCAN(false);
 		float ox, oy;
 		if (E_SUCCESS == laser->GetCrossLightOffsetCAN(ox, oy)) {

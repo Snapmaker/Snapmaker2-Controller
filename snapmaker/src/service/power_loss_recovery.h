@@ -91,6 +91,7 @@ typedef struct __attribute__((aligned (4))) {
 	bool air_pump_switch;
 	bool half_power_mode;
 	bool laser_inline_enable;
+	bool weak_light_origin_mode;
 } PowerLossRecoveryData_t;
 
 
