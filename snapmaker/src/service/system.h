@@ -301,6 +301,8 @@ public:
   uint32_t hmi_cmd_timeout() {return hmi_cmd_timeout_;}
   void hmi_cmd_timeout(uint32_t time) {hmi_cmd_timeout_ = time;}
 
+  void ClearLaserWeakLightOriginMode(void);
+
 private:
   void inline resume_3dp(void);
   void inline resume_cnc(void);

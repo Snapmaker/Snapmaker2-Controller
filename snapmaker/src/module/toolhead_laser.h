@@ -125,6 +125,7 @@ class ToolHeadLaser: public ModuleBase {
       crosslight_offset_x = crosslight_offset_y = INVALID_OFFSET;
       half_power_mode_ = false;
       air_pump_switch_ = false;
+      weak_light_origin_mode_ = false;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -148,6 +149,8 @@ class ToolHeadLaser: public ModuleBase {
     bool SetAirPumpSwitch(bool onoff, bool output_log=true);
     bool GetAirPumpSwitch(void) { return air_pump_switch_; }
     bool GetHalfPowerMode(void) { return half_power_mode_; }
+    bool SetWeakLightOriginMode(bool mode);
+    bool GetWeakLightOriginMode(void) { return weak_light_origin_mode_; }
 
     ErrCode SetCrossLightCAN(bool sw);
     ErrCode GetCrossLightCAN(bool &sw);
@@ -187,6 +190,7 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode SetFireSensorReportTime(SSTP_Event_t &event);
     ErrCode SetCrosslightOffset(SSTP_Event_t &event);
     ErrCode GetCrosslightOffset(SSTP_Event_t &event);
+    ErrCode SetWeakLightOriginWork(SSTP_Event_t &event);
 
     void TellSecurityStatus();
     uint8_t LaserGetPwmPinState();
@@ -259,6 +263,7 @@ class ToolHeadLaser: public ModuleBase {
     bool cross_light_state_;
     bool half_power_mode_;
     bool air_pump_switch_;
+    bool weak_light_origin_mode_;
 
   // Laser Inline Power functions
   public:

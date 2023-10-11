@@ -1912,6 +1912,7 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
     err = StopTrigger(TRIGGER_SOURCE_SC, event.op_code);
     if (err == E_SUCCESS)
       need_ack = false;
+    ClearLaserWeakLightOriginMode();
     break;
 
   default:
@@ -2472,6 +2473,8 @@ ErrCode SystemService::CallbackPostQS(QuickStopSource source) {
     stop_source_ = TRIGGER_SOURCE_NONE;
     cur_status_ = SYSTAT_IDLE;
 
+    ClearLaserWeakLightOriginMode();
+
     LOG_I("Finish stop\n\n");
     break;
 
@@ -2502,3 +2505,8 @@ bool SystemService::GetBackupCurrentPosition(float *position, uint8_t size) {
   return ret;
 }
 
+void SystemService::ClearLaserWeakLightOriginMode(void) {
+  if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+    laser->SetWeakLightOriginMode(false);
+  }
+}
