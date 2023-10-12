@@ -2429,6 +2429,11 @@ void MarlinSettings::reset() {
 
   #if ENABLED(CNC_COORDINATE_SYSTEMS)
     (void)gcode.select_coordinate_system(-1); // Go back to machine space
+
+    // setting the safe z-axis offset
+    for (int i = 0; i < MAX_COORDINATE_SYSTEMS; i++)
+      gcode.coordinate_system[i][Z_AXIS] = SAFE_Z_AXIS_POSITION_SHIFT;
+
   #endif
 
   //
