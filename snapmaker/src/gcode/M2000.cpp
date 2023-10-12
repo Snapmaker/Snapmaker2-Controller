@@ -108,6 +108,7 @@ void GcodeSuite::M2000() {
           bool new_s = parser.boolval('I', quick_change_adapter);
           if (new_s != quick_change_adapter) {
             quick_change_adapter = new_s;
+            process_cmd_imd("G53");
             linear.UpdateMachinePosition();
             set_all_unhomed();
           }

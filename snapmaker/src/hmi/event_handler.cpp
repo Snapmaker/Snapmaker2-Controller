@@ -840,6 +840,7 @@ static ErrCode HmiRequestSetMachineKitInfo(SSTP_Event_t &event) {
     settings.save();
   }
 
+  process_cmd_imd("G53");
   linear.UpdateMachinePosition();
   set_all_unhomed();
 
