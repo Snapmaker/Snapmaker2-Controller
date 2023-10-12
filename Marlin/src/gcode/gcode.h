@@ -289,6 +289,7 @@ public:
 
   #define MAX_COORDINATE_SYSTEMS 2
   #if ENABLED(CNC_COORDINATE_SYSTEMS)
+    #define SAFE_Z_AXIS_POSITION_SHIFT       -100
     static int8_t active_coordinate_system;
     static float coordinate_system[MAX_COORDINATE_SYSTEMS][XN];
     static bool select_coordinate_system(const int8_t _new);
