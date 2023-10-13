@@ -146,10 +146,13 @@ void GcodeSuite::get_destination_from_command() {
     else if (parser.seen('S'))
       power_pwm = parser.value_float();
 
-    if (!isnan(power) || !isnan(power_pwm)) {
-      // here we won't change planner.laser_inline.status.isEnabled
-      // it should only be set with M3/M4
-      // planner.laser_inline.status.isEnabled = true;
+    if (parser.seen('I') && parser.codenum != 0)
+      planner.laser_inline.status.isEnabled = true;
+
+    if (parser.codenum == 0) {
+      laser->SetOutputInline((uint16_t)0.0);
+    }
+    else if ((!isnan(power) || !isnan(power_pwm))) {
       if (!isnan(power_pwm)) {
         LIMIT(power_pwm, 0, 255);
         laser->SetOutputInline((uint16_t)power_pwm);
@@ -159,9 +162,6 @@ void GcodeSuite::get_destination_from_command() {
         laser->SetOutputInline(power);
       }
       // LOG_I("S: %f, P: %f\n", power_pwm, power);
-    }
-    else if (parser.codenum == 0) {
-      laser->SetOutputInline((uint16_t)0.0);
     }
   }
   else {
