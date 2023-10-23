@@ -65,24 +65,6 @@ void GcodeSuite::M3_M4(const bool is_M4) {
   float power = NAN; // nullable power
   float power_pwm = NAN;
 
-  if (parser.seen('P'))
-    power = parser.value_float();
-  else if (parser.seen('S'))
-    power_pwm = parser.value_float();
-
-  if (laser->IsOnline() && parser.seen('I') && (!isnan(power) || !isnan(power_pwm))) {
-    planner.laser_inline.status.isEnabled = true;
-    if (!isnan(power_pwm)) {
-      LIMIT(power_pwm, 0, 255);
-      laser->SetOutputInline((uint16_t)power_pwm);
-    }
-    else {
-      LIMIT(power, 0, 100);
-      laser->SetOutputInline(power);
-    }
-    return;
-  }
-
   planner.synchronize();   // wait until previous movement commands (G0/G0/G2/G3) have completed before playing with the spindle
   if (quickstop.isPowerLoss()) {
     return ;
@@ -93,11 +75,28 @@ void GcodeSuite::M3_M4(const bool is_M4) {
    * Then needed to AND the uint16_t result with 0x00FF to make sure we only wrote the byte of interest.
    */
 
+  if (parser.seen('P')) {
+    power = parser.value_float();
+    LIMIT(power, 0, 100);
+  }
+  else if (parser.seen('S')) {
+    power_pwm = parser.value_float();
+    LIMIT(power_pwm, 0, 255);
+  }
+
   if (laser->IsOnline()) {
+    if (is_M4)
+      planner.laser_inline.status.trapezoid_power = true;
+    else
+      planner.laser_inline.status.trapezoid_power = false;
+    planner.laser_inline.status.isEnabled = true;
+
     if(!isnan(power)) {
+      laser->SetOutputInline(power);
       laser->SetOutput(power);
     }
     else if (!isnan(power_pwm)) {
+      laser->SetOutputInline((uint16_t)power_pwm);
       laser->SetOutput(power_pwm * 100 / 255);
     }
     else {
@@ -116,16 +115,13 @@ void GcodeSuite::M3_M4(const bool is_M4) {
  * M5 turn off spindle
  */
 void GcodeSuite::M5() {
-  if (laser->IsOnline() && parser.seen('I')) {
-    laser->SetOutputInline((uint16_t)0);
-    laser->InlineDisable();
-    return;
-  }
-
   planner.synchronize();
   //set_spindle_laser_enabled(false);
   if(laser->IsOnline()) {
     laser->TurnOff();
+    laser->SetOutputInline((uint16_t)0);
+    laser->InlineDisable();
+    planner.laser_inline.status.trapezoid_power = false;
   }
   else if(cnc.IsOnline()) {
     cnc.TurnOff();

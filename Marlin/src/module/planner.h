@@ -76,6 +76,7 @@ enum BlockFlag : char {
 
 typedef struct {
   bool isEnabled:1;
+  bool trapezoid_power:1;
 } laser_power_status_t;
 
 typedef struct {

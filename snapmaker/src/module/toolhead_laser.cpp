@@ -1581,7 +1581,7 @@ void ToolHeadLaser::TurnOn_ISR(uint16_t power_pwm) {
     power_pwm = power_limit_pwm_;
 
   power_pwm_ = power_pwm;
-  power_val_ = power_pwm * 100 / 255;
+  power_val_ = power_pwm * 100.0 / 255;
 
   if (power_pwm > 0)
     state_ = TOOLHEAD_LASER_STATE_ON;
