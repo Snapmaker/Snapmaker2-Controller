@@ -147,7 +147,9 @@ void GcodeSuite::get_destination_from_command() {
       power_pwm = parser.value_float();
 
     if (!isnan(power) || !isnan(power_pwm)) {
-      planner.laser_inline.status.isEnabled = true;
+      // here we won't change planner.laser_inline.status.isEnabled
+      // it should only be set with M3/M4
+      // planner.laser_inline.status.isEnabled = true;
       if (!isnan(power_pwm)) {
         LIMIT(power_pwm, 0, 255);
         laser->SetOutputInline((uint16_t)power_pwm);
@@ -161,6 +163,10 @@ void GcodeSuite::get_destination_from_command() {
     else if (parser.codenum == 0) {
       laser->SetOutputInline((uint16_t)0.0);
     }
+  }
+  else {
+    // disable inline power by default if plugged other toolhead
+    planner.laser_inline.status.isEnabled = false;
   }
 }
 

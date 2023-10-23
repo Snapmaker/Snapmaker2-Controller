@@ -232,6 +232,7 @@ int8_t Stepper::count_direction[NUM_AXIS] = { 0, 0, 0, 0, 0 };
 
 Stepper::stepper_laser_t Stepper::laser_trap = {
   .enabled = false,
+  .trapezoid_power = false,
   .cur_power = 0,
   .cruise_set = false
 };
@@ -1643,7 +1644,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
       axis_did_move = 0;
       // when a block is outputed, we record it position in file if it has
       pl_recovery.SaveCmdLine(current_block->filePos);
-      pl_recovery.SaveLaserInlineState(current_block->laser.status.isEnabled);
+      pl_recovery.SaveLaserInlineState(current_block->laser.status.isEnabled, current_block->laser.status.trapezoid_power);
       current_block = NULL;
       planner.discard_current_block();
     }
@@ -1679,7 +1680,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         #endif // LIN_ADVANCE
 
         // Update laser - Accelerating
-        if (laser_trap.enabled) {
+        if (laser_trap.enabled && laser_trap.trapezoid_power) {
           laser_trap.cur_power = (current_block->laser.power * acc_step_rate) / current_block->nominal_rate;
           laser->TurnOn_ISR(laser_trap.cur_power);
         }
@@ -1733,7 +1734,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         #endif // LIN_ADVANCE
 
         // Update laser - Decelerating
-        if (laser_trap.enabled) {
+        if (laser_trap.enabled && laser_trap.trapezoid_power) {
           laser_trap.cur_power = (current_block->laser.power * step_rate) / current_block->nominal_rate;
           laser->TurnOn_ISR(laser_trap.cur_power);
         }
@@ -1756,7 +1757,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         interval = ticks_nominal;
 
         // Update laser - Cruising
-        if (laser_trap.enabled) {
+        if (laser_trap.enabled && laser_trap.trapezoid_power) {
           if (!laser_trap.cruise_set) {
             laser_trap.cur_power = current_block->laser.power;
             laser->TurnOn_ISR(laser_trap.cur_power);
@@ -1953,8 +1954,16 @@ uint32_t Stepper::stepper_block_phase_isr() {
 
       // Set up inline laser power
       laser_trap.enabled = current_block->laser.status.isEnabled;
-      laser_trap.cur_power = current_block->laser.power_entry; // RESET STATE
+      laser_trap.trapezoid_power = current_block->laser.status.trapezoid_power;
       laser_trap.cruise_set = false;
+
+      if (laser_trap.trapezoid_power) {
+        laser_trap.cur_power = current_block->laser.power_entry;
+      }
+      else {
+        laser_trap.cur_power = current_block->laser.power;
+      }
+
       if (laser_trap.enabled)
         laser->TurnOn_ISR(laser_trap.cur_power);
 
