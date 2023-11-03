@@ -1644,7 +1644,8 @@ uint32_t Stepper::stepper_block_phase_isr() {
       axis_did_move = 0;
       // when a block is outputed, we record it position in file if it has
       pl_recovery.SaveCmdLine(current_block->filePos);
-      pl_recovery.SaveLaserInlineState(current_block->laser.status.isEnabled, current_block->laser.status.trapezoid_power);
+      // pl_recovery.SaveLaserInlineState(current_block->laser.status.isEnabled, current_block->laser.status.trapezoid_power);
+      pl_recovery.SaveLaserPowerInfo(current_block->laser);
       current_block = NULL;
       planner.discard_current_block();
     }
@@ -1682,7 +1683,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         // Update laser - Accelerating
         if (laser_trap.enabled && laser_trap.trapezoid_power) {
           laser_trap.cur_power = (current_block->laser.power * acc_step_rate) / current_block->nominal_rate;
-          laser->TurnOn_ISR(laser_trap.cur_power);
+          laser->TurnOn_ISR(laser_trap.cur_power, current_block->laser.status.is_sync_power, current_block->laser.sync_power);
         }
       }
       // Are we in Deceleration phase ?
@@ -1736,7 +1737,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         // Update laser - Decelerating
         if (laser_trap.enabled && laser_trap.trapezoid_power) {
           laser_trap.cur_power = (current_block->laser.power * step_rate) / current_block->nominal_rate;
-          laser->TurnOn_ISR(laser_trap.cur_power);
+          laser->TurnOn_ISR(laser_trap.cur_power, current_block->laser.status.is_sync_power, current_block->laser.sync_power);
         }
       }
       // We must be in cruise phase otherwise
@@ -1760,7 +1761,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
         if (laser_trap.enabled && laser_trap.trapezoid_power) {
           if (!laser_trap.cruise_set) {
             laser_trap.cur_power = current_block->laser.power;
-            laser->TurnOn_ISR(laser_trap.cur_power);
+            laser->TurnOn_ISR(laser_trap.cur_power, current_block->laser.status.is_sync_power, current_block->laser.sync_power);
             laser_trap.cruise_set = true;
           }
         }
@@ -1965,7 +1966,7 @@ uint32_t Stepper::stepper_block_phase_isr() {
       }
 
       if (laser_trap.enabled)
-        laser->TurnOn_ISR(laser_trap.cur_power);
+        laser->TurnOn_ISR(laser_trap.cur_power, current_block->laser.status.is_sync_power, current_block->laser.sync_power);
 
       // At this point, we must ensure the movement about to execute isn't
       // trying to force the head against a limit switch. If using interrupt-

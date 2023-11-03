@@ -156,10 +156,14 @@ void GcodeSuite::get_destination_from_command() {
       if (!isnan(power_pwm)) {
         LIMIT(power_pwm, 0, 255);
         laser->SetOutputInline((uint16_t)power_pwm);
+        planner.laser_inline.status.is_sync_power = true;
+        planner.laser_inline.status.power_is_map = false;
       }
       else {
         LIMIT(power, 0, 100);
         laser->SetOutputInline(power);
+        planner.laser_inline.status.is_sync_power = true;
+        planner.laser_inline.status.power_is_map = true;
       }
       // LOG_I("S: %f, P: %f\n", power_pwm, power);
     }
