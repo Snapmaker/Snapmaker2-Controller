@@ -389,8 +389,9 @@ int PowerLossRecovery::SaveEnv(void) {
 		cur_data_.laser_pwm = laser->tim_pwm();
 		cur_data_.air_pump_switch = laser->GetAirPumpSwitch();
 		cur_data_.half_power_mode = laser->GetHalfPowerMode();
-		cur_data_.laser_inline_enable = laser_inline_enable_;
-		cur_data_.trapezoid_power = trapezoid_power_;
+		// cur_data_.laser_inline_enable = laser_inline_enable_;
+		// cur_data_.trapezoid_power = trapezoid_power_;
+		cur_data_.laser_info = laser_info_;
 		cur_data_.weak_light_origin_mode = laser->GetWeakLightOriginMode();
 	  laser->TurnOff();
 	  break;
@@ -581,9 +582,10 @@ void PowerLossRecovery::ResumeLaser() {
 	// So we recover the value to them
 	cur_data_.laser_pwm = pre_data_.laser_pwm;
 	cur_data_.laser_percent = pre_data_.laser_percent;
+	cur_data_.laser_info = pre_data_.laser_info;
 
 	// just change laser power but not enable output
-	laser->SetPower(pre_data_.laser_percent);
+	laser->SetPower(pre_data_.laser_percent, cur_data_.laser_info.status.power_is_map);
 
 	if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
 		if (MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead())
@@ -602,11 +604,11 @@ void PowerLossRecovery::ResumeLaser() {
 		}
 	}
 
-	planner.laser_inline.status.isEnabled = pl_recovery.cur_data_.laser_inline_enable = pl_recovery.pre_data_.laser_inline_enable;
-	planner.laser_inline.status.trapezoid_power = pl_recovery.cur_data_.trapezoid_power = pl_recovery.pre_data_.trapezoid_power;
-	laser->SetOutputInline((uint16_t)0);
-	LOG_I("restore laser inline enable: %s, trapezoid_power: %d\n", planner.laser_inline.status.isEnabled ? "ON" : "OFF", \
-				planner.laser_inline.status.trapezoid_power);
+	// planner.laser_inline.status.isEnabled = pl_recovery.cur_data_.laser_inline_enable = pl_recovery.pre_data_.laser_inline_enable;
+	// planner.laser_inline.status.trapezoid_power = pl_recovery.cur_data_.trapezoid_power = pl_recovery.pre_data_.trapezoid_power;
+	// laser->SetOutputInline((uint16_t)0);
+	// LOG_I("restore laser inline enable: %s, trapezoid_power: %d\n", planner.laser_inline.status.isEnabled ? "ON" : "OFF",
+	// 			planner.laser_inline.status.trapezoid_power);
 }
 
 
@@ -699,8 +701,9 @@ ErrCode PowerLossRecovery::ResumeWork() {
 
 		LOG_I("previous recorded target Laser power is %.2f\n", pre_data_.laser_percent);
 		LOG_I("previous recorded target laser PWM is 0x%x\n", pre_data_.laser_pwm);
-		LOG_I("previous recorded laser inline enable: %d\n", pre_data_.laser_inline_enable);
-		LOG_I("previous recorded laser trapezoid_power: %d\n", pre_data_.trapezoid_power);
+		LOG_I("previous recorded laser inline: %d\n", pre_data_.laser_info.status.isEnabled);
+		LOG_I("previous recorded trapezoid_power: %d\n", pre_data_.laser_info.status.trapezoid_power);
+		// LOG_I("previous recorded laser trapezoid_power: %d\n", pre_data_.trapezoid_power);
 
 		ResumeLaser();
 		break;

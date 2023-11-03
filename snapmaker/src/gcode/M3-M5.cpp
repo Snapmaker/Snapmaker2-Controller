@@ -23,6 +23,7 @@
 #include "../service/system.h"
 #include "../module/toolhead_cnc.h"
 #include "../module/toolhead_laser.h"
+#include "../common/debug.h"
 
 // marlin headers
 #include  "src/gcode/gcode.h"
@@ -92,15 +93,22 @@ void GcodeSuite::M3_M4(const bool is_M4) {
     planner.laser_inline.status.isEnabled = true;
 
     if(!isnan(power)) {
-      laser->SetOutputInline(power);
       laser->SetOutput(power);
+      laser->UpdateInlinePower(laser->power_pwm(), power);
+      planner.laser_inline.status.power_is_map = true;
+      planner.laser_inline.status.is_sync_power = false;
     }
     else if (!isnan(power_pwm)) {
-      laser->SetOutputInline((uint16_t)power_pwm);
-      laser->SetOutput(power_pwm * 100 / 255);
+      laser->SetOutput(power_pwm * 100 / 255, false);
+      laser->UpdateInlinePower(laser->power_pwm(), power_pwm * 100 / 255);
+      planner.laser_inline.status.power_is_map = false;
+      planner.laser_inline.status.is_sync_power = false;
     }
     else {
+      if (planner.laser_inline.status.trapezoid_power)
+        laser->SetPower(laser->power(), planner.laser_inline.status.power_is_map);
       laser->TurnOn();
+      laser->UpdateInlinePower(laser->power_pwm(), laser->power());
     }
   }
   else if(cnc.IsOnline()) {

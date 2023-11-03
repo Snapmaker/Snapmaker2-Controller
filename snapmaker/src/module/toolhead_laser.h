@@ -138,8 +138,8 @@ class ToolHeadLaser: public ModuleBase {
 
     void SetFanPower(uint8_t power);  // power 0 - 100
 
-    void SetPower(float power);       // change power_val_ and power_pwm_ but not change actual output
-    void SetOutput(float power);      // change power_val_, power_pwm_ and actual output
+    void SetPower(float power, bool is_map=true);       // change power_val_ and power_pwm_ but not change actual output
+    void SetOutput(float power, bool is_map=true);      // change power_val_, power_pwm_ and actual output
     void SetPowerLimit(float limit);  // change power_val_, power_pwm_ and power_limit_, may change actual output if current output is beyond limit
     uint16_t PowerConversionPwm(float power);
 
@@ -277,10 +277,11 @@ class ToolHeadLaser: public ModuleBase {
 
     // Set the power for subsequent movement blocks
     void SetOutputInline(float power);
-    void SetOutputInline(uint16_t power_pwm);
+    void SetOutputInline(uint16_t power_pwm, bool is_sync_power=true);
+    void UpdateInlinePower(uint16_t power_pwm, float sync_power);
 
     // Optimized TurnOn function for use from the Stepper ISR
-    void TurnOn_ISR(uint16_t power_pwm);
+    void TurnOn_ISR(uint16_t power_pwm, bool is_sync_power, float power);
 };
 
 

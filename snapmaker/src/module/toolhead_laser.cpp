@@ -367,13 +367,13 @@ void ToolHeadLaser::TurnOff() {
   tim_pwm(0);
 }
 
-void ToolHeadLaser::SetOutput(float power) {
+void ToolHeadLaser::SetOutput(float power, bool is_map) {
   if ((laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || \
       laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) && laser->security_status_ != 0) {
     return;
   }
 
-  SetPower(power);
+  SetPower(power, is_map);
   TurnOn();
 }
 
@@ -392,7 +392,7 @@ uint16_t ToolHeadLaser::PowerConversionPwm(float power) {
 
 
 
-void ToolHeadLaser::SetPower(float power) {
+void ToolHeadLaser::SetPower(float power, bool is_map) {
   if (state_ == TOOLHEAD_LASER_STATE_OFFLINE)
     return;
 
@@ -400,7 +400,13 @@ void ToolHeadLaser::SetPower(float power) {
   power_val_ = power;
 
   // even if random data is read by exceeding the table data, it will be discarded when multiplying by 0
-  power_pwm_ = PowerConversionPwm(power);
+  if (is_map) {
+    power_pwm_ = PowerConversionPwm(power);
+  }
+  else {
+    power_pwm_ = (uint16_t)(power * 255.0 / 100.0);
+    LIMIT(power_pwm_, 0, 255);
+  }
 
   if (power_pwm_ > power_limit_pwm_)
     power_pwm_ = power_limit_pwm_;
@@ -821,6 +827,9 @@ ErrCode ToolHeadLaser::DoAutoFocusing(SSTP_Event_t &event) {
     LOG_E("start Z height is too low: %.2f\n", next_z);
     goto out;
   }
+
+  // turn off laser inline
+  planner.laser_inline.status.isEnabled = false;
 
   // Move to next Z
   move_to_limited_z(next_z, 20.0f);
@@ -1551,12 +1560,16 @@ void ToolHeadLaser::InlineDisable() {
 void ToolHeadLaser::SetOutputInline(float power) {
   uint16_t power_pwm;
   power_pwm = PowerConversionPwm(power);
-  SetOutputInline(power_pwm);
+  planner.laser_inline.sync_power = power;
+  SetOutputInline(power_pwm, false);
 }
 
-void ToolHeadLaser::SetOutputInline(uint16_t power_pwm) {
+void ToolHeadLaser::SetOutputInline(uint16_t power_pwm, bool is_sync_power) {
   CheckFan(power_pwm);
   planner.laser_inline.power = power_pwm;
+  if (is_sync_power)
+    planner.laser_inline.sync_power = power_pwm * 100.0 / 255.0;
+
   if ((laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER ||
       laser->device_id_ == MODULE_DEVICE_ID_40W_LASER)) {
     if (power_pwm > 0) {
@@ -1568,20 +1581,22 @@ void ToolHeadLaser::SetOutputInline(uint16_t power_pwm) {
       laser_status_ = LASER_ENABLE;
       laser_tick_ = 0;
     }
-    // else {
-      // if (laser_status_ != LASER_DISABLE) {
-      //   laser_status_ = LASER_WAIT_DISABLE;
-      // }
-    // }
   }
 }
 
-void ToolHeadLaser::TurnOn_ISR(uint16_t power_pwm) {
+void ToolHeadLaser::UpdateInlinePower(uint16_t power_pwm, float sync_power) {
+  planner.laser_inline.power = power_pwm;
+  planner.laser_inline.sync_power = sync_power;
+}
+
+void ToolHeadLaser::TurnOn_ISR(uint16_t power_pwm, bool is_sync_power, float power) {
   if (power_pwm > power_limit_pwm_)
     power_pwm = power_limit_pwm_;
 
   power_pwm_ = power_pwm;
-  power_val_ = power_pwm * 100.0 / 255;
+  // power_val_ = power_pwm * 100.0 / 255;
+  if (is_sync_power)
+    power_val_ = power;
 
   if (power_pwm > 0)
     state_ = TOOLHEAD_LASER_STATE_ON;

@@ -128,10 +128,16 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     case QS_SOURCE_PAUSE:
       if (blk) {
         pl_recovery.SaveCmdLine(blk->filePos);
-        pl_recovery.SaveLaserInlineState(blk->laser.status.isEnabled, blk->laser.status.trapezoid_power);
+        // pl_recovery.SaveLaserInlineState(blk->laser.status.isEnabled, blk->laser.status.trapezoid_power);
+        pl_recovery.SaveLaserPowerInfo(blk->laser);
       }
       else {
-        pl_recovery.SaveLaserInlineState(planner.laser_inline.status.isEnabled, planner.laser_inline.status.trapezoid_power);
+        block_inline_laser_t info;
+        info.status = planner.laser_inline.status;
+        info.power = planner.laser_inline.power;
+        info.sync_power = planner.laser_inline.sync_power;
+        pl_recovery.SaveLaserPowerInfo(info);
+        // pl_recovery.SaveLaserInlineState(planner.laser_inline.status.isEnabled, planner.laser_inline.status.trapezoid_power);
       }
 
       // if power-loss appear atfer finishing PAUSE, won't save env again

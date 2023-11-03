@@ -77,12 +77,15 @@ enum BlockFlag : char {
 typedef struct {
   bool isEnabled:1;
   bool trapezoid_power:1;
+  bool is_sync_power:1;
+  bool power_is_map:1;            // Whether the power is mapped by the laser power table
 } laser_power_status_t;
 
 typedef struct {
   laser_power_status_t status;
   uint16_t power;            // When in trapezoid mode this is nominal power
   uint16_t power_entry;      // Entry power for the laser
+  float sync_power;
 } block_inline_laser_t;
 
 /**
@@ -188,6 +191,7 @@ typedef struct {
    * Laser power: 0 to 255;
    */
   uint16_t power;
+  float sync_power;
 } laser_state_t;
 
 typedef struct {
