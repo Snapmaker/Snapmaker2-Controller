@@ -38,6 +38,10 @@
 #define FIRE_DETECT_TRIGGER_LIMIT_ADC_VALUE     (4095)
 #define FIRE_DETECT_TRIGGER_DISABLE_ADC_VALUE   (0xFFFF)
 
+#define X_OFFSET_IS_APPLICATION_MASK              (0x1 << X_AXIS)
+#define Y_OFFSET_IS_APPLICATION_MASK              (0x1 << Y_AXIS)
+#define XY_OFFSET_APPLICATION_FALG                (X_OFFSET_IS_APPLICATION_MASK | Y_OFFSET_IS_APPLICATION_MASK)
+
 enum ToolheadLaserFanState {
   TOOLHEAD_LASER_FAN_STATE_OPEN,
   TOOLHEAD_LASER_FAN_STATE_TO_BE_CLOSED,
@@ -126,6 +130,7 @@ class ToolHeadLaser: public ModuleBase {
       half_power_mode_ = false;
       air_pump_switch_ = false;
       weak_light_origin_mode_ = false;
+      xy_offset_application_ = XY_OFFSET_APPLICATION_FALG;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -151,6 +156,9 @@ class ToolHeadLaser: public ModuleBase {
     bool GetHalfPowerMode(void) { return half_power_mode_; }
     bool SetWeakLightOriginMode(bool mode);
     bool GetWeakLightOriginMode(void) { return weak_light_origin_mode_; }
+    uint8_t GetXyOffsetApplication(void) { return xy_offset_application_; }
+    void SetXyOffsetApplication(uint8_t xy_offset_application) { xy_offset_application_ = xy_offset_application; }
+    void ClearXyOffsetApplicationByIndex(uint8_t index) { xy_offset_application_ &= ~(1 << index); }
 
     ErrCode SetCrossLightCAN(bool sw);
     ErrCode GetCrossLightCAN(bool &sw);
@@ -264,6 +272,7 @@ class ToolHeadLaser: public ModuleBase {
     bool half_power_mode_;
     bool air_pump_switch_;
     bool weak_light_origin_mode_;
+    uint8_t xy_offset_application_;
 
   // Laser Inline Power functions
   public:

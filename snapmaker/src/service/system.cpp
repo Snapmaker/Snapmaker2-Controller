@@ -684,6 +684,7 @@ ErrCode SystemService::StartWork(TriggerSource s) {
     is_waiting_gcode = false;
     if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
       laser->SetCrossLightCAN(false);
+      laser->SetXyOffsetApplication(XY_OFFSET_APPLICATION_FALG);
       float ox, oy;
       if (E_SUCCESS == laser->GetCrossLightOffsetCAN(ox, oy)) {
         LOG_I("StartWork: Set laser crosslight offset: %f, %f\n", ox, oy);

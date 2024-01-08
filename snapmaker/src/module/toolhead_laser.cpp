@@ -1488,10 +1488,12 @@ ErrCode ToolHeadLaser::SetWeakLightOriginWork(SSTP_Event_t &event) {
 
 void ToolHeadLaser::TellSecurityStatus() {
   SendSecurityStatus();
-  SERIAL_ECHO("Laser security state: 0x");
-  SERIAL_PRINTLN(laser->security_status_, HEX);
-
-  SERIAL_ECHOLNPAIR("Laser temp: ", laser->laser_temperature_, ", imu temp: ", laser->imu_temperature_, ", roll: ", laser->roll_, ", pitch: ", laser->pitch_, ", pwm_pin_pulldown_state_: ", laser->pwm_pin_pulldown_state_, ", pwm_pin_pullup_state_: ", laser->pwm_pin_pullup_state_);
+  // SERIAL_ECHO("Laser security state: 0x");
+  // SERIAL_PRINTLN(laser->security_status_, HEX);
+  // SERIAL_ECHOLNPAIR("Laser temp: ", laser->laser_temperature_, ", imu temp: ", laser->imu_temperature_, ", roll: ", laser->roll_, ", pitch: ", laser->pitch_, ", pwm_pin_pulldown_state_: ", laser->pwm_pin_pulldown_state_, ", pwm_pin_pullup_state_: ", laser->pwm_pin_pullup_state_);
+  LOG_I("Laser security state: 0x%x\n", laser->security_status_);
+  LOG_I("Laser temp: %d, imu temp: %d, roll: %d, pitch: %d, pwm_pin_pulldown_state_: %d, pwm_pin_pullup_state_: %d\n", \
+          laser->laser_temperature_, laser->imu_temperature_, laser->roll_, laser->pitch_, laser->pwm_pin_pulldown_state_, laser->pwm_pin_pullup_state_);
 }
 
 uint8_t ToolHeadLaser::LaserGetPwmPinState() {
