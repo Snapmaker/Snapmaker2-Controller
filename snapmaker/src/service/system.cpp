@@ -168,6 +168,9 @@ ErrCode SystemService::PreProcessStop() {
     laser->SetAirPumpSwitch(false, false);
     is_waiting_gcode = false;
     is_laser_on = false;
+    if (laser->security_status_ & (1 << 5)) {
+      laser->SetFanPower(0, true);
+    }
   }
 
   // always reset the laser crosslight offset

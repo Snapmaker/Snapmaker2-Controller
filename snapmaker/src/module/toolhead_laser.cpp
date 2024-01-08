@@ -309,6 +309,7 @@ void ToolHeadLaser::PrintInfo(void) {
   LOG_I("crosslight_offset_x %f, crosslight_offset_y %f\n", crosslight_offset_x, crosslight_offset_y);
   LOG_I("half_power_mode_: %s\n", half_power_mode_ ? "OPEN" : "CLOSE");
   LOG_I("inline enable: %d, inline power pwm: %d\n", planner.laser_inline.status.isEnabled, planner.laser_inline.power);
+  LOG_I("air_pump_switch_: %d\n", air_pump_switch_);
 }
 
 uint16_t ToolHeadLaser::tim_pwm() {
@@ -431,7 +432,7 @@ void ToolHeadLaser::SetPowerLimit(float limit) {
     TurnOn();
 }
 
-void ToolHeadLaser::SetFanPower(uint8_t power) {
+void ToolHeadLaser::SetFanPower(uint8_t power, bool update_fan_sta) {
   CanStdMesgCmd_t cmd;
   uint8_t         buffer[2];
   buffer[0]  = 0;
@@ -439,6 +440,13 @@ void ToolHeadLaser::SetFanPower(uint8_t power) {
   cmd.id     = msg_id_set_fan_;
   cmd.data   = buffer;
   cmd.length = 2;
+
+  if (update_fan_sta) {
+    if (power != 0)
+      fan_state_ = TOOLHEAD_LASER_FAN_STATE_OPEN;
+    else
+      fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
+  }
 
   canhost.SendStdCmd(cmd);
 }
