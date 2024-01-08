@@ -109,8 +109,21 @@ void GcodeSuite::get_destination_from_command() {
 
       if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
         if (systemservice.GetCurrentStatus() == SYSTAT_WORK && !laser->GetWeakLightOriginMode()) {
-          if (i <= Y_AXIS && (!laser->CheckCrossLightOffset(laser_crosslight_offset[X_AXIS], laser_crosslight_offset[Y_AXIS])))
-            destination[i] += laser_crosslight_offset[i];
+          if (i <= Y_AXIS && (!laser->CheckCrossLightOffset(laser_crosslight_offset[X_AXIS], laser_crosslight_offset[Y_AXIS]))) {
+            if (relative_mode) {
+              // interim solutions, suspend resume in relative_mode work is not currently supported and needs further adaptation
+              if (laser->GetXyOffsetApplication() & (1 << i)) {
+                destination[i] += laser_crosslight_offset[i];
+                laser->ClearXyOffsetApplicationByIndex(i);
+              }
+              if (!laser->GetXyOffsetApplication()) {
+                laser->SetWeakLightOriginMode(true);
+              }
+            }
+            else{
+              destination[i] += laser_crosslight_offset[i];
+            }
+          }
         }
       }
     }
