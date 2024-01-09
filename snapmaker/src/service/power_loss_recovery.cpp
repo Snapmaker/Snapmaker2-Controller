@@ -94,7 +94,7 @@ void PowerLossRecovery::Init(void) {
 				settings.save();
 			}
 
-			SERIAL_ECHOLN("PL: Got available data!");
+			LOG_I("PL: Got available data!\n");
 		}
 		else {
 			MaskPowerPanicData();
@@ -102,12 +102,12 @@ void PowerLossRecovery::Init(void) {
     break;
   case 1:
     // data read from flash is invalid
-    SERIAL_ECHOLNPGM("PL: Unavailable data!");
+    LOG_I("PL: Unavailable data!\n");
     break;
 
   default:
     // do nothing for other results such as 2 = no power panic data
-    SERIAL_ECHOLNPGM("PL: No data!");
+    LOG_I("PL: No data!\n");
     break;
   }
 }
