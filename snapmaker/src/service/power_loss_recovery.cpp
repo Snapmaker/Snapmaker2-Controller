@@ -273,6 +273,9 @@ void PowerLossRecovery::WriteFlash(void)
 	uint8_t *pBuff;
 
   pBuff = (uint8_t *)&cur_data_;
+	cur_data_.CheckSum = 0;
+	for(uint32_t i = 0; i < (int)sizeof(PowerLossRecoveryData_t); i++)
+		cur_data_.CheckSum += pBuff[i];
 
 	//写一半标识
 	addr = RECORD_START_ADDR(WriteIndex);
