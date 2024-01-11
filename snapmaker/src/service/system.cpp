@@ -401,6 +401,10 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
   case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
   case MODULE_TOOLHEAD_LASER_40W:
+    if (laser->IsOnline() && laser->security_status_) {
+      LOG_E("security_status_: 0x%x! Now cannot resume working!\n", laser->security_status_);
+      return E_LASER_SECURITY;
+    }
     if (enclosure.DoorOpened()) {
       LOG_E("Door is opened!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
@@ -683,6 +687,10 @@ ErrCode SystemService::StartWork(TriggerSource s) {
   case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
   case MODULE_TOOLHEAD_LASER_40W:
+    if (laser->security_status_) {
+      LOG_E("security_status_: 0x%x! Now cannot start working!\n", laser->security_status_);
+      return E_LASER_SECURITY;
+    }
     is_laser_on = false;
     is_waiting_gcode = false;
     if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {

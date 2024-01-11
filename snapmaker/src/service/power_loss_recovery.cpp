@@ -702,6 +702,11 @@ ErrCode PowerLossRecovery::ResumeWork() {
 			return E_DOOR_OPENED;
 		}
 
+		if (laser->security_status_) {
+			LOG_E("trigger RESTORE: failed, laser security_status: 0x%x\n", laser->security_status_);
+			return E_LASER_SECURITY;
+		}
+
 		LOG_I("previous recorded target Laser power is %.2f\n", pre_data_.laser_percent);
 		LOG_I("previous recorded target laser PWM is 0x%x\n", pre_data_.laser_pwm);
 		LOG_I("previous recorded laser inline: %d\n", pre_data_.laser_info.status.isEnabled);
