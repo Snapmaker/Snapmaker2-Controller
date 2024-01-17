@@ -105,22 +105,27 @@ void GcodeSuite::M2000() {
     {
       if (parser.seenval('I')) {
         if (systemservice.GetCurrentStatus() == SYSTAT_IDLE && linear_p->machine_size() != MACHINE_SIZE_UNKNOWN) {
-          bool new_s = parser.boolval('I', quick_change_adapter);
-          if (new_s != quick_change_adapter) {
-            quick_change_adapter = new_s;
-            process_cmd_imd("G53");
-            linear.UpdateMachinePosition();
-            set_all_unhomed();
+          uint8_t new_s = parser.byteval('I', kit_combination_type);
+          if (new_s <= (QUICK_CHANGE_ADAPTER | REINFORCEMENT_KIT)) {
+            if (new_s != kit_combination_type) {
+              kit_combination_type = new_s;
+              process_cmd_imd("G53");
+              linear.UpdateMachinePosition();
+              set_all_unhomed();
+            }
+            LOG_I("set adapter state: %d, integration toolhead: %d\n", kit_combination_type, integration_toolhead);
           }
-          LOG_I("set adapter state: %d, integration toolhead: %d\n", quick_change_adapter, integration_toolhead);
+          else {
+            LOG_I("set adapter state fail, unknown kit combinations: %d\n", new_s);
+          }
         }
         else {
-          LOG_I("set adapter state fail, sys_sta: %d, machine_size: %d, quick_change_adapter: %d, integration_toolhead: %d\n", \
-              systemservice.GetCurrentStatus(), linear_p->machine_size(), quick_change_adapter, integration_toolhead);
+          LOG_I("set adapter state fail, sys_sta: %d, machine_size: %d, kit_combination_type: %d, integration_toolhead: %d\n", \
+              systemservice.GetCurrentStatus(), linear_p->machine_size(), kit_combination_type, integration_toolhead);
         }
       }
       else {
-        LOG_I("adapter state: %d, integration toolhead: %d\n", quick_change_adapter, integration_toolhead);
+        LOG_I("adapter state: %d, integration toolhead: %d\n", kit_combination_type, integration_toolhead);
       }
     }
     break;

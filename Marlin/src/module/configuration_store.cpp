@@ -302,7 +302,7 @@ typedef struct SettingsDataStruct {
   float m_home_offset_3dp2e[XN];
   float s_home_offset_3dp2e[XN];
   float l_home_offset_3dp2e[XN];
-  bool quick_change_adapter;
+  uint8_t kit_combination_type;
   #endif
 
   float print_min_planner_speed;
@@ -1155,8 +1155,8 @@ void MarlinSettings::postprocess() {
         _FIELD_TEST(l_home_offset_3dp2e[i]);
         EEPROM_WRITE(l_home_offset_3dp2e[i]);
       }
-      _FIELD_TEST(quick_change_adapter);
-      EEPROM_WRITE(quick_change_adapter);
+      _FIELD_TEST(kit_combination_type);
+      EEPROM_WRITE(kit_combination_type);
     }
     #endif //ENABLED(SW_MACHINE_SIZE)
     _FIELD_TEST(print_min_planner_speed);
@@ -1917,8 +1917,8 @@ void MarlinSettings::postprocess() {
           _FIELD_TEST(l_home_offset_3dp2e[i]);
           EEPROM_READ(l_home_offset_3dp2e[i]);
         }
-        _FIELD_TEST(quick_change_adapter);
-        EEPROM_READ(quick_change_adapter);
+        _FIELD_TEST(kit_combination_type);
+        EEPROM_READ(kit_combination_type);
       }
       set_homeoffset();
 
