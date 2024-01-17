@@ -178,6 +178,7 @@ void GcodeSuite::get_destination_from_command() {
         planner.laser_inline.status.is_sync_power = true;
         planner.laser_inline.status.power_is_map = true;
       }
+      planner.laser_inline.status.isEnabled = true;
       // LOG_I("S: %f, P: %f\n", power_pwm, power);
     }
   }
