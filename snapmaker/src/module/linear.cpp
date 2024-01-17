@@ -525,7 +525,10 @@ MachineSize Linear::UpdateMachineSize() {
 
 // update the corresponding axis travel
 void Linear::UpdateMachinePosition(void) {
-  LOG_I("quick swap: %u, integration toolhead: %u, machine_size_: %d\n", quick_change_adapter, integration_toolhead, linear_p->machine_size());
+  LOG_I("kit_combination_type: %u, integration toolhead: %u, machine_size_: %d\n", kit_combination_type, integration_toolhead, linear_p->machine_size());
+
+  kit_combination_type &= ALLOW_HMI_SETTING_KIT_COMBINATION_MSK;
+  if (integration_toolhead) kit_combination_type |= INTEGRATION_TOOLHEAD;
 
   // in order to keep the leveling points the same as before, the value of DEF_SIZE & MAGNET_SPAN is not modified.
   switch (linear_p->machine_size()) {
@@ -563,33 +566,9 @@ void Linear::UpdateMachinePosition(void) {
     break;
 
     case MACHINE_SIZE_A250:
-      // is the machine with quick change adapter
-      if (quick_change_adapter) {
-        if (!integration_toolhead) {
-          X_MAX_POS = 260;
-          Y_MAX_POS = 245;
-          Z_MAX_POS = 220;
-        }
-        else {
-          // TODO: support this combination in the future
-          X_MAX_POS = 260;
-          Y_MAX_POS = 245;
-          Z_MAX_POS = 220;
-        }
-      }
-      else {
-        if (!integration_toolhead) {
-          X_MAX_POS = 260;
-          Y_MAX_POS = 260;
-          Z_MAX_POS = 235;
-        }
-        else {
-          // TODO: support this combination in the future
-          X_MAX_POS = 260;
-          Y_MAX_POS = 260;
-          Z_MAX_POS = 235;
-        }
-      }
+      X_MAX_POS = 260;
+      Y_MAX_POS = 260;
+      Z_MAX_POS = 235;
 
       if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         // #define M_HOME_OFFSET_3DP2E_DEFAULT {-28, -20, 0, 0}
@@ -619,33 +598,9 @@ void Linear::UpdateMachinePosition(void) {
     break;
 
     case MACHINE_SIZE_A350:
-      // is the machine with quick change adapter
-      if (quick_change_adapter) {
-        if (!integration_toolhead) {
-          X_MAX_POS = 358;
-          Y_MAX_POS = 343;
-          Z_MAX_POS = 319;
-        }
-        else {
-          // TODO: support this combination in the future
-          X_MAX_POS = 358;
-          Y_MAX_POS = 343;
-          Z_MAX_POS = 319;
-        }
-      }
-      else {
-        if (!integration_toolhead) {
-          X_MAX_POS = 358;
-          Y_MAX_POS = 358;
-          Z_MAX_POS = 334;
-        }
-        else {
-          // TODO: support this combination in the future
-          X_MAX_POS = 358;
-          Y_MAX_POS = 358;
-          Z_MAX_POS = 334;
-        }
-      }
+      X_MAX_POS = 358;
+      Y_MAX_POS = 358;
+      Z_MAX_POS = 334;
 
       if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
         LOOP_XN(i) {
@@ -673,28 +628,8 @@ void Linear::UpdateMachinePosition(void) {
         Y_DEF_SIZE = 352;
         Z_DEF_SIZE = 330;
 
-        if (quick_change_adapter) {
-          if (!integration_toolhead) {
-            X_MAX_POS = 345;
-            Y_MAX_POS = 342;
-          }
-          else {
-            // TODO: support this combination in the future
-            X_MAX_POS = 345;
-            Y_MAX_POS = 342;
-          }
-        }
-        else {
-          if (!integration_toolhead) {
-            X_MAX_POS = 345;
-            Y_MAX_POS = 357;
-          }
-          else {
-            // TODO: support this combination in the future
-            X_MAX_POS = 345;
-            Y_MAX_POS = 357;
-          }
-        }
+        X_MAX_POS = 345;
+        Y_MAX_POS = 357;
 
         MAGNET_X_SPAN = 274;
         MAGNET_Y_SPAN = 304;
@@ -715,6 +650,20 @@ void Linear::UpdateMachinePosition(void) {
 
     default:
       break;
+  }
+
+  if (linear_p->machine_size() == MACHINE_SIZE_A250 || linear_p->machine_size() == MACHINE_SIZE_A350) {
+    if (kit_combination_type & QUICK_CHANGE_ADAPTER_MSK) {
+      X_MAX_POS += INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_X;
+      Y_MAX_POS += INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_Y;
+      Z_MAX_POS += INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_Z;
+    }
+
+    if (kit_combination_type & REINFORCEMENT_KIT_MSK) {
+      X_MAX_POS += REINFORCEMENT_KIT_LENGTH_CHANGE_X;
+      Y_MAX_POS += REINFORCEMENT_KIT_LENGTH_CHANGE_Y;
+      Z_MAX_POS += REINFORCEMENT_KIT_LENGTH_CHANGE_Z;
+    }
   }
 
   LOG_I("X_MAX_POS: %f, Y_MAX_POS: %f, Z_MAX_POS: %f\n", X_MAX_POS, Y_MAX_POS, Z_MAX_POS);

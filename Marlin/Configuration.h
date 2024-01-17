@@ -1066,7 +1066,7 @@ extern uint8_t E_ENABLE_ON;
   extern float l_home_offset_laser[XN];
 
   extern bool integration_toolhead;
-  extern bool quick_change_adapter;
+  extern uint8_t kit_combination_type;
 
   extern float print_min_planner_speed;
   extern float laser_min_planner_speed;
@@ -1079,6 +1079,28 @@ extern uint8_t E_ENABLE_ON;
 #define L_HOME_OFFSET_DEFAULT {-19, -4, 0, 0}
 #define L_HOME_OFFSET_3DP2E_DEFAULT {-32, -23, 0, 0}
 #define L_HOME_OFFSET_LASER_DEFAULT {-19, -10, 0, 0}  // to fit camera capture
+
+// Definition of Extended Components
+#define QUICK_CHANGE_ADAPTER_POS                      (0)
+#define QUICK_CHANGE_ADAPTER_MSK                      (0x1 << QUICK_CHANGE_ADAPTER_POS)
+#define QUICK_CHANGE_ADAPTER                          QUICK_CHANGE_ADAPTER_MSK
+#define REINFORCEMENT_KIT_POS                         (1)
+#define REINFORCEMENT_KIT_MSK                         (0x1 << REINFORCEMENT_KIT_POS)
+#define REINFORCEMENT_KIT                             REINFORCEMENT_KIT_MSK
+#define INTEGRATION_TOOLHEAD_POS                      (2)
+#define INTEGRATION_TOOLHEAD_MSK                      (0x1 << INTEGRATION_TOOLHEAD_POS)
+#define INTEGRATION_TOOLHEAD                          INTEGRATION_TOOLHEAD_MSK
+
+#define ALLOW_HMI_SETTING_KIT_COMBINATION_MSK         (QUICK_CHANGE_ADAPTER | REINFORCEMENT_KIT)
+#define DEFAULT_KIT_COMBINATION_TYPE                  (0)
+
+#define INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_X  (0)
+#define INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_Y  (-15)
+#define INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_Z  (-15)
+#define REINFORCEMENT_KIT_LENGTH_CHANGE_X             (0)
+#define REINFORCEMENT_KIT_LENGTH_CHANGE_Y             (-12)
+#define REINFORCEMENT_KIT_LENGTH_CHANGE_Z             (-6)
+
 #endif //DISABLE(SW_MACHINE_SIZE)
 
 // The size of the print bed

@@ -373,7 +373,7 @@ int PowerLossRecovery::SaveEnv(void) {
 	}
 
   cur_data_.accumulator = print_job_timer.duration();
-	cur_data_.adapter = quick_change_adapter;
+	cur_data_.adapter = kit_combination_type;
 
   // if power loss, we have record the position to cur_data_.PositionData[]
   // NOTE that we save native position for XYZ
@@ -648,8 +648,8 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		return E_NO_RESRC;
 	}
 
-	if (pre_data_.adapter != quick_change_adapter) {
-		LOG_E("quick_change_adapter mismatch, save adapter: %d, cur adapter: %d\n", pre_data_.adapter, quick_change_adapter);
+	if (pre_data_.adapter != kit_combination_type) {
+		LOG_E("kit_combination_type mismatch, save adapter: %d, cur adapter: %d\n", pre_data_.adapter, kit_combination_type);
 		return E_INVALID_STATE;
 	}
 

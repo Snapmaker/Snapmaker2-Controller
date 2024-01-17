@@ -87,7 +87,7 @@ typedef struct __attribute__((aligned (4))) {
 	int16_t flow_percentage[EXTRUDERS];
 
 	bool too_changing;
-	bool adapter;
+	uint8_t adapter;
 	bool air_pump_switch;
 	bool half_power_mode;
 	bool weak_light_origin_mode;

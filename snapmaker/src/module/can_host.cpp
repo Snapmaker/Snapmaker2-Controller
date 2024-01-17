@@ -470,7 +470,7 @@ void CanHost::EventHandler(void *parameter) {
   linear_p->UpdateMachineSize();
 
   if (linear_p->machine_size() == MACHINE_SIZE_A150) {
-    quick_change_adapter = false;
+    kit_combination_type = DEFAULT_KIT_COMBINATION_TYPE;
   }
 
   for (int i = 0; static_modules[i] != NULL; i++) {
