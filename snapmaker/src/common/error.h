@@ -71,5 +71,6 @@ typedef uint8_t ErrCode;
 #define E_IS_HOMING         (PRIVATE_ERROR_BASE + 6)
 #define E_NO_HOMED          (PRIVATE_ERROR_BASE + 7)
 #define E_LASER_SECURITY    (PRIVATE_ERROR_BASE + 8)
+#define E_CNC_200W_SECURITY (PRIVATE_ERROR_BASE + 9)
 
 #endif // #ifndef ERROR_H_

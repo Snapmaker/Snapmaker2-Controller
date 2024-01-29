@@ -28,6 +28,7 @@
 #include "../module/toolhead_3dp.h"
 #include "../module/toolhead_cnc.h"
 #include "../module/toolhead_laser.h"
+#include "../module/toolhead_cnc_200w.h"
 
 // marlin headers
 #include "src/gcode/gcode.h"
@@ -135,6 +136,11 @@ void GcodeSuite::M1006() {
     SERIAL_ECHOLN("CNC");
     SERIAL_ECHOLNPAIR("Current Power: ", cnc.power());
     SERIAL_ECHOLNPAIR("RPM: ", cnc.rpm());
+    break;
+
+  case MODULE_TOOLHEAD_CNC_200W:
+    LOG_I("200W CNC\n");
+    cnc_200w.PrintInfo();
     break;
 
   default:

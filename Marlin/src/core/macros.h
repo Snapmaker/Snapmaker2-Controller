@@ -276,6 +276,7 @@
 #define MACHINE_TYPE_DUALEXTRUDER 5
 #define MACHINE_TYPE_LASER_20W    6
 #define MACHINE_TYPE_LASER_40W    7
+#define MACHINE_TYPE_CNC_200W     8
 
 //Machine size define
 #define MACHINE_SIZE_UNKNOW 0

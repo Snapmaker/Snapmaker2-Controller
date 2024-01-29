@@ -334,6 +334,7 @@ void set_min_planner_speed() {
       planner.min_planner_speed = print_min_planner_speed;
       break;
     case MODULE_TOOLHEAD_CNC:
+    case MODULE_TOOLHEAD_CNC_200W:
       planner.min_planner_speed = cnc_min_planner_speed;
       break;
     case MODULE_TOOLHEAD_LASER:

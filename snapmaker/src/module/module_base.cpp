@@ -35,6 +35,7 @@
 #include "toolhead_cnc.h"
 #include "toolhead_laser.h"
 #include "purifier.h"
+#include "toolhead_cnc_200w.h"
 
 // marlin headers
 #include "src/Marlin.h"
@@ -57,6 +58,7 @@ ModuleBase *static_modules[] = {
   &laser_10w,
   &laser_20w,
   &laser_40w,
+  &cnc_200w,
   NULL
 };
 
