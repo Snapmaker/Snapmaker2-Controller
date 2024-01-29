@@ -27,6 +27,7 @@
 #include "../module/toolhead_3dp.h"
 #include "../module/toolhead_cnc.h"
 #include "../module/toolhead_laser.h"
+#include "../module/toolhead_cnc_200w.h"
 
 #include "power_loss_recovery.h"
 #include "quick_stop.h"
@@ -384,6 +385,10 @@ int PowerLossRecovery::SaveEnv(void) {
 		cur_data_.cnc_power = cnc.power();
 		break;
 
+	case MODULE_TOOLHEAD_CNC_200W:
+		cur_data_.cnc_power = cnc_200w.power();
+		break;
+
 	case MODULE_TOOLHEAD_LASER:
 	case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
@@ -539,13 +544,19 @@ void PowerLossRecovery::ResumeCNC() {
 	// for CNC recover form power-loss, we need to raise Z firstly.
 	// because the drill bit maybe is in the workpiece
 	// and we need to keep CNC motor running when raising Z
-	cnc.SetOutput(pre_data_.cnc_power);
+	if (cnc_200w.IsOnline())
+		cnc_200w.Cnc200WSpeedSetting(pre_data_.cnc_power);
+	else
+		cnc.SetOutput(pre_data_.cnc_power);
 
 	relative_mode = true;
 	process_cmd_imd("G28 Z");
 	relative_mode = false;
 
-	cnc.SetOutput(0);
+	if (cnc_200w.IsOnline())
+		cnc_200w.Cnc200WSpeedSetting(0);
+	else
+		cnc.SetOutput(0);
 
 	// homing and restore workspace
 	RestoreWorkspace();
@@ -555,7 +566,10 @@ void PowerLossRecovery::ResumeCNC() {
 	planner.synchronize();
 
 	// enable CNC motor
-	cnc.SetOutput(pre_data_.cnc_power);
+	if (cnc_200w.IsOnline())
+		cnc_200w.Cnc200WSpeedSetting(pre_data_.cnc_power);
+	else
+		cnc.SetOutput(pre_data_.cnc_power);
 	LOG_I("Restore CNC power: %d\n", pre_data_.cnc_power);
 
 	// move to target Z
@@ -678,6 +692,11 @@ ErrCode PowerLossRecovery::ResumeWork() {
 		Resume3DP();
 		break;
 
+	case MODULE_TOOLHEAD_CNC_200W:
+		if (cnc_200w.cnc_error() & 0xFE) {
+			LOG_E("trigger RESTORE: failed, 200w cnc err_sta: 0x%x\n", cnc_200w.cnc_error());
+			return E_CNC_200W_SECURITY;
+		}
 	case MODULE_TOOLHEAD_CNC:
 		if (enclosure.DoorOpened()) {
 			LOG_E("trigger RESTORE: failed, door is open\n");

@@ -27,6 +27,7 @@
 #include "../module/toolhead_cnc.h"
 #include "../module/toolhead_laser.h"
 #include "../module/toolhead_dualextruder.h"
+#include "../module/toolhead_cnc_200w.h"
 
 #include "../snapmaker.h"
 
@@ -289,7 +290,7 @@ void inline SystemService::RestoreXYZ(void) {
   planner.synchronize();
 
   // restore Z
-  if (MODULE_TOOLHEAD_CNC == ModuleBase::toolhead()) {
+  if (MODULE_TOOLHEAD_CNC == ModuleBase::toolhead() || MODULE_TOOLHEAD_CNC_200W == ModuleBase::toolhead()) {
     move_to_limited_z(pl_recovery.cur_data_.PositionData[Z_AXIS] + 15, 30);
     move_to_limited_z(pl_recovery.cur_data_.PositionData[Z_AXIS], 10);
   }
@@ -320,7 +321,10 @@ void inline SystemService::resume_3dp(void) {
 void inline SystemService::resume_cnc(void) {
   // enable CNC motor
   LOG_I("restore CNC power: %d\n", pl_recovery.cur_data_.cnc_power);
-  cnc.SetOutput(pl_recovery.cur_data_.cnc_power);
+  if (cnc_200w.IsOnline())
+    cnc_200w.Cnc200WSpeedSetting(pl_recovery.cur_data_.cnc_power);
+  else
+    cnc.SetOutput(pl_recovery.cur_data_.cnc_power);
 }
 
 void inline SystemService::resume_laser(void) {
@@ -397,6 +401,7 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
     break;
 
   case MODULE_TOOLHEAD_CNC:
+  case MODULE_TOOLHEAD_CNC_200W:
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
@@ -405,6 +410,12 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
       LOG_E("security_status_: 0x%x! Now cannot resume working!\n", laser->security_status_);
       return E_LASER_SECURITY;
     }
+
+    if (cnc_200w.cnc_error() & 0xFE) {
+			LOG_E("200w cnc err_sta: 0x%x! Now cannot resume working!\n", cnc_200w.cnc_error());
+			return E_CNC_200W_SECURITY;
+		}
+
     if (enclosure.DoorOpened()) {
       LOG_E("Door is opened!\n");
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
@@ -435,6 +446,7 @@ ErrCode SystemService::ResumeProcess() {
     break;
 
   case MODULE_TOOLHEAD_CNC:
+  case MODULE_TOOLHEAD_CNC_200W:
     resume_cnc();
     break;
 
@@ -506,6 +518,7 @@ ErrCode SystemService::ResumeOver() {
     break;
 
   case MODULE_TOOLHEAD_CNC:
+  case MODULE_TOOLHEAD_CNC_200W:
   case MODULE_TOOLHEAD_LASER:
   case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
@@ -708,11 +721,17 @@ ErrCode SystemService::StartWork(TriggerSource s) {
     }
 
   case MODULE_TOOLHEAD_CNC:
+  case MODULE_TOOLHEAD_CNC_200W:
     if (enclosure.DoorOpened()) {
       fault_flag_ |= FAULT_FLAG_DOOR_OPENED;
       LOG_E("Door is opened!\n");
       return E_DOOR_OPENED;
     }
+
+    if (cnc_200w.cnc_error() & 0xFE) {
+			LOG_E("200w cnc err_sta: 0x%x! Now cannot start working!\n", cnc_200w.cnc_error());
+			return E_CNC_200W_SECURITY;
+		}
 
     if (is_homing()) {
       LOG_E("Is homing!\n");
@@ -725,6 +744,10 @@ ErrCode SystemService::StartWork(TriggerSource s) {
     // set to defualt power, but not turn on Motor
     if (MODULE_TOOLHEAD_CNC == ModuleBase::toolhead()) {
       cnc.power(100);
+    }
+
+    if (MODULE_TOOLHEAD_CNC_200W == ModuleBase::toolhead()) {
+      cnc_200w.power(100);
     }
     break;
 
@@ -1803,6 +1826,8 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
 
     // RPM of CNC
     tmp_u32 = cnc.rpm();
+  } else if (ModuleBase::toolhead() == MACHINE_TYPE_CNC_200W) {
+    tmp_u32 = cnc_200w.rpm();
   } else {
     // 3DPrint
     tmp_u32 = 0;
@@ -2232,7 +2257,7 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     break;
 
   case RENV_TYPE_CNC_POWER:
-    if (MODULE_TOOLHEAD_CNC != ModuleBase::toolhead()) {
+    if (MODULE_TOOLHEAD_CNC != ModuleBase::toolhead() || MODULE_TOOLHEAD_CNC_200W != ModuleBase::toolhead() ) {
       ret = E_INVALID_STATE;
       LOG_E("Not CNC toolhead!\n");
       break;
@@ -2244,9 +2269,14 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     }
     else {
       cnc.power(param);
+      cnc_200w.power(param);
       // change current output when it was turned on
       if (cnc.rpm() > 0)
         cnc.TurnOn();
+
+      if (cnc_200w.cnc_state() == CNC_OUTPUT_ON)
+        cnc_200w.Cnc200WSpeedSetting(cnc_200w.power());
+
       LOG_I("new CNC power: %.2f\n", param);
     }
     break;

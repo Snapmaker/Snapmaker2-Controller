@@ -27,6 +27,7 @@
 #include "../module/toolhead_3dp.h"
 #include "../module/toolhead_laser.h"
 #include "../module/enclosure.h"
+#include "../module/toolhead_cnc_200w.h"
 
 #include "src/module/stepper.h"
 #include "src/module/temperature.h"
@@ -286,20 +287,31 @@ void QuickStopService::Park() {
     break;
 
   case MODULE_TOOLHEAD_CNC:
+  case MODULE_TOOLHEAD_CNC_200W:
     if (source_ != QS_SOURCE_POWER_LOSS) {
       if (current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF < Z_MAX_POS) {
         move_to_limited_z(current_position[Z_AXIS] + CNC_SAFE_HIGH_DIFF, 30);
         while (planner.has_blocks_queued()) {
           idle();
         }
-        cnc.SetOutput(0);
+
+        if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC)
+          cnc.SetOutput(0);
+
+        if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC_200W)
+          cnc_200w.Cnc200WSpeedSetting(0);
       }
 
       move_to_limited_z(Z_MAX_POS, 30);
       while (planner.has_blocks_queued()) {
           idle();
       }
-      cnc.SetOutput(0);
+
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC)
+        cnc.SetOutput(0);
+
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC_200W)
+        cnc_200w.Cnc200WSpeedSetting(0);
     }
     break;
 
@@ -356,6 +368,9 @@ void QuickStopService::EmergencyStop() {
   switch (ModuleBase::toolhead()) {
     case MACHINE_TYPE_CNC:
       cnc.TurnOff();
+      break;
+    case MACHINE_TYPE_CNC_200W:
+      cnc_200w.Cnc200WSpeedSetting(0, CNC_PWM_SET_SPEED, false);
       break;
     case MACHINE_TYPE_DUALEXTRUDER:
       printer1->SetFan(1, 0);
