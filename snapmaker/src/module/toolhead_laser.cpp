@@ -153,6 +153,16 @@ static void CallbackAckReportFireSensorRawData(CanStdDataFrame_t &cmd) {
   LOG_I("frd: %d\n", laser->fire_sensor_rawdata_);
 }
 
+static void CallbackAckGetWeakLightPower(CanStdDataFrame_t &cmd) {
+  laser->weak_light_power_ = *(float *)(&cmd.data[0]);
+  laser->weak_light_power_update_ = true;
+}
+
+static void CallbackAckSetWeakLightPower(CanStdDataFrame_t &cmd) {
+  laser->weak_light_power_ = *(float *)(&cmd.data[1]);
+}
+
+
 
 ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   ErrCode ret;
@@ -214,6 +224,12 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
     }
     else if (function.id == MODULE_FUNC_REPORT_FIRE_SENSOR_RAWDATA) {
       message_id[i] = canhost.RegisterFunction(function, CallbackAckReportFireSensorRawData);
+    }
+    else if (function.id == MODULE_FUNC_GET_LASER_WEAK_POWER) {
+      message_id[i] = canhost.RegisterFunction(function, CallbackAckGetWeakLightPower);
+    }
+    else if (function.id == MODULE_FUNC_SET_LASER_WEAK_POWER) {
+      message_id[i] = canhost.RegisterFunction(function, CallbackAckSetWeakLightPower);
     }
     else {
       message_id[i] = canhost.RegisterFunction(function, NULL);
@@ -300,6 +316,7 @@ void ToolHeadLaser::PrintInfo(void) {
 
   LOG_I("power limit pwm %d\n", power_limit_pwm_);
   LOG_I("power_pwm_ %d\n", power_pwm_);
+  LOG_I("weak_light_power_ %f\n", weak_light_power_);
   LOG_I("power_val_ %f\n", power_val_);
   LOG_I("security_status_ %d\n", security_status_);
   LOG_I("laser_temperature_ %d\n", laser_temperature_);
@@ -529,6 +546,54 @@ ErrCode ToolHeadLaser::GetCrossLightCAN(bool &sw) {
     LOG_E("Get Cross Light time out\n");
     return E_TIMEOUT;
   }
+}
+
+
+ErrCode ToolHeadLaser::GetWeakLightPowerCAN(float &power) {
+  CanStdFuncCmd_t cmd;
+  cmd.id        = MODULE_FUNC_GET_LASER_WEAK_POWER;
+  cmd.length    = 0;
+  weak_light_power_update_ = false;
+  ErrCode ret = canhost.SendStdCmd(cmd);
+  if (E_SUCCESS != ret) {
+    LOG_E("Get Weak Light Power msg failed, ret: %d\n", ret);
+    return ret;
+  }
+
+  int32_t max_try = 500;
+  while(!weak_light_power_update_ && max_try--) vTaskDelay(pdMS_TO_TICKS(1));
+  if (max_try >= 0) {
+    power = weak_light_power_;
+    LOG_I("Get Weak Light Power: %f\n", weak_light_power_);
+    return E_SUCCESS;
+  }
+  else {
+    LOG_E("Get Weak Light Power E_TIMEOUT\n");
+    return E_TIMEOUT;
+  }
+}
+
+ErrCode ToolHeadLaser::SetWeakLightPowerCAN(float power) {
+  CanStdFuncCmd_t cmd;
+  uint8_t buffer[8];
+
+  LOG_I("Set Weak Light Power: %f\n", power);
+  if (power > LASER_WEAK_POWER_MAX_LIMIT) {
+    power = LASER_WEAK_POWER_MAX_LIMIT;
+    LOG_I("Weak Light Power limited to %f\n", LASER_WEAK_POWER_MAX_LIMIT);
+  }
+
+  if (power < LASER_WEAK_POWER_MIN_LIMIT) {
+    power = LASER_WEAK_POWER_MIN_LIMIT;
+    LOG_I("Weak Light Power limited to %f\n", LASER_WEAK_POWER_MIN_LIMIT);
+  }
+
+  *(float *)(&buffer[0]) = power;
+  cmd.id        = MODULE_FUNC_SET_LASER_WEAK_POWER;
+  cmd.data      = buffer;
+  cmd.length    = 4;
+
+  return canhost.SendStdCmd(cmd);
 }
 
 ErrCode ToolHeadLaser::SetFireSensorSensitivityCAN(uint16 sen) {
@@ -1471,6 +1536,43 @@ ErrCode ToolHeadLaser::GetCrosslightOffset(SSTP_Event_t &event) {
   event_tmp.length = 9;
   event_tmp.data = buff;
   return hmi.Send(event_tmp);
+}
+
+ErrCode ToolHeadLaser::GetWeakLightPower(SSTP_Event_t &event) {
+  float power;
+  uint8_t buff[20];
+  uint16_t len = 0;
+  LOG_I("HMI get laser weak power\n");
+  SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_GET_WEAK_POWER};
+  buff[len++] = GetWeakLightPowerCAN(power);
+  power *= 1000;
+  buff[len++] = (((int32_t)power) >> 24) & 0xFF;
+  buff[len++] = (((int32_t)power) >> 16) & 0xFF;
+  buff[len++] = (((int32_t)power) >> 8) & 0xFF;
+  buff[len++] = (((int32_t)power) >> 0) & 0xFF;
+
+  event_tmp.length = len;
+  event_tmp.data = buff;
+  return hmi.Send(event_tmp);
+}
+
+ErrCode ToolHeadLaser::SetWeakLightPower(SSTP_Event_t &event) {
+  uint8_t buff[1];
+  LOG_I("HMI set laser weak power\n");
+  if (event.length < 4) {
+    LOG_E("Hmi SetCrosslightOffset parameter error\n");
+    buff[0] = E_PARAM;
+  }
+  else {
+    int32_t power = (event.data[0] << 24) | (event.data[1] << 16) | (event.data[2] << 8) | (event.data[3] << 0);
+    float tmp_power = (float)power / 1000.0;
+    buff[0] = SetWeakLightPowerCAN(tmp_power);
+  }
+
+  SSTP_Event_t event_hmi = {EID_SETTING_ACK, SETTINGS_OPC_SET_WEAK_POWER};
+  event_hmi.length = 1;
+  event_hmi.data = buff;
+  return hmi.Send(event_hmi);
 }
 
 ErrCode ToolHeadLaser::SetWeakLightOriginWork(SSTP_Event_t &event) {

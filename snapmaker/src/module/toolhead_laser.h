@@ -34,6 +34,11 @@
 #define TOOLHEAD_LASER_CAMERA_FOCUS_MAX             (65000)  // mm*1000
 #define INVALID_OFFSET                              (-10000)
 
+#define LASER_1_6W_DEFAULT_WEAK_POWER      (0.5)
+#define LASER_10W_DEFAULT_WEAK_POWER       (1.0)
+#define LASER_20W_40W_DEFAULT_WEAK_POWER   (0.2)
+#define LASER_WEAK_POWER_MAX_LIMIT         (3.0)
+#define LASER_WEAK_POWER_MIN_LIMIT         (0.2)
 
 #define FIRE_DETECT_TRIGGER_LIMIT_ADC_VALUE     (4095)
 #define FIRE_DETECT_TRIGGER_DISABLE_ADC_VALUE   (0xFFFF)
@@ -131,6 +136,8 @@ class ToolHeadLaser: public ModuleBase {
       air_pump_switch_ = false;
       weak_light_origin_mode_ = false;
       xy_offset_application_ = XY_OFFSET_APPLICATION_FALG;
+      weak_light_power_update_ = false;
+      weak_light_power_ = LASER_10W_DEFAULT_WEAK_POWER;
     }
 
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
@@ -162,6 +169,8 @@ class ToolHeadLaser: public ModuleBase {
 
     ErrCode SetCrossLightCAN(bool sw);
     ErrCode GetCrossLightCAN(bool &sw);
+    ErrCode GetWeakLightPowerCAN(float &power);
+    ErrCode SetWeakLightPowerCAN(float power);
     ErrCode SetFireSensorSensitivityCAN(uint16 sen);
     ErrCode GetFireSensorSensitivityCAN(uint16 &sen);
     ErrCode SetFireSensorReportTime(uint16 itv);
@@ -199,6 +208,8 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode SetCrosslightOffset(SSTP_Event_t &event);
     ErrCode GetCrosslightOffset(SSTP_Event_t &event);
     ErrCode SetWeakLightOriginWork(SSTP_Event_t &event);
+    ErrCode GetWeakLightPower(SSTP_Event_t &event);
+    ErrCode SetWeakLightPower(SSTP_Event_t &event);
 
     void TellSecurityStatus();
     uint8_t LaserGetPwmPinState();
@@ -273,6 +284,8 @@ class ToolHeadLaser: public ModuleBase {
     bool air_pump_switch_;
     bool weak_light_origin_mode_;
     uint8_t xy_offset_application_;
+    bool weak_light_power_update_;
+    float weak_light_power_;
 
   // Laser Inline Power functions
   public:
