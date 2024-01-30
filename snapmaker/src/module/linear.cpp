@@ -658,7 +658,9 @@ void Linear::UpdateMachinePosition(void) {
       Y_MAX_POS += INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_Y;
       Z_MAX_POS += INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_Z;
     }
+  }
 
+  if (linear_p->machine_size() != MACHINE_SIZE_UNKNOWN) {
     if (kit_combination_type & REINFORCEMENT_KIT_MSK) {
       X_MAX_POS += REINFORCEMENT_KIT_LENGTH_CHANGE_X;
       Y_MAX_POS += REINFORCEMENT_KIT_LENGTH_CHANGE_Y;
