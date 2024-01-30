@@ -95,7 +95,7 @@ void GcodeSuite::M2002() {
   if (seen_t) {
     uint8_t test_cmd_code = (uint8_t)parser.byteval('T', 0);
 
-    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W && test_cmd_code > 2) {
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W && test_cmd_code > 2 && test_cmd_code != 12 && test_cmd_code != 13) {
       LOG_W("module does not support current gcode\n");
       return;
     }
@@ -195,6 +195,20 @@ void GcodeSuite::M2002() {
       {
         SSTP_Event_t e;
         laser->GetCrosslightOffset(e);
+        break;
+      }
+
+      case 12:
+      {
+        float weak_power;
+        laser->GetWeakLightPowerCAN(weak_power);
+        break;
+      }
+
+      case 13:
+      {
+        float tmp_power = parser.floatval('P', 0.2);
+        laser->SetWeakLightPowerCAN(tmp_power);
         break;
       }
 

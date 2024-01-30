@@ -786,6 +786,14 @@ static ErrCode HmiSetWeakLightOriginWork(SSTP_Event_t &event) {
   return laser->SetWeakLightOriginWork(event);
 }
 
+static ErrCode HmiGetWeakLightPower(SSTP_Event_t &event) {
+  return laser->GetWeakLightPower(event);
+}
+
+static ErrCode HmiSetWeakLightPower(SSTP_Event_t &event) {
+  return laser->SetWeakLightPower(event);
+}
+
 static ErrCode HmiRequestGetMachineKitInfo(SSTP_Event_t &event) {
   uint8_t buf_info[10];
   uint8_t kit_combination_type_tmp = 0;
@@ -916,6 +924,8 @@ EventCallback_t settings_event_cb[SETTINGS_OPC_MAX] = {
   /* [SETTINGS_OPC_SET_CROSSLIGHT_OFFSET]                   =  */{EVENT_ATTR_DEFAULT,    HmiSetCrosslightOffset},
   /* [SETTINGS_OPC_GET_CROSSLIGHT_OFFSET]                   =  */{EVENT_ATTR_DEFAULT,    HmiGetCrosslightOffset},
   /* [SETTINGS_OPC_SET_WEAK_LIGHT_ORIGIN_MODE]              =  */{EVENT_ATTR_DEFAULT,    HmiSetWeakLightOriginWork},
+  /* [SETTINGS_OPC_GET_WEAK_POWER]                          =  */{EVENT_ATTR_DEFAULT,    HmiGetWeakLightPower},
+  /* [SETTINGS_OPC_SET_WEAK_POWER]                          =  */{EVENT_ATTR_DEFAULT,    HmiSetWeakLightPower},
 };
 
 
