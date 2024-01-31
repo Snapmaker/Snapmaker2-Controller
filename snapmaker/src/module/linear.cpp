@@ -658,6 +658,11 @@ void Linear::UpdateMachinePosition(void) {
       Y_MAX_POS += INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_Y;
       Z_MAX_POS += INSTALL_QUICK_CHANGE_ADAPTER_LENGTH_CHANGE_Z;
     }
+
+    if ((kit_combination_type & REINFORCEMENT_KIT_MSK) && (kit_combination_type & REINFORCEMENT_KIT_MSK)) {
+      Y_DEF_SIZE -= 12;
+      MAGNET_Y_SPAN -= 12;
+    }
   }
 
   if (linear_p->machine_size() != MACHINE_SIZE_UNKNOWN) {
