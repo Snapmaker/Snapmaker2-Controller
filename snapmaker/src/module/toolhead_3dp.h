@@ -160,6 +160,7 @@ class ToolHead3DP: public ModuleBase {
     virtual void SelectProbeSensor(probe_sensor_t sensor) { return; }
     virtual void SetZCompensation(float comp, uint32_t e = 0) { return; }
     void GetZCompensation(float &left_z_compensation, float &right_z_compensation) { return; }
+    virtual void GetDualExtruderZCompensation(float &left_z_compensation, float &right_z_compensation) { return; }
     virtual ErrCode ModuleCtrlProximitySwitchPower(uint8_t state) { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlProbeStateSync() { return E_SUCCESS; }
     virtual ErrCode ModuleCtrlSetPid(float p, float i, float d) { return E_SUCCESS; }

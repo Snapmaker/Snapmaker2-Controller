@@ -76,6 +76,7 @@ class ToolHeadDualExtruder: public ToolHead3DP {
     void SelectProbeSensor(probe_sensor_t sensor);
     void SetZCompensation(float comp, uint32_t e = 0);
     void GetZCompensation(float &left_z_compensation, float &right_z_compensation);
+    void GetDualExtruderZCompensation(float &left_z_compensation, float &right_z_compensation);
     bool GetToolChangePrePosition(float *position, uint8_t size);
 
     // for hmi interface

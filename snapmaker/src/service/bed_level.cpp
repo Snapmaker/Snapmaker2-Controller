@@ -798,6 +798,7 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
   {
     float left_z_compensation = 1.0, right_z_compensation = 1.0;
     printer1->GetZCompensation(left_z_compensation, right_z_compensation);
+    LOG_I("compensation:[%.3f, %.3f]\n", left_z_compensation, right_z_compensation);
     float left_extruder_touch_bed_position  = left_extruder_auto_probe_position_ + left_z_compensation;
     float z_offset = z_values_tmp[x_index][y_index] - left_extruder_touch_bed_position;
     for (uint32_t i = 0; i < GRID_MAX_POINTS_X; i++) {
@@ -1006,7 +1007,10 @@ ErrCode BedLevelService::DualExtruderLeftExtruderAutoBedDetect() {
   set_bed_leveling_enabled(false);
 
   float x, y;
-  get_center_coordinates_of_bed(x, y);
+  // get_center_coordinates_of_bed(x, y);
+  get_bed_levelling_position_by_index(GRID_MAX_POINTS_X/2, GRID_MAX_POINTS_Y/2, x, y);
+  LOG_I("x_index: %d, y_index:%d, x_postion: %f,  y_postion: %f\n", GRID_MAX_POINTS_X/2, GRID_MAX_POINTS_Y/2, x, y);
+
   printer1->SelectProbeSensor(PROBE_SENSOR_LEFT_OPTOCOUPLER);
   endstops.enable_z_probe(true);
   do_blocking_move_to_xy(x, y, XY_SPEED_FOR_DUAL_EXTRUDER);
@@ -1041,7 +1045,10 @@ ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
   endstops.enable_z_probe(true);
 
   float x, y;
-  get_center_coordinates_of_bed(x, y);
+  // get_center_coordinates_of_bed(x, y);
+  get_bed_levelling_position_by_index(GRID_MAX_POINTS_X/2, GRID_MAX_POINTS_Y/2, x, y);
+  LOG_I("x_index: %d, y_index:%d, x_postion: %f,  y_postion: %f\n", GRID_MAX_POINTS_X/2, GRID_MAX_POINTS_Y/2, x, y);
+
   do_blocking_move_to_xy(x, y, XY_SPEED_FOR_DUAL_EXTRUDER);
   if (current_position[Z_AXIS] > INIT_Z_FOR_DUAL_EXTRUDER) {
     do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
@@ -1064,7 +1071,10 @@ ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
 
   float left_extruder_touch_bed_position  = left_extruder_auto_probe_position_ + left_z_compensation;
   float right_extruder_touch_bed_position = right_extruder_auto_probe_position_ + right_z_compensation;
-  hotend_offset[Z_AXIS][1] = left_extruder_touch_bed_position - right_extruder_touch_bed_position;
+  // hotend_offset[Z_AXIS][1] = left_extruder_touch_bed_position - right_extruder_touch_bed_position;
+  printer1->GetDualExtruderZCompensation(left_z_compensation, right_z_compensation);
+  hotend_offset[Z_AXIS][1] = (left_extruder_auto_probe_position_ + left_z_compensation) - (right_extruder_auto_probe_position_ + right_z_compensation);
+  printer1->ModuleCtrlSaveHotendOffset(hotend_offset[Z_AXIS][1], Z_AXIS);
 
   LOG_I("compensation: [%.3f, %.3f], bed pos:[%.3f, %.3f]\n", left_z_compensation, right_z_compensation,
     left_extruder_touch_bed_position, right_extruder_touch_bed_position);
@@ -1143,7 +1153,9 @@ ErrCode BedLevelService::DualExtruderLeftExtruderManualBedDetect() {
   set_bed_leveling_enabled(false);
 
   float x, y;
-  get_center_coordinates_of_bed(x, y);
+  // get_center_coordinates_of_bed(x, y);
+  get_bed_levelling_position_by_index(GRID_MAX_POINTS_X/2, GRID_MAX_POINTS_Y/2, x, y);
+  LOG_I("x_index: %d, y_index:%d, x_postion: %f,  y_postion: %f\n", GRID_MAX_POINTS_X/2, GRID_MAX_POINTS_Y/2, x, y);
   do_blocking_move_to_xy(x, y, XY_SPEED_FOR_DUAL_EXTRUDER);
   do_blocking_move_to_z(INIT_Z_FOR_DUAL_EXTRUDER, Z_SPEED_FOR_DUAL_EXTRUDER);
   planner.synchronize();
@@ -1164,6 +1176,8 @@ ErrCode BedLevelService::FinishDualExtruderManualBedDetect() {
   right_extruder_manual_probe_position_ = current_position[Z_AXIS] - CALIBRATION_PAPER_THICKNESS;
 
   hotend_offset[Z_AXIS][1] = left_extruder_manual_probe_position_ - right_extruder_manual_probe_position_;
+  printer1->ModuleCtrlSaveHotendOffset(hotend_offset[Z_AXIS][1], Z_AXIS);
+  LOG_I("hotend z offset: %.3f\n", hotend_offset[Z_AXIS][1]);
   float z_offset = z_values[GRID_MAX_POINTS_X/2][GRID_MAX_POINTS_Y/2] - left_extruder_manual_probe_position_;
   for (uint32_t i = 0; i < GRID_MAX_POINTS_X; i++) {
     for (uint32_t j = 0; j < GRID_MAX_POINTS_Y; j++) {
