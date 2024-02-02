@@ -442,6 +442,19 @@ float bilinear_z_offset(const float raw[XYZ]) {
     NOMORE(y, Y_MAX_POS);
     NOLESS(y, Y_MIN_POS);
   }
+
+  void get_bed_levelling_position_by_index(uint8_t x_index, uint8_t y_index, float &x, float &y) {
+    NOMORE(x_index, GRID_MAX_POINTS_X);
+    NOMORE(y_index, GRID_MAX_POINTS_Y);
+
+    x = _GET_MESH_X(x_index);
+    y = _GET_MESH_Y(y_index);
+
+    NOMORE(x, X_MAX_POS);
+    NOLESS(x, X_MIN_POS);
+    NOMORE(y, Y_MAX_POS);
+    NOLESS(y, Y_MIN_POS);
+  }
 #endif
 
 /**

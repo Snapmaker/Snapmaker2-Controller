@@ -55,3 +55,4 @@ uint8_t auto_probing(bool reply_screen, bool fast_leveling);
 void compensate_offset();
 void compensate_offset(float offset);
 void get_center_coordinates_of_bed(float &x, float &y);
+void get_bed_levelling_position_by_index(uint8_t x_index, uint8_t y_index, float &x, float &y);

@@ -802,6 +802,11 @@ void ToolHeadDualExtruder::GetZCompensation(float &left_z_compensation, float &r
   right_z_compensation = z_compensation_[1];
 }
 
+void ToolHeadDualExtruder::GetDualExtruderZCompensation(float &left_z_compensation, float &right_z_compensation) {
+  GetZCompensation(left_z_compensation, right_z_compensation);
+}
+
+
 ErrCode ToolHeadDualExtruder::ToolChange(uint8_t new_extruder, bool use_compensation/* = true */) {
   volatile int32_t xdiff_scaled, ydiff_scaled, zdiff_scaled;
   volatile float xdiff, ydiff, zdiff;
