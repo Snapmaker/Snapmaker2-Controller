@@ -235,6 +235,10 @@ class ToolHeadLaser: public ModuleBase {
 
     ToolHeadLaserState state() { return state_; }
 
+    bool is_there_fire_sensor(void);
+    bool is_there_camera(void);
+    bool is_there_cross_light(void);
+
   private:
     void    CheckFan(uint16_t pwm);
     ErrCode LoadFocus();
