@@ -49,6 +49,7 @@ ToolHeadLaser laser_1_6_w(MODULE_DEVICE_ID_1_6_W_LASER);
 ToolHeadLaser laser_10w(MODULE_DEVICE_ID_10W_LASER);
 ToolHeadLaser laser_20w(MODULE_DEVICE_ID_20W_LASER);
 ToolHeadLaser laser_40w(MODULE_DEVICE_ID_40W_LASER);
+ToolHeadLaser laser_red_2w(MODULE_DEVICE_ID_LASER_RED_2W_2023);
 ToolHeadLaser *laser = &laser_1_6_w;
 
 extern void Tim1SetCCR4(uint16_t pwm);
@@ -116,7 +117,7 @@ static void CallbackAckReportSecurity(CanStdDataFrame_t &cmd) {
   laser->laser_temperature_ = cmd.data[5];
   laser->imu_temperature_ = (int8_t)cmd.data[6];
 
-  if ((laser->device_id() == MODULE_DEVICE_ID_40W_LASER || laser->device_id() == MODULE_DEVICE_ID_20W_LASER))
+  if (laser->is_there_fire_sensor())
     laser->fire_sensor_trigger_ = cmd.data[7];
 
   laser->need_to_tell_hmi_ = true;
@@ -313,7 +314,7 @@ bool ToolHeadLaser::SetWeakLightOriginMode(bool mode) {
 }
 
 void ToolHeadLaser::PrintInfo(void) {
-  if (laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) {
+  if (is_there_cross_light()) {
     float x_offset, y_offset;
     GetCrossLightOffsetCAN(x_offset, y_offset);
   }
@@ -861,7 +862,7 @@ ErrCode ToolHeadLaser::DoAutoFocusing(SSTP_Event_t &event) {
   float line_len_short = 5;
   float line_len_long = 10;
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Laser 20W or 40W do not support auto focusing\n");
     goto out;
   }
@@ -961,7 +962,7 @@ ErrCode ToolHeadLaser::ReadBluetoothInfo(LaserCameraCommand cmd, uint8_t *out, u
 
   ErrCode  ret = E_SUCCESS;
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Read BT info failed, Laser 20W or 40W do not have any bluetooth\n");
     return E_FAILURE;
   }
@@ -1015,7 +1016,7 @@ ErrCode ToolHeadLaser::SetBluetoothInfo(LaserCameraCommand cmd, uint8_t *info, u
   uint8_t  buffer[72];
   ErrCode  ret;
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Set BT info failed, Laser 20W or 40W do not have any blutooth\n");
     return E_INVALID_CMD;
   }
@@ -1059,7 +1060,7 @@ out:
 ErrCode ToolHeadLaser::SetCameraBtName(SSTP_Event_t &event) {
   ErrCode err = E_FAILURE;
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Set BT Name failed, Laser 20W or 40W do not have any blutooth\n");
     err = E_INVALID_CMD;
     event.data   = &err;
@@ -1082,7 +1083,7 @@ ErrCode ToolHeadLaser::GetCameraBtName(SSTP_Event_t &event) {
   uint8_t buffer[40] = {0};
   ErrCode ret;
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Req BT Name failed, Laser 20W or 40W do not have any blutooth\n");
     ErrCode err = E_INVALID_CMD;
     event.data   = &err;
@@ -1118,7 +1119,7 @@ ErrCode ToolHeadLaser::GetCameraBtMAC(SSTP_Event_t &event) {
   uint8_t buffer[16] = {0};
   ErrCode ret;
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Get BT MAC failed, Laser 20W or 40W do not have any blutooth\n");
     ErrCode err = E_INVALID_CMD;
     event.data   = &err;
@@ -1159,7 +1160,7 @@ ErrCode ToolHeadLaser::ReadBluetoothVer() {
   uint16_t size;
   ErrCode ret = E_SUCCESS;
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Read BT version failed, Laser 20W or 40W do not have any blutooth\n");
     return E_FAILURE;
   }
@@ -1183,7 +1184,7 @@ void ToolHeadLaser::SetCameraLight(uint8_t state) {
   SSTP_Event_t  event = {M_SET_CAMERA_LIGHT, 0, 0, NULL};
   uint8_t buff[1];
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Set Laser Camera light failed, Laser 20W or 40W do not have blutooth\n");
     return;
   }
@@ -1199,7 +1200,7 @@ ErrCode ToolHeadLaser::SetAutoFocusLight(SSTP_Event_t &event) {
   CanStdFuncCmd_t cmd;
   uint8_t can_buffer[1];
 
-  if (MODULE_DEVICE_ID_20W_LASER == device_id() || MODULE_DEVICE_ID_40W_LASER == device_id()) {
+  if (!is_there_camera()) {
     LOG_E("Laser 20W or 40W do not have any focuslight\n");
     uint8_t err = E_INVALID_CMD;
     event.data   = &err;
@@ -1716,3 +1717,81 @@ void ToolHeadLaser::TurnOn_ISR(uint16_t power_pwm, bool is_sync_power, float pow
 
   TimSetPwm(power_pwm);
 }
+
+/**
+ * @brief Check for the presence of flame sensor
+ * 
+ * @return true
+ * @return false
+ */
+bool ToolHeadLaser::is_there_fire_sensor(void) {
+  bool ret = false;
+
+  switch (laser->device_id_) {
+    case MODULE_DEVICE_ID_20W_LASER:
+    case MODULE_DEVICE_ID_40W_LASER: {
+      ret = true;
+    }
+    break;
+    
+    default: {
+      ret = false;
+    }
+    break;
+  };
+
+  return ret;
+}
+
+/**
+ * @brief check for the presence of camera
+ * 
+ * @return true
+ * @return false
+ */
+bool ToolHeadLaser::is_there_camera(void) {
+  bool ret = false;
+
+  switch (laser->device_id_) {
+    case MODULE_DEVICE_ID_1_6_W_LASER:
+    case MODULE_DEVICE_ID_10W_LASER: {
+      ret = true;
+    }
+    break;
+    
+    default: {
+      ret = false;
+    }
+    break;
+  };
+
+  return ret;
+}
+
+/**
+ * @brief check for the presence of cross-light
+ * 
+ * @return true
+ * @return false
+ */
+bool ToolHeadLaser::is_there_cross_light(void) {
+  bool ret = false;
+
+  switch (laser->device_id_) {
+    case MODULE_DEVICE_ID_20W_LASER:
+    case MODULE_DEVICE_ID_40W_LASER:
+    case MODULE_DEVICE_ID_LASER_RED_2W_2023:{
+      ret = true;
+    }
+    break;
+    
+    default: {
+      ret = false;
+    }
+    break;
+  };
+
+  return ret;
+}
+
+
