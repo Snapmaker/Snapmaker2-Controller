@@ -163,7 +163,8 @@ ErrCode SystemService::PreProcessStop() {
   if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) ||
       (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
       (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
-      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_RED_2W)
   ) {
     laser->TurnOff();
     laser->SetAirPumpSwitch(false, false);
@@ -335,7 +336,8 @@ void inline SystemService::resume_laser(void) {
   //         planner.laser_inline.status.isEnabled ? "ON" : "OFF",planner.laser_inline.status.trapezoid_power,
   //         planner.laser_inline.status.is_sync_power,planner.laser_inline.status.power_is_map, pl_recovery.cur_data_.laser_percent);
   // laser->SetPower(pl_recovery.cur_data_.laser_percent, pl_recovery.cur_data_.laser_info.status.power_is_map);
-  if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+  if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead() ||
+      MODULE_TOOLHEAD_LASER_RED_2W == ModuleBase::toolhead()) {
     laser->SetAirPumpSwitch(pl_recovery.cur_data_.air_pump_switch);
     laser->SetCrossLightCAN(false);
     float ox, oy;
@@ -406,6 +408,7 @@ ErrCode SystemService::ResumeTrigger(TriggerSource source) {
   case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
   case MODULE_TOOLHEAD_LASER_40W:
+  case MODULE_TOOLHEAD_LASER_RED_2W:
     if (laser->IsOnline() && laser->security_status_) {
       LOG_E("security_status_: 0x%x! Now cannot resume working!\n", laser->security_status_);
       return E_LASER_SECURITY;
@@ -454,6 +457,7 @@ ErrCode SystemService::ResumeProcess() {
   case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
   case MODULE_TOOLHEAD_LASER_40W:
+  case MODULE_TOOLHEAD_LASER_RED_2W:
     resume_laser();
     break;
 
@@ -523,6 +527,7 @@ ErrCode SystemService::ResumeOver() {
   case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
   case MODULE_TOOLHEAD_LASER_40W:
+  case MODULE_TOOLHEAD_LASER_RED_2W:
     if (enclosure.DoorOpened()) {
       LOG_E("Door is opened, please close the door!\n");
       PauseTrigger(TRIGGER_SOURCE_DOOR_OPEN);
@@ -532,7 +537,8 @@ ErrCode SystemService::ResumeOver() {
     if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) ||
         (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
         (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
-        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W) ||
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_RED_2W)
     ) {
       planner.laser_inline.status = pl_recovery.cur_data_.laser_info.status;
       laser->SetPower(pl_recovery.cur_data_.laser_percent, pl_recovery.cur_data_.laser_info.status.power_is_map);
@@ -700,13 +706,15 @@ ErrCode SystemService::StartWork(TriggerSource s) {
   case MODULE_TOOLHEAD_LASER_10W:
   case MODULE_TOOLHEAD_LASER_20W:
   case MODULE_TOOLHEAD_LASER_40W:
+  case MODULE_TOOLHEAD_LASER_RED_2W:
     if (laser->security_status_) {
       LOG_E("security_status_: 0x%x! Now cannot start working!\n", laser->security_status_);
       return E_LASER_SECURITY;
     }
     is_laser_on = false;
     is_waiting_gcode = false;
-    if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+    if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead() ||
+        MODULE_TOOLHEAD_LASER_RED_2W == ModuleBase::toolhead()) {
       laser->SetCrossLightCAN(false);
       laser->SetXyOffsetApplication(XY_OFFSET_APPLICATION_FALG);
       float ox, oy;
@@ -1819,7 +1827,8 @@ ErrCode SystemService::SendStatus(SSTP_Event_t &event) {
   if (ModuleBase::toolhead() == MACHINE_TYPE_LASER ||
       ModuleBase::toolhead() == MACHINE_TYPE_LASER_10W ||
       ModuleBase::toolhead() == MACHINE_TYPE_LASER_20W ||
-      ModuleBase::toolhead() == MACHINE_TYPE_LASER_40W) {
+      ModuleBase::toolhead() == MACHINE_TYPE_LASER_40W ||
+      ModuleBase::toolhead() == MACHINE_TYPE_LASER_RED_2W) {
     // laser power
     tmp_u32 = (uint32_t)(laser->power() * 1000);
   } else if (ModuleBase::toolhead() == MACHINE_TYPE_CNC) {
@@ -1888,7 +1897,8 @@ ErrCode SystemService::SendException(uint32_t fault) {
 ErrCode SystemService::SendSecurityStatus () {
   if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
       (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
-      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W) ||
+      (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_RED_2W)
   ) {
     laser->SendSecurityStatus();
   }
@@ -2232,7 +2242,8 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
     if ((ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER) &&
         (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_10W) &&
         (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_20W) &&
-        (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_40W)
+        (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_40W) &&
+        (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_RED_2W)
     ) {
       ret = E_INVALID_STATE;
       break;
@@ -2487,7 +2498,8 @@ ErrCode SystemService::CallbackPreQS(QuickStopSource source) {
     if ((ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER) ||
         (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_10W) ||
         (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W) ||
-        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W)
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W) ||
+        (ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_RED_2W)
     ) {
       laser->TurnOff();
     }

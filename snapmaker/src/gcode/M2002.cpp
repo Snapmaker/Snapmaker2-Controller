@@ -35,7 +35,7 @@
 
 void GcodeSuite::M2002() {
   if (ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_10W && ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_20W &&\
-      ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_40W) {
+      ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_40W && ModuleBase::toolhead() != MODULE_TOOLHEAD_LASER_RED_2W) {
     return;
   }
   const bool seen_s = parser.seen('S');

@@ -238,6 +238,10 @@ class ToolHeadLaser: public ModuleBase {
     bool is_there_fire_sensor(void);
     bool is_there_camera(void);
     bool is_there_cross_light(void);
+    ErrCode LaserGetHWVersion(uint8_t &version);
+    ErrCode set_get_protect_temp(int8_t &protect_upper, int8_t &recovery_upper, int8_t &protect_lower, int8_t &recovery_lower);
+    bool get_laser_temperature(int16_t &ld_temp, int16_t &housing_temp);
+    ErrCode set_tec_temp(int16_t &temp);
 
   private:
     void    CheckFan(uint16_t pwm);
@@ -290,6 +294,7 @@ class ToolHeadLaser: public ModuleBase {
     uint8_t xy_offset_application_;
     bool weak_light_power_update_;
     float weak_light_power_;
+    uint8_t hw_version_ = 0xFF;
 
   // Laser Inline Power functions
   public:
@@ -316,5 +321,6 @@ extern ToolHeadLaser laser_1_6_w;
 extern ToolHeadLaser laser_10w;
 extern ToolHeadLaser laser_20w;
 extern ToolHeadLaser laser_40w;
+extern ToolHeadLaser laser_red_2w;
 
 #endif  // #ifndef TOOLHEAD_LASER_H_

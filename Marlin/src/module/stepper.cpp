@@ -2160,7 +2160,8 @@ void Stepper::StepperBind8PinPort(uint8_t axis, uint8_t port) {
         ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_20W ||
         ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_40W ||
         ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC ||
-        ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC_200W)
+        ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC_200W ||
+        ModuleBase::toolhead() == MODULE_TOOLHEAD_LASER_RED_2W)
   ) {
       LOG_E("Failed: CNC and Laser E axis must be bind at 1 port\n");
     return;
