@@ -1721,7 +1721,8 @@ bool Planner::_buffer_steps(const int32_t (&target)[X_TO_E]
     if ((MODULE_TOOLHEAD_LASER == ModuleBase::toolhead())      ||
         (MODULE_TOOLHEAD_LASER_10W == ModuleBase::toolhead())  ||
         (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead())  ||
-        (MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) ) {
+        (MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead())  ||
+        (MODULE_TOOLHEAD_LASER_RED_2W == ModuleBase::toolhead())) {
       // Laser greyscale is special case that queue only have one item is normal.
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;
@@ -2683,7 +2684,8 @@ void Planner::buffer_sync_block() {
     if ((MODULE_TOOLHEAD_LASER == ModuleBase::toolhead())      ||
         (MODULE_TOOLHEAD_LASER_10W == ModuleBase::toolhead())  ||
         (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead())  ||
-        (MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead())) {
+        (MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead())  ||
+        (MODULE_TOOLHEAD_LASER_RED_2W == ModuleBase::toolhead())) {
       // Laser greyscale is special case that queue only have one item is normal.
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;

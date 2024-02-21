@@ -391,8 +391,9 @@ int PowerLossRecovery::SaveEnv(void) {
 
 	case MODULE_TOOLHEAD_LASER:
 	case MODULE_TOOLHEAD_LASER_10W:
-  case MODULE_TOOLHEAD_LASER_20W:
-  case MODULE_TOOLHEAD_LASER_40W:
+	case MODULE_TOOLHEAD_LASER_20W:
+	case MODULE_TOOLHEAD_LASER_40W:
+	case MODULE_TOOLHEAD_LASER_RED_2W:
 		cur_data_.laser_percent = laser->power();
 		cur_data_.laser_pwm = laser->tim_pwm();
 		cur_data_.air_pump_switch = laser->GetAirPumpSwitch();
@@ -604,7 +605,8 @@ void PowerLossRecovery::ResumeLaser() {
 	// just change laser power but not enable output
 	laser->SetPower(pre_data_.laser_percent, cur_data_.laser_info.status.power_is_map);
 
-	if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+	if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead() ||
+		MODULE_TOOLHEAD_LASER_RED_2W == ModuleBase::toolhead()) {
 		if (MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead())
 			laser->LaserBranchCtrl(!pre_data_.half_power_mode);
 		laser->SetAirPumpSwitch(pre_data_.air_pump_switch);
@@ -714,8 +716,9 @@ ErrCode PowerLossRecovery::ResumeWork() {
 
 	case MODULE_TOOLHEAD_LASER:
 	case MODULE_TOOLHEAD_LASER_10W:
-  case MODULE_TOOLHEAD_LASER_20W:
-  case MODULE_TOOLHEAD_LASER_40W:
+	case MODULE_TOOLHEAD_LASER_20W:
+	case MODULE_TOOLHEAD_LASER_40W:
+	case MODULE_TOOLHEAD_LASER_RED_2W:
 		if (enclosure.DoorOpened()) {
 			LOG_E("trigger RESTORE: failed, door is open\n");
 			return E_DOOR_OPENED;

@@ -59,6 +59,7 @@ ModuleBase *static_modules[] = {
   &laser_20w,
   &laser_40w,
   &cnc_200w,
+  &laser_red_2w,
   NULL
 };
 
@@ -339,6 +340,7 @@ void ModuleBase::StaticProcess() {
   laser_10w.Process();
   laser_20w.Process();
   laser_40w.Process();
+  laser_red_2w.Process();
   cnc.Process();
   cnc_200w.Process();
 

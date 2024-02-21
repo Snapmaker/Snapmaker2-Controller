@@ -45,6 +45,10 @@
 #define TimSetPwm(n)  Tim1SetCCR4(n)
 #define TimGetPwm()  Tim1GetCCR4()
 
+/* The mapping relationship between hardware version number and module type */
+#define LASER_RED_2W_HW_VER_BASE_GUANGYUAN      (0)       /**< guangyuan */
+#define LASER_RED_2W_HW_VER_BASE_LIANPIN        (10)      /**< lianpin */
+
 ToolHeadLaser laser_1_6_w(MODULE_DEVICE_ID_1_6_W_LASER);
 ToolHeadLaser laser_10w(MODULE_DEVICE_ID_10W_LASER);
 ToolHeadLaser laser_20w(MODULE_DEVICE_ID_20W_LASER);
@@ -93,6 +97,34 @@ static __attribute__((section(".data"))) uint8_t power_table_20W[]= {
 };
 
 static __attribute__((section(".data"))) uint8_t power_table_40W[]= {
+  0, 15, 27, 29, 32, 35, 37, 40, 42, 45,
+  47, 49, 51, 54, 56, 59, 61, 63, 65, 68,
+  70, 72, 75, 77, 79, 82, 84, 87, 90, 92,
+  94, 97, 99, 101, 103, 106, 108, 110, 112, 115,
+  117, 120, 122, 124, 126, 128, 131, 133, 135, 138,
+  140, 142, 144, 147, 149, 151, 153, 156, 158, 161,
+  163, 166, 168, 171, 173, 176, 178, 180, 182, 185,
+  188, 190, 192, 193, 195, 198, 200, 202, 204, 207,
+  209, 212, 214, 216, 218, 221, 224, 226, 228, 230,
+  233, 235, 239, 241, 242, 245, 247, 250, 252, 254,
+  255
+};
+
+static __attribute__((section(".data"))) uint8_t power_table_red_2w_guangyuan[]= {
+  0, 15, 27, 29, 32, 35, 37, 40, 42, 45,
+  47, 49, 51, 54, 56, 59, 61, 63, 65, 68,
+  70, 72, 75, 77, 79, 82, 84, 87, 90, 92,
+  94, 97, 99, 101, 103, 106, 108, 110, 112, 115,
+  117, 120, 122, 124, 126, 128, 131, 133, 135, 138,
+  140, 142, 144, 147, 149, 151, 153, 156, 158, 161,
+  163, 166, 168, 171, 173, 176, 178, 180, 182, 185,
+  188, 190, 192, 193, 195, 198, 200, 202, 204, 207,
+  209, 212, 214, 216, 218, 221, 224, 226, 228, 230,
+  233, 235, 239, 241, 242, 245, 247, 250, 252, 254,
+  255
+};
+
+static __attribute__((section(".data"))) uint8_t power_table_red_2w_lianpin[]= {
   0, 15, 27, 29, 32, 35, 37, 40, 42, 45,
   47, 49, 51, 54, 56, 59, 61, 63, 65, 68,
   70, 72, 75, 77, 79, 82, 84, 87, 90, 92,
@@ -275,6 +307,19 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
     weak_light_power_ = LASER_20W_40W_DEFAULT_WEAK_POWER;
     SetToolhead(MODULE_TOOLHEAD_LASER_40W);
   }
+  else if (laser->device_id_ == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
+    LaserGetHWVersion(hw_version_);
+    LOG_I("2w red laser hw_version =  %d\n", hw_version_);
+    /* guangyuan */
+    if (hw_version_ >= LASER_RED_2W_HW_VER_BASE_GUANGYUAN && hw_version_ < LASER_RED_2W_HW_VER_BASE_LIANPIN) {
+      power_table_ = power_table_red_2w_guangyuan;
+    }
+    /* lianpin */
+    else {
+      power_table_ = power_table_red_2w_lianpin;
+    }
+    SetToolhead(MODULE_TOOLHEAD_LASER_RED_2W);
+  }
 
   return E_SUCCESS;
 }
@@ -346,12 +391,13 @@ void ToolHeadLaser::TurnOn() {
     return;
 
   if ((laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || \
-      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) && laser->security_status_ != 0) {
+      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER || laser->device_id_ == MODULE_DEVICE_ID_LASER_RED_2W_2023) && 
+      laser->security_status_ != 0) {
     return;
   }
 
   if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || \
-      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) {
+      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER || laser->device_id_ == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
     if (laser_status_ == LASER_DISABLE) {
       // Send the enable command only when the power is disabled
       LaserControl(1);
@@ -378,7 +424,7 @@ void ToolHeadLaser::TurnOff() {
     return;
 
   if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || \
-      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) {
+      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER || laser->device_id_ == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
     if (laser_status_ != LASER_DISABLE) {
       laser_status_ = LASER_WAIT_DISABLE;
       laser_tick_ = 0;
@@ -392,7 +438,8 @@ void ToolHeadLaser::TurnOff() {
 
 void ToolHeadLaser::SetOutput(float power, bool is_map) {
   if ((laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || \
-      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) && laser->security_status_ != 0) {
+      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER || laser->device_id_ == MODULE_DEVICE_ID_LASER_RED_2W_2023) && 
+      laser->security_status_ != 0) {
     return;
   }
 
@@ -1640,7 +1687,7 @@ void ToolHeadLaser::Process() {
   timer_in_process_ = 0;
 
   if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER || \
-      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) {
+      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER || laser->device_id_ == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
     if (laser_pwm_pin_checked_ == false) {
       PwmCtrlDirectly(255);
       pwm_pin_pulldown_state_ = LaserGetPwmPinState();
@@ -1683,7 +1730,7 @@ void ToolHeadLaser::SetOutputInline(uint16_t power_pwm, bool is_sync_power) {
     planner.laser_inline.sync_power = power_pwm * 100.0 / 255.0;
 
   if ((laser->device_id_ == MODULE_DEVICE_ID_10W_LASER || laser->device_id_ == MODULE_DEVICE_ID_20W_LASER ||
-      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER)) {
+      laser->device_id_ == MODULE_DEVICE_ID_40W_LASER || laser->device_id_ == MODULE_DEVICE_ID_LASER_RED_2W_2023)) {
     if (power_pwm > 0) {
       if (laser_status_ == LASER_DISABLE) {
         // Send the enable command only when the power is disabled
@@ -1794,4 +1841,90 @@ bool ToolHeadLaser::is_there_cross_light(void) {
   return ret;
 }
 
+ErrCode ToolHeadLaser::LaserGetHWVersion(uint8_t &version) {
+  CanStdFuncCmd_t cmd;
+  uint8_t buff[1] = {0};
+  ErrCode ret;
+
+  cmd.id        = MODULE_FUNC_GET_HW_VERSION;
+  cmd.data      = buff;
+  cmd.length    = 1;
+  
+  ret = canhost.SendStdCmdSync(cmd, 2000);
+  if (E_SUCCESS == ret) {
+    version = cmd.data[0];
+  }
+
+  return ret;
+}
+
+/**
+ * @brief Get the laser housing(casing) temperature.
+ * 
+ * @param ld_temp the laser ld temperature.
+ * @param housing_temp  the laser housing(casing) temperature.
+ * @return true   success
+ * @return false  failure
+ */
+bool ToolHeadLaser::get_laser_temperature(int16_t &ld_temp, int16_t &housing_temp)
+{
+  CanStdFuncCmd_t cmd;
+  uint8_t buff[5] = {0};
+  ErrCode ret = E_FAILURE;
+
+  cmd.id        = MODULE_FUNC_GET_LASER_HOUSING_TEMP_TMP;
+  cmd.data      = buff;
+  cmd.length    = sizeof(buff);
+  
+  ret = canhost.SendStdCmdSync(cmd, 200);
+  if (E_SUCCESS == ret) {
+    ld_temp = (cmd.data[0] << 8) | cmd.data[1];
+    housing_temp = (cmd.data[2] << 8) | cmd.data[3];
+  }
+
+  return ret;
+}
+
+ErrCode ToolHeadLaser::set_get_protect_temp(int8_t &protect_upper, int8_t &recovery_upper, int8_t &protect_lower, int8_t &recovery_lower) {
+  CanStdFuncCmd_t cmd;
+  ErrCode ret = E_FAILURE;
+  int8_t buff[4] = {protect_upper, recovery_upper, protect_lower, recovery_lower};
+
+  cmd.id        = MODULE_FUNC_SET_GET_PROTECT_TEMP;
+  cmd.data      = (uint8_t*)buff;
+  cmd.length    = sizeof(buff);
+
+  ret = canhost.SendStdCmdSync(cmd, 200);
+  if (E_SUCCESS != ret) {
+    LOG_E("failed to set_get_protect_temp! ret: %u\n", ret);
+  }
+  else {
+    protect_upper = cmd.data[0];
+    recovery_upper = cmd.data[1];
+    protect_lower = cmd.data[2];
+    recovery_lower = cmd.data[3];
+  }
+
+  return ret;
+}
+
+ErrCode ToolHeadLaser::set_tec_temp(int16_t &temp) {
+  CanStdFuncCmd_t cmd;
+  ErrCode ret = E_FAILURE;
+  int8_t buff[2] = {0};
+
+  cmd.id        = MODULE_FUNC_SET_TEC_TEMP_TMP;
+  cmd.data      = (uint8_t*)buff;
+  cmd.length    = sizeof(buff);
+
+  ret = canhost.SendStdCmdSync(cmd, 200);
+  if (E_SUCCESS != ret) {
+    LOG_E("failed to set_tec_temp! ret: %u\n", ret);
+  }
+  else {
+    temp = (cmd.data[0] << 8) | cmd.data[1];
+  }
+
+  return ret;
+}
 

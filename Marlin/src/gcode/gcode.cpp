@@ -107,7 +107,8 @@ void GcodeSuite::get_destination_from_command() {
         ? current_position[i] + v
         : (i == E_AXIS) ? v : LOGICAL_TO_NATIVE(v, i);
 
-      if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead()) {
+      if (MODULE_TOOLHEAD_LASER_20W == ModuleBase::toolhead() || MODULE_TOOLHEAD_LASER_40W == ModuleBase::toolhead() ||
+          MODULE_TOOLHEAD_LASER_RED_2W == ModuleBase::toolhead()) {
         if (systemservice.GetCurrentStatus() == SYSTAT_WORK && !laser->GetWeakLightOriginMode()) {
           if (i <= Y_AXIS && (!laser->CheckCrossLightOffset(laser_crosslight_offset[X_AXIS], laser_crosslight_offset[Y_AXIS]))) {
             if (relative_mode) {

@@ -277,6 +277,7 @@
 #define MACHINE_TYPE_LASER_20W    6
 #define MACHINE_TYPE_LASER_40W    7
 #define MACHINE_TYPE_CNC_200W     8
+#define MACHINE_TYPE_LASER_RED_2W 9
 
 //Machine size define
 #define MACHINE_SIZE_UNKNOW 0
