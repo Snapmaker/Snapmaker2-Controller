@@ -52,6 +52,10 @@ void GcodeSuite::M2000() {
   uint8_t l = (uint8_t)parser.byteval('L', (uint8_t)0XFF);
   uint8_t s = (uint8_t)parser.byteval('S', (uint8_t)0);
 
+  // common info for float
+  __unused float g = parser.floatval('G', 0);
+  __unused float h = parser.floatval('H', 0);
+
   switch (s) {
   case 0:
     SNAP_DEBUG_SHOW_INFO();
@@ -140,6 +144,62 @@ void GcodeSuite::M2000() {
           laser->LaserBranchCtrl(!!onoff);
         }
       }
+    break;
+
+      // test, need to be removed
+    case 25: {
+      int16_t ld_temp = 0;
+      int16_t housing_temp = 0;
+      laser->get_laser_temperature(ld_temp, housing_temp);
+      LOG_I("LD=\t%f\tCasing=\t%f\r\n", (float)(ld_temp / 10.0), (float)(housing_temp / 10.0));
+    }
+    break;
+
+    // test, need to be removed
+    case 26: {
+      int8_t protect_upper = (int8_t)(g + 0.001);
+      int8_t recovery_upper = (int8_t)(h + 0.001);
+      int8_t protect_lower = 0xFF;
+      int8_t recovery_lower = 0xFF;
+      
+      if (E_SUCCESS != laser->set_get_protect_temp(protect_upper, recovery_upper, protect_lower, recovery_lower)) {
+        LOG_E("err\n");
+      }
+      else {
+        LOG_I("now, protect_upper = %d, recovery_upper = %d, protect_lower = %d, recovery_lower = %d\r\n", 
+          protect_upper, recovery_upper, protect_lower, recovery_lower);
+      }
+    }
+    break;
+
+    // test, need to be removed
+    case 27: {
+      int8_t protect_upper = 0xFF; 
+      int8_t recovery_upper = 0xFF; 
+      int8_t protect_lower = (int8_t)(g + 0.001);
+      int8_t recovery_lower = (int8_t)(h + 0.001);
+      
+      if (E_SUCCESS != laser->set_get_protect_temp(protect_upper, recovery_upper, protect_lower, recovery_lower)) {
+        LOG_E("err\n");
+      }
+      else {
+        LOG_I("now, protect_upper = %d, recovery_upper = %d, protect_lower = %d, recovery_lower = %d\r\n", 
+          protect_upper, recovery_upper, protect_lower, recovery_lower);
+      }
+    }
+    break;
+
+    // test, need to be removed
+    case 28: {
+      int16_t tmp = (int16_t)(g + 0.001);
+      
+      if (E_SUCCESS != laser->set_tec_temp(tmp)) {
+        LOG_E("err\n");
+      }
+      else {
+        LOG_I("now, TEC dest Temp = %d\r\n", tmp);
+      }
+    }
     break;
 
     default:
