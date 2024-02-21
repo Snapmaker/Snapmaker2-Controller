@@ -1913,6 +1913,9 @@ ErrCode ToolHeadLaser::set_tec_temp(int16_t &temp) {
   ErrCode ret = E_FAILURE;
   int8_t buff[2] = {0};
 
+  buff[0] = (temp >> 8) & 0xFF;
+  buff[1] = (temp) & 0xFF;
+
   cmd.id        = MODULE_FUNC_SET_TEC_TEMP_TMP;
   cmd.data      = (uint8_t*)buff;
   cmd.length    = sizeof(buff);
