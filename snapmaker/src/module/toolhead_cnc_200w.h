@@ -62,6 +62,7 @@ class ToolHeadCNC200W: public ModuleBase {
     void PrintInfo(void);
     ErrCode Init(MAC_t &mac, uint8_t mac_index);
     ErrCode Cnc200WSpeedSetting(uint16_t value, CNCSpeedControlType type=CNC_PWM_SET_SPEED, bool is_update_power=true);
+    ErrCode Cnc200WTargetSpeedConfigure(uint16_t value, CNCSpeedControlType type=CNC_PWM_SET_SPEED);
     bool IsOnline(uint8_t sub_index = 0) { return mac_index_ != MODULE_MAC_INDEX_INVALID; };
 
     uint32_t mac(uint8_t sub_index = 0) {

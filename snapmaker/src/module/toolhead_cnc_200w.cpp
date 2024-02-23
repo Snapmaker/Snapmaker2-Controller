@@ -163,6 +163,29 @@ ErrCode ToolHeadCNC200W::Cnc200WSpeedSetting(uint16_t value, CNCSpeedControlType
   return ret;
 }
 
+ErrCode ToolHeadCNC200W::Cnc200WTargetSpeedConfigure(uint16_t value, CNCSpeedControlType type) {
+  ErrCode ret = E_FAILURE;
+  if (m_state_ != CNC_OUTPUT_ON) {
+    if (type == CNC_PWM_SET_SPEED) {
+      value = value > CNC_POWER_MAX ? CNC_POWER_MAX : value;
+      power_ = value;
+      target_rpm_ = (float_t)value / CNC_POWER_MAX * CNC_200W_DEFAULT_MAX_RPM;
+    }
+    else {
+      value = value > CNC_200W_DEFAULT_MAX_RPM ? CNC_200W_DEFAULT_MAX_RPM : value;
+      if (value && value < CNC_200W_DEFAULT_MIN_RPM)
+        value = CNC_200W_DEFAULT_MIN_RPM;
+      power_ = (float)value / CNC_200W_DEFAULT_MAX_RPM * CNC_POWER_MAX;
+      target_rpm_ = value;
+    }
+  }
+  else {
+    ret = Cnc200WSpeedSetting(value, type);
+  }
+
+  return ret;
+}
+
 void ToolHeadCNC200W::power(uint16_t power) {
   LIMIT(power, 0, CNC_POWER_MAX);
   power_ = power;
