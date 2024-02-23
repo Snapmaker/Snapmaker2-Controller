@@ -62,6 +62,18 @@ void GcodeSuite::M1005() {
 
   linear_p->ShowAllLinearInfo();
 
+  if (kit_combination_type) {
+    LOG_I("kits:");
+
+    if (kit_combination_type & QUICK_CHANGE_ADAPTER_MSK)
+      LOG_I(" quick_change_kit");
+
+    if (kit_combination_type & REINFORCEMENT_KIT_MSK)
+      LOG_I(" reinforcement_kit");
+
+    LOG_I("\n");
+  }
+
   if (ModuleBase::toolhead() == MACHINE_TYPE_LASER || (ModuleBase::toolhead() == MACHINE_TYPE_LASER_10W)) {
     laser->ReadBluetoothVer();
   }

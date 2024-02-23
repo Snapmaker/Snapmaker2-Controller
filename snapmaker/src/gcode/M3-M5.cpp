@@ -120,13 +120,21 @@ void GcodeSuite::M3_M4(const bool is_M4) {
   }
   else if (cnc_200w.IsOnline()) {
     uint16_t tmp_value = 0;
-    if(parser.seenval('P')) {
+    if (parser.seenval('P')) {
       tmp_value = parser.value_ushort();
-      cnc_200w.Cnc200WSpeedSetting(tmp_value);
+      // when the motor is not rotating only the target power is set without switching on the motor
+      if (parser.seen('C'))
+        cnc_200w.Cnc200WTargetSpeedConfigure(tmp_value);
+      else
+        cnc_200w.Cnc200WSpeedSetting(tmp_value);
     }
     else if (parser.seenval('S')) {
       tmp_value = parser.value_ushort();
-      cnc_200w.Cnc200WSpeedSetting(tmp_value, CNC_RPM_SET_SPEED);
+      // when the motor is not rotating only the target power is set without switching on the motor
+      if (parser.seen('C'))
+        cnc_200w.Cnc200WTargetSpeedConfigure(tmp_value, CNC_RPM_SET_SPEED);
+      else
+        cnc_200w.Cnc200WSpeedSetting(tmp_value, CNC_RPM_SET_SPEED);
     }
     else {
       cnc_200w.Cnc200WSpeedSetting(cnc_200w.power());
