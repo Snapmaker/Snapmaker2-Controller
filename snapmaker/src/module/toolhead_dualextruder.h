@@ -29,6 +29,8 @@
 #define MIN_LEVELING_HEIGHT_3DP2E               (35)
 
 #define Z_COMPENSATION_ADJUST (0.05)
+#define Z_COMPENSATION_REINFORCE_KIT                 (Z_COMPENSATION_ADJUST + 0.3)
+#define Z_COMPENSATION_QUICK_AND_REINFORCE_KIT       (Z_COMPENSATION_ADJUST + 0.4)
 
 typedef struct {
   uint8_t model;
