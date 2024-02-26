@@ -320,6 +320,7 @@ public:
   bool is_laser_on = false;
   bool tool_changing = false;
   bool need_pre_extrusion = true;
+  bool recover_powerloss_flag = false;
 
 private:
   uint8_t TriggleStat;

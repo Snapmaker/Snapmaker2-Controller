@@ -2073,6 +2073,7 @@ ErrCode SystemService::RecoverFromPowerLoss(SSTP_Event_t &event) {
     err = E_NO_SWITCHING_STA;
   }
   else {
+    systemservice.recover_powerloss_flag = true;
     // screen bug: why will we receive two consecutive recovery command @TODO
     systemservice.SetCurrentStatus(SYSTAT_RESUME_TRIG);
     err = pl_recovery.ResumeWork();
@@ -2106,7 +2107,7 @@ ErrCode SystemService::RecoverFromPowerLoss(SSTP_Event_t &event) {
       systemservice.SetCurrentStatus(cur_status);
     }
   }
-
+  systemservice.recover_powerloss_flag = false;
   return hmi.Send(event);
 }
 
