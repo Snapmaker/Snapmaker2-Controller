@@ -52,7 +52,8 @@ void QuickStopService::Trigger(QuickStopSource new_source, bool from_isr /*=fals
   // power-loss will be check in temperature time isr
   // if we are not in working, won't handle power-loss
   if (from_isr) {
-    if (systemservice.GetCurrentStage() != SYSTAGE_WORK && systemservice.GetCurrentStage() != SYSTAGE_PAUSE)
+    if ((systemservice.GetCurrentStage() != SYSTAGE_WORK && systemservice.GetCurrentStage() != SYSTAGE_PAUSE && \
+        systemservice.GetCurrentStage() != SYSTAGE_RESUMING) || (systemservice.GetCurrentStage() == SYSTAGE_RESUMING && systemservice.recover_powerloss_flag))
       return;
   }
   else {
@@ -127,23 +128,25 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     * triggered by PAUSE, just save env and switch to next state
     */
     case QS_SOURCE_PAUSE:
-      if (blk) {
-        pl_recovery.SaveCmdLine(blk->filePos);
-        // pl_recovery.SaveLaserInlineState(blk->laser.status.isEnabled, blk->laser.status.trapezoid_power);
-        pl_recovery.SaveLaserPowerInfo(blk->laser);
-      }
-      else {
-        block_inline_laser_t info;
-        info.status = planner.laser_inline.status;
-        info.power = planner.laser_inline.power;
-        info.sync_power = planner.laser_inline.sync_power;
-        pl_recovery.SaveLaserPowerInfo(info);
-        // pl_recovery.SaveLaserInlineState(planner.laser_inline.status.isEnabled, planner.laser_inline.status.trapezoid_power);
-      }
+      if (source_ != QS_SOURCE_POWER_LOSS || (source_ == QS_SOURCE_POWER_LOSS && systemservice.GetCurrentStatus() == SYSTAT_WORK)) {
+        if (blk) {
+          pl_recovery.SaveCmdLine(blk->filePos);
+          // pl_recovery.SaveLaserInlineState(blk->laser.status.isEnabled, blk->laser.status.trapezoid_power);
+          pl_recovery.SaveLaserPowerInfo(blk->laser);
+        }
+        else {
+          block_inline_laser_t info;
+          info.status = planner.laser_inline.status;
+          info.power = planner.laser_inline.power;
+          info.sync_power = planner.laser_inline.sync_power;
+          pl_recovery.SaveLaserPowerInfo(info);
+          // pl_recovery.SaveLaserInlineState(planner.laser_inline.status.isEnabled, planner.laser_inline.status.trapezoid_power);
+        }
 
-      // if power-loss appear atfer finishing PAUSE, won't save env again
-      if (systemservice.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
-        pl_recovery.SaveEnv();
+        // if power-loss appear atfer finishing PAUSE, won't save env again
+        if (systemservice.GetCurrentStatus() != SYSTAT_PAUSE_FINISH)
+          pl_recovery.SaveEnv();
+      }
 
       // write flash only power-loss appear
       if (source_ == QS_SOURCE_POWER_LOSS) {
