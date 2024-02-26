@@ -798,6 +798,17 @@ ErrCode BedLevelService::FinishDualExtruderAutoLeveling(SSTP_Event_t &event) {
   {
     float left_z_compensation = 1.0, right_z_compensation = 1.0;
     printer1->GetZCompensation(left_z_compensation, right_z_compensation);
+    if (kit_combination_type & REINFORCEMENT_KIT_MSK) {
+      printer1->GetDualExtruderZCompensation(left_z_compensation, right_z_compensation);
+      if (kit_combination_type & QUICK_CHANGE_ADAPTER_MSK) {
+        left_z_compensation  += Z_COMPENSATION_QUICK_AND_REINFORCE_KIT;
+        right_z_compensation += Z_COMPENSATION_QUICK_AND_REINFORCE_KIT;
+      }
+      else {
+        left_z_compensation  += Z_COMPENSATION_REINFORCE_KIT;
+        right_z_compensation += Z_COMPENSATION_REINFORCE_KIT;
+      }
+    }
     LOG_I("compensation:[%.3f, %.3f]\n", left_z_compensation, right_z_compensation);
     float left_extruder_touch_bed_position  = left_extruder_auto_probe_position_ + left_z_compensation;
     float z_offset = z_values_tmp[x_index][y_index] - left_extruder_touch_bed_position;
@@ -1068,12 +1079,21 @@ ErrCode BedLevelService::DualExtruderRightExtruderAutoBedDetect() {
 
   float left_z_compensation = 1, right_z_compensation = 1;
   printer1->GetZCompensation(left_z_compensation, right_z_compensation);
+  if (kit_combination_type & REINFORCEMENT_KIT_MSK) {
+    printer1->GetDualExtruderZCompensation(left_z_compensation, right_z_compensation);
+    if (kit_combination_type & QUICK_CHANGE_ADAPTER_MSK) {
+      left_z_compensation  += Z_COMPENSATION_QUICK_AND_REINFORCE_KIT;
+      right_z_compensation += Z_COMPENSATION_QUICK_AND_REINFORCE_KIT;
+    }
+    else {
+      left_z_compensation  += Z_COMPENSATION_REINFORCE_KIT;
+      right_z_compensation += Z_COMPENSATION_REINFORCE_KIT;
+    }
+  }
 
   float left_extruder_touch_bed_position  = left_extruder_auto_probe_position_ + left_z_compensation;
   float right_extruder_touch_bed_position = right_extruder_auto_probe_position_ + right_z_compensation;
-  // hotend_offset[Z_AXIS][1] = left_extruder_touch_bed_position - right_extruder_touch_bed_position;
-  printer1->GetDualExtruderZCompensation(left_z_compensation, right_z_compensation);
-  hotend_offset[Z_AXIS][1] = (left_extruder_auto_probe_position_ + left_z_compensation) - (right_extruder_auto_probe_position_ + right_z_compensation);
+  hotend_offset[Z_AXIS][1] = left_extruder_touch_bed_position - right_extruder_touch_bed_position;
   printer1->ModuleCtrlSaveHotendOffset(hotend_offset[Z_AXIS][1], Z_AXIS);
 
   LOG_I("compensation: [%.3f, %.3f], bed pos:[%.3f, %.3f]\n", left_z_compensation, right_z_compensation,
