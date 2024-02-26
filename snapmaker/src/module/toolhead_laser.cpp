@@ -257,17 +257,21 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   power_table_ = power_table_1_6W;
   if (laser->device_id_ == MODULE_DEVICE_ID_1_6_W_LASER) {
     power_table_ = power_table_1_6W;
+    weak_light_power_ = LASER_1_6W_DEFAULT_WEAK_POWER;
     SetToolhead(MODULE_TOOLHEAD_LASER);
   } else if (laser->device_id_ == MODULE_DEVICE_ID_10W_LASER) {
     power_table_ = power_table_10W;
+    weak_light_power_ = LASER_10W_DEFAULT_WEAK_POWER;
     SetToolhead(MODULE_TOOLHEAD_LASER_10W);
   }
   else if (laser->device_id_ == MODULE_DEVICE_ID_20W_LASER) {
     power_table_ = power_table_20W;
+    weak_light_power_ = LASER_20W_40W_DEFAULT_WEAK_POWER;
     SetToolhead(MODULE_TOOLHEAD_LASER_20W);
   }
   else if (laser->device_id_ == MODULE_DEVICE_ID_40W_LASER) {
     power_table_ = power_table_40W;
+    weak_light_power_ = LASER_20W_40W_DEFAULT_WEAK_POWER;
     SetToolhead(MODULE_TOOLHEAD_LASER_40W);
   }
 
