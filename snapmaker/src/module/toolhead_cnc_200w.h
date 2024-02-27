@@ -42,6 +42,7 @@ enum CNCSpeedControlMode {
 class ToolHeadCNC200W: public ModuleBase {
   public:
 		ToolHeadCNC200W(): ModuleBase(MODULE_DEVICE_ID_200W_CNC) {
+      is_print_rpm       = false;
       mac_index_         = MODULE_MAC_INDEX_INVALID;
       power_             = 0;
       cur_power_         = 0;
@@ -52,6 +53,7 @@ class ToolHeadCNC200W: public ModuleBase {
       motor_temperature_ = 0;
       pcb_temperature_   = 0;
       motor_voltage_     = 0;
+      timer_tick         = 0;
       m_state_           = CNC_OUTPUT_OFF;
       ctr_mode_          = CNC_CONSTANT_RPM_MODE;
       msg_id_pwm_set_speed_ = MODULE_MESSAGE_ID_INVALID;
@@ -73,6 +75,7 @@ class ToolHeadCNC200W: public ModuleBase {
 
     uint16_t rpm() { return rpm_; }
     void rpm(uint16_t rpm) { rpm_ = rpm; }
+    void set_is_print_rpm(bool is_print) { is_print_rpm = !!is_print; }
 
     uint16_t power() { return power_; }
     void power(uint16_t power);
@@ -84,6 +87,7 @@ class ToolHeadCNC200W: public ModuleBase {
     friend void CallbackAckSpindleSensorInfo(CanStdDataFrame_t &cmd);
 
   private:
+    bool      is_print_rpm;
     uint8_t   mac_index_;
     uint8_t   m_error_;
     uint16_t  power_;
@@ -94,6 +98,7 @@ class ToolHeadCNC200W: public ModuleBase {
     float     motor_temperature_;
     float     pcb_temperature_;
     float     motor_voltage_;
+    uint32_t  timer_tick;
     CNCOutputStatus m_state_;
     CNCSpeedControlMode ctr_mode_;
 
