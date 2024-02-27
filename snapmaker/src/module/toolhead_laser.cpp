@@ -1549,7 +1549,7 @@ ErrCode ToolHeadLaser::GetWeakLightPower(SSTP_Event_t &event) {
   LOG_I("HMI get laser weak power\n");
   SSTP_Event_t event_tmp = {EID_SETTING_ACK, SETTINGS_OPC_GET_WEAK_POWER};
   buff[len++] = GetWeakLightPowerCAN(power);
-  power *= 1000;
+  power = weak_light_power_ * 1000;
   buff[len++] = (((int32_t)power) >> 24) & 0xFF;
   buff[len++] = (((int32_t)power) >> 16) & 0xFF;
   buff[len++] = (((int32_t)power) >> 8) & 0xFF;
