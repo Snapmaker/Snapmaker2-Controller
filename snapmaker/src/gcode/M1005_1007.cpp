@@ -99,6 +99,17 @@ void GcodeSuite::M1005() {
 
 
 void GcodeSuite::M1006() {
+  if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC || ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC_200W) {
+    if (parser.seenval('L')) {
+      bool is_print_rpm_ = parser.boolval('L', false);
+      if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC)
+        cnc.set_is_print_rpm(is_print_rpm_);
+      else if (ModuleBase::toolhead() == MODULE_TOOLHEAD_CNC_200W)
+        cnc_200w.set_is_print_rpm(is_print_rpm_);
+      return;
+    }
+  }
+
   SERIAL_ECHO("Tool Head: ");
 
   switch (ModuleBase::toolhead()) {

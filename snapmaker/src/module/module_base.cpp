@@ -339,6 +339,8 @@ void ModuleBase::StaticProcess() {
   laser_10w.Process();
   laser_20w.Process();
   laser_40w.Process();
+  cnc.Process();
+  cnc_200w.Process();
 
   if (++timer_in_static_process_ < 100) return;
   timer_in_static_process_ = 0;

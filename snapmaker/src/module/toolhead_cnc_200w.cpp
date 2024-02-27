@@ -204,5 +204,10 @@ void ToolHeadCNC200W::PrintInfo(void) {
 }
 
 void ToolHeadCNC200W::Process(void) {
-
+  if (is_print_rpm) {
+    if (++timer_tick >= 100) {
+      timer_tick = 0;
+      SERIAL_ECHOLNPAIR("RPM: ", rpm());
+    }
+  }
 }
