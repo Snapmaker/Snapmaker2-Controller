@@ -73,6 +73,17 @@
 
 #if ENABLED(SDIO_SUPPORT) && DISABLED(SDSUPPORT)
   #error "SDIO_SUPPORT requires SDSUPPORT. Enable SDSUPPORT to continue."
-#elif ENABLED(UDISK_SUPPORT) && DISABLED(SDSUPPORT) 
+#elif ENABLED(UDISK_SUPPORT) && DISABLED(SDSUPPORT)
   #error "UDISK_SUPPORT requires SDSUPPORT. Enable SDSUPPORT to continue."
+#endif
+
+/**
+ * Fixed-Time Motion limitations
+ */
+#if ENABLED(FT_MOTION)
+  #if ENABLED(MIXING_EXTRUDER)
+    #error "FT_MOTION does not currently support MIXING_EXTRUDER."
+  #elif DISABLED(FTM_UNIFIED_BWS)
+    #error "FT_MOTION requires FTM_UNIFIED_BWS to be enabled because FBS is not yet implemented."
+  #endif
 #endif
