@@ -32,8 +32,10 @@ enum AxisEnum : unsigned char {
   X_AXIS    = 0,
   Y_AXIS    = 1,
   Z_AXIS    = 2,
-  B_AXIS    = 3,
+  I_AXIS    = 3,
+  B_AXIS    = I_AXIS,
   E_AXIS    = 4,
+  NUM_AXIS_ENUMS,
   ALL_AXES  = 0xFE,
   NO_AXIS   = 0xFF
 };
