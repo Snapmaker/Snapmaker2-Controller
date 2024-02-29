@@ -34,6 +34,19 @@
 template <bool, class L, class R> struct IF { typedef R type; };
 template <class L, class R> struct IF<true, L, R> { typedef L type; };
 
+#if EXTRUDERS
+  #define HAS_EXTRUDERS 1
+  #if EXTRUDERS > 1
+    #define HAS_MULTI_EXTRUDER 1
+  #endif
+#endif
+
+#if HAS_EXTRUDERS
+  #define LOGICAL_AXES INCREMENT(NUM_AXES)
+#else
+  #define LOGICAL_AXES NUM_AXES
+#endif
+
 #define ALL_AXIS_NAMES X, X2, Y, Y2, Z, Z2, Z3, Z4, I, J, K, U, V, W, E0, E1, E2, E3, E4, E5, E6, E7
 
 #define NUM_AXIS_GANG(V...)   GANG_N(NUM_AXES, V)
@@ -97,6 +110,47 @@ template <class L, class R> struct IF<true, L, R> { typedef L type; };
 #define SECONDARY_AXIS_CODE(V...) CODE_N(SECONDARY_AXES, V)
 #define SECONDARY_AXIS_LIST(V...) LIST_N(SECONDARY_AXES, V)
 #define SECONDARY_AXIS_ARGS(T)    SECONDARY_AXIS_LIST(T i, T j, T k, T u, T v, T w)
+
+/**
+ * Number of Linear Axes (e.g., XYZIJKUVW)
+ * All the logical axes except for the tool (E) axis
+ */
+#ifdef NUM_AXES
+  #undef NUM_AXES
+  #define NUM_AXES_WARNING 1
+#endif
+#define NUM_AXES 4
+
+#if NUM_AXES >= 1
+  #define HAS_X_AXIS 1
+  #define HAS_A_AXIS 1
+  #if NUM_AXES >= XY
+    #define HAS_Y_AXIS 1
+    #define HAS_B_AXIS 1
+    #if NUM_AXES >= XYZ
+      #define HAS_Z_AXIS 1
+      #define HAS_C_AXIS 1
+      #if NUM_AXES >= 4
+        #define HAS_I_AXIS 1
+        #if NUM_AXES >= 5
+          #define HAS_J_AXIS 1
+          #if NUM_AXES >= 6
+            #define HAS_K_AXIS 1
+            #if NUM_AXES >= 7
+              #define HAS_U_AXIS 1
+              #if NUM_AXES >= 8
+                #define HAS_V_AXIS 1
+                #if NUM_AXES >= 9
+                  #define HAS_W_AXIS 1
+                #endif
+              #endif
+            #endif
+          #endif
+        #endif
+      #endif
+    #endif
+  #endif
+#endif
 
 // Just the XY or XYZ elements
 #if HAS_Z_AXIS
@@ -215,50 +269,6 @@ typedef struct {
 } AxisFlags;
 
 //
-// Enumerated axis indices
-//
-//  - X_AXIS, Y_AXIS, and Z_AXIS should be used for axes in Cartesian space
-//  - A_AXIS, B_AXIS, and C_AXIS should be used for Steppers, corresponding to XYZ on Cartesians
-//  - X_HEAD, Y_HEAD, and Z_HEAD should be used for Steppers on Core kinematics
-//
-enum AxisEnum : uint8_t {
-
-  // Linear axes may be controlled directly or indirectly
-  NUM_AXIS_LIST_(X_AXIS, Y_AXIS, Z_AXIS, I_AXIS, J_AXIS, K_AXIS, U_AXIS, V_AXIS, W_AXIS)
-
-  #define _EN_ITEM(N) E##N##_AXIS,
-  REPEAT(EXTRUDERS, _EN_ITEM)
-  #undef _EN_ITEM
-
-  // Core also keeps toolhead directions
-  #if ANY(IS_CORE, MARKFORGED_XY, MARKFORGED_YX)
-    X_HEAD, Y_HEAD, Z_HEAD,
-  #endif
-
-  // Distinct axes, including all E and Core
-  NUM_AXIS_ENUMS,
-
-  // Most of the time we refer only to the single E_AXIS
-  #if HAS_EXTRUDERS
-    E_AXIS = E0_AXIS,
-  #endif
-
-  // A, B, and C are for DELTA, SCARA, etc.
-  #if HAS_X_AXIS
-    A_AXIS = X_AXIS,
-  #endif
-  #if HAS_Y_AXIS
-    B_AXIS = Y_AXIS,
-  #endif
-  #if HAS_Z_AXIS
-    C_AXIS = Z_AXIS,
-  #endif
-
-  // To refer to all or none
-  ALL_AXES_ENUM = 0xFE, NO_AXIS_ENUM = 0xFF
-};
-
-//
 // Loop over axes
 //
 #define LOOP_ABC(VAR) for (uint8_t VAR = A_AXIS; VAR <= C_AXIS; ++VAR)
@@ -292,11 +302,15 @@ typedef const_float_t const_feedRate_t;
 typedef const_float_t const_celsius_float_t;
 
 // Type large enough to count leveling grid points
-typedef IF<TERN0(ABL_USES_GRID, (GRID_MAX_POINTS > 255)), uint16_t, uint8_t>::type grid_count_t;
+// typedef IF<TERN0(ABL_USES_GRID, (GRID_MAX_POINTS > 255)), uint16_t, uint8_t>::type grid_count_t;
 
 // Conversion macros
+#ifndef MMM_TO_MMS
 #define MMM_TO_MMS(MM_M) feedRate_t(static_cast<float>(MM_M) / 60.0f)
+#endif
+#ifndef MMS_TO_MMM
 #define MMS_TO_MMM(MM_S) (static_cast<float>(MM_S) * 60.0f)
+#endif
 
 // Packaged character for C macro and other usage
 typedef struct SerialChar { char c; SerialChar(char n) : c(n) { } } serial_char_t;
@@ -945,7 +959,7 @@ public:
       #define _EN_ITEM(N) bool e##N:1;
       REPEAT(EXTRUDERS,_EN_ITEM)
       #undef _EN_ITEM
-      #if ANY(IS_CORE, MARKFORGED_XY, MARKFORGED_YX)
+      #if (CORE_IS_XY || CORE_IS_XZ || CORE_IS_YZ)
         bool hx:1, hy:1, hz:1;
       #endif
     };
@@ -957,7 +971,7 @@ public:
       #define _EN_ITEM(N) bool E##N:1;
       REPEAT(EXTRUDERS,_EN_ITEM)
       #undef _EN_ITEM
-      #if ANY(IS_CORE, MARKFORGED_XY, MARKFORGED_YX)
+      #if (CORE_IS_XY || CORE_IS_XZ || CORE_IS_YZ)
         bool HX:1, HY:1, HZ:1;
       #endif
     };
@@ -969,7 +983,7 @@ public:
         REPEAT_S(1,EXTRUDERS,_EN_ITEM)
         #undef _EN_ITEM
       #endif
-      #if ANY(IS_CORE, MARKFORGED_XY, MARKFORGED_YX)
+      #if (CORE_IS_XY || CORE_IS_XZ || CORE_IS_YZ)
         bool ha:1, hb:1, hc:1;
       #endif
     };
@@ -981,7 +995,7 @@ public:
         REPEAT_S(1,EXTRUDERS,_EN_ITEM)
         #undef _EN_ITEM
       #endif
-      #if ANY(IS_CORE, MARKFORGED_XY, MARKFORGED_YX)
+      #if (CORE_IS_XY || CORE_IS_XZ || CORE_IS_YZ)
         bool HA:1, HB:1, HC:1;
       #endif
     };
