@@ -108,13 +108,16 @@ uint32_t FTMotion::interpIdx = 0,               // Index of current data point b
 
 // Shaping variables.
 #if HAS_X_AXIS
-  FTMotion::shaping_t FTMotion::shaping = {
-    0, 0,
-    x:{ { 0.0f }, { 0.0f }, { 0 } },            // d_zi, Ai, Ni
-    #if HAS_Y_AXIS
-      y:{ { 0.0f }, { 0.0f }, { 0 } }           // d_zi, Ai, Ni
-    #endif
-  };
+  FTMotion::shaping_t FTMotion::shaping = {0};
+  // below initialization will cause build errors, so use above instead it, by scott
+  // actual init will be done in FTMotion::init()
+  // FTMotion::shaping_t FTMotion::shaping = {
+  //   0, 0,
+  //   { { 0.0f }, { 0.0f }, { 0 } },            // d_zi, Ai, Ni
+  //   #if HAS_Y_AXIS
+  //     { { 0.0f }, { 0.0f }, { 0 } }           // d_zi, Ai, Ni
+  //   #endif
+  // };
 #endif
 
 #if HAS_EXTRUDERS
@@ -484,6 +487,18 @@ int32_t FTMotion::stepperCmdBuffItems() {
 
 // Initializes storage variables before startup.
 void FTMotion::init() {
+  shaping.max_i = 0;
+  shaping.zi_idx = 0;
+  for (int i = 0; i < 5; ++i) {
+    shaping.x.Ai[i] = 0.0f;
+    shaping.x.Ni[i] = 0;
+    shaping.y.Ai[i] = 0.0f;
+    shaping.y.Ni[i] = 0;
+  }
+  for (int i = 0; i < FTM_ZMAX; ++i) {
+    shaping.x.d_zi[i] = 0.0f;
+    shaping.y.d_zi[i] = 0.0f;
+  }
   #if HAS_X_AXIS
     refreshShapingN();
     updateShapingA();
@@ -500,16 +515,16 @@ void FTMotion::loadBlockData(block_t * const current_block) {
   startPosn = endPosn_prevBlock; // 前一个block的结束位置，本函数会累加block位置
   // 以下根据各轴的方向，将block里计算好的步数，转化为mm。moveDist记录的是各轴本次移动距离，耦合方向
   xyze_pos_t moveDist = LOGICAL_AXIS_ARRAY(
-    current_block->steps.e * planner.mm_per_step[E_AXIS_N(current_block->extruder)] * (current_block->direction_bits.e ? 1 : -1),
-    current_block->steps.x * planner.mm_per_step[X_AXIS] * (current_block->direction_bits.x ? 1 : -1),
-    current_block->steps.y * planner.mm_per_step[Y_AXIS] * (current_block->direction_bits.y ? 1 : -1),
-    current_block->steps.z * planner.mm_per_step[Z_AXIS] * (current_block->direction_bits.z ? 1 : -1),
-    current_block->steps.i * planner.mm_per_step[I_AXIS] * (current_block->direction_bits.i ? 1 : -1),
-    current_block->steps.j * planner.mm_per_step[J_AXIS] * (current_block->direction_bits.j ? 1 : -1),
-    current_block->steps.k * planner.mm_per_step[K_AXIS] * (current_block->direction_bits.k ? 1 : -1),
-    current_block->steps.u * planner.mm_per_step[U_AXIS] * (current_block->direction_bits.u ? 1 : -1),
-    current_block->steps.v * planner.mm_per_step[V_AXIS] * (current_block->direction_bits.v ? 1 : -1),
-    current_block->steps.w * planner.mm_per_step[W_AXIS] * (current_block->direction_bits.w ? 1 : -1)
+    current_block->steps[E_AXIS] * planner.steps_to_mm[E_AXIS] * (TEST(current_block->direction_bits, E_AXIS) ? 1 : -1),
+    current_block->steps[X_AXIS] * planner.steps_to_mm[X_AXIS] * (TEST(current_block->direction_bits, X_AXIS) ? 1 : -1),
+    current_block->steps[Y_AXIS] * planner.steps_to_mm[Y_AXIS] * (TEST(current_block->direction_bits, Y_AXIS) ? 1 : -1),
+    current_block->steps[Z_AXIS] * planner.steps_to_mm[Z_AXIS] * (TEST(current_block->direction_bits, Z_AXIS) ? 1 : -1),
+    current_block->steps[I_AXIS] * planner.steps_to_mm[I_AXIS] * (TEST(current_block->direction_bits, I_AXIS) ? 1 : -1),
+    current_block->steps[J_AXIS] * planner.steps_to_mm[J_AXIS] * (TEST(current_block->direction_bits, J_AXIS) ? 1 : -1),
+    current_block->steps[K_AXIS] * planner.steps_to_mm[K_AXIS] * (TEST(current_block->direction_bits, K_AXIS) ? 1 : -1),
+    current_block->steps[U_AXIS] * planner.steps_to_mm[U_AXIS] * (TEST(current_block->direction_bits, U_AXIS) ? 1 : -1),
+    current_block->steps[V_AXIS] * planner.steps_to_mm[V_AXIS] * (TEST(current_block->direction_bits, V_AXIS) ? 1 : -1),
+    current_block->steps[W_AXIS] * planner.steps_to_mm[W_AXIS] * (TEST(current_block->direction_bits, W_AXIS) ? 1 : -1)
   );
 
   ratio = moveDist * oneOverLength; // 算出各轴移动距离，与合成运动距离的比值，耦合方向，有正负号

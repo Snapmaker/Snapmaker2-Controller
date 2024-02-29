@@ -107,6 +107,7 @@ typedef struct block_t {
         max_entry_speed_sqr,                // Maximum allowable junction entry speed in (mm/sec)^2
         millimeters,                        // The total travel of this block in mm
         acceleration;                       // acceleration mm/sec^2
+  float nominal_speed;                      // The nominal speed
 
   union {
     // Data used by all move blocks
