@@ -120,7 +120,7 @@ laser_state_t Planner::laser_inline = {0};            // Planner laser power for
 uint32_t Planner::max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
 
 float Planner::steps_to_mm[X_TO_EN];           // (mm) Millimeters per step
-bool Planner::is_user_set_lead; 
+bool Planner::is_user_set_lead;
 #if ENABLED(JUNCTION_DEVIATION)
   float Planner::junction_deviation_mm;       // (mm) M205 J
   #if ENABLED(LIN_ADVANCE)
@@ -2183,6 +2183,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
     if (was_enabled) ENABLE_STEPPER_DRIVER_INTERRUPT();
   #endif
 
+  block->nominal_speed = block->millimeters * inverse_secs;
   block->nominal_speed_sqr = sq(block->millimeters * inverse_secs);   //   (mm/sec)^2 Always > 0
   block->nominal_rate = CEIL(block->step_event_count * inverse_secs); // (step/sec) Always > 0
   if (laser->device_id() == MODULE_DEVICE_ID_LASER_RED_2W_2023) {

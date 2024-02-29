@@ -254,15 +254,13 @@ class Stepper {
       static uint32_t motor_current_setting[3];
       static bool initialized;
     #endif
-
-  private:
-
+    static bool abort_current_block;        // Signals to the stepper that current block should be aborted
     static block_t* current_block;          // A pointer to the block currently being traced
 
+  private:
     static uint8_t last_direction_bits,     // The next stepping-bits to be output
                    axis_did_move;           // Last Movement in the given direction is not null, as computed when the last movement was fetched from planner
 
-    static bool abort_current_block;        // Signals to the stepper that current block should be aborted
     #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       static bool abort_e_moves;
     #endif
@@ -502,6 +500,13 @@ class Stepper {
     // Set direction bits for all steppers
     static void set_directions();
 
+    #if ENABLED(FT_MOTION)
+      // Manage the planner
+      static void ftMotion_blockQueueUpdate();
+      // Set current position in steps when reset flag is set in M493 and planner already synchronized
+      static void ftMotion_syncPosition();
+    #endif
+
   private:
 
     // Set the current position in steps
@@ -581,6 +586,9 @@ class Stepper {
       static void microstep_init();
     #endif
 
+    #if ENABLED(FT_MOTION)
+      static void ftMotion_stepper();
+    #endif
 };
 
 extern Stepper stepper;
