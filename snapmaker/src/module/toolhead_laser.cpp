@@ -429,11 +429,6 @@ void ToolHeadLaser::SetPower(float power, bool is_map) {
     power_pwm_ = (uint16_t)(power * 255.0 / 100.0);
     LIMIT(power_pwm_, 0, 255);
   }
-
-  if (power_pwm_ > power_limit_pwm_)
-    power_pwm_ = power_limit_pwm_;
-
-  // LOG_I("set power_pwm_: %d\n", power_pwm_);
 }
 
 
