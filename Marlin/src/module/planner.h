@@ -329,13 +329,13 @@ class Planner {
       static bool abort_on_endstop_hit;
     #endif
 
-  private:
-
     /**
      * The current position of the tool in absolute steps
      * Recalculated if any axis_steps_per_mm are changed by gcode
      */
     static int32_t position[NUM_AXIS];
+
+  private:
 
     /**
      * Speed of previous path line segment

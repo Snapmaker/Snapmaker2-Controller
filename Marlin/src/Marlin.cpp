@@ -38,6 +38,7 @@
 #include "module/temperature.h"
 #include "module/configuration_store.h"
 #include "module/printcounter.h" // PrintCounter or Stopwatch
+#include "module/ft_motion.h"
 #include "feature/closedloop.h"
 #include "HAL/shared/Delay.h"
 #include <EEPROM.h>
@@ -870,6 +871,8 @@ void idle(
   #if ENABLED(PRUSA_MMU2)
     mmu2.mmuLoop();
   #endif
+
+  ftMotion.loop();
 }
 
 /**
@@ -1122,6 +1125,8 @@ void setup() {
   endstops.enable_z_probe(false);
 
   stepper.init();           // Init stepper. This enables interrupts!
+
+  ftMotion.init();
 
   #if HAS_SERVOS
     servo_init();
