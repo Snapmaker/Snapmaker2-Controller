@@ -74,6 +74,10 @@
 #include "../../../snapmaker/src/snapmaker.h"
 #include "../../../snapmaker/src/module/toolhead_laser.h"
 
+#if ENABLED(FT_MOTION)
+  #include "ft_motion.h"
+#endif
+
 #if HAS_LEVELING
   #include "../feature/bedlevel/bedlevel.h"
 #endif
@@ -96,6 +100,7 @@
 
 // Delay for delivery of first block to the stepper ISR, if the queue contains 2 or
 // fewer movements. The delay is measured in milliseconds, and must be less than 250ms
+#define BLOCK_DELAY_NONE         0U
 #define BLOCK_DELAY_FOR_1ST_MOVE 100
 
 Planner planner;
@@ -1507,7 +1512,7 @@ void Planner::quick_stop() {
 
   // Restart the block delay for the first movement - As the queue was
   // forced to empty, there's no risk the ISR will touch this.
-  delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+  delay_before_delivering = TERN_(FT_MOTION, ftMotion.cfg.mode ? BLOCK_DELAY_NONE :) BLOCK_DELAY_FOR_1ST_MOVE;
 
   #if ENABLED(ULTRA_LCD)
     // Clear the accumulated runtime
@@ -1578,6 +1583,7 @@ void Planner::synchronize() {
     #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
       || (READ(CLOSED_LOOP_ENABLE_PIN) && !READ(CLOSED_LOOP_MOVE_COMPLETE_PIN))
     #endif
+    || TERN0(FT_MOTION, ftMotion.busy)
   ) idle();
 }
 
@@ -1737,7 +1743,7 @@ bool Planner::_buffer_steps(const int32_t (&target)[X_TO_E]
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;
     } else {
-      delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+      delay_before_delivering = TERN_(FT_MOTION, ftMotion.cfg.mode ? BLOCK_DELAY_NONE :) BLOCK_DELAY_FOR_1ST_MOVE;
     }
   }
 
@@ -2712,7 +2718,7 @@ void Planner::buffer_sync_block() {
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;
     } else {
-      delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+      delay_before_delivering = TERN_(FT_MOTION, ftMotion.cfg.mode ? BLOCK_DELAY_NONE :) BLOCK_DELAY_FOR_1ST_MOVE;
     }
   }
 
