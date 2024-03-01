@@ -57,6 +57,10 @@
 
 #include "../../../snapmaker/src/snapmaker.h"
 
+#if ENABLED(FT_MOTION)
+  #include "../module/ft_motion.h"
+#endif
+
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
   #include "../HAL/shared/persistent_store_api.h"
 #endif
@@ -322,6 +326,13 @@ typedef struct SettingsDataStruct {
 
 
   LEVEL_SERVICE_EEPROM_PARAM;
+
+  //
+  // Fixed-Time Motion
+  //
+  #if ENABLED(FT_MOTION)
+    ft_config_t ftMotion_cfg;                          // M493
+  #endif
 } SettingsData;
 
 MarlinSettings settings;
@@ -1177,6 +1188,14 @@ void MarlinSettings::postprocess() {
     LEVEL_SERVICE_EEPROM_WRITE();
 
     //
+    // Fixed-Time Motion
+    //
+    #if ENABLED(FT_MOTION)
+      _FIELD_TEST(ftMotion_cfg);
+      EEPROM_WRITE(ftMotion.cfg);
+    #endif
+
+    //
     // Validate CRC and Data Size
     //
     if (!eeprom_error) {
@@ -1945,6 +1964,14 @@ void MarlinSettings::postprocess() {
 
       LEVEL_SERVICE_EEPROM_READ();
 
+      //
+      // Fixed-Time Motion
+      //
+      #if ENABLED(FT_MOTION)
+        _FIELD_TEST(ftMotion_cfg);
+        EEPROM_READ(ftMotion.cfg);
+      #endif
+
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {
         DEBUG_ECHO_START();
@@ -2486,6 +2513,11 @@ void MarlinSettings::reset() {
   nozzle_height_probed = 0;
 
   LEVEL_SERVICE_EEPROM_RESET();
+
+  //
+  // Fixed-Time Motion
+  //
+  TERN_(FT_MOTION, ftMotion.set_defaults());
 }
 
 #if DISABLED(DISABLE_M503)
@@ -3328,6 +3360,11 @@ void MarlinSettings::reset() {
       CONFIG_ECHO_START();
       M217_report(true);
     #endif
+
+    //
+    // Fixed-Time Motion
+    //
+    TERN_(FT_MOTION, gcode.M493_report(forReplay));
   }
 
 #endif // !DISABLE_M503

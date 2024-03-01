@@ -340,6 +340,9 @@ public:
 
   static void dwell(millis_t time);
 
+  #if ENABLED(FT_MOTION)
+    static void M493_report(const bool forReplay=true);
+  #endif
 private:
 
   static void G0_G1(
@@ -918,6 +921,10 @@ private:
   static void M3005();
 
   static void T(const uint8_t tool_index);
+
+  #if ENABLED(FT_MOTION)
+    static void M493();
+  #endif
 
 };
 
