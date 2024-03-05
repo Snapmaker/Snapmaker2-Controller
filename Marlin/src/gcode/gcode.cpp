@@ -700,6 +700,10 @@ void GcodeSuite::execute_command(void) {
         case 428: M428(); break;                                  // M428: Apply current_position to home_offset
       #endif
 
+      #if ENABLED(FT_MOTION)
+        case 493: M493(); break;
+      #endif
+
       case 500: M500(); break;                                    // M500: Store settings in EEPROM
       case 501: M501(); break;                                    // M501: Read settings from EEPROM
       case 502: M502(); break;                                    // M502: Revert to default settings
