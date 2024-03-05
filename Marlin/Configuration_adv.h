@@ -2374,7 +2374,7 @@
    */
   #define FTM_UNIFIED_BWS                         // DON'T DISABLE unless you use Ulendo FBS (not implemented)
   #if ENABLED(FTM_UNIFIED_BWS)
-    #define FTM_BW_SIZE               200         // Unified Window and Batch size with a ratio of 2
+    #define FTM_BW_SIZE               100         // Unified Window and Batch size with a ratio of 2
   #else
     #define FTM_WINDOW_SIZE           200         // Custom Window size for trajectory generation needed by Ulendo FBS
     #define FTM_BATCH_SIZE            100         // Custom Batch size for trajectory generation needed by Ulendo FBS
@@ -2388,11 +2388,11 @@
   #define FTM_POINTS_PER_LOOP         100         // Number of trajectory points to generate each loop()
 
   #if DISABLED(COREXY)
-    #define FTM_STEPPER_FS          20000         // (Hz) Frequency for stepper I/O update
+    #define FTM_STEPPER_FS          48000         // (Hz) Frequency for stepper I/O update
 
     // Use this to adjust the time required to consume the command buffer.
     // Try increasing this value if stepper motion is choppy.
-    #define FTM_STEPPERCMD_BUFF_SIZE 3000         // Size of the stepper command buffers
+    #define FTM_STEPPERCMD_BUFF_SIZE 5000         // Size of the stepper command buffers
                                                   // (FTM_STEPS_PER_LOOP * FTM_POINTS_PER_LOOP) is a good start
                                                   // If you run out of memory, fall back to 3000 and increase progressively
   #else
