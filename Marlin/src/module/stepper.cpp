@@ -3209,7 +3209,10 @@ void Stepper::report_positions() {
     if (++ftMotion.stepperCmdBuff_consumeIdx == (FTM_STEPPERCMD_BUFF_SIZE))
       ftMotion.stepperCmdBuff_consumeIdx = 0;
 
-    if (abort_current_block) return;
+    if (0 == command)
+      return;
+
+    if (abort_current_block || !Running) return;
 
     // USING_TIMED_PULSE();
 
@@ -3332,7 +3335,7 @@ void Stepper::report_positions() {
     );
 
     // Check endstops on every step
-    IF_DISABLED(ENDSTOP_INTERRUPTS_FEATURE, endstops.update());
+    endstops.update();
 
     // Also handle babystepping here
     // TERN_(BABYSTEPPING, if (babystep.has_steps()) babystepping_isr());
