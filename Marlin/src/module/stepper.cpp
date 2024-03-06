@@ -3271,17 +3271,18 @@ void Stepper::report_positions() {
       SET_BIT_TO(axis_did_move, V_AXIS, TEST(command, FT_BIT_STEP_W))
     );
 
+    uint8_t new_dir = 0;
     LOGICAL_AXIS_CODE(
-      if (TEST(axis_did_move, E_AXIS)) SET_BIT_TO(last_direction_bits, E_AXIS, TEST(command, FT_BIT_DIR_E)),
-      if (TEST(axis_did_move, X_AXIS)) SET_BIT_TO(last_direction_bits, X_AXIS, TEST(command, FT_BIT_DIR_X)),
-      if (TEST(axis_did_move, Y_AXIS)) SET_BIT_TO(last_direction_bits, Y_AXIS, TEST(command, FT_BIT_DIR_Y)),
-      if (TEST(axis_did_move, Z_AXIS)) SET_BIT_TO(last_direction_bits, Z_AXIS, TEST(command, FT_BIT_DIR_Z)),
-      if (TEST(axis_did_move, I_AXIS)) SET_BIT_TO(last_direction_bits, I_AXIS, TEST(command, FT_BIT_DIR_I)),
-      if (TEST(axis_did_move, J_AXIS)) SET_BIT_TO(last_direction_bits, J_AXIS, TEST(command, FT_BIT_DIR_J)),
-      if (TEST(axis_did_move, K_AXIS)) SET_BIT_TO(last_direction_bits, K_AXIS, TEST(command, FT_BIT_DIR_K)),
-      if (TEST(axis_did_move, U_AXIS)) SET_BIT_TO(last_direction_bits, U_AXIS, TEST(command, FT_BIT_DIR_U)),
-      if (TEST(axis_did_move, V_AXIS)) SET_BIT_TO(last_direction_bits, V_AXIS, TEST(command, FT_BIT_DIR_V)),
-      if (TEST(axis_did_move, W_AXIS)) SET_BIT_TO(last_direction_bits, W_AXIS, TEST(command, FT_BIT_DIR_W))
+      if (TEST(axis_did_move, E_AXIS) && TEST(command, FT_BIT_DIR_E)) SBI(new_dir, E_AXIS),
+      if (TEST(axis_did_move, X_AXIS) && TEST(command, FT_BIT_DIR_X)) SBI(new_dir, X_AXIS),
+      if (TEST(axis_did_move, Y_AXIS) && TEST(command, FT_BIT_DIR_Y)) SBI(new_dir, Y_AXIS),
+      if (TEST(axis_did_move, Z_AXIS) && TEST(command, FT_BIT_DIR_Z)) SBI(new_dir, Z_AXIS),
+      if (TEST(axis_did_move, I_AXIS) && TEST(command, FT_BIT_DIR_I)) SBI(new_dir, I_AXIS),
+      if (TEST(axis_did_move, J_AXIS) && TEST(command, FT_BIT_DIR_J)) SBI(new_dir, J_AXIS),
+      if (TEST(axis_did_move, K_AXIS) && TEST(command, FT_BIT_DIR_K)) SBI(new_dir, K_AXIS),
+      if (TEST(axis_did_move, U_AXIS) && TEST(command, FT_BIT_DIR_U)) SBI(new_dir, U_AXIS),
+      if (TEST(axis_did_move, V_AXIS) && TEST(command, FT_BIT_DIR_V)) SBI(new_dir, V_AXIS),
+      if (TEST(axis_did_move, W_AXIS) && TEST(command, FT_BIT_DIR_W)) SBI(new_dir, W_AXIS)
     );
 
     // last_direction_bits = LOGICAL_AXIS_ARRAY(
@@ -3297,27 +3298,18 @@ void Stepper::report_positions() {
     //   axis_did_move.w ? TEST(command, FT_BIT_DIR_W) : last_direction_bits.w
     // );
 
-    // Apply directions (which will apply to the entire linear move)
-    if (motor_direction(E_AXIS)) {
-      REV_E_DIR(stepper_extruder);
+    if (new_dir != last_direction_bits) {
+      last_direction_bits = new_dir;
+      if (motor_direction(E_AXIS)) {
+        NORM_E_DIR(stepper_extruder);
+        count_direction[E_AXIS] = -1;
+      }
+      else {
+        REV_E_DIR(stepper_extruder);
+        count_direction[E_AXIS] = 1;
+      }
+      set_directions();
     }
-    else {
-      NORM_E_DIR(stepper_extruder);
-    }
-    LOGICAL_AXIS_CODE(
-      {;},
-      X_APPLY_DIR(!!(last_direction_bits & _BV(X_AXIS)), false),
-      Y_APPLY_DIR(!!(last_direction_bits & _BV(Y_AXIS)), false),
-      Z_APPLY_DIR(!!(last_direction_bits & _BV(Z_AXIS)), false),
-      I_APPLY_DIR(!!(last_direction_bits & _BV(I_AXIS)), false),
-      J_APPLY_DIR(!!(last_direction_bits & _BV(J_AXIS)), false),
-      K_APPLY_DIR(!!(last_direction_bits & _BV(K_AXIS)), false),
-      U_APPLY_DIR(!!(last_direction_bits & _BV(U_AXIS)), false),
-      V_APPLY_DIR(!!(last_direction_bits & _BV(V_AXIS)), false),
-      W_APPLY_DIR(!!(last_direction_bits & _BV(W_AXIS)), false)
-    );
-
-    DIR_WAIT_AFTER();
 
     hal_timer_t pulse_end = HAL_timer_get_count(PULSE_TIMER_NUM) + hal_timer_t(MIN_PULSE_TICKS);
 
