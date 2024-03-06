@@ -3306,15 +3306,15 @@ void Stepper::report_positions() {
     }
     LOGICAL_AXIS_CODE(
       {;},
-      X_APPLY_DIR(last_direction_bits & _BV(X_AXIS), false),
-      Y_APPLY_DIR(last_direction_bits & _BV(Y_AXIS), false),
-      Z_APPLY_DIR(last_direction_bits & _BV(Z_AXIS), false),
-      I_APPLY_DIR(last_direction_bits & _BV(I_AXIS), false),
-      J_APPLY_DIR(last_direction_bits & _BV(J_AXIS), false),
-      K_APPLY_DIR(last_direction_bits & _BV(K_AXIS), false),
-      U_APPLY_DIR(last_direction_bits & _BV(U_AXIS), false),
-      V_APPLY_DIR(last_direction_bits & _BV(V_AXIS), false),
-      W_APPLY_DIR(last_direction_bits & _BV(W_AXIS), false)
+      X_APPLY_DIR(!!(last_direction_bits & _BV(X_AXIS)), false),
+      Y_APPLY_DIR(!!(last_direction_bits & _BV(Y_AXIS)), false),
+      Z_APPLY_DIR(!!(last_direction_bits & _BV(Z_AXIS)), false),
+      I_APPLY_DIR(!!(last_direction_bits & _BV(I_AXIS)), false),
+      J_APPLY_DIR(!!(last_direction_bits & _BV(J_AXIS)), false),
+      K_APPLY_DIR(!!(last_direction_bits & _BV(K_AXIS)), false),
+      U_APPLY_DIR(!!(last_direction_bits & _BV(U_AXIS)), false),
+      V_APPLY_DIR(!!(last_direction_bits & _BV(V_AXIS)), false),
+      W_APPLY_DIR(!!(last_direction_bits & _BV(W_AXIS)), false)
     );
 
     DIR_WAIT_AFTER();
@@ -3323,16 +3323,16 @@ void Stepper::report_positions() {
 
     // Start a step pulse
     LOGICAL_AXIS_CODE(
-      E_APPLY_STEP(axis_did_move & _BV(E_AXIS), false),
-      X_APPLY_STEP(axis_did_move & _BV(X_AXIS), false),
-      Y_APPLY_STEP(axis_did_move & _BV(Y_AXIS), false),
-      Z_APPLY_STEP(axis_did_move & _BV(Z_AXIS), false),
-      I_APPLY_STEP(axis_did_move & _BV(I_AXIS), false),
-      J_APPLY_STEP(axis_did_move & _BV(J_AXIS), false),
-      K_APPLY_STEP(axis_did_move & _BV(K_AXIS), false),
-      U_APPLY_STEP(axis_did_move & _BV(U_AXIS), false),
-      V_APPLY_STEP(axis_did_move & _BV(V_AXIS), false),
-      W_APPLY_STEP(axis_did_move & _BV(W_AXIS), false)
+      E_APPLY_STEP(!!(axis_did_move & _BV(E_AXIS)), false),
+      X_APPLY_STEP(!!(axis_did_move & _BV(X_AXIS)), false),
+      Y_APPLY_STEP(!!(axis_did_move & _BV(Y_AXIS)), false),
+      Z_APPLY_STEP(!!(axis_did_move & _BV(Z_AXIS)), false),
+      I_APPLY_STEP(!!(axis_did_move & _BV(I_AXIS)), false),
+      J_APPLY_STEP(!!(axis_did_move & _BV(J_AXIS)), false),
+      K_APPLY_STEP(!!(axis_did_move & _BV(K_AXIS)), false),
+      U_APPLY_STEP(!!(axis_did_move & _BV(U_AXIS)), false),
+      V_APPLY_STEP(!!(axis_did_move & _BV(V_AXIS)), false),
+      W_APPLY_STEP(!!(axis_did_move & _BV(W_AXIS)), false)
     );
 
     // TERN_(I2S_STEPPER_STREAM, i2s_push_sample());
