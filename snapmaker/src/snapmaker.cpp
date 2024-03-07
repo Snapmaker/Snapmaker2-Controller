@@ -155,6 +155,7 @@ static void main_loop(void *param) {
   SERIAL_ECHOLN("Finish init\n");
 
   cur_mills = millis() - 3000;
+  stepper.post_init();
 
   for (;;) {
 
