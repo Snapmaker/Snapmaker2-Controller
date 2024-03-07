@@ -22,6 +22,8 @@
 
 #include "../inc/MarlinConfig.h"
 
+#include "../snapmaker/src/snapmaker.h"
+
 #if ENABLED(FT_MOTION)
 
 #include "ft_motion.h"
@@ -167,6 +169,9 @@ void FTMotion::runoutBlock() {
 // Controller main, to be invoked from non-isr task.
 void FTMotion::loop() {
 
+  if (xTaskGetCurrentTaskHandle() != sm2_handle->marlin)
+    return;
+
   if (!cfg.mode) return;
 
   // Handle block abort with the following sequence:
@@ -182,7 +187,13 @@ void FTMotion::loop() {
   }
 
   // Planner processing and block conversion.
-  if (!blockProcRdy) stepper.ftMotion_blockQueueUpdate();
+  if (!blockProcRdy) {
+    if (planner.new_block) {
+      planner.new_block = 0;
+      planner.recalculate_trapezoids();
+    }
+    stepper.ftMotion_blockQueueUpdate();
+  }
 
   if (blockProcRdy) {
     if (!blockProcRdy_z1) { // One-shot.
@@ -455,6 +466,7 @@ void FTMotion::reset() {
   stepperCmdBuff_produceIdx = stepperCmdBuff_consumeIdx = 0;
 
   traj.reset();
+  trajMod.reset();
 
   blockProcRdy = blockProcRdy_z1 = blockProcDn = false;
   batchRdy = batchRdyForInterp = false;
