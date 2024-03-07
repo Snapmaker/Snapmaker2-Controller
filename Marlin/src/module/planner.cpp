@@ -117,7 +117,7 @@ volatile uint8_t Planner::block_buffer_head,    // Index of the next block to be
                  Planner::block_buffer_tail;    // Index of the busy block, if any
 uint16_t Planner::cleaning_buffer_counter;      // A counter to disable queuing of blocks
 uint8_t Planner::delay_before_delivering;       // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
-
+uint8_t Planner::new_block = 0;
 planner_settings_t Planner::settings;           // Initialized by settings.load()
 
 laser_state_t Planner::laser_inline = {0};            // Planner laser power for blocks
@@ -1155,7 +1155,10 @@ void Planner::recalculate() {
     reverse_pass();
     forward_pass();
   }
-  recalculate_trapezoids();
+  if (!ftMotion.cfg.mode)
+    recalculate_trapezoids();
+  else
+    new_block = 1;
 }
 
 #if ENABLED(AUTOTEMP)
