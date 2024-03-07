@@ -391,6 +391,8 @@ void Stepper::set_directions() {
     }
 
   #else
+  // So, while bit is set of last_direction_bits
+  // indicates direction is negative
   #define SET_STEP_DIR(A)                       \
     if (motor_direction(_AXIS(A))) {            \
       A##_APPLY_DIR(A##_DIR, false);  \
@@ -2209,6 +2211,13 @@ void Stepper::PrintStepperBind() {
   LOG_I("\n");
 }
 
+void Stepper::post_init() {
+  // LOG_I("stepper dir: X: %d, Y: %d, Z: %d\n", X_DIR, Y_DIR, Z_DIR);
+  // LOG_I("dir sta: X: %d, Y: %d, Z: %d\n", READ_OUTPUT(x_dir_pin), READ_OUTPUT(y_dir_pin), READ_OUTPUT(z_dir_pin));
+  set_directions();
+  // LOG_I("dir sta post: X: %d, Y: %d, Z: %d\n\n", READ_OUTPUT(x_dir_pin), READ_OUTPUT(y_dir_pin), READ_OUTPUT(z_dir_pin));
+}
+
 void Stepper::init() {
 
   #if MB(ALLIGATOR)
@@ -3265,12 +3274,13 @@ void Stepper::report_positions() {
 
     if (new_dir != last_direction_bits) {
       last_direction_bits = new_dir;
+      // bit is set indicates direction is negative
       if (motor_direction(E_AXIS)) {
-        NORM_E_DIR(stepper_extruder);
+        REV_E_DIR(stepper_extruder);
         count_direction[E_AXIS] = -1;
       }
       else {
-        REV_E_DIR(stepper_extruder);
+        NORM_E_DIR(stepper_extruder);
         count_direction[E_AXIS] = 1;
       }
       set_directions();

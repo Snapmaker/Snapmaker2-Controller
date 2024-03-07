@@ -527,16 +527,16 @@ void FTMotion::loadBlockData(block_t * const current_block) {
   startPosn = endPosn_prevBlock; // 前一个block的结束位置，本函数会累加block位置
   // 以下根据各轴的方向，将block里计算好的步数，转化为mm。moveDist记录的是各轴本次移动距离，耦合方向
   xyze_pos_t moveDist = LOGICAL_AXIS_ARRAY(
-    current_block->steps[E_AXIS] * planner.steps_to_mm[E_AXIS] * (TEST(current_block->direction_bits, E_AXIS) ? 1 : -1),
-    current_block->steps[X_AXIS] * planner.steps_to_mm[X_AXIS] * (TEST(current_block->direction_bits, X_AXIS) ? 1 : -1),
-    current_block->steps[Y_AXIS] * planner.steps_to_mm[Y_AXIS] * (TEST(current_block->direction_bits, Y_AXIS) ? 1 : -1),
-    current_block->steps[Z_AXIS] * planner.steps_to_mm[Z_AXIS] * (TEST(current_block->direction_bits, Z_AXIS) ? 1 : -1),
-    current_block->steps[I_AXIS] * planner.steps_to_mm[I_AXIS] * (TEST(current_block->direction_bits, I_AXIS) ? 1 : -1),
-    current_block->steps[J_AXIS] * planner.steps_to_mm[J_AXIS] * (TEST(current_block->direction_bits, J_AXIS) ? 1 : -1),
-    current_block->steps[K_AXIS] * planner.steps_to_mm[K_AXIS] * (TEST(current_block->direction_bits, K_AXIS) ? 1 : -1),
-    current_block->steps[U_AXIS] * planner.steps_to_mm[U_AXIS] * (TEST(current_block->direction_bits, U_AXIS) ? 1 : -1),
-    current_block->steps[V_AXIS] * planner.steps_to_mm[V_AXIS] * (TEST(current_block->direction_bits, V_AXIS) ? 1 : -1),
-    current_block->steps[W_AXIS] * planner.steps_to_mm[W_AXIS] * (TEST(current_block->direction_bits, W_AXIS) ? 1 : -1)
+    current_block->steps[E_AXIS] * planner.steps_to_mm[E_AXIS] * (TEST(current_block->direction_bits, E_AXIS) ? -1 : 1),
+    current_block->steps[X_AXIS] * planner.steps_to_mm[X_AXIS] * (TEST(current_block->direction_bits, X_AXIS) ? -1 : 1),
+    current_block->steps[Y_AXIS] * planner.steps_to_mm[Y_AXIS] * (TEST(current_block->direction_bits, Y_AXIS) ? -1 : 1),
+    current_block->steps[Z_AXIS] * planner.steps_to_mm[Z_AXIS] * (TEST(current_block->direction_bits, Z_AXIS) ? -1 : 1),
+    current_block->steps[I_AXIS] * planner.steps_to_mm[I_AXIS] * (TEST(current_block->direction_bits, I_AXIS) ? -1 : 1),
+    current_block->steps[J_AXIS] * planner.steps_to_mm[J_AXIS] * (TEST(current_block->direction_bits, J_AXIS) ? -1 : 1),
+    current_block->steps[K_AXIS] * planner.steps_to_mm[K_AXIS] * (TEST(current_block->direction_bits, K_AXIS) ? -1 : 1),
+    current_block->steps[U_AXIS] * planner.steps_to_mm[U_AXIS] * (TEST(current_block->direction_bits, U_AXIS) ? -1 : 1),
+    current_block->steps[V_AXIS] * planner.steps_to_mm[V_AXIS] * (TEST(current_block->direction_bits, V_AXIS) ? -1 : 1),
+    current_block->steps[W_AXIS] * planner.steps_to_mm[W_AXIS] * (TEST(current_block->direction_bits, W_AXIS) ? -1 : 1)
   );
 
   ratio = moveDist * oneOverLength; // 算出各轴移动距离，与合成运动距离的比值，耦合方向，有正负号
@@ -741,14 +741,15 @@ static void (*command_set[NUM_AXES TERN0(HAS_EXTRUDERS, +1)])(int32_t&, int32_t&
 static void command_set_pos(int32_t &e, int32_t &s, ft_command_t &b, int32_t bd, int32_t bs) {
   if (e < FTM_CTS_COMPARE_VAL) return;
   s++;
-  b |= bd | bs;
+  b |= bs;
   e -= FTM_STEPS_PER_UNIT_TIME;
 }
 
+// bit is set indicates direction is negative
 static void command_set_neg(int32_t &e, int32_t &s, ft_command_t &b, int32_t bd, int32_t bs) {
   if (e > -(FTM_CTS_COMPARE_VAL)) return;
   s--;
-  b |= bs;
+  b |= bd | bs;
   e += FTM_STEPS_PER_UNIT_TIME;
 }
 
