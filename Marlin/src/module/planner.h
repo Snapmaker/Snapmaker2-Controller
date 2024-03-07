@@ -230,7 +230,9 @@ typedef struct {
   #endif
 } skew_factor_t;
 
+class FTMotion;
 class Planner {
+  friend class FTMotion;
   public:
 
     /**
@@ -253,7 +255,7 @@ class Planner {
                             block_buffer_tail;      // Index of the busy block, if any
     static uint16_t cleaning_buffer_counter;        // A counter to disable queuing of blocks
     static uint8_t delay_before_delivering;         // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
-
+    static uint8_t new_block;
 
     #if ENABLED(DISTINCT_E_FACTORS)
       static uint8_t last_extruder;                 // Respond to extruder change
