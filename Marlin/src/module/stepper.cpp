@@ -1383,8 +1383,8 @@ void Stepper::isr() {
     #if ENABLED(FT_MOTION)
       if (using_ftMotion) {
         if (!nextMainISR) {               // Main ISR is ready to fire during this iteration?
-          nextMainISR = FTM_MIN_TICKS;    // Set to minimum interval (a limit on the top speed)
-          ftMotion_stepper();             // Run FTM Stepping
+          // nextMainISR = FTM_MIN_TICKS;    // Set to minimum interval (a limit on the top speed)
+          nextMainISR = ftMotion_stepper();             // Run FTM Stepping
         }
         interval = nextMainISR;           // Interval is either some old nextMainISR or FTM_MIN_TICKS
         nextMainISR = 0;                  // For FT Motion fire again ASAP
@@ -3205,23 +3205,41 @@ void Stepper::report_positions() {
 #define STEP_STATE_W HIGH
 #define STEP_STATE_E HIGH
   // Set stepper I/O for fixed time controller.
-  void Stepper::ftMotion_stepper() {
+  uint32_t Stepper::ftMotion_stepper() {
+    volatile uint32_t interval = FTM_MIN_TICKS;
+    volatile uint32_t retry = 10;
 
     // Check if the buffer is empty.
     ftMotion.sts_stepperBusy = (ftMotion.stepperCmdBuff_produceIdx != ftMotion.stepperCmdBuff_consumeIdx);
-    if (!ftMotion.sts_stepperBusy) return;
+    if (!ftMotion.sts_stepperBusy) return STEPPER_TIMER_RATE / 1000;
 
     // "Pop" one command from current motion buffer
     // Use one byte to restore one stepper command in the format:
     // |X_step|X_direction|Y_step|Y_direction|Z_step|Z_direction|E_step|E_direction|
-    const ft_command_t command = ftMotion.stepperCmdBuff[ftMotion.stepperCmdBuff_consumeIdx];
+    volatile ft_command_t command = ftMotion.stepperCmdBuff[ftMotion.stepperCmdBuff_consumeIdx];
     if (++ftMotion.stepperCmdBuff_consumeIdx == (FTM_STEPPERCMD_BUFF_SIZE))
       ftMotion.stepperCmdBuff_consumeIdx = 0;
 
-    if (0 == command)
-      return;
+    // no available output
+    while (0 == command && (--retry > 0)) {
+      // see if buffer is empty firstly
+      ftMotion.sts_stepperBusy = (ftMotion.stepperCmdBuff_produceIdx != ftMotion.stepperCmdBuff_consumeIdx);
+      if (!ftMotion.sts_stepperBusy) return STEPPER_TIMER_RATE / 1000;
 
-    if (abort_current_block || !Running) return;
+      // to here, there is valid command in the buffer
+      command = ftMotion.stepperCmdBuff[ftMotion.stepperCmdBuff_consumeIdx];
+
+      interval += FTM_MIN_TICKS;
+
+      if (++ftMotion.stepperCmdBuff_consumeIdx == (FTM_STEPPERCMD_BUFF_SIZE))
+        ftMotion.stepperCmdBuff_consumeIdx = 0;
+    }
+
+    if (abort_current_block || !Running) return interval;
+
+    // ftMotion.max_st_inv[ftMotion.st_i] = interval;
+    // if (++ftMotion.st_i >= 10)
+    //   ftMotion.st_i = 0;
 
     // USING_TIMED_PULSE();
 
@@ -3322,6 +3340,9 @@ void Stepper::report_positions() {
       if (TEST(axis_did_move, W_AXIS)) count_position[W_AXIS] += count_direction[W_AXIS]
     );
 
+    // Check endstops on every step
+    endstops.update();
+
     // Allow pulses to be registered by stepper drivers
     // TODO: need to deal with MINIMUM_STEPPER_PULSE over i2s
     #if MINIMUM_STEPPER_PULSE && DISABLED(I2S_STEPPER_STREAM)
@@ -3337,12 +3358,10 @@ void Stepper::report_positions() {
       U_APPLY_STEP(!STEP_STATE_U, false), V_APPLY_STEP(!STEP_STATE_V, false), W_APPLY_STEP(!STEP_STATE_W, false)
     );
 
-    // Check endstops on every step
-    endstops.update();
-
     // Also handle babystepping here
     // TERN_(BABYSTEPPING, if (babystep.has_steps()) babystepping_isr());
 
+    return interval;
   } // Stepper::ftMotion_stepper
 
   void Stepper::ftMotion_blockQueueUpdate() {
