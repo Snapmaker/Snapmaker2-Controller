@@ -3289,17 +3289,18 @@ void Stepper::report_positions() {
     hal_timer_t pulse_end = HAL_timer_get_count(PULSE_TIMER_NUM) + hal_timer_t(MIN_PULSE_TICKS);
 
     // Start a step pulse
+    // count_position[_AXIS(AXIS)] += count_direction[_AXIS(AXIS)];
     LOGICAL_AXIS_CODE(
-      E_APPLY_STEP(!!(axis_did_move & _BV(E_AXIS)), false),
-      X_APPLY_STEP(!!(axis_did_move & _BV(X_AXIS)), false),
-      Y_APPLY_STEP(!!(axis_did_move & _BV(Y_AXIS)), false),
-      Z_APPLY_STEP(!!(axis_did_move & _BV(Z_AXIS)), false),
-      I_APPLY_STEP(!!(axis_did_move & _BV(I_AXIS)), false),
-      J_APPLY_STEP(!!(axis_did_move & _BV(J_AXIS)), false),
-      K_APPLY_STEP(!!(axis_did_move & _BV(K_AXIS)), false),
-      U_APPLY_STEP(!!(axis_did_move & _BV(U_AXIS)), false),
-      V_APPLY_STEP(!!(axis_did_move & _BV(V_AXIS)), false),
-      W_APPLY_STEP(!!(axis_did_move & _BV(W_AXIS)), false)
+      if (TEST(axis_did_move, E_AXIS)) E_APPLY_STEP(STEP_STATE_E, false),
+      if (TEST(axis_did_move, X_AXIS)) X_APPLY_STEP(STEP_STATE_X, false),
+      if (TEST(axis_did_move, Y_AXIS)) Y_APPLY_STEP(STEP_STATE_Y, false),
+      if (TEST(axis_did_move, Z_AXIS)) Z_APPLY_STEP(STEP_STATE_Z, false),
+      if (TEST(axis_did_move, I_AXIS)) I_APPLY_STEP(STEP_STATE_I, false),
+      if (TEST(axis_did_move, J_AXIS)) J_APPLY_STEP(STEP_STATE_J, false),
+      if (TEST(axis_did_move, K_AXIS)) K_APPLY_STEP(STEP_STATE_K, false),
+      if (TEST(axis_did_move, U_AXIS)) U_APPLY_STEP(STEP_STATE_U, false),
+      if (TEST(axis_did_move, V_AXIS)) V_APPLY_STEP(STEP_STATE_V, false),
+      if (TEST(axis_did_move, W_AXIS)) W_APPLY_STEP(STEP_STATE_W, false)
     );
 
     // TERN_(I2S_STEPPER_STREAM, i2s_push_sample());
@@ -3309,16 +3310,16 @@ void Stepper::report_positions() {
 
     // Update step counts
     LOGICAL_AXIS_CODE(
-      if (TEST(axis_did_move, E_AXIS)) count_position[E_AXIS] += TEST(last_direction_bits, E_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, X_AXIS)) count_position[X_AXIS] += TEST(last_direction_bits, X_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, Y_AXIS)) count_position[Y_AXIS] += TEST(last_direction_bits, Y_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, Z_AXIS)) count_position[Z_AXIS] += TEST(last_direction_bits, Z_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, I_AXIS)) count_position[I_AXIS] += TEST(last_direction_bits, I_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, J_AXIS)) count_position[J_AXIS] += TEST(last_direction_bits, J_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, K_AXIS)) count_position[K_AXIS] += TEST(last_direction_bits, K_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, U_AXIS)) count_position[U_AXIS] += TEST(last_direction_bits, U_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, V_AXIS)) count_position[V_AXIS] += TEST(last_direction_bits, V_AXIS) ? 1 : -1,
-      if (TEST(axis_did_move, W_AXIS)) count_position[W_AXIS] += TEST(last_direction_bits, W_AXIS) ? 1 : -1
+      if (TEST(axis_did_move, E_AXIS)) count_position[E_AXIS] += count_direction[E_AXIS],
+      if (TEST(axis_did_move, X_AXIS)) count_position[X_AXIS] += count_direction[X_AXIS],
+      if (TEST(axis_did_move, Y_AXIS)) count_position[Y_AXIS] += count_direction[Y_AXIS],
+      if (TEST(axis_did_move, Z_AXIS)) count_position[Z_AXIS] += count_direction[Z_AXIS],
+      if (TEST(axis_did_move, I_AXIS)) count_position[I_AXIS] += count_direction[I_AXIS],
+      if (TEST(axis_did_move, J_AXIS)) count_position[J_AXIS] += count_direction[J_AXIS],
+      if (TEST(axis_did_move, K_AXIS)) count_position[K_AXIS] += count_direction[K_AXIS],
+      if (TEST(axis_did_move, U_AXIS)) count_position[U_AXIS] += count_direction[U_AXIS],
+      if (TEST(axis_did_move, V_AXIS)) count_position[V_AXIS] += count_direction[V_AXIS],
+      if (TEST(axis_did_move, W_AXIS)) count_position[W_AXIS] += count_direction[W_AXIS]
     );
 
     // Allow pulses to be registered by stepper drivers
