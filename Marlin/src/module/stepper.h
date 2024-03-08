@@ -588,7 +588,7 @@ class Stepper {
     #endif
 
     #if ENABLED(FT_MOTION)
-      static void ftMotion_stepper();
+      static uint32_t ftMotion_stepper();
     #endif
 };
 
