@@ -78,6 +78,9 @@ class BedLevelService {
     ErrCode FinishDualExtruderManualBedDetect();
 
   private:
+    void RecoverMotionEnv();
+
+  private:
     LevelMode level_mode_ = LEVEL_MODE_INVALD;
     uint8_t probe_point_;
     uint8_t manual_level_index_ = MANUAL_LEVEL_INDEX_INVALID;
@@ -92,6 +95,7 @@ class BedLevelService {
       float MeshPointZ[GRID_MAX_POINTS];
       float z_values_tmp[GRID_MAX_NUM][GRID_MAX_NUM];
     };
+    uint8_t ft_motion_mode {0};
 };
 
 extern BedLevelService levelservice;
