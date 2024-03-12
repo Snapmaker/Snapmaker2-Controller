@@ -61,7 +61,8 @@ int32_t FTMotion::stepperCmdBuff_produceIdx = 0, // Index of next stepper comman
         FTMotion::stepperCmdBuff_consumeIdx = 0; // Index of next stepper command read from the buffer.
 
 bool FTMotion::sts_stepperBusy = false;         // The stepper buffer has items and is in use.
-
+uint32_t FTMotion::log[10] = {0};
+uint32_t FTMotion::log_c = 0;
 // Private variables.
 
 // NOTE: These are sized for Ulendo FBS use.
@@ -620,6 +621,11 @@ void FTMotion::loadBlockData(block_t * const current_block) {
   max_intervals = N1 + N2 + N3;
 
   endPosn_prevBlock += moveDist; // 累计位置，这里需要注意float类型长度了
+  // LOG_I("moveDist: X:%f, Y:%f, Z:%f, I:%f, E:%f\n", moveDist.x, moveDist.y, moveDist.z, moveDist.i, moveDist.e);
+  // LOG_I("startPos: X:%f, Y:%f, Z:%f, I:%f, E:%f\n", startPosn.x, startPosn.y, startPosn.z, startPosn.i, startPosn.e);
+  // LOG_I("endPosn: X:%f, Y:%f, Z:%f, I:%f, E:%f\n", endPosn_prevBlock.x, endPosn_prevBlock.y, endPosn_prevBlock.z, endPosn_prevBlock.i, endPosn_prevBlock.e);
+  // LOG_I("steps: X:%d, Y:%d, Z:%d, I:%d, E:%d\n\n", steps.x, steps.y, steps.z, steps.i, steps.e);
+  // LOG_I("dir bits: 0x%x\n\n", current_block->direction_bits);
 }
 
 // Generate data points of the trajectory.
@@ -657,6 +663,10 @@ void FTMotion::makeVector() {
     traj.v[makeVector_batchIdx] = startPosn.v + ratio.v * dist,
     traj.w[makeVector_batchIdx] = startPosn.w + ratio.w * dist
   );
+
+  // LOG_I("traj: X:%f, Y:%f, Z:%f, I:%f, E:%f\n", traj.x[makeVector_batchIdx], traj.y[makeVector_batchIdx],
+  //   traj.z[makeVector_batchIdx], traj.i[makeVector_batchIdx], traj.e[makeVector_batchIdx]);
+  // LOG_I("trajMod: X:%f, Y:%f, Z:%f, I:%f, E:%f\n", trajMod.x, trajMod.y, trajMod.z, trajMod.i, trajMod.e);
 
   #if HAS_EXTRUDERS
     if (cfg.linearAdvEna) {
@@ -776,6 +786,12 @@ void FTMotion::convertToSteps(const uint32_t idx) {
       TOSTEPS(u, U_AXIS), TOSTEPS(v, V_AXIS), TOSTEPS(w, W_AXIS)
     );
   #endif
+  // LOG_I("trajMod: X:%f, Y:%f, Z:%f, I:%f, E:%f\n", trajMod.x[idx], trajMod.y[idx],
+  // trajMod.z[idx], trajMod.i[idx], trajMod.e[idx]);
+  // if (global_inited) {
+  //   LOG_I("steps: X:%d, Y:%d, Z:%d, I:%d, E:%d\n", steps.x, steps.y, steps.z, steps.i, steps.e);
+  //   LOG_I("delta: X:%d, Y:%d, Z:%d, I:%d, E:%d\n", delta.x, delta.y, delta.z, delta.i, delta.e);
+  // }
 
   LOGICAL_AXIS_CODE(
     command_set[E_AXIS_N(current_block->extruder)] = delta.e >= 0 ?  command_set_pos : command_set_neg,
