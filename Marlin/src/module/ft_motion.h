@@ -117,6 +117,13 @@ class FTMotion {
     static void runoutBlock();                            // Move any free data points to the stepper buffer even if a full batch isn't ready.
     static void loop();                                   // Controller main, to be invoked from non-isr task.
 
+    static ftMotionMode_t disable() {
+      auto m = cfg.mode;
+      cfg.mode = ftMotionMode_DISABLED;
+      return m;
+    }
+    static void setMode(const ftMotionMode_t &m) { cfg.mode = m; }
+
     #if HAS_X_AXIS
       // Refresh the gains used by shaping functions.
       // To be called on init or mode or zeta change.
