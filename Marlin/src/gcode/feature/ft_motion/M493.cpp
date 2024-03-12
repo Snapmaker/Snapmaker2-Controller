@@ -176,6 +176,10 @@ void GcodeSuite::M493_report(const bool forReplay/*=true*/) {
 void GcodeSuite::M493() {
   struct { bool update_n:1, update_a:1, reset_ft:1, report_h:1; } flag = { false };
 
+  for (int i = 0; i < 10; i++) {
+    SERIAL_ECHOLNPAIR("max", i, ": ", ftMotion.log[i]);
+  }
+
   if (!parser.seen_any())
     flag.report_h = true;
 

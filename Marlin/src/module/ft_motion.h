@@ -67,6 +67,9 @@ class FTMotion {
 
   public:
 
+    static uint32_t log[10];
+    static uint32_t log_c;
+
     // Public variables
     static ft_config_t cfg;
     static bool busy;
