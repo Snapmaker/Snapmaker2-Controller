@@ -1337,14 +1337,20 @@ void Stepper::isr() {
   // execute to endstop.update(), then we cannot check power loss there.
   // But if power loss happened and ISR cannot get block, no need to check again
   if (quickstop.CheckInISR(current_block) || emergency_stop.IsTriggered()) {
-    abort_current_block = false;
-    if (current_block) {
-      axis_did_move = 0;
-      current_block = NULL;
+    if (ftMotion.cfg.mode) {
+      if (current_block)
+        ftMotion.req_abort = true; // FT motion need this flag to abort planning
+    }
+    else {
+      planner.block_buffer_nonbusy = planner.block_buffer_tail = \
+        planner.block_buffer_planned = planner.block_buffer_head;
+      if (current_block) {
+        axis_did_move = 0;
+        current_block = NULL;
+      }
     }
 
-    planner.block_buffer_nonbusy = planner.block_buffer_tail = \
-      planner.block_buffer_planned = planner.block_buffer_head;
+    abort_current_block = false;
 
     // interval = 1 ms
     HAL_timer_set_compare(STEP_TIMER_NUM,
@@ -3270,7 +3276,10 @@ void Stepper::report_positions() {
         ftMotion.stepperCmdBuff_consumeIdx = 0;
     }
 
-    if (abort_current_block || !Running) return interval;
+    if (abort_current_block || !Running) {
+      ftMotion.req_abort = true;
+      return interval;
+    }
 
     // ftMotion.max_st_inv[ftMotion.st_i] = interval;
     // if (++ftMotion.st_i >= 10)
