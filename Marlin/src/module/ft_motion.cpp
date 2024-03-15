@@ -57,7 +57,6 @@ FTMotion ftMotion;
 ft_config_t FTMotion::cfg;
 bool FTMotion::busy; // = false
 bool FTMotion::req_abort {false};
-SemaphoreHandle_t FTMotion::planning {NULL};
 ft_command_t FTMotion::stepperCmdBuff[FTM_STEPPERCMD_BUFF_SIZE] = {0U}; // Stepper commands buffer.
 int32_t FTMotion::stepperCmdBuff_produceIdx = 0, // Index of next stepper command write to the buffer.
         FTMotion::stepperCmdBuff_consumeIdx = 0; // Index of next stepper command read from the buffer.
@@ -172,6 +171,9 @@ void FTMotion::runoutBlock() {
 // Controller main, to be invoked from non-isr task.
 void FTMotion::loop() {
 
+  if (sm2_handle->marlin != xTaskGetCurrentTaskHandle())
+    return;
+
   if (!cfg.mode) return;
 
   // Handle block abort with the following sequence:
@@ -182,16 +184,15 @@ void FTMotion::loop() {
   if (req_abort) {
     portDISABLE_INTERRUPTS();
     req_abort = false;
-    reset();
     blockProcDn = true;                   // Set queueing to look for next block.
     stepper.current_block = NULL;
     planner.new_block = 0;
     planner.clear_block_buffer();
+    planner.delay_before_delivering = 100;
     sts_stepperBusy = false;
+    reset();
     portENABLE_INTERRUPTS();
   }
-
-  xSemaphoreTake(planning, portMAX_DELAY);
 
   // Planner processing and block conversion.
   if (!blockProcRdy) {
@@ -264,7 +265,6 @@ void FTMotion::loop() {
   makeVector_idx_z1 = makeVector_idx;
   interpIdx_z1 = interpIdx;
 
-  xSemaphoreGive(planning);
   return;
 }
 
@@ -495,7 +495,6 @@ void FTMotion::reset() {
     TERN_(HAS_Y_AXIS, ZERO(shaping.y.d_zi));
     shaping.zi_idx = 0;
   #endif
-  busy = (sts_stepperBusy || ((!blockProcDn && blockProcRdy) || batchRdy || batchRdyForInterp || runoutEna));
   TERN_(HAS_EXTRUDERS, e_raw_z1 = e_advanced_z1 = 0.0f);
 }
 
@@ -526,8 +525,6 @@ void FTMotion::init() {
     updateShapingA();
   #endif
   reset(); // Precautionary.
-
-  planning = xSemaphoreCreateMutex();
 }
 
 // Loads / converts block data from planner to fixed-time control variables.

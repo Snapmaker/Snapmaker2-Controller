@@ -26,6 +26,7 @@
 
 #include "temperature.h"
 #include "endstops.h"
+#include "ft_motion.h"
 
 #include "../Marlin.h"
 #include "planner.h"
@@ -3008,7 +3009,8 @@ void Temperature::isr() {
   pl_recovery.Check();
 
   // Poll endstops state, if required
-  endstops.poll();
+  if (!ftMotion.cfg.mode)
+    endstops.poll();
 
   // Periodically call the planner timer
   planner.tick();
