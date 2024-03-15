@@ -2689,7 +2689,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
  * Planner::buffer_sync_block
  * Add a block to the buffer that just updates the position
  */
-void Planner::buffer_sync_block() {
+void Planner::buffer_sync_block(bool sync_e) {
   // Wait for the next available block
   uint8_t next_buffer_head;
   block_t * const block = get_next_free_block(next_buffer_head);
@@ -2698,6 +2698,7 @@ void Planner::buffer_sync_block() {
   memset(block, 0, sizeof(block_t));
 
   block->flag = BLOCK_FLAG_SYNC_POSITION;
+  block->sync_e = sync_e;
 
   block->position[X_AXIS] = position[X_AXIS];
   block->position[Y_AXIS] = position[Y_AXIS];
@@ -2970,7 +2971,7 @@ void Planner::set_e_position_mm(const float &e) {
     position_cart[E_AXIS] = e;
   #endif
   if (has_blocks_queued())
-    buffer_sync_block();
+    buffer_sync_block(true);
   else
     stepper.set_position(E_AXIS, position[E_AXIS]);
 }
