@@ -100,6 +100,7 @@ typedef struct {
 typedef struct block_t {
 
   volatile uint8_t flag;                    // Block flags (See BlockFlag enum above) - Modified by ISR and main thread!
+  bool sync_e;
 
   // Fields used by the motion planner to manage acceleration
   float nominal_speed_sqr,                  // The nominal speed for this block in (mm/sec)^2
@@ -652,7 +653,7 @@ class Planner {
      * Planner::buffer_sync_block
      * Add a block to the buffer that just updates the position
      */
-    static void buffer_sync_block();
+    static void buffer_sync_block(bool sync_e=false);
 
   #if IS_KINEMATIC
     private:

@@ -105,6 +105,8 @@ class FTMotion {
       reset();
     }
 
+    static int32_t positionSyncIndex;
+    static int32_t positionSyncBuff[FTM_SYNC_POSITION_SIZE][NUM_AXIS_ENUMS];
     static ft_command_t stepperCmdBuff[FTM_STEPPERCMD_BUFF_SIZE]; // Buffer of stepper commands.
     static int32_t stepperCmdBuff_produceIdx,             // Index of next stepper command write to the buffer.
                    stepperCmdBuff_consumeIdx;             // Index of next stepper command read from the buffer.
@@ -117,6 +119,7 @@ class FTMotion {
     static bool getBlockProcDn() { return blockProcDn; }  // Return true if the controller no longer needs the current block.
     static void runoutBlock();                            // Move any free data points to the stepper buffer even if a full batch isn't ready.
     static void loop();                                   // Controller main, to be invoked from non-isr task.
+    static void addSyncCommand(block_t *blk);
 
     static ftMotionMode_t disable() {
       auto m = cfg.mode;

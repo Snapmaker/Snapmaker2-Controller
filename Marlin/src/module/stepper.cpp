@@ -3245,6 +3245,23 @@ void Stepper::report_positions() {
         ftMotion.stepperCmdBuff_consumeIdx = 0;
     }
 
+    if (0 == command) {
+      return interval;
+    }
+
+    if (TEST(command, FT_BIT_SYNC_POS_E)) {
+      count_position[E_AXIS] = ftMotion.positionSyncBuff[command & 0xff][E_AXIS];
+      return interval;
+    }
+
+    if (TEST(command, FT_BIT_SYNC_POS)) {
+      count_position[X_AXIS] = ftMotion.positionSyncBuff[command & 0xff][X_AXIS];
+      count_position[Y_AXIS] = ftMotion.positionSyncBuff[command & 0xff][Y_AXIS];
+      count_position[Z_AXIS] = ftMotion.positionSyncBuff[command & 0xff][Z_AXIS];
+      count_position[I_AXIS] = ftMotion.positionSyncBuff[command & 0xff][I_AXIS];
+      return interval;
+    }
+
     // ftMotion.max_st_inv[ftMotion.st_i] = interval;
     // if (++ftMotion.st_i >= 10)
     //   ftMotion.st_i = 0;
@@ -3385,22 +3402,8 @@ void Stepper::report_positions() {
     current_block = planner.get_current_block();
 
     if (current_block) {
-      // Sync block? Sync the stepper counts and return
-      // while (current_block->is_sync()) {
-      //   TERN_(LASER_FEATURE, if (!(current_block->is_fan_sync() || current_block->is_pwr_sync()))) _set_position(current_block->position);
-
-      //   planner.discard_current_block();
-
-      //   // Try to get a new block
-      //   if (!(current_block = planner.get_current_block()))
-      //     return; // No queued blocks.
-      // }
       while (TEST(current_block->flag, BLOCK_BIT_SYNC_POSITION)) {
-        _set_position(
-          current_block->position[X_AXIS], current_block->position[Y_AXIS],
-          current_block->position[Z_AXIS], current_block->position[B_AXIS],
-          current_block->position[E_AXIS]
-        );
+        ftMotion.addSyncCommand(current_block);
         planner.discard_current_block();
 
         // Try to get a new block
@@ -3412,6 +3415,7 @@ void Stepper::report_positions() {
       return;
     }
 
+    // indicates block queue is empty or block is invalid
     ftMotion.runoutBlock();
 
   } // Stepper::ftMotion_blockQueueUpdate()
