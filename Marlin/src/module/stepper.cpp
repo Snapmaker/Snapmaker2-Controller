@@ -1338,16 +1338,14 @@ void Stepper::isr() {
   // But if power loss happened and ISR cannot get block, no need to check again
   if (quickstop.CheckInISR(current_block) || emergency_stop.IsTriggered()) {
     if (ftMotion.cfg.mode) {
-      if (current_block)
-        ftMotion.req_abort = true; // FT motion need this flag to abort planning
+      ftMotion.req_abort = true; // FT motion need this flag to abort planning
     }
-    else {
-      planner.block_buffer_nonbusy = planner.block_buffer_tail = \
-        planner.block_buffer_planned = planner.block_buffer_head;
-      if (current_block) {
-        axis_did_move = 0;
-        current_block = NULL;
-      }
+
+    planner.block_buffer_nonbusy = planner.block_buffer_tail = \
+      planner.block_buffer_planned = planner.block_buffer_head;
+    if (current_block) {
+      axis_did_move = 0;
+      current_block = NULL;
     }
 
     abort_current_block = false;
@@ -3261,6 +3259,12 @@ void Stepper::report_positions() {
     if (++ftMotion.stepperCmdBuff_consumeIdx == (FTM_STEPPERCMD_BUFF_SIZE))
       ftMotion.stepperCmdBuff_consumeIdx = 0;
 
+    if (abort_current_block || !Running) {
+      ftMotion.req_abort = true;
+      abort_current_block = false;
+      return STEPPER_TIMER_RATE / 500;
+    }
+
     // no available output
     while (0 == command && (--retry > 0)) {
       // see if buffer is empty firstly
@@ -3274,11 +3278,6 @@ void Stepper::report_positions() {
 
       if (++ftMotion.stepperCmdBuff_consumeIdx == (FTM_STEPPERCMD_BUFF_SIZE))
         ftMotion.stepperCmdBuff_consumeIdx = 0;
-    }
-
-    if (abort_current_block || !Running) {
-      ftMotion.req_abort = true;
-      return interval;
     }
 
     // ftMotion.max_st_inv[ftMotion.st_i] = interval;
@@ -3384,9 +3383,6 @@ void Stepper::report_positions() {
       if (TEST(axis_did_move, W_AXIS)) count_position[W_AXIS] += count_direction[W_AXIS]
     );
 
-    // Check endstops on every step
-    endstops.update();
-
     // Allow pulses to be registered by stepper drivers
     // TODO: need to deal with MINIMUM_STEPPER_PULSE over i2s
     #if MINIMUM_STEPPER_PULSE && DISABLED(I2S_STEPPER_STREAM)
@@ -3401,6 +3397,9 @@ void Stepper::report_positions() {
       I_APPLY_STEP(!STEP_STATE_I, false), J_APPLY_STEP(!STEP_STATE_J, false), K_APPLY_STEP(!STEP_STATE_K, false),
       U_APPLY_STEP(!STEP_STATE_U, false), V_APPLY_STEP(!STEP_STATE_V, false), W_APPLY_STEP(!STEP_STATE_W, false)
     );
+
+    // Check endstops on every step
+    endstops.update();
 
     // Also handle babystepping here
     // TERN_(BABYSTEPPING, if (babystep.has_steps()) babystepping_isr());

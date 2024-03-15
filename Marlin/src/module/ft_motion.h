@@ -74,7 +74,6 @@ class FTMotion {
     static ft_config_t cfg;
     static bool busy;
     static bool req_abort;
-    static SemaphoreHandle_t planning;
 
     static void set_defaults() {
       cfg.mode = FTM_DEFAULT_MODE;
