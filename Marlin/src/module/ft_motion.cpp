@@ -57,6 +57,8 @@ FTMotion ftMotion;
 ft_config_t FTMotion::cfg;
 bool FTMotion::busy; // = false
 bool FTMotion::req_abort {false};
+int32_t FTMotion::positionSyncBuff[FTM_SYNC_POSITION_SIZE][NUM_AXIS_ENUMS] = {0U};
+int32_t FTMotion::positionSyncIndex = 0;
 ft_command_t FTMotion::stepperCmdBuff[FTM_STEPPERCMD_BUFF_SIZE] = {0U}; // Stepper commands buffer.
 int32_t FTMotion::stepperCmdBuff_produceIdx = 0, // Index of next stepper command write to the buffer.
         FTMotion::stepperCmdBuff_consumeIdx = 0; // Index of next stepper command read from the buffer.
@@ -166,6 +168,26 @@ void FTMotion::runoutBlock() {
   );
   blockProcRdy = blockDataIsRunout = true;
   runoutEna = blockProcDn = false;
+}
+
+void FTMotion::addSyncCommand(block_t *blk) {
+  if (blk->sync_e) {
+    stepperCmdBuff[stepperCmdBuff_produceIdx] = _BV(FT_BIT_SYNC_POS_E);
+    positionSyncBuff[positionSyncIndex][E_AXIS] = blk->position[E_AXIS];
+  }
+  else {
+    stepperCmdBuff[stepperCmdBuff_produceIdx] = _BV(FT_BIT_SYNC_POS);
+    // copy XYZ B axes
+    memcpy(positionSyncBuff[positionSyncIndex], blk->position, sizeof(int32_t) * XN);
+  }
+
+  // record index
+  stepperCmdBuff[stepperCmdBuff_produceIdx] |= positionSyncIndex;
+  if (++positionSyncIndex >= FTM_SYNC_POSITION_SIZE)
+    positionSyncIndex = 0;
+
+  if (++stepperCmdBuff_produceIdx >= FTM_STEPPERCMD_BUFF_SIZE)
+    stepperCmdBuff_produceIdx = 0;
 }
 
 // Controller main, to be invoked from non-isr task.
@@ -533,8 +555,8 @@ void FTMotion::loadBlockData(block_t * const current_block) {
   const float totalLength = current_block->millimeters, // 原始移动长度
               oneOverLength = 1.0f / totalLength;
 
-  startPosn = endPosn_prevBlock; // 前一个block的结束位置，本函数会累加block位置
-  // 以下根据各轴的方向，将block里计算好的步数，转化为mm。moveDist记录的是各轴本次移动距离，耦合方向
+  startPosn = endPosn_prevBlock;
+
   xyze_pos_t moveDist = LOGICAL_AXIS_ARRAY(
     current_block->steps[E_AXIS] * planner.steps_to_mm[E_AXIS] * (TEST(current_block->direction_bits, E_AXIS) ? -1 : 1),
     current_block->steps[X_AXIS] * planner.steps_to_mm[X_AXIS] * (TEST(current_block->direction_bits, X_AXIS) ? -1 : 1),
