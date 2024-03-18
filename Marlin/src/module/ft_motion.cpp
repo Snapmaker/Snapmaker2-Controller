@@ -56,7 +56,6 @@ FTMotion ftMotion;
 
 ft_config_t FTMotion::cfg;
 bool FTMotion::busy; // = false
-bool FTMotion::req_abort {false};
 int32_t FTMotion::positionSyncBuff[FTM_SYNC_POSITION_SIZE][NUM_AXIS_ENUMS] = {0U};
 int32_t FTMotion::positionSyncIndex = 0;
 ft_command_t FTMotion::stepperCmdBuff[FTM_STEPPERCMD_BUFF_SIZE] = {0U}; // Stepper commands buffer.
@@ -203,16 +202,21 @@ void FTMotion::loop() {
   // 2. Drain the motion buffer, stop processing until they are emptied.
   // 3. Reset all the states / memory.
   // 4. Signal ready for new block.
-  if (req_abort) {
+  if (stepper.abort_current_block) {
     portDISABLE_INTERRUPTS();
-    req_abort = false;
-    blockProcDn = true;                   // Set queueing to look for next block.
-    stepper.current_block = NULL;
-    planner.new_block = 0;
-    planner.clear_block_buffer();
-    planner.delay_before_delivering = 100;
-    sts_stepperBusy = false;
     reset();
+    blockProcDn = true;                   // Set queueing to look for next block.
+    stepper.abort_current_block = false;
+    planner.new_block = 0;
+    sts_stepperBusy = false;
+    portENABLE_INTERRUPTS();
+  }
+
+  if (quickstop.isInStopping()) {
+    portDISABLE_INTERRUPTS();
+    reset();
+    blockProcDn = true;                   // Set queueing to look for next block.
+    sts_stepperBusy = false;
     portENABLE_INTERRUPTS();
   }
 
