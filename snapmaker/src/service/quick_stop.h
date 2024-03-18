@@ -65,7 +65,8 @@ class QuickStopService {
 
     bool inline isTriggered() { return source_ != QS_SOURCE_IDLE; }
     bool inline isIdle() { return source_ == QS_SOURCE_IDLE; }
-    bool isPowerLoss() {return source_ == QS_SOURCE_POWER_LOSS;}
+    bool isPowerLoss() { return source_ == QS_SOURCE_POWER_LOSS; }
+    bool isInStopping() { if (state_ > QS_STA_IDLE && state_ < QS_STA_PARKING) return true; else return false; }
 
   private:
     void Park();
