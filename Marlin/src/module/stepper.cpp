@@ -3433,6 +3433,10 @@ void Stepper::report_positions() {
       if (!ftMotion.getBlockProcDn()) return;
       axis_did_move = 0;
       planner.discard_current_block();
+
+      #if FILAMENT_RUNOUT_DISTANCE_MM > 0
+        runout.block_completed(current_block);
+      #endif
     }
 
     // Check the buffer for a new block
