@@ -373,10 +373,11 @@ void ToolHeadLaser::PrintInfo(void) {
   LOG_I("imu_temperature_ %d\n", imu_temperature_);
   LOG_I("fire_sensor_trigger_: %s\n", fire_sensor_trigger_ ? "TRIGGER" : "NORMAL");
   LOG_I("fire_sensor_trigger_adc_value_ %d\n", fire_sensor_trigger_value_);
-  LOG_I("crosslight_offset_x %f, crosslight_offset_y %f\n", crosslight_offset_x, crosslight_offset_y);
+  // LOG_I("crosslight_offset_x %f, crosslight_offset_y %f\n", crosslight_offset_x, crosslight_offset_y);
   LOG_I("half_power_mode_: %s\n", half_power_mode_ ? "OPEN" : "CLOSE");
   LOG_I("inline enable: %d, inline power pwm: %d\n", planner.laser_inline.status.isEnabled, planner.laser_inline.power);
   LOG_I("air_pump_switch_: %d\n", air_pump_switch_);
+  laser->show_important_info_1();
 }
 
 uint16_t ToolHeadLaser::tim_pwm() {
@@ -1349,7 +1350,7 @@ ErrCode ToolHeadLaser::SetOnlineSyncId(SSTP_Event_t &event) {
 
 ErrCode ToolHeadLaser::GetOnlineSyncId(SSTP_Event_t &event) {
   CanStdFuncCmd_t cmd;
-  uint8_t can_buffer[1];
+  uint8_t can_buffer[5];
 
   can_buffer[0] = 0;
   cmd.id        = MODULE_FUNC_ONLINE_SYNC;
@@ -1850,36 +1851,9 @@ ErrCode ToolHeadLaser::LaserGetHWVersion(uint8_t &version) {
   cmd.data      = buff;
   cmd.length    = 1;
   
-  ret = canhost.SendStdCmdSync(cmd, 2000);
-  if (E_SUCCESS == ret) {
-    version = cmd.data[0];
-  }
-
-  return ret;
-}
-
-/**
- * @brief Get the laser housing(casing) temperature.
- * 
- * @param ld_temp the laser ld temperature.
- * @param housing_temp  the laser housing(casing) temperature.
- * @return true   success
- * @return false  failure
- */
-bool ToolHeadLaser::get_laser_temperature(int16_t &ld_temp, int16_t &housing_temp)
-{
-  CanStdFuncCmd_t cmd;
-  uint8_t buff[5] = {0};
-  ErrCode ret = E_FAILURE;
-
-  cmd.id        = MODULE_FUNC_GET_LASER_HOUSING_TEMP_TMP;
-  cmd.data      = buff;
-  cmd.length    = sizeof(buff);
-  
   ret = canhost.SendStdCmdSync(cmd, 200);
   if (E_SUCCESS == ret) {
-    ld_temp = (cmd.data[0] << 8) | cmd.data[1];
-    housing_temp = (cmd.data[2] << 8) | cmd.data[3];
+    version = cmd.data[0];
   }
 
   return ret;
@@ -1908,26 +1882,41 @@ ErrCode ToolHeadLaser::set_get_protect_temp(int8_t &protect_upper, int8_t &recov
   return ret;
 }
 
-ErrCode ToolHeadLaser::set_tec_temp(int16_t &temp) {
+void ToolHeadLaser::show_important_info_1(void) {
   CanStdFuncCmd_t cmd;
+  uint8_t recv_buffer[8] = {0};
   ErrCode ret = E_FAILURE;
-  int8_t buff[2] = {0};
 
-  buff[0] = (temp >> 8) & 0xFF;
-  buff[1] = (temp) & 0xFF;
-
-  cmd.id        = MODULE_FUNC_SET_TEC_TEMP_TMP;
-  cmd.data      = (uint8_t*)buff;
-  cmd.length    = sizeof(buff);
+  cmd.id        = MODULE_FUNC_GET_IMPORTANT_INFO_1_FOR_DBG;
+  cmd.data      = recv_buffer;
+  cmd.length    = sizeof(recv_buffer);
 
   ret = canhost.SendStdCmdSync(cmd, 200);
   if (E_SUCCESS != ret) {
-    LOG_E("failed to set_tec_temp! ret: %u\n", ret);
-  }
-  else {
-    temp = (cmd.data[0] << 8) | cmd.data[1];
+    return;
   }
 
-  return ret;
+  int32_t tmp = 0;
+  if (MODULE_DEVICE_ID_LASER_RED_2W_2023 == laser->device_id_) {
+    /* guangyuan 2W */
+    if (hw_version_ >= LASER_RED_2W_HW_VER_BASE_GUANGYUAN && hw_version_ <= LASER_RED_2W_HW_VER_BASE_GUANGYUAN + 9) {
+      tmp = recv_buffer[6] << 8 | recv_buffer[7];
+      LOG_I("Casing: %f\n", (float)(tmp / 10.0));
+    }
+    /* lianpin 2W */
+    if (hw_version_ >= LASER_RED_2W_HW_VER_BASE_LIANPIN && hw_version_ <= LASER_RED_2W_HW_VER_BASE_LIANPIN + 9) {
+      LOG_I("all_param_normal_flag: %u\n", recv_buffer[0]);
+      tmp = recv_buffer[1];
+      LOG_I("TEC normal temp: %d\n", tmp);
+      tmp = recv_buffer[2] << 8 | recv_buffer[3];
+      LOG_I("active current: %d\n", tmp);
+      tmp = recv_buffer[4] << 8 | recv_buffer[5];
+      LOG_I("inactive current: %d\n", tmp);
+      tmp = recv_buffer[6] << 8 | recv_buffer[7];
+      LOG_I("Casing: %f\n", (float)(tmp / 10.0));
+    }
+  }
 }
+
+
 

@@ -146,16 +146,6 @@ void GcodeSuite::M2000() {
       }
     break;
 
-      // test, need to be removed
-    case 25: {
-      int16_t ld_temp = 0;
-      int16_t housing_temp = 0;
-      laser->get_laser_temperature(ld_temp, housing_temp);
-      LOG_I("LD=\t%f\tCasing=\t%f\r\n", (float)(ld_temp / 10.0), (float)(housing_temp / 10.0));
-    }
-    break;
-
-    // test, need to be removed
     case 26: {
       int8_t protect_upper = (int8_t)(g + 0.001);
       int8_t recovery_upper = (int8_t)(h + 0.001);
@@ -172,7 +162,6 @@ void GcodeSuite::M2000() {
     }
     break;
 
-    // test, need to be removed
     case 27: {
       int8_t protect_upper = 0xFF; 
       int8_t recovery_upper = 0xFF; 
@@ -189,18 +178,6 @@ void GcodeSuite::M2000() {
     }
     break;
 
-    // test, need to be removed
-    case 28: {
-      int16_t tmp = (int16_t)(g + 0.001);
-      
-      if (E_SUCCESS != laser->set_tec_temp(tmp)) {
-        LOG_E("err\n");
-      }
-      else {
-        LOG_I("now, TEC dest Temp = %d\r\n", tmp);
-      }
-    }
-    break;
 
     default:
     break;
