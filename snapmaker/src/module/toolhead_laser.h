@@ -240,8 +240,7 @@ class ToolHeadLaser: public ModuleBase {
     bool is_there_cross_light(void);
     ErrCode LaserGetHWVersion(uint8_t &version);
     ErrCode set_get_protect_temp(int8_t &protect_upper, int8_t &recovery_upper, int8_t &protect_lower, int8_t &recovery_lower);
-    bool get_laser_temperature(int16_t &ld_temp, int16_t &housing_temp);
-    ErrCode set_tec_temp(int16_t &temp);
+    void show_important_info_1(void);
 
   private:
     void    CheckFan(uint16_t pwm);
