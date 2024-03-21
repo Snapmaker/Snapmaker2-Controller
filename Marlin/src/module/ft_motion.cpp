@@ -63,8 +63,6 @@ int32_t FTMotion::stepperCmdBuff_produceIdx = 0, // Index of next stepper comman
         FTMotion::stepperCmdBuff_consumeIdx = 0; // Index of next stepper command read from the buffer.
 
 bool FTMotion::sts_stepperBusy = false;         // The stepper buffer has items and is in use.
-uint32_t FTMotion::log[10] = {0};
-uint32_t FTMotion::log_c = 0;
 // Private variables.
 
 // NOTE: These are sized for Ulendo FBS use.
