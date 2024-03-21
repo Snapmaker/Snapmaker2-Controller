@@ -342,6 +342,13 @@ enum ModuleToolHeadType {
   MODULE_TOOLHEAD_CNC_200W,
 };
 
+
+typedef uint8_t module_toolhead_kind_t;
+#define MODULE_TOOLHEAD_KIND_FDM      (0x01)
+#define MODULE_TOOLHEAD_KIND_LASER    (0x02)
+#define MODULE_TOOLHEAD_KIND_CNC      (0x04)
+#define MODULE_TOOLHEAD_KIND_INVALID  (0x80)
+
 enum LockMarlinUartSource {
   LOCK_SOURCE_NONE,
   LOCK_SOURCE_ENCLOSURE,
@@ -356,6 +363,7 @@ class ModuleBase {
     static ErrCode InitModule8p(MAC_t &mac, int dir_pin, uint8_t index);
 
     static ModuleToolHeadType toolhead() { return toolhead_; }
+    static bool IsKindOfToolhead(module_toolhead_kind_t kind_bits);
 
     static bool lock_marlin_uart() { return lock_marlin_uart_; };
     static LockMarlinUartSource lock_marlin_source() { return lock_marlin_source_; };
