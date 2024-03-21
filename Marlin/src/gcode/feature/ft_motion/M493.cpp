@@ -28,6 +28,8 @@
 #include "../../../module/ft_motion.h"
 #include "../../../module/stepper.h"
 
+#include "../snapmaker/src/snapmaker.h"
+
 #define STR_FT_MOTION "Fixed-Time Motion"
 
 void say_shaping() {
@@ -176,16 +178,19 @@ void GcodeSuite::M493_report(const bool forReplay/*=true*/) {
 void GcodeSuite::M493() {
   struct { bool update_n:1, update_a:1, reset_ft:1, report_h:1; } flag = { false };
 
-  for (int i = 0; i < 10; i++) {
-    SERIAL_ECHOLNPAIR("max", i, ": ", ftMotion.log[i]);
-  }
+  bool can_setup = ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM);
 
   if (!parser.seen_any())
     flag.report_h = true;
 
   // Parse 'S' mode parameter.
   if (parser.seenval('S')) {
-    const ftMotionMode_t newmm = (ftMotionMode_t)parser.value_byte();
+    volatile ftMotionMode_t newmm = (ftMotionMode_t)parser.value_byte();
+
+    if (!can_setup && newmm != ftMotionMode_DISABLED) {
+      SERIAL_ECHOLN("can only enable FT motion for 3DP & Laser");
+      newmm = ftMotionMode_DISABLED;
+    }
 
     if (newmm != ftMotion.cfg.mode) {
       switch (newmm) {
@@ -210,6 +215,11 @@ void GcodeSuite::M493() {
           break;
       }
     }
+  }
+
+  if (!can_setup) {
+    if (flag.report_h) say_shaping();
+    return;
   }
 
   #if HAS_EXTRUDERS

@@ -155,7 +155,12 @@ static void main_loop(void *param) {
   SERIAL_ECHOLN("Finish init\n");
 
   cur_mills = millis() - 3000;
+  // correct stepper direction
   stepper.post_init();
+  // disable FT motion with CNC toolhead
+  if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+    process_cmd_imd("M493 S0");
+  }
 
   for (;;) {
 
