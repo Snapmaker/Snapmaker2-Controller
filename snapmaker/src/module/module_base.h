@@ -335,6 +335,7 @@ enum ModuleExtendCommand {
 };
 
 
+/* Note: The order cannot be changed and can only be added later */
 enum ModuleToolHeadType {
   MODULE_TOOLHEAD_UNKNOW,
 
@@ -345,8 +346,8 @@ enum ModuleToolHeadType {
   MODULE_TOOLHEAD_DUALEXTRUDER,
   MODULE_TOOLHEAD_LASER_20W,
   MODULE_TOOLHEAD_LASER_40W,
-  MODULE_TOOLHEAD_LASER_RED_2W,
   MODULE_TOOLHEAD_CNC_200W,
+  MODULE_TOOLHEAD_LASER_RED_2W,
 };
 
 enum LockMarlinUartSource {
