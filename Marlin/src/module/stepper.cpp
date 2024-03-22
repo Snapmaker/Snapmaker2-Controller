@@ -3317,8 +3317,9 @@ void Stepper::report_positions() {
     //   axis_did_move.w ? TEST(command, FT_BIT_DIR_W) : last_direction_bits.w
     // );
 
-    if (new_dir != last_direction_bits) {
+    if (new_dir != last_direction_bits || last_moved_extruder != stepper_extruder) {
       last_direction_bits = new_dir;
+      last_moved_extruder = stepper_extruder;
       // bit is set indicates direction is negative
       if (motor_direction(E_AXIS)) {
         REV_E_DIR(stepper_extruder);
@@ -3416,6 +3417,8 @@ void Stepper::report_positions() {
         if (!(current_block = planner.get_current_block()))
           return; // No more queued movements!
       }
+
+      stepper_extruder = current_block->extruder;
 
       ftMotion.startBlockProc();
       return;
