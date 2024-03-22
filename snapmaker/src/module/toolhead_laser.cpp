@@ -308,10 +308,22 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
     SetToolhead(MODULE_TOOLHEAD_LASER_40W);
   }
   else if (laser->device_id_ == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
-    LaserGetHWVersion(hw_version_);
+    LOG_I("get hw verion\r\n");
+    /* This is a temporary plan, we will optimize it later. */
+    for (uint32_t retry = 0; retry < 5; retry++) {
+      if (LaserGetHWVersion(hw_version_) == E_SUCCESS) {
+        break;
+      }
+      /* Please do not delete this comment!!! */
+      LOG_I("retry....\r\n");
+    }
+    if (255 == hw_version_) {
+      hw_version_ = LASER_RED_2W_HW_VER_BASE_LIANPIN;
+    }
+    
     LOG_I("2w red laser hw_version =  %d\n", hw_version_);
     /* guangyuan */
-    if (hw_version_ >= LASER_RED_2W_HW_VER_BASE_GUANGYUAN && hw_version_ < LASER_RED_2W_HW_VER_BASE_LIANPIN) {
+    if (hw_version_ >= LASER_RED_2W_HW_VER_BASE_GUANGYUAN && hw_version_ <= LASER_RED_2W_HW_VER_BASE_GUANGYUAN + 9) {
       power_table_ = power_table_red_2w_guangyuan;
     }
     /* lianpin */
@@ -377,7 +389,8 @@ void ToolHeadLaser::PrintInfo(void) {
   LOG_I("half_power_mode_: %s\n", half_power_mode_ ? "OPEN" : "CLOSE");
   LOG_I("inline enable: %d, inline power pwm: %d\n", planner.laser_inline.status.isEnabled, planner.laser_inline.power);
   LOG_I("air_pump_switch_: %d\n", air_pump_switch_);
-  laser->show_important_info_1();
+  LOG_I("hw_version = %d\n", hw_version_);
+  show_important_info_1();
 }
 
 uint16_t ToolHeadLaser::tim_pwm() {
@@ -1845,14 +1858,19 @@ bool ToolHeadLaser::is_there_cross_light(void) {
 ErrCode ToolHeadLaser::LaserGetHWVersion(uint8_t &version) {
   CanStdFuncCmd_t cmd;
   uint8_t buff[1] = {0};
-  ErrCode ret;
+  ErrCode ret = E_FAILURE;
 
   cmd.id        = MODULE_FUNC_GET_HW_VERSION;
   cmd.data      = buff;
-  cmd.length    = 1;
+  cmd.length    = 0;
   
   ret = canhost.SendStdCmdSync(cmd, 200);
-  if (E_SUCCESS == ret) {
+  if (E_SUCCESS != ret) {
+    /* This is a temporary plan, we will optimize it later. */
+    /* Please do not delete this comment!!! */
+    LOG_E("failed to GetHWVersion! ret: %u\n", ret);
+  }
+  else {
     version = cmd.data[0];
   }
 
@@ -1904,7 +1922,7 @@ void ToolHeadLaser::show_important_info_1(void) {
       LOG_I("Casing: %f\n", (float)(tmp / 10.0));
     }
     /* lianpin 2W */
-    if (hw_version_ >= LASER_RED_2W_HW_VER_BASE_LIANPIN && hw_version_ <= LASER_RED_2W_HW_VER_BASE_LIANPIN + 9) {
+    else if (hw_version_ >= LASER_RED_2W_HW_VER_BASE_LIANPIN && hw_version_ <= LASER_RED_2W_HW_VER_BASE_LIANPIN + 9) {
       LOG_I("all_param_normal_flag: %u\n", recv_buffer[0]);
       tmp = recv_buffer[1];
       LOG_I("TEC normal temp: %d\n", tmp);
@@ -1914,6 +1932,8 @@ void ToolHeadLaser::show_important_info_1(void) {
       LOG_I("inactive current: %d\n", tmp);
       tmp = recv_buffer[6] << 8 | recv_buffer[7];
       LOG_I("Casing: %f\n", (float)(tmp / 10.0));
+    }
+    else {
     }
   }
 }

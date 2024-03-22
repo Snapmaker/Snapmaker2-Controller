@@ -218,12 +218,6 @@ ErrCode CanHost::SendStdCmdSync(CanStdFuncCmd_t &cmd, uint32_t timeout_ms, uint8
       break;
     }
   }
-
-  /* =================================================== */
-  //TODO: need to optimize. Now, please do not delete!!
-  LOG_I("cmd sync\r\n");
-  LOG_I("cmd sync\r\n");
-  /* =================================================== */
   
   xSemaphoreGive(std_wait_lock_);
 
