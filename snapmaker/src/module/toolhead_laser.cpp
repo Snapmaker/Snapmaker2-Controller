@@ -371,6 +371,9 @@ bool ToolHeadLaser::SetWeakLightOriginMode(bool mode) {
 }
 
 void ToolHeadLaser::PrintInfo(void) {
+  SSTP_Event_t event;
+  GetSecurityStatus(event);
+  
   if (is_there_cross_light()) {
     float x_offset, y_offset;
     GetCrossLightOffsetCAN(x_offset, y_offset);
@@ -382,7 +385,7 @@ void ToolHeadLaser::PrintInfo(void) {
   LOG_I("power_val_ %f\n", power_val_);
   LOG_I("security_status_ %d\n", security_status_);
   LOG_I("laser_temperature_ %d\n", laser_temperature_);
-  LOG_I("imu_temperature_ %d\n", imu_temperature_);
+  // LOG_I("imu_temperature_ %d\n", imu_temperature_);
   LOG_I("fire_sensor_trigger_: %s\n", fire_sensor_trigger_ ? "TRIGGER" : "NORMAL");
   LOG_I("fire_sensor_trigger_adc_value_ %d\n", fire_sensor_trigger_value_);
   // LOG_I("crosslight_offset_x %f, crosslight_offset_y %f\n", crosslight_offset_x, crosslight_offset_y);
