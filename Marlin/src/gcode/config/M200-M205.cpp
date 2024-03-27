@@ -96,6 +96,7 @@ void GcodeSuite::M203() {
  *    R = Retract only (no X, Y, Z) moves
  *    T = Travel (non printing) moves
  */
+#include "src/module/ft_motion.h"
 void GcodeSuite::M204() {
   if (!parser.seen("PRST")) {
     SERIAL_ECHOPAIR("Acceleration: P", planner.settings.acceleration);
@@ -109,6 +110,19 @@ void GcodeSuite::M204() {
     if (parser.seenval('P')) planner.settings.acceleration = parser.value_linear_units();
     if (parser.seenval('R')) planner.settings.retract_acceleration = parser.value_linear_units();
     if (parser.seenval('T')) planner.settings.travel_acceleration = parser.value_linear_units();
+    if (ftMotion.cfg.mode) {
+      float ft_acc_limit = 0;
+      if (planner.settings.axis_steps_per_mm > 200)
+        ft_acc_limit = DEFAULT_MAX_FT_ACCELERATION_L8;
+      else
+        ft_acc_limit = DEFAULT_MAX_FT_ACCELERATION_L20;
+
+      if (planner.settings.acceleration > ft_acc_limit)
+        planner.settings.acceleration = ft_acc_limit;
+
+      if (planner.settings.travel_acceleration > ft_acc_limit)
+        planner.settings.travel_acceleration = ft_acc_limit;
+    }
   }
 }
 

@@ -30,6 +30,7 @@
 
 // marlin headers
 #include "src/module/endstops.h"
+#include "src/module/ft_motion.h"
 #include "src/feature/runout.h"
 #include "src/gcode/gcode.h"
 #include "flash_stm32.h"
@@ -158,8 +159,28 @@ static void main_loop(void *param) {
   // correct stepper direction
   stepper.post_init();
   // disable FT motion with CNC toolhead
-  if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+  if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM) ||
+        !ftMotion.cfg.mode) {
     process_cmd_imd("M493 S0");
+    // forced update of speed parameters
+    process_cmd_imd("M201 X1000 Y1000");
+    process_cmd_imd("M203 X100 Y100 Z40 E40");
+    process_cmd_imd("M204 S1000");
+  }
+  else {
+    if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 ||
+        planner.settings.axis_steps_per_mm[Y_AXIS] > 200) {
+      // for linear whose lead is 8mm
+      process_cmd_imd("M201 X3000 Y3000 Z500");
+      process_cmd_imd("M203 X120 Y120 Z40 E40");
+      process_cmd_imd("M204 S3000 R3000");
+    }
+    else {
+      // for linear whose lead is 20mm
+      process_cmd_imd("M201 X3500 Y3500 Z500");
+      process_cmd_imd("M203 X130 Y130 Z40 E40");
+      process_cmd_imd("M204 S3500 R3500");
+    }
   }
 
   for (;;) {
@@ -325,11 +346,6 @@ void SnapmakerSetupPost() {
     enable_power_domain(POWER_DOMAIN_SCREEN);
     SERIAL_ECHOLN("Screen exists!\n");
   }
-
-  // forced update of speed parameters
-  process_cmd_imd("M201 X1000 Y1000");
-  process_cmd_imd("M203 X100 Y100 Z40 E40");
-  process_cmd_imd("M204 S1000");
 
   // power on the modules by default
   enable_all_steppers();
