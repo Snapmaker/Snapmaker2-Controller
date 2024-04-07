@@ -112,7 +112,8 @@ void GcodeSuite::M204() {
     if (parser.seenval('T')) planner.settings.travel_acceleration = parser.value_linear_units();
     if (ftMotion.cfg.mode) {
       float ft_acc_limit = 0;
-      if (planner.settings.axis_steps_per_mm > 200)
+      if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 ||
+          planner.settings.axis_steps_per_mm[Y_AXIS] > 200)
         ft_acc_limit = DEFAULT_MAX_FT_ACCELERATION_L8;
       else
         ft_acc_limit = DEFAULT_MAX_FT_ACCELERATION_L20;

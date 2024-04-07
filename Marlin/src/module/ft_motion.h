@@ -69,6 +69,7 @@ class FTMotion {
     // Public variables
     static ft_config_t cfg;
     static bool busy;
+    static bool mode_changed;
 
     static void set_defaults() {
       cfg.mode = FTM_DEFAULT_MODE;
