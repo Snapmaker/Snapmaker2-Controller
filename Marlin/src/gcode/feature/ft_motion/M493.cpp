@@ -189,7 +189,7 @@ void GcodeSuite::M493() {
     volatile ftMotionMode_t newmm = (ftMotionMode_t)parser.value_byte();
 
     if (!can_setup && newmm != ftMotionMode_DISABLED) {
-      SERIAL_ECHOLN("can only enable FT motion for 3DP & Laser");
+      SERIAL_ECHOLN("can only enable FT motion for 3DP");
       newmm = ftMotionMode_DISABLED;
     }
 
