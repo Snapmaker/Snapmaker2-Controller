@@ -215,6 +215,7 @@ void GcodeSuite::M493() {
           flag.report_h = true;
           break;
       }
+      ftMotion.mode_changed = true;
     }
   }
 
