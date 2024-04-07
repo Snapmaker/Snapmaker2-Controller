@@ -105,11 +105,7 @@ void say_shaping() {
   }
 
   #if HAS_EXTRUDERS
-    SERIAL_ECHOPAIR("linearAdvEna: ", ftMotion.cfg.linearAdvEna);
-    if (ftMotion.cfg.linearAdvEna)
-      SERIAL_ECHOPAIR(". Gain: ", ftMotion.cfg.linearAdvK);
-    else
-      SERIAL_EOL();
+    LOG_I("linearAdvEna: %d. Gain: %f\r\n", ftMotion.cfg.linearAdvEna, ftMotion.cfg.linearAdvK);
   #endif
 }
 
@@ -135,7 +131,8 @@ void GcodeSuite::M493_report(const bool forReplay/*=true*/) {
     #endif
   #endif
   #if HAS_EXTRUDERS
-    SERIAL_ECHOPAIR(" P", c.linearAdvEna, " K", c.linearAdvK);
+    // SERIAL_ECHOPAIR(" P", c.linearAdvEna, " K", c.linearAdvK);
+    LOG_I("P: %d, K: %f", c.linearAdvEna, c.linearAdvK);
   #endif
   SERIAL_EOL();
 }
@@ -180,8 +177,12 @@ void GcodeSuite::M493() {
 
   bool can_setup = ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM);
 
-  if (!parser.seen_any())
+  if (!parser.seen_any()) {
     flag.report_h = true;
+  }
+  else {
+    planner.synchronize();
+  }
 
   // Parse 'S' mode parameter.
   if (parser.seenval('S')) {
