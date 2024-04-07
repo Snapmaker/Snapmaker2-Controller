@@ -27,12 +27,12 @@
 #include "ft_types.h"
 
 #if HAS_X_AXIS && (HAS_Z_AXIS || HAS_EXTRUDERS)
-  #define HAS_DYNAMIC_FREQ 1
+  #define HAS_DYNAMIC_FREQ 0
   #if HAS_Z_AXIS
-    #define HAS_DYNAMIC_FREQ_MM 1
+    #define HAS_DYNAMIC_FREQ_MM 0
   #endif
   #if HAS_EXTRUDERS
-    #define HAS_DYNAMIC_FREQ_G 1
+    #define HAS_DYNAMIC_FREQ_G 0
   #endif
 #endif
 
