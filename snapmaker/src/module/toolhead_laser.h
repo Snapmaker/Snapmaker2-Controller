@@ -241,6 +241,8 @@ class ToolHeadLaser: public ModuleBase {
     ErrCode LaserGetHWVersion(uint8_t &version);
     ErrCode set_get_protect_temp(int8_t &protect_upper, int8_t &recovery_upper, int8_t &protect_lower, int8_t &recovery_lower);
     void show_important_info_1(void);
+    void set_inline_pwm_power_floor(uint16_t v) { inline_pwm_power_floor = v; }
+    uint16_t get_inline_pwm_power_floor() { return inline_pwm_power_floor; }
 
   private:
     void    CheckFan(uint16_t pwm);
@@ -269,6 +271,7 @@ class ToolHeadLaser: public ModuleBase {
     bool laser_pwm_pin_checked_;
     uint8_t pwm_pin_pullup_state_;
     uint8_t pwm_pin_pulldown_state_;
+    uint16_t inline_pwm_power_floor;
 
   public:
     uint8_t security_status_;

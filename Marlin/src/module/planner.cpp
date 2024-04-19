@@ -72,6 +72,7 @@
 #include "../Marlin.h"
 
 #include "../../../snapmaker/src/snapmaker.h"
+#include "../../../snapmaker/src/module/toolhead_laser.h"
 
 #if HAS_LEVELING
   #include "../feature/bedlevel/bedlevel.h"
@@ -772,6 +773,11 @@ void Planner::calculate_trapezoid_for_block(block_t* const block, const float &e
    * Laser trapezoid: set entry power
    */
   block->laser.power_entry = block->laser.power * entry_factor;
+  if (laser->device_id() == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
+    if (block->laser.power_entry < laser->get_inline_pwm_power_floor() && block->laser.power_entry != 0) {
+      block->laser.power_entry = laser->get_inline_pwm_power_floor();
+    }
+  }
 }
 
 /*                            PLANNER SPEED DEFINITION

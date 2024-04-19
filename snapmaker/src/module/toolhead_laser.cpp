@@ -42,6 +42,9 @@
 #define LASER_CLOSE_FAN_DELAY     (300)
 #define LASER_DISABLE_DELAY       (5)
 
+#define LASER_RED_2W_FLOOR_DEFAULT              (20)
+#define LASER_OTHER_FLOOR_DEFAULT               (0)
+
 #define TimSetPwm(n)  Tim1SetCCR4(n)
 #define TimGetPwm()  Tim1GetCCR4()
 
@@ -273,6 +276,7 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
   }
 
   ret = canhost.BindMessageID(cmd, message_id);
+  inline_pwm_power_floor = LASER_OTHER_FLOOR_DEFAULT;
 
   if (MODULE_DEVICE_ID_10W_LASER == device_id() || MODULE_DEVICE_ID_1_6_W_LASER == device_id()) {
     Tim1PwmInit(1862, 254);     // 1.6w & 10w, no modification of the old laser control frequency for the time being  // 250Hz
@@ -330,6 +334,7 @@ ErrCode ToolHeadLaser::Init(MAC_t &mac, uint8_t mac_index) {
     else {
       power_table_ = power_table_red_2w_lianpin;
     }
+    inline_pwm_power_floor = LASER_RED_2W_FLOOR_DEFAULT;
     SetToolhead(MODULE_TOOLHEAD_LASER_RED_2W);
   }
 

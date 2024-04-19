@@ -146,6 +146,15 @@ void GcodeSuite::M2000() {
       }
     break;
 
+    case 24:
+      if (laser) {
+        if (parser.seenval('P')) {
+          uint16_t floor = parser.byteval('P', 0);
+          laser->set_inline_pwm_power_floor(floor);
+        }
+      }
+      break;
+
     case 26: {
       int8_t protect_upper = (int8_t)(g + 0.001);
       int8_t recovery_upper = (int8_t)(h + 0.001);
