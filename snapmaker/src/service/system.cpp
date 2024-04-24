@@ -2190,7 +2190,8 @@ ErrCode SystemService::ChangeRuntimeEnv(SSTP_Event_t &event) {
 
   switch (type) {
   case RENV_TYPE_FEEDRATE:
-    if (param > 500 || param < 0) {
+    //  It is not allowed to set less than 1, by hwy
+    if (param > 500 || param <= 0.9999) {
       LOG_E("invalid feedrate scaling: %.2f\n", param);
       ret = E_PARAM;
       break;
