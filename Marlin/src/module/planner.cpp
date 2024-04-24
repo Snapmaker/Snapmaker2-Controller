@@ -773,9 +773,13 @@ void Planner::calculate_trapezoid_for_block(block_t* const block, const float &e
    * Laser trapezoid: set entry power
    */
   block->laser.power_entry = block->laser.power * entry_factor;
+  block->laser.power_exit = block->laser.power * exit_factor;
   if (laser->device_id() == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
     if (block->laser.power_entry < laser->get_inline_pwm_power_floor() && block->laser.power_entry != 0) {
       block->laser.power_entry = laser->get_inline_pwm_power_floor();
+    }
+    if (block->laser.power_exit < laser->get_inline_pwm_power_floor() && block->laser.power_exit != 0) {
+      block->laser.power_exit = laser->get_inline_pwm_power_floor();
     }
   }
 }
@@ -2181,6 +2185,9 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
 
   block->nominal_speed_sqr = sq(block->millimeters * inverse_secs);   //   (mm/sec)^2 Always > 0
   block->nominal_rate = CEIL(block->step_event_count * inverse_secs); // (step/sec) Always > 0
+  if (block->laser.status.trapezoid_power && block->laser.power != 0) {
+    block->laser.power *= block->millimeters * inverse_secs / fr_mm_s;
+  }
 
   #if ENABLED(FILAMENT_WIDTH_SENSOR)
     static float filwidth_e_count = 0, filwidth_delay_dist = 0;

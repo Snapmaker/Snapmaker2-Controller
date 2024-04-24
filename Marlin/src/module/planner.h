@@ -86,6 +86,7 @@ typedef struct {
   uint16_t power;            // When in trapezoid mode this is nominal power
   uint16_t power_entry;      // Entry power for the laser
   float sync_power;
+  uint16_t power_exit;      // exit power for the laser
 } block_inline_laser_t;
 
 /**
