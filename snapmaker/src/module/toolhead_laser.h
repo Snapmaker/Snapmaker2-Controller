@@ -243,6 +243,7 @@ class ToolHeadLaser: public ModuleBase {
     void show_important_info_1(void);
     void set_inline_pwm_power_floor(uint16_t v) { inline_pwm_power_floor = v; }
     uint16_t get_inline_pwm_power_floor() { return inline_pwm_power_floor; }
+    ErrCode set_module_standby_mode(bool standby);
 
   private:
     void    CheckFan(uint16_t pwm);

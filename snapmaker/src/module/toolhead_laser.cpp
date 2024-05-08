@@ -1946,5 +1946,17 @@ void ToolHeadLaser::show_important_info_1(void) {
   }
 }
 
+ErrCode ToolHeadLaser::set_module_standby_mode(bool standby) {
+  CanStdFuncCmd_t cmd;
+  uint8_t buffer[1];
 
+  buffer[0]     = standby;
+  cmd.id        = MODULE_FUNC_SET_STANDBY;
+  cmd.data      = buffer;
+  cmd.length    = 1;
+
+  LOG_I("Set standby mode %s\n", standby ? "true" : "false");
+
+  return canhost.SendStdCmd(cmd);
+}
 

@@ -187,9 +187,19 @@ void GcodeSuite::M2000() {
     }
     break;
 
+    case 30:
+      if (laser->IsOnline() && laser->device_id() == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
+        if (parser.seenval('P')) {
+          uint8_t standby = parser.byteval('P', 0);
+          LOG_I("Set standby mode %s\n", standby ? "true" : "false");
+          laser->set_module_standby_mode(!!standby);
+        }
+      }
+      break;
 
     default:
     break;
   }
 
 }
+
