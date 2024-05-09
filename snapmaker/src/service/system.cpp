@@ -779,18 +779,6 @@ ErrCode SystemService::StartWork(TriggerSource s) {
   // set state
   cur_status_ = SYSTAT_WORK;
 
-  /* exit laser standby mode */
-  if (MODULE_TOOLHEAD_LASER_RED_2W == ModuleBase::toolhead()) {
-    if (E_SUCCESS != laser->set_module_standby_mode(false)) {
-      LOG_E("Can not exit laser standby mode\r\n");
-      // return E_FAILURE;
-    }
-    else {
-      LOG_I("exit laser standby mode, Wait for the temperature to stabilize \r\n");
-      process_cmd_imd("G4S2");
-    }
-  }
-
   return E_SUCCESS;
 }
 
@@ -1987,12 +1975,6 @@ ErrCode SystemService::ChangeSystemStatus(SSTP_Event_t &event) {
     if (err == E_SUCCESS)
       need_ack = false;
     ClearLaserWeakLightOriginMode();
-    /* entry laser standby mode */
-    if (MODULE_TOOLHEAD_LASER_RED_2W == ModuleBase::toolhead()) {
-      if (E_SUCCESS != laser->set_module_standby_mode(true)) {
-        LOG_E("Can not enter laser standby mode\r\n");
-      }
-    }
     break;
 
   default:

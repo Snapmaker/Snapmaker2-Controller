@@ -87,13 +87,6 @@ void GcodeSuite::M3_M4(const bool is_M4) {
   }
 
   if (laser->IsOnline()) {
-    /* exit laser standby mode */
-    if (MODULE_DEVICE_ID_LASER_RED_2W_2023 == laser->device_id()) {
-      if (E_SUCCESS != laser->set_module_standby_mode(false)) {
-        LOG_E("M3M4: Can not exit laser standby mode\r\n");
-      }
-    }
-
     if (is_M4)
       planner.laser_inline.status.trapezoid_power = true;
     else
@@ -160,12 +153,6 @@ void GcodeSuite::M5() {
     laser->SetOutputInline((uint16_t)0);
     laser->InlineDisable();
     planner.laser_inline.status.trapezoid_power = false;
-    /* entry laser standby mode */
-    if (MODULE_DEVICE_ID_LASER_RED_2W_2023 == laser->device_id()) {
-      if (E_SUCCESS != laser->set_module_standby_mode(true)) {
-        LOG_E("M5: Can not enter laser standby mode\r\n");
-      }
-    }
   }
   else if(cnc.IsOnline()) {
     cnc.TurnOff();

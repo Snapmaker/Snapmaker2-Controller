@@ -571,6 +571,7 @@ void ToolHeadLaser::TryCloseFan() {
       fan_tick_  = 0;
       fan_state_ = TOOLHEAD_LASER_FAN_STATE_CLOSED;
       SetFanPower(0);
+      set_module_standby_mode(true);
     }
   }
   else {
@@ -1946,9 +1947,32 @@ void ToolHeadLaser::show_important_info_1(void) {
   }
 }
 
+bool ToolHeadLaser::is_there_standby_mode(void) {
+  bool ret = false;
+
+  switch (laser->device_id_) {
+    case MODULE_DEVICE_ID_LASER_RED_2W_2023: {
+      ret = true;
+    }
+    break;
+    
+    default: {
+      ret = false;
+    }
+    break;
+  };
+
+  return ret;
+}
+
 ErrCode ToolHeadLaser::set_module_standby_mode(bool standby) {
   CanStdFuncCmd_t cmd;
   uint8_t buffer[1];
+
+  if (!is_there_standby_mode()) {
+    LOG_E("not supports standby-mode\r\n");
+    return E_FAILURE;
+  }
 
   buffer[0]     = standby;
   cmd.id        = MODULE_FUNC_SET_STANDBY;
