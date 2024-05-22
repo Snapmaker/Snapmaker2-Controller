@@ -549,6 +549,7 @@ void ToolHeadLaser::CheckFan(uint16_t pwm) {
   case TOOLHEAD_LASER_FAN_STATE_TO_BE_CLOSED:
     if (pwm > 0) {
       fan_state_ = TOOLHEAD_LASER_FAN_STATE_OPEN;
+      SetFanPower(255);
       fan_tick_  = 0;
     }
     break;
