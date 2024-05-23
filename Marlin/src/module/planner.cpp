@@ -2185,8 +2185,16 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
 
   block->nominal_speed_sqr = sq(block->millimeters * inverse_secs);   //   (mm/sec)^2 Always > 0
   block->nominal_rate = CEIL(block->step_event_count * inverse_secs); // (step/sec) Always > 0
-  if (block->laser.status.trapezoid_power && block->laser.power != 0) {
-    block->laser.power *= block->millimeters * inverse_secs / fr_mm_s;
+  if (laser->device_id() == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
+    if (block->laser.status.trapezoid_power && block->laser.power != 0) {
+      if (block->laser.power > laser->get_inline_pwm_power_floor()) {
+        block->laser.power = (block->laser.power - laser->get_inline_pwm_power_floor()) 
+          * block->millimeters * inverse_secs / fr_mm_s + laser->get_inline_pwm_power_floor();
+      }
+      else {
+        block->laser.power = laser->get_inline_pwm_power_floor();
+      }
+    }
   }
 
   #if ENABLED(FILAMENT_WIDTH_SENSOR)

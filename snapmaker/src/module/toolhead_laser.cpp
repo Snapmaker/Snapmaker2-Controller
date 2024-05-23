@@ -42,7 +42,7 @@
 #define LASER_CLOSE_FAN_DELAY     (300)
 #define LASER_DISABLE_DELAY       (5)
 
-#define LASER_RED_2W_FLOOR_DEFAULT              (20)
+#define LASER_RED_2W_FLOOR_DEFAULT              (50)
 #define LASER_OTHER_FLOOR_DEFAULT               (0)
 
 #define TimSetPwm(n)  Tim1SetCCR4(n)

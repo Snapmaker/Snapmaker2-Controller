@@ -1683,10 +1683,15 @@ uint32_t Stepper::stepper_block_phase_isr() {
         // Update laser - Accelerating
         if (laser_trap.enabled && laser_trap.trapezoid_power) {
           if (laser->device_id() == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
-            laser_trap.cur_power = (current_block->laser.power - current_block->laser.power_entry) * acc_step_rate 
-                                    / current_block->nominal_rate + current_block->laser.power_entry;
-            if (laser_trap.cur_power > current_block->laser.power) {
-              laser_trap.cur_power = current_block->laser.power;
+            if (current_block->laser.power > current_block->laser.power_entry) {
+              laser_trap.cur_power = (current_block->laser.power - current_block->laser.power_entry) * acc_step_rate 
+                                      / current_block->nominal_rate + current_block->laser.power_entry;
+            }
+            else {
+              laser_trap.cur_power = (current_block->laser.power * acc_step_rate) / current_block->nominal_rate + current_block->laser.power;
+            }
+            if (laser_trap.cur_power != 0 && laser_trap.cur_power < laser->get_inline_pwm_power_floor()) {
+              laser_trap.cur_power = laser->get_inline_pwm_power_floor();
             }
           }
           else {
@@ -1747,10 +1752,19 @@ uint32_t Stepper::stepper_block_phase_isr() {
         // Update laser - Decelerating
         if (laser_trap.enabled && laser_trap.trapezoid_power) {
           if (laser->device_id() == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
-            laser_trap.cur_power = (current_block->laser.power - current_block->laser.power_exit) * step_rate
-                                   / current_block->nominal_rate + current_block->laser.power_exit;
-            if (laser_trap.cur_power < current_block->laser.power_exit) {
-              laser_trap.cur_power = current_block->laser.power_exit;
+            if (current_block->laser.power > current_block->laser.power_exit) {
+              laser_trap.cur_power = (current_block->laser.power - current_block->laser.power_exit) * step_rate
+                                    / current_block->nominal_rate + current_block->laser.power_exit;
+              if (laser_trap.cur_power < current_block->laser.power_exit) {
+                laser_trap.cur_power = current_block->laser.power_exit;
+              }
+            }
+            else {
+              laser_trap.cur_power =( current_block->laser.power * step_rate) / current_block->nominal_rate + current_block->laser.power;
+            }
+
+            if (laser_trap.cur_power != 0 && laser_trap.cur_power < laser->get_inline_pwm_power_floor()) {
+              laser_trap.cur_power = laser->get_inline_pwm_power_floor();
             }
           }
           else {
