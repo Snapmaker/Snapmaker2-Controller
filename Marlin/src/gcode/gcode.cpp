@@ -117,12 +117,13 @@ void GcodeSuite::get_destination_from_command() {
                 destination[i] += laser_crosslight_offset[i];
                 laser->ClearXyOffsetApplicationByIndex(i);
               }
-              if (!laser->GetXyOffsetApplication()) {
-                laser->SetWeakLightOriginMode(true);
-              }
+              // if (!laser->GetXyOffsetApplication()) {
+              //   laser->SetWeakLightOriginMode(true);
+              // }
             }
             else{
               destination[i] += laser_crosslight_offset[i];
+              laser->ClearXyOffsetApplicationByIndex(i);
             }
           }
         }
