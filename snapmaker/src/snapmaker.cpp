@@ -89,32 +89,71 @@ void disable_power_domain(uint8_t pd) {
   #endif
 }
 
-void limit_planner_settings() {
-  planner.synchronize();
-  // disable FT motion with CNC toolhead
-  if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM) ||
-        !ftMotion.cfg.mode) {
-    process_cmd_imd("M493 S0");
-    // forced update of speed parameters
-    process_cmd_imd("M201 X1000 Y1000");
-    process_cmd_imd("M203 X100 Y100 Z40 E40");
-    process_cmd_imd("M204 S1000 R1000");
+void ft_planner_settings_init() {
+  uint32_t max_acceleration_tmp[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
+
+  if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER) || ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
+    if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
+      SERIAL_ECHOLN("disable ft_motion.\n");
+      ftMotion.cfg.mode = ftMotionMode_DISABLED;
+      if (planner.settings.acceleration > DEFAULT_ACCELERATION) {
+        planner.settings.acceleration = DEFAULT_ACCELERATION;
+      }
+      
+      if (planner.settings.retract_acceleration > DEFAULT_RETRACT_ACCELERATION) {
+        planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+      }
+
+      if (planner.settings.travel_acceleration > DEFAULT_TRAVEL_ACCELERATION) {
+        planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+      }
+      
+      LOOP_X_TO_EN(i) {
+        planner.settings.max_acceleration_mm_per_s2[i] = max_acceleration_tmp[i];
+      }
+
+      planner.reset_acceleration_rates();
+      SERIAL_ECHOLN("save planner setting.\n");
+      process_cmd_imd("M500");
+    }
   }
-  else {
-    if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 ||
-        planner.settings.axis_steps_per_mm[Y_AXIS] > 200) {
-      // for linear whose lead is 8mm
-      process_cmd_imd("M201 X2500 Y2500 Z100");
-      process_cmd_imd("M203 X120 Y120 Z40 E40");
-      process_cmd_imd("M204 S2500 R2500");
+}
+
+void ft_planner_settings_limit() {
+  if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
+    if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 || planner.settings.axis_steps_per_mm[Y_AXIS] > 200) {
+      uint32_t max_acceleration_tmp[X_TO_EN] = DEFAULT_FT_MAX_ACCELERATION_L8;
+      LOOP_X_TO_EN(i) {
+        planner.settings.max_acceleration_mm_per_s2[i] = max_acceleration_tmp[i];
+      }
     }
     else {
-      // for linear whose lead is 20mm
-      process_cmd_imd("M201 X3500 Y3500 Z100");
-      process_cmd_imd("M203 X130 Y130 Z40 E40");
-      process_cmd_imd("M204 S3500 R3500");
+      uint32_t max_acceleration_tmp[X_TO_EN] = DEFAULT_FT_MAX_ACCELERATION_L20;
+      LOOP_X_TO_EN(i) {
+        planner.settings.max_acceleration_mm_per_s2[i] = max_acceleration_tmp[i];
+      }
     }
   }
+  else {
+    if (planner.settings.acceleration > DEFAULT_ACCELERATION) {
+      planner.settings.acceleration = DEFAULT_ACCELERATION;
+    }
+    
+    if (planner.settings.retract_acceleration > DEFAULT_RETRACT_ACCELERATION) {
+      planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+    }
+
+    if (planner.settings.travel_acceleration > DEFAULT_TRAVEL_ACCELERATION) {
+      planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+    }
+
+    uint32_t max_acceleration_tmp[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
+    LOOP_X_TO_EN(i) {
+      planner.settings.max_acceleration_mm_per_s2[i] = max_acceleration_tmp[i];
+    }
+  }
+
+  planner.reset_acceleration_rates();
 }
 
 void HeatedBedSelfCheck(void) {
@@ -180,13 +219,13 @@ static void main_loop(void *param) {
   // because we need to check if current toolhead is same with previous
   pl_recovery.Init();
 
-  SERIAL_ECHOLN("Finish init\n");
-
   cur_mills = millis() - 3000;
   // correct stepper direction
   stepper.post_init();
 
-  limit_planner_settings();
+  ft_planner_settings_init();
+
+  SERIAL_ECHOLN("Finish init\n");
 
   for (;;) {
 
@@ -199,7 +238,8 @@ static void main_loop(void *param) {
     advance_command_queue();
     if (ftMotion.mode_changed) {
       ftMotion.mode_changed = false;
-      limit_planner_settings();
+      planner.synchronize();
+      ft_planner_settings_limit();
     }
     quickstop.Process();
     endstops.event_handler();
