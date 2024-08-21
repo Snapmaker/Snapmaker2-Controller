@@ -2162,6 +2162,10 @@ void MarlinSettings::postprocess() {
 void MarlinSettings::reset() {
   static const float tmp1[] PROGMEM = DEFAULT_AXIS_STEPS_PER_UNIT, tmp2[] PROGMEM = DEFAULT_MAX_FEEDRATE;
   static const uint32_t tmp3[] PROGMEM = DEFAULT_MAX_ACCELERATION;
+  #if ENABLED(FT_MOTION)
+    uint32_t tmp4[] = DEFAULT_FT_MAX_ACCELERATION_L8;
+    uint32_t tmp5[] = DEFAULT_FT_MAX_ACCELERATION_L20;
+  #endif
   uint8_t temp_axis_to_port[X_TO_E] = DEFAULT_AXIS_TO_PORT;
   LOOP_X_TO_EN(i) {
     axis_to_port[i] = temp_axis_to_port[i];
@@ -2170,16 +2174,59 @@ void MarlinSettings::reset() {
   LOOP_X_TO_EN(i) {
     planner.settings.axis_steps_per_mm[i]          = pgm_read_float(&tmp1[ALIM(i, tmp1)]);
     planner.settings.max_feedrate_mm_s[i]          = pgm_read_float(&tmp2[ALIM(i, tmp2)]);
-    planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
+    // planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
   }
+
+  #if ENABLED(FT_MOTION)
+    ftMotion.cfg.mode = FTM_DEFAULT_MODE;
+
+    if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
+      if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 || planner.settings.axis_steps_per_mm[Y_AXIS] > 200) {
+        LOOP_X_TO_EN(i) {
+          planner.settings.max_acceleration_mm_per_s2[i] = tmp4[ALIM(i, tmp4)];
+        }
+
+        planner.settings.acceleration = DEFAULT_FT_ACCELERATION_L8;
+        planner.settings.retract_acceleration = DEFAULT_FT_RETRACT_ACCELERATION_L8;
+        planner.settings.travel_acceleration = DEFAULT_FT_TRAVEL_ACCELERATION_L8;
+      }
+      else {
+        LOOP_X_TO_EN(i) {
+          planner.settings.max_acceleration_mm_per_s2[i] = tmp5[ALIM(i, tmp5)];
+        }
+
+        planner.settings.acceleration = DEFAULT_FT_ACCELERATION_L20;
+        planner.settings.retract_acceleration = DEFAULT_FT_RETRACT_ACCELERATION_L20;
+        planner.settings.travel_acceleration = DEFAULT_FT_TRAVEL_ACCELERATION_L20;
+      }
+    }
+    else {
+      LOOP_X_TO_EN(i) {
+        planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
+      }
+
+      planner.settings.acceleration = DEFAULT_ACCELERATION;
+      planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+      planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+    }
+  #else
+    LOOP_X_TO_EN(i) {
+      planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
+    }
+  
+    planner.settings.acceleration = DEFAULT_ACCELERATION;
+    planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+    planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+  #endif
+
   planner.settings.e_axis_steps_per_mm_backup[0] = SINGLE_EXTRUDER_E_STEPS_PER_MM;
   planner.settings.e_axis_steps_per_mm_backup[1] = DUAL_EXTRUDER_E_STEPS_PER_MM;
   linear_p->reset_axis_steps_per_unit();
 
   planner.settings.min_segment_time_us = DEFAULT_MINSEGMENTTIME;
-  planner.settings.acceleration = DEFAULT_ACCELERATION;
-  planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
-  planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+  // planner.settings.acceleration = DEFAULT_ACCELERATION;
+  // planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+  // planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
   planner.settings.min_feedrate_mm_s = DEFAULT_MINIMUMFEEDRATE;
   planner.settings.min_travel_feedrate_mm_s = DEFAULT_MINTRAVELFEEDRATE;
   #if ENABLED(BACKLASH_GCODE)
