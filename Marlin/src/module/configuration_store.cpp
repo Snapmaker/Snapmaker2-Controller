@@ -2177,8 +2177,17 @@ void MarlinSettings::reset() {
     // planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
   }
 
+  planner.settings.e_axis_steps_per_mm_backup[0] = SINGLE_EXTRUDER_E_STEPS_PER_MM;
+  planner.settings.e_axis_steps_per_mm_backup[1] = DUAL_EXTRUDER_E_STEPS_PER_MM;
+  linear_p->reset_axis_steps_per_unit();
+
   #if ENABLED(FT_MOTION)
-    ftMotion.cfg.mode = FTM_DEFAULT_MODE;
+    if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+      ftMotion.cfg.mode = ftMotionMode_DISABLED;
+    }
+    else {
+      ftMotion.cfg.mode = ftMotionMode_EI;
+    }
 
     if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
       if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 || planner.settings.axis_steps_per_mm[Y_AXIS] > 200) {
@@ -2219,9 +2228,9 @@ void MarlinSettings::reset() {
     planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
   #endif
 
-  planner.settings.e_axis_steps_per_mm_backup[0] = SINGLE_EXTRUDER_E_STEPS_PER_MM;
-  planner.settings.e_axis_steps_per_mm_backup[1] = DUAL_EXTRUDER_E_STEPS_PER_MM;
-  linear_p->reset_axis_steps_per_unit();
+  // planner.settings.e_axis_steps_per_mm_backup[0] = SINGLE_EXTRUDER_E_STEPS_PER_MM;
+  // planner.settings.e_axis_steps_per_mm_backup[1] = DUAL_EXTRUDER_E_STEPS_PER_MM;
+  // linear_p->reset_axis_steps_per_unit();
 
   planner.settings.min_segment_time_us = DEFAULT_MINSEGMENTTIME;
   // planner.settings.acceleration = DEFAULT_ACCELERATION;
