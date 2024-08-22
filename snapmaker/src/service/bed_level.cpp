@@ -896,7 +896,7 @@ ErrCode BedLevelService::DoDualExtruderManualLeveling(SSTP_Event_t &event) {
   }
 
   i = systemservice.GetFaultFlag();
-  if (i & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (i & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
     err = E_HARDWARE;
     goto EXIT;
   }
