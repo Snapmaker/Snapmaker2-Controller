@@ -27,7 +27,6 @@
 #include "src/module/temperature.h"
 #include "src/module/probe.h"
 #include "src/module/configuration_store.h"
-#include "src/module/ft_motion.h"
 #include "src/gcode/gcode.h"
 #include "src/gcode/parser.h"
 #include "src/feature/bedlevel/abl/abl.h"
@@ -47,10 +46,23 @@ extern uint32_t GRID_MAX_POINTS_X;
 extern uint32_t GRID_MAX_POINTS_Y;
 
 void BedLevelService::RecoverMotionEnv() {
-  if (ft_motion_mode > 0) {
-    ftMotion.setMode((ftMotionMode_t)ft_motion_mode);
-    ft_motion_mode = ftMotionMode_DISABLED;
-  }
+  planner.synchronize();
+  ftMotion.setMode(level_backup_ft_motion_mode);
+  planner.settings.acceleration = level_backup_acceleration;
+  planner.settings.retract_acceleration = level_backup_retract_acceleration;
+  planner.settings.travel_acceleration = level_backup_travel_acceleration;
+  level_backup_ft_motion_mode = ftMotionMode_DISABLED;
+}
+
+void BedLevelService::AdjustMotionEnv() {
+  planner.synchronize();
+  level_backup_ft_motion_mode = ftMotion.disable();
+  level_backup_acceleration = planner.settings.acceleration;
+  level_backup_retract_acceleration = planner.settings.retract_acceleration;
+  level_backup_travel_acceleration = planner.settings.travel_acceleration;
+  planner.settings.acceleration = DEFAULT_ACCELERATION;
+  planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+  planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
 }
 
 ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
@@ -83,7 +95,7 @@ ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
     live_z_offset_[0] = 0;
     live_z_offset_[1] = 0;
 
-    ft_motion_mode = ftMotion.disable();
+    AdjustMotionEnv();
 
     process_cmd_imd("G28");
 
@@ -162,7 +174,7 @@ ErrCode BedLevelService::DoManualLeveling(SSTP_Event_t &event) {
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
-    ft_motion_mode = ftMotion.disable();
+    AdjustMotionEnv();
 
     process_cmd_imd("G28");
 
@@ -518,7 +530,7 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
   live_z_offset_temp_[1] = live_z_offset_[1];
   live_z_offset_[0] = live_z_offset_[1] = 0;
 
-  ft_motion_mode = ftMotion.disable();
+  AdjustMotionEnv();
 
   feedrate_percentage = 100;
   // go home will make sure active left extruder
@@ -701,7 +713,7 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
     }
   }
 
-  ft_motion_mode = ftMotion.disable();
+  AdjustMotionEnv();
 
   // go home will make sure active left extruder
   process_cmd_imd("G28 N\n");
@@ -894,7 +906,7 @@ ErrCode BedLevelService::DoDualExtruderManualLeveling(SSTP_Event_t &event) {
 
   feedrate_percentage = 100;
 
-  ft_motion_mode = ftMotion.disable();
+  AdjustMotionEnv();
 
   process_cmd_imd("G28 N");
   snprintf(cmd, 16, "G1029 P%u\n", grid);
@@ -1013,7 +1025,7 @@ ErrCode BedLevelService::DualExtruderAutoBedDetect(SSTP_Event_t &event) {
 
   feedrate_percentage = 100;
 
-  ft_motion_mode = ftMotion.disable();
+  AdjustMotionEnv();
 
   switch (event.data[0]) {
     case 0:
@@ -1172,7 +1184,7 @@ ErrCode BedLevelService::DualExtruderManualBedDetect(SSTP_Event_t &event) {
 
   feedrate_percentage = 100;
 
-  ft_motion_mode = ftMotion.disable();
+  AdjustMotionEnv();
 
   switch (event.data[0]) {
     case 0:
@@ -1204,7 +1216,7 @@ ErrCode BedLevelService::DualExtruderLeftExtruderManualBedDetect() {
 
   feedrate_percentage = 100;
 
-  ft_motion_mode = ftMotion.disable();
+  AdjustMotionEnv();
 
   // make active left extruder
   process_cmd_imd("G28 N");
