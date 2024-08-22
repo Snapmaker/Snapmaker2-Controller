@@ -22,6 +22,7 @@
 #define SNAPMAKER_BED_LEVEL_H_
 
 #include "../hmi/event_handler.h"
+#include "src/module/ft_motion.h"
 
 enum LevelMode: uint8_t {
   LEVEL_MODE_AUTO = 0,
@@ -79,6 +80,7 @@ class BedLevelService {
 
   private:
     void RecoverMotionEnv();
+    void AdjustMotionEnv();
 
   private:
     LevelMode level_mode_ = LEVEL_MODE_INVALD;
@@ -95,7 +97,11 @@ class BedLevelService {
       float MeshPointZ[GRID_MAX_POINTS];
       float z_values_tmp[GRID_MAX_NUM][GRID_MAX_NUM];
     };
-    uint8_t ft_motion_mode {0};
+
+    ftMotionMode_t level_backup_ft_motion_mode;
+    float level_backup_acceleration;
+    float level_backup_retract_acceleration;
+    float level_backup_travel_acceleration;
 };
 
 extern BedLevelService levelservice;
