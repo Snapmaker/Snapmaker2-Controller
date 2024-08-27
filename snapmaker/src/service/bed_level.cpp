@@ -51,7 +51,7 @@ void BedLevelService::RecoverMotionEnv() {
   planner.settings.acceleration = level_backup_acceleration;
   planner.settings.retract_acceleration = level_backup_retract_acceleration;
   planner.settings.travel_acceleration = level_backup_travel_acceleration;
-  level_backup_ft_motion_mode = ftMotionMode_DISABLED;
+  planner.reset_acceleration_rates();
 }
 
 void BedLevelService::AdjustMotionEnv() {
@@ -63,6 +63,7 @@ void BedLevelService::AdjustMotionEnv() {
   planner.settings.acceleration = DEFAULT_ACCELERATION;
   planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
   planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+  planner.reset_acceleration_rates();
 }
 
 ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
