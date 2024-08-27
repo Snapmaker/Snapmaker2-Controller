@@ -79,7 +79,7 @@ void GcodeSuite::M201() {
           planner.settings.cnc.max_acceleration_mm_per_s2[a] = parser.value_axis_units((AxisEnum)a);
       }
       else {
-        ; // do nothing.
+        planner.settings.max_acceleration_mm_per_s2[a] = parser.value_axis_units((AxisEnum)a);
       }
     }
   }
@@ -122,7 +122,7 @@ void GcodeSuite::M203() {
           planner.settings.cnc.max_feedrate_mm_s[a] = tmp_value;
       }
       else {
-        ; // do nothing.
+        planner.settings.max_feedrate_mm_s[a] = tmp_value;
       }
     }
   }
@@ -198,7 +198,19 @@ void GcodeSuite::M204() {
       }
     }
     else {
-      ; // do nothing.
+      // 'S' for legacy compatibility. Should NOT BE USED for new development
+      if (parser.seenval('S')) {
+        planner.settings.acceleration = planner.settings.travel_acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('P')) {
+        planner.settings.acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('R')) {
+        planner.settings.retract_acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('T')) {
+        planner.settings.travel_acceleration = parser.value_linear_units();
+      }
     }
   }
 }
