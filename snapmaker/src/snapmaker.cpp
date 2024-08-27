@@ -89,67 +89,69 @@ void disable_power_domain(uint8_t pd) {
   #endif
 }
 
-void ft_planner_settings_init() {
-  uint32_t max_acceleration_tmp[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
-
-  if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER) || ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
-    if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
-      SERIAL_ECHOLN("disable ft_motion.\n");
-      ftMotion.cfg.mode = ftMotionMode_DISABLED;
-      if (planner.settings.acceleration > DEFAULT_ACCELERATION) {
-        planner.settings.acceleration = DEFAULT_ACCELERATION;
-      }
-      
-      if (planner.settings.retract_acceleration > DEFAULT_RETRACT_ACCELERATION) {
-        planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
-      }
-
-      if (planner.settings.travel_acceleration > DEFAULT_TRAVEL_ACCELERATION) {
-        planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
-      }
-      
-      LOOP_X_TO_EN(i) {
-        planner.settings.max_acceleration_mm_per_s2[i] = max_acceleration_tmp[i];
-      }
-
-      planner.reset_acceleration_rates();
-      SERIAL_ECHOLN("save planner setting.\n");
-      process_cmd_imd("M500");
-    }
-  }
+// Extra initialization of planner settings, such as ft-motion.
+void planner_settings_init_extra() {
+  ftMotion.cfg.mode = (ftMotionMode_t)planner.settings.ft_mode;
+  planner.refresh_settings_on_toolhead();
 }
 
-void ft_planner_settings_limit() {
+// Update the settings of the planner due to changes in ft-motion
+void planner_settings_update_by_ftmotion() {
+  // Other toolheads are not currently supported
+  if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+    return;
+  }
+
+  planner.settings.fdm.ft_mode = (uint32_t)ftMotion.cfg.mode;
+
   if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
+    // 8mm
     if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 || planner.settings.axis_steps_per_mm[Y_AXIS] > 200) {
-      uint32_t max_acceleration_tmp[X_TO_EN] = DEFAULT_FT_MAX_ACCELERATION_L8;
+      uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L8;
+      float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L8;
       LOOP_X_TO_EN(i) {
-        planner.settings.max_acceleration_mm_per_s2[i] = max_acceleration_tmp[i];
+        planner.settings.max_acceleration_mm_per_s2[i] = 
+          planner.settings.fdm.max_acceleration_mm_per_s2[i] = 
+          tmp_max_acceleration[i];
+        planner.settings.max_feedrate_mm_s[i] = 
+          planner.settings.fdm.max_feedrate_mm_s[i] = 
+          tmp_max_feedrate[i];
       }
+      planner.settings.fdm.acceleration = planner.settings.acceleration = DEFAULT_3DP_FT_ACCELERATION_L8;
+      planner.settings.fdm.retract_acceleration = planner.settings.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L8;
+      planner.settings.fdm.travel_acceleration = planner.settings.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L8;
     }
+    // 20mm
     else {
-      uint32_t max_acceleration_tmp[X_TO_EN] = DEFAULT_FT_MAX_ACCELERATION_L20;
+      uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L20;
+      float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L20;
       LOOP_X_TO_EN(i) {
-        planner.settings.max_acceleration_mm_per_s2[i] = max_acceleration_tmp[i];
+        planner.settings.max_acceleration_mm_per_s2[i] = 
+          planner.settings.fdm.max_acceleration_mm_per_s2[i] = 
+          tmp_max_acceleration[i];
+        planner.settings.max_feedrate_mm_s[i] = 
+          planner.settings.fdm.max_feedrate_mm_s[i] = 
+          tmp_max_feedrate[i];
       }
+      planner.settings.fdm.acceleration = planner.settings.acceleration = DEFAULT_3DP_FT_ACCELERATION_L20;
+      planner.settings.fdm.retract_acceleration = planner.settings.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L20;
+      planner.settings.fdm.travel_acceleration = planner.settings.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L20;
     }
   }
   else {
-    if (planner.settings.acceleration > DEFAULT_ACCELERATION) {
-      planner.settings.acceleration = DEFAULT_ACCELERATION;
-    }
-    
-    if (planner.settings.retract_acceleration > DEFAULT_RETRACT_ACCELERATION) {
-      planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
-    }
+    planner.settings.fdm.acceleration = planner.settings.acceleration = DEFAULT_3DP_ACCELERATION;
+    planner.settings.fdm.retract_acceleration = planner.settings.retract_acceleration = DEFAULT_3DP_RETRACT_ACCELERATION;
+    planner.settings.fdm.travel_acceleration = planner.settings.travel_acceleration = DEFAULT_3DP_TRAVEL_ACCELERATION;
 
-    if (planner.settings.travel_acceleration > DEFAULT_TRAVEL_ACCELERATION) {
-      planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
-    }
-
-    uint32_t max_acceleration_tmp[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_MAX_FEEDRATE;
     LOOP_X_TO_EN(i) {
-      planner.settings.max_acceleration_mm_per_s2[i] = max_acceleration_tmp[i];
+      planner.settings.max_acceleration_mm_per_s2[i] = 
+        planner.settings.fdm.max_acceleration_mm_per_s2[i] = 
+        tmp_max_acceleration[i];
+      planner.settings.max_feedrate_mm_s[i] = 
+        planner.settings.fdm.max_feedrate_mm_s[i] = 
+        tmp_max_feedrate[i];
     }
   }
 
@@ -223,7 +225,7 @@ static void main_loop(void *param) {
   // correct stepper direction
   stepper.post_init();
 
-  ft_planner_settings_init();
+  planner_settings_init_extra();
 
   SERIAL_ECHOLN("Finish init\n");
 
@@ -239,7 +241,7 @@ static void main_loop(void *param) {
     if (ftMotion.mode_changed) {
       ftMotion.mode_changed = false;
       planner.synchronize();
-      ft_planner_settings_limit();
+      planner_settings_update_by_ftmotion();
     }
     quickstop.Process();
     endstops.event_handler();
