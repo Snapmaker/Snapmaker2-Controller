@@ -703,6 +703,11 @@
  *                                      X, Y, Z, B, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
  */
 #define DEFAULT_MAX_FEEDRATE            { 120, 120, 40, 45, 40 }
+#define DEFAULT_3DP_MAX_FEEDRATE        { 120, 120, 40, 45, 40 }
+#define DEFAULT_3DP_FT_MAX_FEEDRATE_L8  { 120, 120, 40, 45, 40 }
+#define DEFAULT_3DP_FT_MAX_FEEDRATE_L20 { 120, 120, 40, 45, 40 }
+#define DEFAULT_LASER_MAX_FEEDRATE      { 120, 120, 40, 45, 40 }
+#define DEFAULT_CNC_MAX_FEEDRATE        { 120, 120, 40, 45, 40 }
 
 /**
  * Default Max Acceleration (change/s) change = mm/s
@@ -710,11 +715,12 @@
  * Override with M201
  *                                      X, Y, Z, B, E0 [, E1[, E2[, E3[, E4[, E5]]]]]
  */
-// Not in FT mode.
 #define DEFAULT_MAX_ACCELERATION            { 3000, 3000, 100, 3000, 10000 }
-// In FT mode.
-#define DEFAULT_FT_MAX_ACCELERATION_L8      { 3500, 3500, 100, 3000, 10000 }
-#define DEFAULT_FT_MAX_ACCELERATION_L20     { 4500, 4500, 100, 3000, 10000 }
+#define DEFAULT_3DP_MAX_ACCELERATION        { 3000, 3000, 100, 3000, 10000 }
+#define DEFAULT_3DP_FT_MAX_ACCELERATION_L8  { 3500, 3500, 100, 3000, 10000 }
+#define DEFAULT_3DP_FT_MAX_ACCELERATION_L20 { 4500, 4500, 100, 3000, 10000 }
+#define DEFAULT_LASER_MAX_ACCELERATION      { 3000, 3000, 100, 3000, 10000 }
+#define DEFAULT_CNC_MAX_ACCELERATION        { 3000, 3000, 100, 3000, 10000 }
 
 /**
  * Default Acceleration (change/s) change = mm/s
@@ -724,17 +730,24 @@
  *   M204 R    Retract Acceleration
  *   M204 T    Travel Acceleration
  */
-// Not in FT mode.
-#define DEFAULT_ACCELERATION          1000    // X, Y, Z and E acceleration for printing moves
-#define DEFAULT_RETRACT_ACCELERATION  1000    // E acceleration for retracts
-#define DEFAULT_TRAVEL_ACCELERATION   1000    // X, Y, Z acceleration for travel (non printing) moves
-// In FT mode.
-#define DEFAULT_FT_ACCELERATION_L8            2000    // X, Y, Z and E acceleration for printing moves
-#define DEFAULT_FT_RETRACT_ACCELERATION_L8    2000    // E acceleration for retracts
-#define DEFAULT_FT_TRAVEL_ACCELERATION_L8     2000    // X, Y, Z acceleration for travel (non printing) moves
-#define DEFAULT_FT_ACCELERATION_L20           3000    // X, Y, Z and E acceleration for printing moves
-#define DEFAULT_FT_RETRACT_ACCELERATION_L20   3000    // E acceleration for retracts
-#define DEFAULT_FT_TRAVEL_ACCELERATION_L20    3000    // X, Y, Z acceleration for travel (non printing) moves
+#define DEFAULT_ACCELERATION                    1000    // X, Y, Z and E acceleration for printing moves
+#define DEFAULT_3DP_ACCELERATION                1000
+#define DEFAULT_3DP_FT_ACCELERATION_L8          2000
+#define DEFAULT_3DP_FT_ACCELERATION_L20         3000
+#define DEFAULT_LASER_ACCELERATION              1000
+#define DEFAULT_CNC_ACCELERATION                1000
+#define DEFAULT_RETRACT_ACCELERATION            1000    // E acceleration for retracts
+#define DEFAULT_3DP_RETRACT_ACCELERATION        1000
+#define DEFAULT_3DP_FT_RETRACT_ACCELERATION_L8  2000
+#define DEFAULT_3DP_FT_RETRACT_ACCELERATION_L20 3000
+#define DEFAULT_LASER_RETRACT_ACCELERATION      1000
+#define DEFAULT_CNC_RETRACT_ACCELERATION        1000
+#define DEFAULT_TRAVEL_ACCELERATION             1000    // X, Y, Z acceleration for travel (non printing) moves
+#define DEFAULT_3DP_TRAVEL_ACCELERATION         1000
+#define DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L8   2000
+#define DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L20  3000
+#define DEFAULT_LASER_TRAVEL_ACCELERATION       1000
+#define DEFAULT_CNC_TRAVEL_ACCELERATION         1000
 
 //
 // Use Junction Deviation instead of traditional Jerk Limiting

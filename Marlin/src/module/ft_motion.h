@@ -73,12 +73,7 @@ class FTMotion {
     static bool mode_changed;
 
     static void set_defaults() {
-      if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
-        cfg.mode = ftMotionMode_DISABLED;
-      }
-      else {
-        cfg.mode = ftMotionMode_EI;
-      }
+      cfg.mode = ftMotionMode_DISABLED;
 
       TERN_(HAS_X_AXIS, cfg.baseFreq[X_AXIS] = FTM_SHAPING_DEFAULT_X_FREQ);
       TERN_(HAS_Y_AXIS, cfg.baseFreq[Y_AXIS] = FTM_SHAPING_DEFAULT_Y_FREQ);
