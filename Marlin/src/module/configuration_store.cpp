@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V75"
+#define EEPROM_VERSION "V76"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -1291,6 +1291,12 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(planner.settings.travel_acceleration);
         EEPROM_READ(planner.settings.min_feedrate_mm_s);
         EEPROM_READ(planner.settings.min_travel_feedrate_mm_s);
+        EEPROM_READ(planner.settings.ft_mode);
+        EEPROM_READ(planner.settings.fdm);
+        EEPROM_READ(planner.settings.laser);
+        EEPROM_READ(planner.settings.cnc);
+        // Refresh relevant settings based on the type of toolhead.
+        planner.refresh_settings_on_toolhead();
 
         #if ENABLED(BACKLASH_GCODE)
           // M425
@@ -2160,82 +2166,112 @@ void MarlinSettings::postprocess() {
  * M502 - Reset Configuration
  */
 void MarlinSettings::reset() {
-  static const float tmp1[] PROGMEM = DEFAULT_AXIS_STEPS_PER_UNIT, tmp2[] PROGMEM = DEFAULT_MAX_FEEDRATE;
-  static const uint32_t tmp3[] PROGMEM = DEFAULT_MAX_ACCELERATION;
-  #if ENABLED(FT_MOTION)
-    uint32_t tmp4[] = DEFAULT_FT_MAX_ACCELERATION_L8;
-    uint32_t tmp5[] = DEFAULT_FT_MAX_ACCELERATION_L20;
-  #endif
+  static const float tmp1[] PROGMEM = DEFAULT_AXIS_STEPS_PER_UNIT;
   uint8_t temp_axis_to_port[X_TO_E] = DEFAULT_AXIS_TO_PORT;
   LOOP_X_TO_EN(i) {
     axis_to_port[i] = temp_axis_to_port[i];
   }
   planner.is_user_set_lead = false;
-  LOOP_X_TO_EN(i) {
-    planner.settings.axis_steps_per_mm[i]          = pgm_read_float(&tmp1[ALIM(i, tmp1)]);
-    planner.settings.max_feedrate_mm_s[i]          = pgm_read_float(&tmp2[ALIM(i, tmp2)]);
-    // planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
-  }
 
+  // We must first determine the lead!
+  LOOP_X_TO_EN(i) {
+    planner.settings.axis_steps_per_mm[i] = pgm_read_float(&tmp1[ALIM(i, tmp1)]);
+  }
   planner.settings.e_axis_steps_per_mm_backup[0] = SINGLE_EXTRUDER_E_STEPS_PER_MM;
   planner.settings.e_axis_steps_per_mm_backup[1] = DUAL_EXTRUDER_E_STEPS_PER_MM;
   linear_p->reset_axis_steps_per_unit();
 
+  // for fdm toolhead
   #if ENABLED(FT_MOTION)
-    if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
-      ftMotion.cfg.mode = ftMotionMode_DISABLED;
-    }
-    else {
-      ftMotion.cfg.mode = ftMotionMode_EI;
-    }
+    // default mode
+    planner.settings.fdm.ft_mode = (uint32_t)ftMotionMode_DISABLED;
 
-    if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
+    if (planner.settings.fdm.ft_mode >= (uint32_t)ftMotionMode_ZV && planner.settings.fdm.ft_mode <= (uint32_t)ftMotionMode_MZV) {
+      // lead: 8mm
       if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 || planner.settings.axis_steps_per_mm[Y_AXIS] > 200) {
-        LOOP_X_TO_EN(i) {
-          planner.settings.max_acceleration_mm_per_s2[i] = tmp4[ALIM(i, tmp4)];
-        }
+        planner.settings.fdm.acceleration = DEFAULT_3DP_FT_ACCELERATION_L8;
+        planner.settings.fdm.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L8;
+        planner.settings.fdm.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L8;
 
-        planner.settings.acceleration = DEFAULT_FT_ACCELERATION_L8;
-        planner.settings.retract_acceleration = DEFAULT_FT_RETRACT_ACCELERATION_L8;
-        planner.settings.travel_acceleration = DEFAULT_FT_TRAVEL_ACCELERATION_L8;
+        uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L8;
+        float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L8;
+        LOOP_X_TO_EN(i) {
+          planner.settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+          planner.settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+        }
       }
+      // lead:20mm
       else {
-        LOOP_X_TO_EN(i) {
-          planner.settings.max_acceleration_mm_per_s2[i] = tmp5[ALIM(i, tmp5)];
-        }
+        planner.settings.fdm.acceleration = DEFAULT_3DP_FT_ACCELERATION_L20;
+        planner.settings.fdm.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L20;
+        planner.settings.fdm.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L20;
 
-        planner.settings.acceleration = DEFAULT_FT_ACCELERATION_L20;
-        planner.settings.retract_acceleration = DEFAULT_FT_RETRACT_ACCELERATION_L20;
-        planner.settings.travel_acceleration = DEFAULT_FT_TRAVEL_ACCELERATION_L20;
+        uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L20;
+        float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L20;
+        LOOP_X_TO_EN(i) {
+          planner.settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+          planner.settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+        }
       }
     }
     else {
-      LOOP_X_TO_EN(i) {
-        planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
-      }
+      planner.settings.fdm.acceleration = DEFAULT_3DP_ACCELERATION;
+      planner.settings.fdm.retract_acceleration = DEFAULT_3DP_RETRACT_ACCELERATION;
+      planner.settings.fdm.travel_acceleration = DEFAULT_3DP_TRAVEL_ACCELERATION;
 
-      planner.settings.acceleration = DEFAULT_ACCELERATION;
-      planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
-      planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+      uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_MAX_ACCELERATION;
+      float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_MAX_FEEDRATE;
+      LOOP_X_TO_EN(i) {
+        planner.settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+        planner.settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+      }
     }
   #else
+    planner.settings.fdm.ft_mode = (uint32_t)ftMotionMode_DISABLED;
+    planner.settings.fdm.acceleration = DEFAULT_3DP_ACCELERATION;
+    planner.settings.fdm.retract_acceleration = DEFAULT_3DP_RETRACT_ACCELERATION;
+    planner.settings.fdm.travel_acceleration = DEFAULT_3DP_TRAVEL_ACCELERATION;
+
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_MAX_FEEDRATE;
     LOOP_X_TO_EN(i) {
-      planner.settings.max_acceleration_mm_per_s2[i] = pgm_read_dword(&tmp3[ALIM(i, tmp3)]);
+      planner.settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      planner.settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
     }
-  
-    planner.settings.acceleration = DEFAULT_ACCELERATION;
-    planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
-    planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
   #endif
 
-  // planner.settings.e_axis_steps_per_mm_backup[0] = SINGLE_EXTRUDER_E_STEPS_PER_MM;
-  // planner.settings.e_axis_steps_per_mm_backup[1] = DUAL_EXTRUDER_E_STEPS_PER_MM;
-  // linear_p->reset_axis_steps_per_unit();
+  // for laser toolhead
+  {
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_LASER_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_LASER_MAX_FEEDRATE;
+    planner.settings.laser.ft_mode = (uint32_t)ftMotionMode_DISABLED;
+    planner.settings.laser.acceleration = DEFAULT_LASER_ACCELERATION;
+    planner.settings.laser.retract_acceleration = DEFAULT_LASER_RETRACT_ACCELERATION;
+    planner.settings.laser.travel_acceleration = DEFAULT_LASER_TRAVEL_ACCELERATION;
+    LOOP_X_TO_EN(i) {
+      planner.settings.laser.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      planner.settings.laser.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+    }
+  }
+
+  // for CNC toolhead
+  {
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_CNC_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_CNC_MAX_FEEDRATE;
+    planner.settings.cnc.ft_mode = (uint32_t)ftMotionMode_DISABLED;
+    planner.settings.cnc.acceleration = DEFAULT_CNC_ACCELERATION;
+    planner.settings.cnc.retract_acceleration = DEFAULT_CNC_RETRACT_ACCELERATION;
+    planner.settings.cnc.travel_acceleration = DEFAULT_CNC_TRAVEL_ACCELERATION;
+    LOOP_X_TO_EN(i) {
+      planner.settings.cnc.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      planner.settings.cnc.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+    }
+  }
+
+  // Refresh relevant settings based on the type of toolhead.
+  planner.refresh_settings_on_toolhead();
 
   planner.settings.min_segment_time_us = DEFAULT_MINSEGMENTTIME;
-  // planner.settings.acceleration = DEFAULT_ACCELERATION;
-  // planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
-  // planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
   planner.settings.min_feedrate_mm_s = DEFAULT_MINIMUMFEEDRATE;
   planner.settings.min_travel_feedrate_mm_s = DEFAULT_MINTRAVELFEEDRATE;
   #if ENABLED(BACKLASH_GCODE)
