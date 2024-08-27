@@ -3001,6 +3001,50 @@ void Planner::refresh_positioning() {
   reset_acceleration_rates();
 }
 
+// If initializing or reloading planner settings, refresh it
+void Planner::refresh_settings_on_toolhead() {
+  settings_on_toolhead_t * ptr = NULL;
+
+  if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+    ptr = &settings.fdm;
+  }
+  else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER)) {
+    ptr = &settings.laser;
+  }
+  else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
+    ptr = &settings.cnc;
+  }
+  else {
+    ;
+  }
+  if (ptr) {
+    settings.ft_mode = ptr->ft_mode;
+    LOOP_X_TO_EN(i) {
+      settings.max_acceleration_mm_per_s2[i] = ptr->max_acceleration_mm_per_s2[i];
+      settings.max_feedrate_mm_s[i] = ptr->max_feedrate_mm_s[i];
+    }
+    settings.acceleration = ptr->acceleration;
+    settings.retract_acceleration = ptr->retract_acceleration;
+    settings.travel_acceleration = ptr->travel_acceleration;
+  }
+  else {
+    // for invalid toolhead
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_MAX_FEEDRATE;
+
+    settings.ft_mode = (uint32_t)ftMotionMode_DISABLED;
+    LOOP_X_TO_EN(i) {
+      settings.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      settings.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+    }
+    settings.acceleration = DEFAULT_ACCELERATION;
+    settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+    settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+  }
+
+  planner.reset_acceleration_rates();
+}
+
 #if ENABLED(AUTOTEMP)
 
   void Planner::autotemp_M104_M109() {

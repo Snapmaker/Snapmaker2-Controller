@@ -198,6 +198,15 @@ typedef struct {
 } laser_state_t;
 
 typedef struct {
+  uint32_t ft_mode;
+  uint32_t max_acceleration_mm_per_s2[X_TO_EN];
+  float max_feedrate_mm_s[X_TO_EN];
+  float acceleration;
+  float retract_acceleration;
+  float travel_acceleration;
+}settings_on_toolhead_t;
+
+typedef struct {
   uint32_t max_acceleration_mm_per_s2[X_TO_EN],  // (mm/s^2) M201 XYZE
            min_segment_time_us;                 // (µs) M205 B
   float e_axis_steps_per_mm_backup[2],          // e steps per millimeters for single extruder and dual extruder
@@ -208,6 +217,10 @@ typedef struct {
         travel_acceleration,                    // (mm/s^2) M204 T - Travel acceleration. DEFAULT ACCELERATION for all NON printing moves.
         min_feedrate_mm_s,                      // (mm/s) M205 S - Minimum linear feedrate
         min_travel_feedrate_mm_s;               // (mm/s) M205 T - Minimum travel feedrate
+  uint32_t ft_mode;
+  settings_on_toolhead_t fdm;
+  settings_on_toolhead_t laser;
+  settings_on_toolhead_t cnc;
 } planner_settings_t;
 #if ENABLED(BACKLASH_GCODE)
   extern float backlash_distance_mm[XN], backlash_correction;
@@ -399,6 +412,7 @@ class Planner {
 
     static void reset_acceleration_rates();
     static void refresh_positioning();
+    static void refresh_settings_on_toolhead();
 
     FORCE_INLINE static void refresh_e_factor(const uint8_t e) {
       e_factor[e] = (flow_percentage[e] * 0.01f
