@@ -56,7 +56,6 @@ FTMotion ftMotion;
 
 ft_config_t FTMotion::cfg;
 bool FTMotion::busy; // = false
-bool FTMotion::mode_changed = false;
 int32_t FTMotion::positionSyncBuff[FTM_SYNC_POSITION_SIZE][NUM_AXIS_ENUMS] = {0U};
 int32_t FTMotion::positionSyncIndex = 0;
 ft_command_t FTMotion::stepperCmdBuff[FTM_STEPPERCMD_BUFF_SIZE] = {0U}; // Stepper commands buffer.

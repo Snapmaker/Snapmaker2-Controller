@@ -174,7 +174,7 @@ void GcodeSuite::M493_report(const bool forReplay/*=true*/) {
  */
 void GcodeSuite::M493() {
   struct { bool update_n:1, update_a:1, reset_ft:1, report_h:1; } flag = { false };
-
+  bool ft_mode_change_flag = false;
   bool can_setup = ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM);
 
   if (!parser.seen_any()) {
@@ -215,8 +215,12 @@ void GcodeSuite::M493() {
           flag.report_h = true;
           break;
       }
-      ftMotion.mode_changed = true;
+      ft_mode_change_flag = true;
     }
+  }
+
+  if (ft_mode_change_flag) {
+    planner.planner_settings_update_by_ftmotion();
   }
 
   if (!can_setup) {
