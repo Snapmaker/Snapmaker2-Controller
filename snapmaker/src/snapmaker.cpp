@@ -89,75 +89,6 @@ void disable_power_domain(uint8_t pd) {
   #endif
 }
 
-// Extra initialization of planner settings, such as ft-motion.
-void planner_settings_init_extra() {
-  ftMotion.cfg.mode = (ftMotionMode_t)planner.settings.ft_mode;
-  planner.refresh_settings_on_toolhead();
-}
-
-// Update the settings of the planner due to changes in ft-motion
-void planner_settings_update_by_ftmotion() {
-  // Other toolheads are not currently supported
-  if (!ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
-    return;
-  }
-
-  planner.settings.fdm.ft_mode = (uint32_t)ftMotion.cfg.mode;
-
-  if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
-    // 8mm
-    if (planner.settings.axis_steps_per_mm[X_AXIS] > 200 || planner.settings.axis_steps_per_mm[Y_AXIS] > 200) {
-      uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L8;
-      float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L8;
-      LOOP_X_TO_EN(i) {
-        planner.settings.max_acceleration_mm_per_s2[i] = 
-          planner.settings.fdm.max_acceleration_mm_per_s2[i] = 
-          tmp_max_acceleration[i];
-        planner.settings.max_feedrate_mm_s[i] = 
-          planner.settings.fdm.max_feedrate_mm_s[i] = 
-          tmp_max_feedrate[i];
-      }
-      planner.settings.fdm.acceleration = planner.settings.acceleration = DEFAULT_3DP_FT_ACCELERATION_L8;
-      planner.settings.fdm.retract_acceleration = planner.settings.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L8;
-      planner.settings.fdm.travel_acceleration = planner.settings.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L8;
-    }
-    // 20mm
-    else {
-      uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L20;
-      float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L20;
-      LOOP_X_TO_EN(i) {
-        planner.settings.max_acceleration_mm_per_s2[i] = 
-          planner.settings.fdm.max_acceleration_mm_per_s2[i] = 
-          tmp_max_acceleration[i];
-        planner.settings.max_feedrate_mm_s[i] = 
-          planner.settings.fdm.max_feedrate_mm_s[i] = 
-          tmp_max_feedrate[i];
-      }
-      planner.settings.fdm.acceleration = planner.settings.acceleration = DEFAULT_3DP_FT_ACCELERATION_L20;
-      planner.settings.fdm.retract_acceleration = planner.settings.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L20;
-      planner.settings.fdm.travel_acceleration = planner.settings.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L20;
-    }
-  }
-  else {
-    planner.settings.fdm.acceleration = planner.settings.acceleration = DEFAULT_3DP_ACCELERATION;
-    planner.settings.fdm.retract_acceleration = planner.settings.retract_acceleration = DEFAULT_3DP_RETRACT_ACCELERATION;
-    planner.settings.fdm.travel_acceleration = planner.settings.travel_acceleration = DEFAULT_3DP_TRAVEL_ACCELERATION;
-
-    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_MAX_ACCELERATION;
-    float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_MAX_FEEDRATE;
-    LOOP_X_TO_EN(i) {
-      planner.settings.max_acceleration_mm_per_s2[i] = 
-        planner.settings.fdm.max_acceleration_mm_per_s2[i] = 
-        tmp_max_acceleration[i];
-      planner.settings.max_feedrate_mm_s[i] = 
-        planner.settings.fdm.max_feedrate_mm_s[i] = 
-        tmp_max_feedrate[i];
-    }
-  }
-
-  planner.reset_acceleration_rates();
-}
-
 void HeatedBedSelfCheck(void) {
   enable_power_domain(POWER_DOMAIN_BED);
   // disable heated bed firstly
@@ -225,7 +156,7 @@ static void main_loop(void *param) {
   // correct stepper direction
   stepper.post_init();
 
-  planner_settings_init_extra();
+  planner.planner_settings_init_extra();
 
   SERIAL_ECHOLN("Finish init\n");
 
@@ -238,11 +169,6 @@ static void main_loop(void *param) {
     if (commands_in_queue < BUFSIZE) get_available_commands();
 
     advance_command_queue();
-    if (ftMotion.mode_changed) {
-      ftMotion.mode_changed = false;
-      planner.synchronize();
-      planner_settings_update_by_ftmotion();
-    }
     quickstop.Process();
     endstops.event_handler();
     idle();
