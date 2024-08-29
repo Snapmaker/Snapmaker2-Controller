@@ -412,6 +412,8 @@ class Planner {
     static void reset_acceleration_rates();
     static void refresh_positioning();
     static void refresh_settings_on_toolhead();
+    static void planner_settings_init_extra();
+    static void planner_settings_update_by_ftmotion();
 
     FORCE_INLINE static void refresh_e_factor(const uint8_t e) {
       e_factor[e] = (flow_percentage[e] * 0.01f

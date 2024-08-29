@@ -3019,7 +3019,93 @@ void Planner::refresh_settings_on_toolhead() {
     settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
   }
 
-  planner.reset_acceleration_rates();
+  reset_acceleration_rates();
+}
+
+// Extra initialization of planner settings, such as ft-motion.
+void Planner::planner_settings_init_extra() {
+  refresh_settings_on_toolhead();
+  ftMotion.cfg.mode = (ftMotionMode_t)settings.ft_mode;
+}
+
+// Update the settings of the planner due to changes in ft-motion
+void Planner::planner_settings_update_by_ftmotion() {
+  synchronize();
+  // for 3DP 
+  if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+    settings.fdm.ft_mode = (uint32_t)ftMotion.cfg.mode;
+    if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
+      // 8mm
+      if (settings.axis_steps_per_mm[X_AXIS] > 200 || settings.axis_steps_per_mm[Y_AXIS] > 200) {
+        uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L8;
+        float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L8;
+        LOOP_X_TO_EN(i) {
+          settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+          settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+        }
+        settings.fdm.acceleration = DEFAULT_3DP_FT_ACCELERATION_L8;
+        settings.fdm.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L8;
+        settings.fdm.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L8;
+      }
+      // 20mm
+      else {
+        uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L20;
+        float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L20;
+        LOOP_X_TO_EN(i) {
+          settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+          settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+        }
+        settings.fdm.acceleration = DEFAULT_3DP_FT_ACCELERATION_L20;
+        settings.fdm.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L20;
+        settings.fdm.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L20;
+      }
+    }
+    else {
+      settings.fdm.acceleration = DEFAULT_3DP_ACCELERATION;
+      settings.fdm.retract_acceleration = DEFAULT_3DP_RETRACT_ACCELERATION;
+      settings.fdm.travel_acceleration = DEFAULT_3DP_TRAVEL_ACCELERATION;
+
+      uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_MAX_ACCELERATION;
+      float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_MAX_FEEDRATE;
+      LOOP_X_TO_EN(i) {
+        settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+        settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+      }
+    }
+  }
+  // for Laser
+  else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER)) {
+    settings.laser.ft_mode = (uint32_t)ftMotion.cfg.mode;
+    settings.laser.acceleration = DEFAULT_LASER_ACCELERATION;
+    settings.laser.retract_acceleration = DEFAULT_LASER_RETRACT_ACCELERATION;
+    settings.laser.travel_acceleration = DEFAULT_LASER_TRAVEL_ACCELERATION;
+
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_LASER_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_LASER_MAX_FEEDRATE;
+    LOOP_X_TO_EN(i) {
+      settings.laser.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      settings.laser.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+    }
+  }
+  // for CNC
+  else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
+    settings.cnc.ft_mode = (uint32_t)ftMotion.cfg.mode;
+    settings.cnc.acceleration = DEFAULT_CNC_ACCELERATION;
+    settings.cnc.retract_acceleration = DEFAULT_CNC_RETRACT_ACCELERATION;
+    settings.cnc.travel_acceleration = DEFAULT_CNC_TRAVEL_ACCELERATION;
+
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_CNC_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_CNC_MAX_FEEDRATE;
+    LOOP_X_TO_EN(i) {
+      settings.cnc.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      settings.cnc.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+    }
+  }
+  else {
+    // do noting
+  }
+  
+  refresh_settings_on_toolhead();
 }
 
 #if ENABLED(AUTOTEMP)
