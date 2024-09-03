@@ -98,10 +98,7 @@ class BedLevelService {
       float z_values_tmp[GRID_MAX_NUM][GRID_MAX_NUM];
     };
 
-    ftMotionMode_t level_backup_ft_motion_mode;
-    float level_backup_acceleration;
-    float level_backup_retract_acceleration;
-    float level_backup_travel_acceleration;
+    settings_on_toolhead_t backup_level;
 };
 
 extern BedLevelService levelservice;

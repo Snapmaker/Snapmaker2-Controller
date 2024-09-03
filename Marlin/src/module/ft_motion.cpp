@@ -530,6 +530,24 @@ int32_t FTMotion::stepperCmdBuffItems() {
   return (udiff < 0) ? udiff + (FTM_STEPPERCMD_BUFF_SIZE) : udiff;
 }
 
+ftMotionMode_t FTMotion::disable() {
+  auto m = cfg.mode;
+  planner.synchronize();
+  cfg.mode = ftMotionMode_DISABLED;
+  stepper.ftMotion_syncPosition();
+  reset();
+  return m;
+}
+
+void FTMotion::setMode(const ftMotionMode_t &m) {
+  planner.synchronize();
+  cfg.mode = m; 
+  #if HAS_X_AXIS
+    ftMotion.refreshShapingN();
+    ftMotion.updateShapingA();
+  #endif
+}
+
 // Initializes storage variables before startup.
 void FTMotion::init() {
   shaping.max_i = 0;

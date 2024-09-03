@@ -47,22 +47,38 @@ extern uint32_t GRID_MAX_POINTS_Y;
 
 void BedLevelService::RecoverMotionEnv() {
   planner.synchronize();
-  ftMotion.setMode(level_backup_ft_motion_mode);
-  planner.settings.acceleration = level_backup_acceleration;
-  planner.settings.retract_acceleration = level_backup_retract_acceleration;
-  planner.settings.travel_acceleration = level_backup_travel_acceleration;
+  ftMotion.setMode((ftMotionMode_t)backup_level.ft_mode);
+  planner.settings.acceleration = backup_level.acceleration;
+  planner.settings.retract_acceleration = backup_level.retract_acceleration;
+  planner.settings.travel_acceleration = backup_level.travel_acceleration;
+  LOOP_X_TO_EN(i) {
+    planner.settings.max_acceleration_mm_per_s2[i] = backup_level.max_acceleration_mm_per_s2[i];
+    planner.settings.max_feedrate_mm_s[i] = backup_level.max_feedrate_mm_s[i];
+  }
+
   planner.reset_acceleration_rates();
 }
 
 void BedLevelService::AdjustMotionEnv() {
   planner.synchronize();
-  level_backup_ft_motion_mode = ftMotion.disable();
-  level_backup_acceleration = planner.settings.acceleration;
-  level_backup_retract_acceleration = planner.settings.retract_acceleration;
-  level_backup_travel_acceleration = planner.settings.travel_acceleration;
+  backup_level.acceleration = planner.settings.acceleration;
+  backup_level.retract_acceleration = planner.settings.retract_acceleration;
+  backup_level.travel_acceleration = planner.settings.travel_acceleration;
+  LOOP_X_TO_EN(i) {
+    backup_level.max_acceleration_mm_per_s2[i] = planner.settings.max_acceleration_mm_per_s2[i];
+    backup_level.max_feedrate_mm_s[i] = planner.settings.max_feedrate_mm_s[i];
+  }
+  backup_level.ft_mode = (uint32_t)ftMotion.disable();
+
   planner.settings.acceleration = DEFAULT_ACCELERATION;
   planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
-  planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+  planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;                                           
+  uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
+  float tmp_max_feedrate[X_TO_EN] = DEFAULT_MAX_FEEDRATE;
+  LOOP_X_TO_EN(i) {
+    planner.settings.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+    planner.settings.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+  }
   planner.reset_acceleration_rates();
 }
 
