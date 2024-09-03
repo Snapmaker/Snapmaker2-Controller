@@ -117,12 +117,8 @@ class FTMotion {
     static void loop();                                   // Controller main, to be invoked from non-isr task.
     static void addSyncCommand(block_t *blk);
 
-    static ftMotionMode_t disable() {
-      auto m = cfg.mode;
-      cfg.mode = ftMotionMode_DISABLED;
-      return m;
-    }
-    static void setMode(const ftMotionMode_t &m) { cfg.mode = m; }
+    static ftMotionMode_t disable();
+    static void setMode(const ftMotionMode_t &m);
 
     #if HAS_X_AXIS
       // Refresh the gains used by shaping functions.
