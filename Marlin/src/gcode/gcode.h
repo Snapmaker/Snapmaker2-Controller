@@ -266,6 +266,7 @@
 
 #include "../inc/MarlinConfig.h"
 #include "parser.h"
+#include "src/module/ft_motion.h"
 
 #if ENABLED(I2C_POSITION_ENCODERS)
   #include "../feature/I2CPositionEncoder.h"
@@ -314,6 +315,10 @@ public:
   #endif
 
   FORCE_INLINE static void home_all_axes() { G28(true); }
+
+  static settings_on_toolhead_t backup_homing;
+  static void do_before_home(void);
+  static void do_after_home(void);
 
   #if ENABLED(HOST_KEEPALIVE_FEATURE)
     /**

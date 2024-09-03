@@ -73,6 +73,8 @@ bool GcodeSuite::axis_relative_modes[] = AXIS_RELATIVE_MODES;
   float GcodeSuite::coordinate_system[MAX_COORDINATE_SYSTEMS][XN];
 #endif
 
+settings_on_toolhead_t GcodeSuite::backup_homing;
+
 /**
  * Get the target extruder from the T parameter or the active_extruder
  * Return -1 if the T parameter is out of range
@@ -197,6 +199,51 @@ void GcodeSuite::dwell(millis_t time) {
 }
 
 /**
+ * Called before returning to home, generally used to back up setting information
+ * 
+ */
+void GcodeSuite::do_before_home(void) {
+  backup_homing.acceleration = planner.settings.acceleration;
+  backup_homing.retract_acceleration = planner.settings.retract_acceleration;
+  backup_homing.travel_acceleration = planner.settings.travel_acceleration;
+  LOOP_X_TO_EN(i) {
+    backup_homing.max_acceleration_mm_per_s2[i] = planner.settings.max_acceleration_mm_per_s2[i];
+    backup_homing.max_feedrate_mm_s[i] = planner.settings.max_feedrate_mm_s[i];
+  }
+  backup_homing.ft_mode = (uint32_t)ftMotion.disable();
+
+  planner.settings.acceleration = DEFAULT_ACCELERATION;
+  planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+  planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;                                           
+  uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
+  float tmp_max_feedrate[X_TO_EN] = DEFAULT_MAX_FEEDRATE;
+  LOOP_X_TO_EN(i) {
+    planner.settings.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+    planner.settings.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+  }
+
+  planner.reset_acceleration_rates();
+}
+
+/**
+ * Called after returning to home, generally used to recover setting information
+ * 
+ */
+void GcodeSuite::do_after_home(void) {
+  ftMotion.setMode((ftMotionMode_t)backup_homing.ft_mode);
+  planner.settings.acceleration = backup_homing.acceleration;
+  planner.settings.retract_acceleration = backup_homing.retract_acceleration;
+  planner.settings.travel_acceleration = backup_homing.travel_acceleration;
+
+  LOOP_X_TO_EN(i) {
+    planner.settings.max_acceleration_mm_per_s2[i] = backup_homing.max_acceleration_mm_per_s2[i];
+    planner.settings.max_feedrate_mm_s[i] = backup_homing.max_feedrate_mm_s[i];
+  }
+
+  planner.reset_acceleration_rates();
+}
+
+/**
  * When G29_RETRY_AND_RECOVER is enabled, call G29() in
  * a loop with recovery and retry handling.
  */
@@ -289,7 +336,11 @@ void GcodeSuite::execute_command(void) {
         case 27: G27(); break;                                    // G27: Nozzle Park
       #endif
 
-      case 28: G28(false); break;                                 // G28: Home all axes, one at a time
+      case 28:                                                    // G28: Home all axes, one at a time
+        do_before_home();
+        G28(false); 
+        do_after_home();
+        break;                                 
 
       #if HAS_LEVELING
         case 29:                                                  // G29: Bed leveling calibration
