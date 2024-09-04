@@ -3025,7 +3025,7 @@ void Planner::refresh_settings_on_toolhead() {
 // Extra initialization of planner settings, such as ft-motion.
 void Planner::planner_settings_init_extra() {
   refresh_settings_on_toolhead();
-  ftMotion.cfg.mode = (ftMotionMode_t)settings.ft_mode;
+  ftMotion.setMode((ftMotionMode_t)settings.ft_mode);
 }
 
 // Update the settings of the planner due to changes in ft-motion
