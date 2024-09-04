@@ -40,7 +40,7 @@
 typedef struct FTConfig {
   ftMotionMode_t mode = FTM_DEFAULT_MODE;                 // Mode / active compensation mode configuration.
 
-  bool modeHasShaper() { return WITHIN(mode, 10U, 19U); }
+  bool modeHasShaper() { return WITHIN(mode, ftMotionMode_ZV, ftMotionMode_MZV); }
 
   #if HAS_X_AXIS
     float baseFreq[1 + ENABLED(HAS_Y_AXIS)] =             // Base frequency. [Hz]
