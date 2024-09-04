@@ -543,8 +543,10 @@ void FTMotion::setMode(const ftMotionMode_t &m) {
   planner.synchronize();
   cfg.mode = m; 
   #if HAS_X_AXIS
-    ftMotion.refreshShapingN();
-    ftMotion.updateShapingA();
+    if (cfg.modeHasShaper()) {
+      ftMotion.refreshShapingN();
+      ftMotion.updateShapingA();
+    }
   #endif
 }
 
