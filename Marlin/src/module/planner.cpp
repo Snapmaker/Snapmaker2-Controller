@@ -2303,6 +2303,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
   // Correct the speed
   if (speed_factor < 1.0f) {
     LOOP_X_TO_E(i) current_speed[i] *= speed_factor;
+    block->nominal_speed *= speed_factor;
     block->nominal_rate *= speed_factor;
     block->nominal_speed_sqr = block->nominal_speed_sqr * sq(speed_factor);
   }
