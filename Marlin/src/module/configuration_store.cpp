@@ -37,7 +37,7 @@
  */
 
 // Change EEPROM version if the structure changes
-#define EEPROM_VERSION "V76"
+#define EEPROM_VERSION "V77"
 #define EEPROM_OFFSET 100
 
 // Check the integrity of data offsets.
@@ -60,6 +60,7 @@
 #if ENABLED(FT_MOTION)
   #include "../module/ft_motion.h"
 #endif
+#include "../../../snapmaker/src/module/enclosure.h"
 
 #if EITHER(EEPROM_SETTINGS, SD_FIRMWARE_UPDATE)
   #include "../HAL/shared/persistent_store_api.h"
@@ -333,6 +334,9 @@ typedef struct SettingsDataStruct {
   #if ENABLED(FT_MOTION)
     ft_config_t ftMotion_cfg;                          // M493
   #endif
+
+  // enclosure door checking
+  bool enclosure_door_check;
 } SettingsData;
 
 MarlinSettings settings;
@@ -1195,6 +1199,9 @@ void MarlinSettings::postprocess() {
       EEPROM_WRITE(ftMotion.cfg);
     #endif
 
+    // enclosure door checking
+    EEPROM_WRITE(enclosure.enabled_);
+
     //
     // Validate CRC and Data Size
     //
@@ -1978,6 +1985,9 @@ void MarlinSettings::postprocess() {
         EEPROM_READ(ftMotion.cfg);
       #endif
 
+      // enclosure door checking
+      EEPROM_READ(enclosure.enabled_);
+
       eeprom_error = size_error(eeprom_index - (EEPROM_OFFSET));
       if (eeprom_error) {
         DEBUG_ECHO_START();
@@ -2610,6 +2620,12 @@ void MarlinSettings::reset() {
   // Fixed-Time Motion
   //
   TERN_(FT_MOTION, ftMotion.set_defaults());
+
+  // enclosure door checking
+  enclosure.enabled_ = ENCLOSURE_DOOR_CHECK_DEFAULT;
+
+  // Automatically save after resetting.
+  save();
 }
 
 #if DISABLED(DISABLE_M503)
