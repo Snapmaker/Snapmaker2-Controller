@@ -264,6 +264,8 @@ static void heartbeat_task(void *param) {
     }
 
     Serial.check_dma();
+    Serial1.check_dma();
+    Serial2.check_dma();
 
     // sleep for 10ms
     vTaskDelay(pdMS_TO_TICKS(10));

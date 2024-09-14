@@ -65,7 +65,7 @@ void __irq_uart5(void) {
 
 // UART3 TX
 static void dma_isr_ch2() {
-    dma_clear_isr_bits(DMA1, DMA_CH1);
+    dma_clear_isr_bits(DMA1, DMA_CH2);
     dma_disable(DMA1, DMA_CH2);
 }
 
@@ -106,6 +106,7 @@ HardwareSerial::HardwareSerial(usart_dev *usart_device,
     write_index = 0;
     read_pos = 0;
     write_buff = usart_device->tx_buf;
+    read_buff = usart_device->rx_buf;
 }
 
 HardwareSerial::HardwareSerial(struct usart_dev *usart_device,
@@ -119,6 +120,7 @@ HardwareSerial::HardwareSerial(struct usart_dev *usart_device,
     write_index = 0;
     read_pos = 0;
     write_buff = usart_device->tx_buf;
+    read_buff = usart_device->rx_buf;
 }
 
 /*
@@ -192,7 +194,7 @@ void HardwareSerial::init_dma()
         dma_tx_ch = DMA_CH7;
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART2_TX;
         dma_cfg.tube_dst = &regs->DR;
-        dma_cfg.tube_src = usart_device->tx_buf;
+        dma_cfg.tube_src = write_buff;
         dma_cfg.tube_nr_xfers = USART_TX_BUF_SIZE;
         dma_cfg.target_data = 0;
         dma_cfg.tube_flags = DMA_CFG_SRC_INC | DMA_CFG_CMPLT_IE;
@@ -220,7 +222,7 @@ void HardwareSerial::init_dma()
         dma_tx_ch = DMA_CH2;
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART3_TX;
         dma_cfg.tube_dst = &regs->DR;
-        dma_cfg.tube_src = usart_device->tx_buf;
+        dma_cfg.tube_src = write_buff;
         dma_cfg.tube_nr_xfers = USART_TX_BUF_SIZE;
         dma_cfg.target_data = 0;
         dma_cfg.tube_flags = DMA_CFG_SRC_INC | DMA_CFG_CMPLT_IE;
