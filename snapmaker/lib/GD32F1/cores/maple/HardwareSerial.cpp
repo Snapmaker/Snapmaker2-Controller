@@ -180,7 +180,7 @@ void HardwareSerial::init_dma()
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART1_RX;
         dma_cfg.tube_dst = read_buff;
         dma_cfg.tube_src = &regs->DR;
-        dma_cfg.tube_nr_xfers = HWSERIAL_RX_BUFFER_SIZE;
+        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE;
         dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_HALF_CMPLT_IE | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH5, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH5, DMA_PRIORITY_HIGH);
@@ -208,7 +208,7 @@ void HardwareSerial::init_dma()
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART2_RX;
         dma_cfg.tube_dst = read_buff;
         dma_cfg.tube_src = &regs->DR;
-        dma_cfg.tube_nr_xfers = HWSERIAL_RX_BUFFER_SIZE;
+        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE;
         dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_HALF_CMPLT_IE | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH6, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH6, DMA_PRIORITY_HIGH);
@@ -236,7 +236,7 @@ void HardwareSerial::init_dma()
         dma_cfg.tube_req_src = DMA_REQ_SRC_USART3_RX;
         dma_cfg.tube_dst = read_buff;
         dma_cfg.tube_src = &regs->DR;
-        dma_cfg.tube_nr_xfers = HWSERIAL_RX_BUFFER_SIZE;
+        dma_cfg.tube_nr_xfers = USART_RX_BUF_SIZE;
         dma_cfg.tube_flags = DMA_CFG_DST_INC | DMA_CFG_CIRC | DMA_CFG_HALF_CMPLT_IE | DMA_CFG_CMPLT_IE;
         dma_tube_cfg(DMA1, DMA_CH3, &dma_cfg);
         dma_set_priority(DMA1, DMA_CH3, DMA_PRIORITY_HIGH);
@@ -268,14 +268,14 @@ void HardwareSerial::dump_rx_data(uint8_t *buff, uint32_t len)
 void HardwareSerial::rx_process()
 {
     uint32_t cur_pos;
-    cur_pos = HWSERIAL_RX_BUFFER_SIZE - dma_get_count(dma_device, dma_rx_ch);
+    cur_pos = USART_RX_BUF_SIZE - dma_get_count(dma_device, dma_rx_ch);
 
     if (cur_pos != read_pos) {
         if (cur_pos > read_pos) {
             dump_rx_data(&read_buff[read_pos], cur_pos - read_pos);
         }
         else {
-            dump_rx_data(&read_buff[read_pos], HWSERIAL_RX_BUFFER_SIZE - read_pos);
+            dump_rx_data(&read_buff[read_pos], USART_RX_BUF_SIZE - read_pos);
             if (cur_pos > 0)
                 dump_rx_data(&read_buff[0], cur_pos);
         }
