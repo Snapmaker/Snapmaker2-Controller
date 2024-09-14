@@ -186,7 +186,7 @@ private:
     uint8_t *write_buff;
     uint32_t write_index;
 
-    uint8_t read_buff[HWSERIAL_RX_BUFFER_SIZE];
+    uint8_t *read_buff;
     uint32_t read_pos;
 
     uint8 tx_pin;
