@@ -407,7 +407,7 @@ size_t HardwareSerial::write(unsigned char ch) {
 }
 
 size_t HardwareSerial::write_directly(unsigned char ch) {
-    if (write_index < USART_TX_BUF_SIZE) {
+    if (write_index < USART_TX_BUF_SIZE - 1) {
         write_buff[write_index++] = ch;
         return 1;
     }

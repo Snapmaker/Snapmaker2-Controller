@@ -873,6 +873,10 @@ void idle(
   #endif
 
   ftMotion.loop();
+
+  Serial.check_dma();
+  Serial1.check_dma();
+  Serial2.check_dma();
 }
 
 /**
