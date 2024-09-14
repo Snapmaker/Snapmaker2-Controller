@@ -160,7 +160,12 @@ void GcodeSuite::M600() {
 #include "../../../gcode/gcode.h"
 #include "../snapmaker/src/module/toolhead_3dp.h"
 void GcodeSuite::M600() {
-  printer1->ResetFilamentState(0, 0);
+  #if EXTRUDERS > 1
+    printer1->ResetFilamentState(0, actual_extruder);
+  #else
+    printer1->ResetFilamentState(0, active_extruder);
+  #endif
+  event_filament_runout();
 }
 
 #endif // ADVANCED_PAUSE_FEATURE
