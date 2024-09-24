@@ -36,7 +36,7 @@
 
 #define CALIBRATION_PAPER_THICKNESS 0.1
 
-#define INIT_Z_FOR_DUAL_EXTRUDER    (50)  // mm
+#define INIT_Z_FOR_DUAL_EXTRUDER    (75)  // mm
 #define Z_SPEED_FOR_DUAL_EXTRUDER   (30)  // mm/s
 #define XY_SPEED_FOR_DUAL_EXTRUDER  (80)  // mm/s
 
