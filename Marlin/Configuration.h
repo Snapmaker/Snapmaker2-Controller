@@ -1286,7 +1286,7 @@ extern uint8_t E_ENABLE_ON;
   #define GRID_MAX_POINTS GRID_MAX_NUM * GRID_MAX_NUM
 //  #define PROBE_MARGIN 30
 #define DEFAUT_LEVELING_HEIGHT  9 // uint: mm
-#define DEFAUT_LEVELING_HEIGHT_3DP2E  50 // uint: mm
+#define DEFAUT_LEVELING_HEIGHT_3DP2E  75 // uint: mm
 
   // Set the boundaries for probing (where the probe can reach).
   #define LEFT_PROBE_BED_POSITION 30
