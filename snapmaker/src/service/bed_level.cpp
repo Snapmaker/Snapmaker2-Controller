@@ -211,7 +211,7 @@ ErrCode BedLevelService::DoManualLeveling(SSTP_Event_t &event) {
 
     // increase 3mm for first leveling point
     // to avoid nozzle gouging the surface when user place glass on the steel sheet
-    do_blocking_move_to_z(12, 10);
+    do_blocking_move_to_z(37, 10);
 
     for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
       for (i = 0; i < GRID_MAX_POINTS_X; i++) {
