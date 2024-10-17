@@ -245,7 +245,7 @@ static void hmi_task(void *param) {
 static void heartbeat_task(void *param) {
   //SSTP_Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
 
-  int counter = 0;
+  uint32_t next_beat_time = millis() + 1000;
 
   for (;;) {
     // do following every 10ms without being blocked
@@ -255,14 +255,13 @@ static void heartbeat_task(void *param) {
 
     systemservice.CheckException();
 
-    if (++counter > 100) {
-      counter = 0;
-
+    if (ELAPSED(millis(), next_beat_time)) {
       // do following every 1s
+      next_beat_time = millis() + 1000;
       upgrade.Check();
       canhost.SendHeartbeat();
     }
-
+    
     // sleep for 10ms
     vTaskDelay(pdMS_TO_TICKS(10));
   }
