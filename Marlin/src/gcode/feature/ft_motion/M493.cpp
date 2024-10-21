@@ -415,6 +415,7 @@ void GcodeSuite::M493() {
   if (flag.update_a) ftMotion.updateShapingA();
 
   if (flag.reset_ft) {
+    stepper.reinit_for_ftmotion();
     stepper.ftMotion_syncPosition();
     ftMotion.reset();
   }

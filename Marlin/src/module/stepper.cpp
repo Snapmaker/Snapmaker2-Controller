@@ -2406,6 +2406,12 @@ void Stepper::init() {
   #endif
 }
 
+void Stepper::reinit_for_ftmotion() {
+  #if ENABLED(LIN_ADVANCE)
+    count_direction[E_AXIS] = 0;
+  #endif
+}
+
 /**
  * Set the stepper positions directly in steps
  *
