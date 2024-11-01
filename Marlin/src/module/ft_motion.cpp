@@ -57,7 +57,10 @@ FTMotion ftMotion;
 ft_config_t FTMotion::cfg;
 bool FTMotion::busy; // = false
 int32_t FTMotion::positionSyncBuff[FTM_SYNC_POSITION_SIZE][NUM_AXIS_ENUMS] = {0U};
-int32_t FTMotion::positionSyncIndex = 0;
+int8_t FTMotion::positionSyncIndex = 0;
+int8_t  FTMotion::blockInfoSyncBuffIndex = 0;
+FtMotionBlockInfo_t FTMotion::blockInfoSyncBuff[FT_MOTION_BLOCK_INFO_BUFF_SIZE] = {0U};
+FtMotionBlockInfo_t FTMotion::ft_current_block = {0};
 ft_command_t FTMotion::stepperCmdBuff[FTM_STEPPERCMD_BUFF_SIZE] = {0U}; // Stepper commands buffer.
 int32_t FTMotion::stepperCmdBuff_produceIdx = 0, // Index of next stepper command write to the buffer.
         FTMotion::stepperCmdBuff_consumeIdx = 0; // Index of next stepper command read from the buffer.
@@ -185,6 +188,29 @@ void FTMotion::addSyncCommand(block_t *blk) {
 
   if (++stepperCmdBuff_produceIdx >= FTM_STEPPERCMD_BUFF_SIZE)
     stepperCmdBuff_produceIdx = 0;
+}
+
+void FTMotion::addSyncCommandBlockInfo(block_t *blk) {
+  if (NULL == blk) {
+    return;
+  }
+
+  blockInfoSyncBuff[blockInfoSyncBuffIndex].new_block_file_position = blk->filePos;
+  blockInfoSyncBuff[blockInfoSyncBuffIndex].new_block_steps_x = blk->steps[X_AXIS];
+  blockInfoSyncBuff[blockInfoSyncBuffIndex].new_block_steps_y = blk->steps[Y_AXIS];
+  blockInfoSyncBuff[blockInfoSyncBuffIndex].new_block_steps_e = blk->steps[E_AXIS] 
+      * (TEST(blk->direction_bits, E_AXIS) ? -1 : 1);
+
+  stepperCmdBuff[stepperCmdBuff_produceIdx] = _BV(FT_BIT_SYNC_BLOCK_INFO);
+  stepperCmdBuff[stepperCmdBuff_produceIdx] |= blockInfoSyncBuffIndex;
+
+  if (++blockInfoSyncBuffIndex >= FT_MOTION_BLOCK_INFO_BUFF_SIZE) {
+    blockInfoSyncBuffIndex = 0;
+  }
+
+  if (++stepperCmdBuff_produceIdx >= FTM_STEPPERCMD_BUFF_SIZE) {
+    stepperCmdBuff_produceIdx = 0;
+  }
 }
 
 // Controller main, to be invoked from non-isr task.
@@ -520,6 +546,12 @@ void FTMotion::reset() {
     shaping.zi_idx = 0;
   #endif
   TERN_(HAS_EXTRUDERS, e_raw_z1 = e_advanced_z1 = 0.0f);
+
+  memset(&ftMotion.ft_current_block, 0, sizeof(ftMotion.ft_current_block));
+  memset(blockInfoSyncBuff, 0, sizeof(blockInfoSyncBuff));
+  blockInfoSyncBuffIndex = 0;
+  memset(positionSyncBuff, 0, sizeof(positionSyncBuff));
+  positionSyncIndex = 0;
 }
 
 // Private functions.

@@ -56,6 +56,7 @@ enum {
   ),
   FT_BIT_SYNC_POS_E,
   FT_BIT_SYNC_POS,
+  FT_BIT_SYNC_BLOCK_INFO,
   FT_BIT_COUNT
 };
 

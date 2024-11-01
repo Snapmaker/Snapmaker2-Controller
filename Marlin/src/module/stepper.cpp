@@ -3256,7 +3256,6 @@ void Stepper::report_positions() {
   // Set stepper I/O for fixed time controller.
   uint32_t Stepper::ftMotion_stepper() {
     volatile uint32_t interval = FTM_MIN_TICKS;
-    volatile uint32_t retry = 10;
 
     // Check if the buffer is empty.
     ftMotion.sts_stepperBusy = (ftMotion.stepperCmdBuff_produceIdx != ftMotion.stepperCmdBuff_consumeIdx);
@@ -3273,17 +3272,23 @@ void Stepper::report_positions() {
       return STEPPER_TIMER_RATE / 500;
     }
 
-    // no available output
-    while (0 == command && (--retry > 0)) {
-      // see if buffer is empty firstly
+    while (TEST(command, FT_BIT_SYNC_BLOCK_INFO)) {
+      count_position[E_AXIS] += ftMotion.ft_current_block.new_block_steps_e;
+
+      ftMotion.ft_current_block.last_block_axis_count_x = count_position[X_AXIS];
+      ftMotion.ft_current_block.last_block_axis_count_y = count_position[Y_AXIS];
+      ftMotion.ft_current_block.last_block_axis_count_e = count_position[E_AXIS];
+
+      ftMotion.ft_current_block.new_block_steps_x = ftMotion.blockInfoSyncBuff[command & 0xff].new_block_steps_x;
+      ftMotion.ft_current_block.new_block_steps_y = ftMotion.blockInfoSyncBuff[command & 0xff].new_block_steps_y;
+      ftMotion.ft_current_block.new_block_steps_e = ftMotion.blockInfoSyncBuff[command & 0xff].new_block_steps_e;
+
+      pl_recovery.SaveCmdLine(ftMotion.blockInfoSyncBuff[command & 0xff].new_block_file_position);
+
       ftMotion.sts_stepperBusy = (ftMotion.stepperCmdBuff_produceIdx != ftMotion.stepperCmdBuff_consumeIdx);
       if (!ftMotion.sts_stepperBusy) return STEPPER_TIMER_RATE / 1000;
 
-      // to here, there is valid command in the buffer
       command = ftMotion.stepperCmdBuff[ftMotion.stepperCmdBuff_consumeIdx];
-
-      interval += FTM_MIN_TICKS;
-
       if (++ftMotion.stepperCmdBuff_consumeIdx == (FTM_STEPPERCMD_BUFF_SIZE))
         ftMotion.stepperCmdBuff_consumeIdx = 0;
     }
@@ -3397,7 +3402,8 @@ void Stepper::report_positions() {
 
     // Update step counts
     LOGICAL_AXIS_CODE(
-      if (TEST(axis_did_move, E_AXIS)) count_position[E_AXIS] += count_direction[E_AXIS],
+      // if (TEST(axis_did_move, E_AXIS)) count_position[E_AXIS] += count_direction[E_AXIS],
+      if (TEST(axis_did_move, E_AXIS)) ,    // do notiong
       if (TEST(axis_did_move, X_AXIS)) count_position[X_AXIS] += count_direction[X_AXIS],
       if (TEST(axis_did_move, Y_AXIS)) count_position[Y_AXIS] += count_direction[Y_AXIS],
       if (TEST(axis_did_move, Z_AXIS)) count_position[Z_AXIS] += count_direction[Z_AXIS],
@@ -3461,6 +3467,8 @@ void Stepper::report_positions() {
 
       stepper_extruder = current_block->extruder;
 
+      ftMotion.addSyncCommandBlockInfo(current_block);
+
       ftMotion.startBlockProc();
       return;
     }
@@ -3488,5 +3496,24 @@ void Stepper::report_positions() {
       // Reenable Stepper ISR
       if (was_enabled) wake_up();
     #endif
+  }
+
+  void Stepper::ftMotionSyncCurrentBlock() {
+    float k = 0.0000f;
+    
+    if (ftMotion.ft_current_block.new_block_steps_x && 
+        ABS(ftMotion.ft_current_block.new_block_steps_x) > ABS(ftMotion.ft_current_block.new_block_steps_y)) {
+      k = (float)(count_position[X_AXIS] - ftMotion.ft_current_block.last_block_axis_count_x) 
+          / (float)ftMotion.ft_current_block.new_block_steps_x;
+    }
+    else if (ftMotion.ft_current_block.new_block_steps_y) {
+      k = (float)(count_position[Y_AXIS] - ftMotion.ft_current_block.last_block_axis_count_y) 
+          / (float)ftMotion.ft_current_block.new_block_steps_y;
+    }
+    else {
+
+    }
+
+    count_position[E_AXIS] += ABS(k) * ftMotion.ft_current_block.new_block_steps_e;
   }
 #endif // FT_MOTION
