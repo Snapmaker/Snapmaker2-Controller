@@ -37,6 +37,18 @@
   #endif
 #endif
 
+#define FT_MOTION_BLOCK_INFO_BUFF_SIZE    (64)
+
+typedef struct {
+  int32_t last_block_axis_count_x;        // As of now, the count value on the X-axis.
+  int32_t last_block_axis_count_y;        // As of now, the count value on the Y-axis.
+  int32_t last_block_axis_count_e;        // As of now, the count value on the E-axis.
+  int32_t new_block_steps_x;
+  int32_t new_block_steps_y;
+  int32_t new_block_steps_e;              // Include direction
+  uint32_t new_block_file_position;
+}FtMotionBlockInfo_t;
+
 typedef struct FTConfig {
   ftMotionMode_t mode = FTM_DEFAULT_MODE;                 // Mode / active compensation mode configuration.
 
@@ -101,8 +113,11 @@ class FTMotion {
       reset();
     }
 
-    static int32_t positionSyncIndex;
+    static int8_t positionSyncIndex;
     static int32_t positionSyncBuff[FTM_SYNC_POSITION_SIZE][NUM_AXIS_ENUMS];
+    static int8_t blockInfoSyncBuffIndex;
+    static FtMotionBlockInfo_t blockInfoSyncBuff[FT_MOTION_BLOCK_INFO_BUFF_SIZE];
+    static FtMotionBlockInfo_t ft_current_block;
     static ft_command_t stepperCmdBuff[FTM_STEPPERCMD_BUFF_SIZE]; // Buffer of stepper commands.
     static int32_t stepperCmdBuff_produceIdx,             // Index of next stepper command write to the buffer.
                    stepperCmdBuff_consumeIdx;             // Index of next stepper command read from the buffer.
@@ -116,6 +131,7 @@ class FTMotion {
     static void runoutBlock();                            // Move any free data points to the stepper buffer even if a full batch isn't ready.
     static void loop();                                   // Controller main, to be invoked from non-isr task.
     static void addSyncCommand(block_t *blk);
+    static void addSyncCommandBlockInfo(block_t *blk);
 
     static ftMotionMode_t disable();
     static void setMode(const ftMotionMode_t &m);

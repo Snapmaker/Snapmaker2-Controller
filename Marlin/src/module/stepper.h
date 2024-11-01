@@ -167,7 +167,8 @@
 // adding the "start stepper pulse" code section execution cycles to account for that not all
 // pulses start at the beginning of the loop, so an extra time must be added to compensate so
 // the last generated pulse (usually the extruder stepper) has the right length
-#define MIN_PULSE_TICKS (((PULSE_TIMER_TICKS_PER_US) * (unsigned long)(MINIMUM_STEPPER_PULSE)) + ((MIN_ISR_START_LOOP_CYCLES) / (unsigned long)(PULSE_TIMER_PRESCALE)))
+#define MIN_PULSE_TICKS    (PULSE_TIMER_TICKS_PER_US * 2UL)
+// #define MIN_PULSE_TICKS (((PULSE_TIMER_TICKS_PER_US) * (unsigned long)(MINIMUM_STEPPER_PULSE)) + ((MIN_ISR_START_LOOP_CYCLES) / (unsigned long)(PULSE_TIMER_PRESCALE)))
 
 // Calculate the extra ticks of the PULSE timer between step pulses
 #define ADDED_STEP_TICKS (((MIN_STEPPER_PULSE_CYCLES) / (PULSE_TIMER_PRESCALE)) - (MIN_PULSE_TICKS))
@@ -507,6 +508,8 @@ class Stepper {
       static void ftMotion_blockQueueUpdate();
       // Set current position in steps when reset flag is set in M493 and planner already synchronized
       static void ftMotion_syncPosition();
+      // Mainly used for pausing operations
+      static void ftMotionSyncCurrentBlock();
     #endif
 
   private:
