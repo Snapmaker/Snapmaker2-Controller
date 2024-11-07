@@ -29,6 +29,7 @@
 #include "../../../module/stepper.h"
 
 #include "../snapmaker/src/snapmaker.h"
+#include "../snapmaker/src/service/system.h"
 
 #define STR_FT_MOTION "Fixed-Time Motion"
 
@@ -191,6 +192,11 @@ void GcodeSuite::M493() {
     if (!can_setup && newmm != ftMotionMode_DISABLED) {
       SERIAL_ECHOLN("can only enable FT motion for 3DP");
       newmm = ftMotionMode_DISABLED;
+    }
+
+    if (SYSTAT_IDLE != systemservice.GetCurrentStatus() && newmm != ftMotion.cfg.mode) {
+      LOG_I("Only when the machine is in an idle state can it be set.\r\n");
+      return;
     }
 
     if (newmm != ftMotion.cfg.mode) {
