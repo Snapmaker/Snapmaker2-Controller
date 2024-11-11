@@ -65,8 +65,8 @@ void __irq_uart5(void) {
 
 // UART3 TX
 static void dma_isr_ch2() {
-    dma_clear_isr_bits(DMA1, DMA_CH2);
     dma_disable(DMA1, DMA_CH2);
+    dma_clear_isr_bits(DMA1, DMA_CH2);
 }
 
 // UART3 RX
@@ -76,8 +76,8 @@ static void dma_isr_ch3() {
 
 // UART1 TX
 static void dma_isr_ch4() {
-    dma_clear_isr_bits(DMA1, DMA_CH4);
     dma_disable(DMA1, DMA_CH4);
+    dma_clear_isr_bits(DMA1, DMA_CH4);
 }
 
 // UART1 RX
@@ -92,8 +92,8 @@ static void dma_isr_ch6() {
 
 // UART2 TX
 static void dma_isr_ch7() {
-    dma_clear_isr_bits(DMA1, DMA_CH7);
     dma_disable(DMA1, DMA_CH7);
+    dma_clear_isr_bits(DMA1, DMA_CH7);
 }
 
 
@@ -304,32 +304,39 @@ void HardwareSerial::uart_isr()
 }
 
 #include "MapleFreeRTOS1030.h"
-bool HardwareSerial::try_dma_tx()
-{
-    // if dma is transferring, cannot switch TX buffer
-    if (dma_is_channel_enabled(dma_device, dma_tx_ch))
-        return false;
+bool HardwareSerial::try_dma_tx() {
+    bool ret = false;
 
     taskENTER_CRITICAL();
-
-    dma_disable(dma_device, dma_tx_ch);
-    dma_clear_isr_bits(dma_device, dma_tx_ch);
-
-
-    if (((uint32_t)write_buff) != ((uint32_t)(usart_device->tx_buf))) {
-        write_buff = usart_device->tx_buf;
-        dma_set_mem_addr(dma_device, dma_tx_ch, bkp_tx_buff);
+    // if dma is transferring, cannot switch TX buffer
+    if (dma_is_channel_enabled(dma_device, dma_tx_ch)) {
+        ret = false;
     }
     else {
-        write_buff = &bkp_tx_buff[0];
-        dma_set_mem_addr(dma_device, dma_tx_ch, usart_device->tx_buf);
+        if (0 == write_index) {
+            ret = true;
+        }
+        else {
+            dma_disable(dma_device, dma_tx_ch);
+            dma_clear_isr_bits(dma_device, dma_tx_ch);
+
+            if (((uint32_t)write_buff) != ((uint32_t)(usart_device->tx_buf))) {
+                write_buff = usart_device->tx_buf;
+                dma_set_mem_addr(dma_device, dma_tx_ch, bkp_tx_buff);
+            }
+            else {
+                write_buff = bkp_tx_buff;
+                dma_set_mem_addr(dma_device, dma_tx_ch, usart_device->tx_buf);
+            }
+            dma_set_num_transfers(dma_device, dma_tx_ch, write_index);
+            write_index = 0;
+            dma_enable(dma_device, dma_tx_ch);
+            ret = true;
+        }
     }
-    dma_set_num_transfers(dma_device, dma_tx_ch, write_index);
-    write_index = 0;
-    dma_enable(dma_device, dma_tx_ch);
     taskEXIT_CRITICAL();
 
-    return true;
+    return ret;
 }
 
 /*
@@ -405,14 +412,19 @@ size_t HardwareSerial::write(unsigned char ch) {
 }
 
 size_t HardwareSerial::write_directly(unsigned char ch) {
+    taskENTER_CRITICAL();
     if (write_index < USART_TX_BUF_SIZE) {
         write_buff[write_index++] = ch;
+        taskEXIT_CRITICAL();
         return 1;
     }
+    taskEXIT_CRITICAL();
 
     while (!try_dma_tx());
 
+    taskENTER_CRITICAL();
     write_buff[write_index++] = ch;
+    taskEXIT_CRITICAL();
     return 1;
 }
 
