@@ -518,12 +518,7 @@ ErrCode SystemService::ResumeOver() {
       current_position[E_AXIS] += (DUAL_EXTRUDER_RESUME_RETRACT_E_LENGTH + 0.2);
     }
     else {
-      if (ftMotion.cfg.modeHasShaper()) {
-        current_position[E_AXIS] += (SINGLE_RESUME_RETRACT_E_LENGTH - 0.5);
-      }
-      else {
-        current_position[E_AXIS] += (SINGLE_RESUME_RETRACT_E_LENGTH + 0.2);
-      }
+      current_position[E_AXIS] += (SINGLE_RESUME_RETRACT_E_LENGTH + 0.2);
     }
 
     line_to_current_position(5);
