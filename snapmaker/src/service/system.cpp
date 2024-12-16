@@ -507,6 +507,7 @@ ErrCode SystemService::ResumeOver() {
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
   case MODULE_TOOLHEAD_DUALEXTRUDER:
+    RunoutResponseDelayed::modify_runout_distance_mm(FILAMENT_RUNOUT_DISTANCE_MM);
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);

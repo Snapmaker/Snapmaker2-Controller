@@ -532,6 +532,7 @@ void disable_all_steppers() {
         enqueue_and_echo_commands_P(PSTR(FILAMENT_RUNOUT_SCRIPT));
     #else
       systemservice.PauseTrigger(TRIGGER_SOURCE_RUNOUT);
+      RunoutResponseDelayed::modify_runout_distance_mm(FILAMENT_RUNOUT_DISTANCE_MM);
     #endif
   }
 
