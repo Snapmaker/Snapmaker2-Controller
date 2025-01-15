@@ -33,7 +33,13 @@
  * M75: Start print timer
  */
 void GcodeSuite::M75() {
-  print_job_timer.start();
+  SSTP_Event_t event;
+  event.id = EID_SYS_CTRL_REQ;
+  event.op_code = SYSCTL_OPC_START_WORK;
+  event.length = 0;
+  planner.synchronize();
+  SERIAL_ECHOPAIR("MC REQ START\n");
+  systemservice.ChangeSystemStatus(event);
   #if ENABLED(EXTENSIBLE_UI)
     ExtUI::onPrintTimerStarted();
   #endif
@@ -58,6 +64,7 @@ void GcodeSuite::M76() {
  * M77: Stop print timer
  */
 void GcodeSuite::M77() {
+ systemservice.SetCurrentStatus(SYSTAT_IDLE);
  print_job_timer.stop();
  #if ENABLED(EXTENSIBLE_UI)
    ExtUI::onPrintTimerStopped();
