@@ -109,6 +109,9 @@ bool QuickStopService::CheckInISR(block_t *blk) {
   case QS_STA_TRIGGERED:
     // need sync count position from stepper to planner
     // otherwise, it may park in unexpected position
+    if (ftMotion.cfg.modeHasShaper()) {
+      stepper.ftMotionSyncCurrentBlock();
+    }
     current_position[E_AXIS] = planner.get_axis_position_mm(E_AXIS);
     set_current_from_steppers_for_axis(ALL_AXES);
 
@@ -130,7 +133,9 @@ bool QuickStopService::CheckInISR(block_t *blk) {
     case QS_SOURCE_PAUSE:
       if (source_ != QS_SOURCE_POWER_LOSS || (source_ == QS_SOURCE_POWER_LOSS && systemservice.GetCurrentStatus() == SYSTAT_WORK)) {
         if (blk) {
-          pl_recovery.SaveCmdLine(blk->filePos);
+          if (!ftMotion.cfg.modeHasShaper()) {
+            pl_recovery.SaveCmdLine(blk->filePos);
+          }
           // pl_recovery.SaveLaserInlineState(blk->laser.status.isEnabled, blk->laser.status.trapezoid_power);
           pl_recovery.SaveLaserPowerInfo(blk->laser);
         }
@@ -266,9 +271,9 @@ void QuickStopService::Park() {
     // move Y to max position
     if (source_ == QS_SOURCE_PAUSE) {
       if (X_HOME_DIR > 0)
-        move_to_limited_xy(soft_endstop[X_AXIS].min + 5, Y_MAX_POS, 60);
+        move_to_limited_x(soft_endstop[X_AXIS].min + 5, 60);
       else
-        move_to_limited_xy(soft_endstop[X_AXIS].max - 5, Y_MAX_POS, 60);
+        move_to_limited_x(soft_endstop[X_AXIS].max - 5, 60);
     }
     else {
       if (X_HOME_DIR > 0)

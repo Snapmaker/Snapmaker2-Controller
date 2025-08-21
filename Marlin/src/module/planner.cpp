@@ -74,6 +74,10 @@
 #include "../../../snapmaker/src/snapmaker.h"
 #include "../../../snapmaker/src/module/toolhead_laser.h"
 
+#if ENABLED(FT_MOTION)
+  #include "ft_motion.h"
+#endif
+
 #if HAS_LEVELING
   #include "../feature/bedlevel/bedlevel.h"
 #endif
@@ -96,6 +100,7 @@
 
 // Delay for delivery of first block to the stepper ISR, if the queue contains 2 or
 // fewer movements. The delay is measured in milliseconds, and must be less than 250ms
+#define BLOCK_DELAY_NONE         0U
 #define BLOCK_DELAY_FOR_1ST_MOVE 100
 
 Planner planner;
@@ -112,7 +117,7 @@ volatile uint8_t Planner::block_buffer_head,    // Index of the next block to be
                  Planner::block_buffer_tail;    // Index of the busy block, if any
 uint16_t Planner::cleaning_buffer_counter;      // A counter to disable queuing of blocks
 uint8_t Planner::delay_before_delivering;       // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
-
+uint8_t Planner::new_block = 0;
 planner_settings_t Planner::settings;           // Initialized by settings.load()
 
 laser_state_t Planner::laser_inline = {0};            // Planner laser power for blocks
@@ -120,7 +125,7 @@ laser_state_t Planner::laser_inline = {0};            // Planner laser power for
 uint32_t Planner::max_acceleration_steps_per_s2[X_TO_EN]; // (steps/s^2) Derived from mm_per_s2
 
 float Planner::steps_to_mm[X_TO_EN];           // (mm) Millimeters per step
-bool Planner::is_user_set_lead; 
+bool Planner::is_user_set_lead;
 #if ENABLED(JUNCTION_DEVIATION)
   float Planner::junction_deviation_mm;       // (mm) M205 J
   #if ENABLED(LIN_ADVANCE)
@@ -1150,7 +1155,10 @@ void Planner::recalculate() {
     reverse_pass();
     forward_pass();
   }
-  recalculate_trapezoids();
+  if (!ftMotion.cfg.mode)
+    recalculate_trapezoids();
+  else
+    new_block = 1;
 }
 
 #if ENABLED(AUTOTEMP)
@@ -1507,7 +1515,7 @@ void Planner::quick_stop() {
 
   // Restart the block delay for the first movement - As the queue was
   // forced to empty, there's no risk the ISR will touch this.
-  delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+  delay_before_delivering = TERN_(FT_MOTION, ftMotion.cfg.mode ? BLOCK_DELAY_NONE :) BLOCK_DELAY_FOR_1ST_MOVE;
 
   #if ENABLED(ULTRA_LCD)
     // Clear the accumulated runtime
@@ -1578,6 +1586,7 @@ void Planner::synchronize() {
     #if ENABLED(EXTERNAL_CLOSED_LOOP_CONTROLLER)
       || (READ(CLOSED_LOOP_ENABLE_PIN) && !READ(CLOSED_LOOP_MOVE_COMPLETE_PIN))
     #endif
+    || TERN0(FT_MOTION, ftMotion.busy)
   ) idle();
 }
 
@@ -1737,7 +1746,7 @@ bool Planner::_buffer_steps(const int32_t (&target)[X_TO_E]
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;
     } else {
-      delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+      delay_before_delivering = TERN_(FT_MOTION, ftMotion.cfg.mode ? BLOCK_DELAY_NONE :) BLOCK_DELAY_FOR_1ST_MOVE;
     }
   }
 
@@ -2183,6 +2192,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
     if (was_enabled) ENABLE_STEPPER_DRIVER_INTERRUPT();
   #endif
 
+  block->nominal_speed = block->millimeters * inverse_secs;
   block->nominal_speed_sqr = sq(block->millimeters * inverse_secs);   //   (mm/sec)^2 Always > 0
   block->nominal_rate = CEIL(block->step_event_count * inverse_secs); // (step/sec) Always > 0
   if (laser->device_id() == MODULE_DEVICE_ID_LASER_RED_2W_2023) {
@@ -2293,6 +2303,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
   // Correct the speed
   if (speed_factor < 1.0f) {
     LOOP_X_TO_E(i) current_speed[i] *= speed_factor;
+    block->nominal_speed *= speed_factor;
     block->nominal_rate *= speed_factor;
     block->nominal_speed_sqr = block->nominal_speed_sqr * sq(speed_factor);
   }
@@ -2679,7 +2690,7 @@ bool Planner::_populate_block(block_t * const block, bool split_move,
  * Planner::buffer_sync_block
  * Add a block to the buffer that just updates the position
  */
-void Planner::buffer_sync_block() {
+void Planner::buffer_sync_block(bool sync_e) {
   // Wait for the next available block
   uint8_t next_buffer_head;
   block_t * const block = get_next_free_block(next_buffer_head);
@@ -2688,6 +2699,7 @@ void Planner::buffer_sync_block() {
   memset(block, 0, sizeof(block_t));
 
   block->flag = BLOCK_FLAG_SYNC_POSITION;
+  block->sync_e = sync_e;
 
   block->position[X_AXIS] = position[X_AXIS];
   block->position[Y_AXIS] = position[Y_AXIS];
@@ -2711,7 +2723,7 @@ void Planner::buffer_sync_block() {
       // Adding extra delay will cause long print time.
       delay_before_delivering = 0;
     } else {
-      delay_before_delivering = BLOCK_DELAY_FOR_1ST_MOVE;
+      delay_before_delivering = TERN_(FT_MOTION, ftMotion.cfg.mode ? BLOCK_DELAY_NONE :) BLOCK_DELAY_FOR_1ST_MOVE;
     }
   }
 
@@ -2960,7 +2972,7 @@ void Planner::set_e_position_mm(const float &e) {
     position_cart[E_AXIS] = e;
   #endif
   if (has_blocks_queued())
-    buffer_sync_block();
+    buffer_sync_block(true);
   else
     stepper.set_position(E_AXIS, position[E_AXIS]);
 }
@@ -2988,6 +3000,136 @@ void Planner::refresh_positioning() {
   LOOP_X_TO_E(i) steps_to_mm[i] = 1.0f / settings.axis_steps_per_mm[i];
   set_position_mm(current_position);
   reset_acceleration_rates();
+}
+
+// If initializing or reloading planner settings, refresh it
+void Planner::refresh_settings_on_toolhead() {
+  settings_on_toolhead_t * ptr = NULL;
+
+  if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+    ptr = &settings.fdm;
+  }
+  else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER)) {
+    ptr = &settings.laser;
+  }
+  else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
+    ptr = &settings.cnc;
+  }
+  else {
+    ;
+  }
+  if (ptr) {
+    settings.ft_mode = ptr->ft_mode;
+    LOOP_X_TO_EN(i) {
+      settings.max_acceleration_mm_per_s2[i] = ptr->max_acceleration_mm_per_s2[i];
+      settings.max_feedrate_mm_s[i] = ptr->max_feedrate_mm_s[i];
+    }
+    settings.acceleration = ptr->acceleration;
+    settings.retract_acceleration = ptr->retract_acceleration;
+    settings.travel_acceleration = ptr->travel_acceleration;
+  }
+  else {
+    // for invalid toolhead
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_MAX_FEEDRATE;
+
+    settings.ft_mode = (uint32_t)ftMotionMode_DISABLED;
+    LOOP_X_TO_EN(i) {
+      settings.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      settings.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+    }
+    settings.acceleration = DEFAULT_ACCELERATION;
+    settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+    settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;
+  }
+
+  reset_acceleration_rates();
+}
+
+// Extra initialization of planner settings, such as ft-motion.
+void Planner::planner_settings_init_extra() {
+  refresh_settings_on_toolhead();
+  ftMotion.setMode((ftMotionMode_t)settings.ft_mode);
+}
+
+// Update the settings of the planner due to changes in ft-motion
+void Planner::planner_settings_update_by_ftmotion() {
+  synchronize();
+  // for 3DP 
+  if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+    settings.fdm.ft_mode = (uint32_t)ftMotion.cfg.mode;
+    if (ftMotion.cfg.mode >= ftMotionMode_ZV && ftMotion.cfg.mode <= ftMotionMode_MZV) {
+      // 8mm
+      if (settings.axis_steps_per_mm[X_AXIS] > 200 || settings.axis_steps_per_mm[Y_AXIS] > 200) {
+        uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L8;
+        float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L8;
+        LOOP_X_TO_EN(i) {
+          settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+          settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+        }
+        settings.fdm.acceleration = DEFAULT_3DP_FT_ACCELERATION_L8;
+        settings.fdm.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L8;
+        settings.fdm.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L8;
+      }
+      // 20mm
+      else {
+        uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_FT_MAX_ACCELERATION_L20;
+        float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_FT_MAX_FEEDRATE_L20;
+        LOOP_X_TO_EN(i) {
+          settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+          settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+        }
+        settings.fdm.acceleration = DEFAULT_3DP_FT_ACCELERATION_L20;
+        settings.fdm.retract_acceleration = DEFAULT_3DP_FT_RETRACT_ACCELERATION_L20;
+        settings.fdm.travel_acceleration = DEFAULT_3DP_FT_TRAVEL_ACCELERATION_L20;
+      }
+    }
+    else {
+      settings.fdm.acceleration = DEFAULT_3DP_ACCELERATION;
+      settings.fdm.retract_acceleration = DEFAULT_3DP_RETRACT_ACCELERATION;
+      settings.fdm.travel_acceleration = DEFAULT_3DP_TRAVEL_ACCELERATION;
+
+      uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_3DP_MAX_ACCELERATION;
+      float tmp_max_feedrate[X_TO_EN] = DEFAULT_3DP_MAX_FEEDRATE;
+      LOOP_X_TO_EN(i) {
+        settings.fdm.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+        settings.fdm.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+      }
+    }
+  }
+  // for Laser
+  else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER)) {
+    settings.laser.ft_mode = (uint32_t)ftMotion.cfg.mode;
+    settings.laser.acceleration = DEFAULT_LASER_ACCELERATION;
+    settings.laser.retract_acceleration = DEFAULT_LASER_RETRACT_ACCELERATION;
+    settings.laser.travel_acceleration = DEFAULT_LASER_TRAVEL_ACCELERATION;
+
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_LASER_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_LASER_MAX_FEEDRATE;
+    LOOP_X_TO_EN(i) {
+      settings.laser.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      settings.laser.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+    }
+  }
+  // for CNC
+  else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
+    settings.cnc.ft_mode = (uint32_t)ftMotion.cfg.mode;
+    settings.cnc.acceleration = DEFAULT_CNC_ACCELERATION;
+    settings.cnc.retract_acceleration = DEFAULT_CNC_RETRACT_ACCELERATION;
+    settings.cnc.travel_acceleration = DEFAULT_CNC_TRAVEL_ACCELERATION;
+
+    uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_CNC_MAX_ACCELERATION;
+    float tmp_max_feedrate[X_TO_EN] = DEFAULT_CNC_MAX_FEEDRATE;
+    LOOP_X_TO_EN(i) {
+      settings.cnc.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+      settings.cnc.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+    }
+  }
+  else {
+    // do noting
+  }
+  
+  refresh_settings_on_toolhead();
 }
 
 #if ENABLED(AUTOTEMP)

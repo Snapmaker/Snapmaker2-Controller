@@ -167,7 +167,8 @@
 // adding the "start stepper pulse" code section execution cycles to account for that not all
 // pulses start at the beginning of the loop, so an extra time must be added to compensate so
 // the last generated pulse (usually the extruder stepper) has the right length
-#define MIN_PULSE_TICKS (((PULSE_TIMER_TICKS_PER_US) * (unsigned long)(MINIMUM_STEPPER_PULSE)) + ((MIN_ISR_START_LOOP_CYCLES) / (unsigned long)(PULSE_TIMER_PRESCALE)))
+#define MIN_PULSE_TICKS    (PULSE_TIMER_TICKS_PER_US * 2UL)
+// #define MIN_PULSE_TICKS (((PULSE_TIMER_TICKS_PER_US) * (unsigned long)(MINIMUM_STEPPER_PULSE)) + ((MIN_ISR_START_LOOP_CYCLES) / (unsigned long)(PULSE_TIMER_PRESCALE)))
 
 // Calculate the extra ticks of the PULSE timer between step pulses
 #define ADDED_STEP_TICKS (((MIN_STEPPER_PULSE_CYCLES) / (PULSE_TIMER_PRESCALE)) - (MIN_PULSE_TICKS))
@@ -254,15 +255,13 @@ class Stepper {
       static uint32_t motor_current_setting[3];
       static bool initialized;
     #endif
-
-  private:
-
+    static bool abort_current_block;        // Signals to the stepper that current block should be aborted
     static block_t* current_block;          // A pointer to the block currently being traced
 
+  private:
     static uint8_t last_direction_bits,     // The next stepping-bits to be output
                    axis_did_move;           // Last Movement in the given direction is not null, as computed when the last movement was fetched from planner
 
-    static bool abort_current_block;        // Signals to the stepper that current block should be aborted
     #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
       static bool abort_e_moves;
     #endif
@@ -368,6 +367,8 @@ class Stepper {
 
     // Initialize stepper hardware
     static void init();
+    static void post_init();
+    static void reinit_for_ftmotion();
     static void StepperPinRemap();
     static void StepperBind8PinPort(uint8_t axis, uint8_t port);
     static void PrintStepperBind();
@@ -502,6 +503,15 @@ class Stepper {
     // Set direction bits for all steppers
     static void set_directions();
 
+    #if ENABLED(FT_MOTION)
+      // Manage the planner
+      static void ftMotion_blockQueueUpdate();
+      // Set current position in steps when reset flag is set in M493 and planner already synchronized
+      static void ftMotion_syncPosition();
+      // Mainly used for pausing operations
+      static void ftMotionSyncCurrentBlock();
+    #endif
+
   private:
 
     // Set the current position in steps
@@ -581,6 +591,9 @@ class Stepper {
       static void microstep_init();
     #endif
 
+    #if ENABLED(FT_MOTION)
+      static uint32_t ftMotion_stepper();
+    #endif
 };
 
 extern Stepper stepper;

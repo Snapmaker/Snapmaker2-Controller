@@ -24,8 +24,8 @@
 #undef MAX
 
 // Use NUM_ARGS(__VA_ARGS__) to get the number of variadic arguments
-#define _NUM_ARGS(_0,_24_,_23,_22,_21,_20,_19,_18,_17,_16,_15,_14,_13,_12,_11,_10,_9,_8,_7,_6,_5,_4,_3,_2,_1,N,...) N
-#define NUM_ARGS(V...) _NUM_ARGS(0,V,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0)
+// #define _NUM_ARGS(_0,_24_,_23,_22,_21,_20,_19,_18,_17,_16,_15,_14,_13,_12,_11,_10,_9,_8,_7,_6,_5,_4,_3,_2,_1,N,...) N
+// #define NUM_ARGS(V...) _NUM_ARGS(0,V,24,23,22,21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0)
 
 #ifdef __cplusplus
 
@@ -39,6 +39,9 @@
         return lhs < rhs ? lhs : rhs;
       }
       template <class L, class R> static inline constexpr auto MAX(const L lhs, const R rhs) -> decltype(lhs + rhs) {
+        return lhs > rhs ? lhs : rhs;
+      }
+      template <class L, class R> static constexpr auto _MAX(const L lhs, const R rhs) -> decltype(lhs + rhs) {
         return lhs > rhs ? lhs : rhs;
       }
       template<class T, class ... Ts> static inline constexpr const T MIN(T V, Ts... Vs) { return MIN(V, MIN(Vs...)); }

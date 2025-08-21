@@ -266,6 +266,7 @@
 
 #include "../inc/MarlinConfig.h"
 #include "parser.h"
+#include "src/module/ft_motion.h"
 
 #if ENABLED(I2C_POSITION_ENCODERS)
   #include "../feature/I2CPositionEncoder.h"
@@ -315,6 +316,10 @@ public:
 
   FORCE_INLINE static void home_all_axes() { G28(true); }
 
+  static settings_on_toolhead_t backup_homing;
+  static void do_before_home(void);
+  static void do_after_home(void);
+
   #if ENABLED(HOST_KEEPALIVE_FEATURE)
     /**
      * States for managing Marlin and host communication
@@ -340,6 +345,9 @@ public:
 
   static void dwell(millis_t time);
 
+  #if ENABLED(FT_MOTION)
+    static void M493_report(const bool forReplay=true);
+  #endif
 private:
 
   static void G0_G1(
@@ -918,6 +926,10 @@ private:
   static void M3005();
 
   static void T(const uint8_t tool_index);
+
+  #if ENABLED(FT_MOTION)
+    static void M493();
+  #endif
 
 };
 

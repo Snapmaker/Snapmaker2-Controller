@@ -382,7 +382,7 @@ typedef struct usart_reg_map {
 #endif
 
 #ifndef USART_TX_BUF_SIZE
-#define USART_TX_BUF_SIZE               1024
+#define USART_TX_BUF_SIZE               512
 #endif
 
 /** USART device type */
@@ -480,7 +480,7 @@ static inline uint8 usart_getc(usart_dev *dev) {
 }
 
 /*
- * Roger Clark. 20141125, 
+ * Roger Clark. 20141125,
  * added peek function.
  * @param dev Serial port to read from
  * @return byte read

@@ -101,6 +101,7 @@ typedef struct {
 typedef struct block_t {
 
   volatile uint8_t flag;                    // Block flags (See BlockFlag enum above) - Modified by ISR and main thread!
+  bool sync_e;
 
   // Fields used by the motion planner to manage acceleration
   float nominal_speed_sqr,                  // The nominal speed for this block in (mm/sec)^2
@@ -108,6 +109,7 @@ typedef struct block_t {
         max_entry_speed_sqr,                // Maximum allowable junction entry speed in (mm/sec)^2
         millimeters,                        // The total travel of this block in mm
         acceleration;                       // acceleration mm/sec^2
+  float nominal_speed;                      // The nominal speed
 
   union {
     // Data used by all move blocks
@@ -196,6 +198,15 @@ typedef struct {
 } laser_state_t;
 
 typedef struct {
+  uint32_t ft_mode;
+  uint32_t max_acceleration_mm_per_s2[X_TO_EN];
+  float max_feedrate_mm_s[X_TO_EN];
+  float acceleration;
+  float retract_acceleration;
+  float travel_acceleration;
+}settings_on_toolhead_t;
+
+typedef struct {
   uint32_t max_acceleration_mm_per_s2[X_TO_EN],  // (mm/s^2) M201 XYZE
            min_segment_time_us;                 // (µs) M205 B
   float e_axis_steps_per_mm_backup[2],          // e steps per millimeters for single extruder and dual extruder
@@ -206,6 +217,10 @@ typedef struct {
         travel_acceleration,                    // (mm/s^2) M204 T - Travel acceleration. DEFAULT ACCELERATION for all NON printing moves.
         min_feedrate_mm_s,                      // (mm/s) M205 S - Minimum linear feedrate
         min_travel_feedrate_mm_s;               // (mm/s) M205 T - Minimum travel feedrate
+  uint32_t ft_mode;
+  settings_on_toolhead_t fdm;
+  settings_on_toolhead_t laser;
+  settings_on_toolhead_t cnc;
 } planner_settings_t;
 #if ENABLED(BACKLASH_GCODE)
   extern float backlash_distance_mm[XN], backlash_correction;
@@ -230,7 +245,9 @@ typedef struct {
   #endif
 } skew_factor_t;
 
+class FTMotion;
 class Planner {
+  friend class FTMotion;
   public:
 
     /**
@@ -253,7 +270,7 @@ class Planner {
                             block_buffer_tail;      // Index of the busy block, if any
     static uint16_t cleaning_buffer_counter;        // A counter to disable queuing of blocks
     static uint8_t delay_before_delivering;         // This counter delays delivery of blocks when queue becomes empty to allow the opportunity of merging blocks
-
+    static uint8_t new_block;
 
     #if ENABLED(DISTINCT_E_FACTORS)
       static uint8_t last_extruder;                 // Respond to extruder change
@@ -328,13 +345,13 @@ class Planner {
       static bool abort_on_endstop_hit;
     #endif
 
-  private:
-
     /**
      * The current position of the tool in absolute steps
      * Recalculated if any axis_steps_per_mm are changed by gcode
      */
     static int32_t position[NUM_AXIS];
+
+  private:
 
     /**
      * Speed of previous path line segment
@@ -395,6 +412,9 @@ class Planner {
 
     static void reset_acceleration_rates();
     static void refresh_positioning();
+    static void refresh_settings_on_toolhead();
+    static void planner_settings_init_extra();
+    static void planner_settings_update_by_ftmotion();
 
     FORCE_INLINE static void refresh_e_factor(const uint8_t e) {
       e_factor[e] = (flow_percentage[e] * 0.01f
@@ -650,7 +670,7 @@ class Planner {
      * Planner::buffer_sync_block
      * Add a block to the buffer that just updates the position
      */
-    static void buffer_sync_block();
+    static void buffer_sync_block(bool sync_e=false);
 
   #if IS_KINEMATIC
     private:

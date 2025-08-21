@@ -29,14 +29,7 @@
 #define LOG_HEAD  "HOST: "
 
 void UartHost::Init(HardwareSerial *serial, uint8_t interrupt_prio) {
-  uint8_t *buffer;
-
   struct usart_dev* dev = serial->c_dev();
-
-  buffer = (uint8_t *)pvPortMalloc(1024);
-  configASSERT(buffer);
-
-  cmd_buffer_.Init(1024, buffer);
 
   serial->begin(115200);
 
@@ -79,7 +72,6 @@ void UartHost::FlushOutput() {
 
 void UartHost::FlushInput() {
   while (serial_->read() != -1);
-  cmd_buffer_.Reset();
 }
 
 
@@ -136,6 +128,8 @@ ErrCode UartHost::Send(SSTP_Event_t &event) {
 
   if (ret == pdPASS)
     xSemaphoreGive(mlock_uart_);
+
+  serial_->check_dma();
 
   return E_SUCCESS;
 }

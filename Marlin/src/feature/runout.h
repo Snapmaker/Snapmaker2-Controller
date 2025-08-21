@@ -384,6 +384,14 @@ class FilamentSensorBase {
         #endif
       }
 
+      static inline void modify_runout_distance_mm(float distance) {
+        #if EXTRUDERS > 1
+          runout_mm_countdown[actual_extruder] = runout_distance_mm = distance;
+        #else
+          runout_mm_countdown[active_extruder] = runout_distance_mm = distance;
+        #endif
+      }
+
       static inline bool has_run_out() {
         return runout_mm_countdown[active_extruder] < 0;
       }

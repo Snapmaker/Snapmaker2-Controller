@@ -28,9 +28,10 @@
 #define ENCLOSURE_LIGHT_POWER_DEFAULT (255)
 #define ENCLOSURE_FAN_SPEED_DEFAULT   (255)
 
- #define  ENCLOSURE_DOOR_STATE_OPEN   (1)
- #define  ENCLOSURE_DOOR_STATE_CLOSED (0)
+#define ENCLOSURE_DOOR_STATE_OPEN     (1)
+#define ENCLOSURE_DOOR_STATE_CLOSED   (0)
 
+#define ENCLOSURE_DOOR_CHECK_DEFAULT  true
 
 enum EnclosureEventState {
   ENCLOSURE_EVENT_STATE_IDLE,
@@ -47,7 +48,7 @@ class Enclosure: public ModuleBase {
     Enclosure(): ModuleBase(MODULE_DEVICE_ID_ENCLOSURE) {
       door_state_  = ENCLOSURE_DOOR_STATE_CLOSED;
       mac_index_   = MODULE_MAC_INDEX_INVALID;
-      enabled_     = true;  // enable by default
+      enabled_     = ENCLOSURE_DOOR_CHECK_DEFAULT;
       fan_speed_   = 0;
       brightness_  = 0;
       event_state_ = ENCLOSURE_EVENT_STATE_IDLE;
@@ -92,6 +93,7 @@ class Enclosure: public ModuleBase {
     uint8_t door_state_;
 
     uint8_t event_state_;
+  public:
     bool    enabled_;
 };
 

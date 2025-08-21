@@ -24,6 +24,7 @@
 #include "../common/debug.h"
 #include "../module/toolhead_laser.h"
 #include "../service/system.h"
+#include "src/module/configuration_store.h"
 
 Enclosure enclosure;
 
@@ -135,7 +136,7 @@ ErrCode Enclosure::SetFanSpeed(uint8_t speed) {
 void Enclosure::ReportStatus() {
   if (IsOnline()) {
     SERIAL_ECHOLN("Enclosure online: On");
-    SERIAL_ECHO("Enclosure: ");
+    SERIAL_ECHO("Enclosure door checking: ");
     SERIAL_ECHOLN((enabled_)? "On" : "Off");
     SERIAL_ECHO("Enclosure door: ");
     SERIAL_ECHOLN((door_state_ == ENCLOSURE_DOOR_STATE_OPEN)? "Open" : "Closed");
@@ -163,21 +164,16 @@ void Enclosure::PollDoorState() {
 void Enclosure::Disable() {
   LOG_I("disable door checking!\n");
   enabled_ = false;
-  if (event_state_ == ENCLOSURE_EVENT_STATE_HANDLED_OPEN &&
-      event_state_ == ENCLOSURE_EVENT_STATE_OPENED) {
-    HandleDoorClosed();
-    event_state_ = ENCLOSURE_EVENT_STATE_IDLE;
-  }
+  HandleDoorClosed();
+  settings.save();
 }
 
 
 void Enclosure::Enable() {
   LOG_I("enable door checking!\n");
   enabled_ = true;
-  if (door_state_ == ENCLOSURE_DOOR_STATE_OPEN &&
-      event_state_ == ENCLOSURE_EVENT_STATE_IDLE) {
-    HandleDoorOpened();
-  }
+  HandleDoorOpened();
+  settings.save();
 }
 
 

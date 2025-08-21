@@ -1741,8 +1741,6 @@ void homeaxis(const AxisEnum axis) {
       SERIAL_ECHOLN("grid manual");
       bilinear_grid_manual();
     #endif
-    do_blocking_move_to(current_position[X_AXIS] +0.05f, current_position[Y_AXIS] +0.05f, current_position[Z_AXIS] +0.05f, 16);
-    do_blocking_move_to(current_position[X_AXIS] -0.05f, current_position[Y_AXIS] -0.05f, current_position[Z_AXIS] -0.05f, 16);
   }
 #endif // ENABLED(SW_MACHINE_SIZE)
 

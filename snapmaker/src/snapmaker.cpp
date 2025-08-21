@@ -30,6 +30,7 @@
 
 // marlin headers
 #include "src/module/endstops.h"
+#include "src/module/ft_motion.h"
 #include "src/feature/runout.h"
 #include "src/gcode/gcode.h"
 #include "flash_stm32.h"
@@ -87,7 +88,6 @@ void disable_power_domain(uint8_t pd) {
     if (pd & POWER_DOMAIN_2) WRITE(POWER2_SUPPLY_PIN, POWER2_SUPPLY_OFF);
   #endif
 }
-
 
 void HeatedBedSelfCheck(void) {
   enable_power_domain(POWER_DOMAIN_BED);
@@ -152,9 +152,13 @@ static void main_loop(void *param) {
   // because we need to check if current toolhead is same with previous
   pl_recovery.Init();
 
-  SERIAL_ECHOLN("Finish init\n");
-
   cur_mills = millis() - 3000;
+  // correct stepper direction
+  stepper.post_init();
+
+  planner.planner_settings_init_extra();
+
+  SERIAL_ECHOLN("Finish init\n");
 
   for (;;) {
 
@@ -224,16 +228,16 @@ static void hmi_task(void *param) {
 
     systemservice.CheckIfSendWaitEvent();
 
-    if (ret != E_SUCCESS) {
+    if (ret == E_NO_RESRC) {
       // no command, sleep 10ms for next command
       vTaskDelay(pdMS_TO_TICKS(10));
-      continue;
     }
+
+    if (ret != E_SUCCESS)
+      continue;
 
     // execute or send out one command
     DispatchEvent(&dispather_param);
-
-    vTaskDelay(pdMS_TO_TICKS(5));
   }
 }
 
@@ -241,7 +245,7 @@ static void hmi_task(void *param) {
 static void heartbeat_task(void *param) {
   //SSTP_Event_t   event = {EID_SYS_CTRL_ACK, SYSCTL_OPC_GET_STATUES};
 
-  int counter = 0;
+  uint32_t next_beat_time = millis() + 1000;
 
   for (;;) {
     // do following every 10ms without being blocked
@@ -251,14 +255,13 @@ static void heartbeat_task(void *param) {
 
     systemservice.CheckException();
 
-    if (++counter > 100) {
-      counter = 0;
-
+    if (ELAPSED(millis(), next_beat_time)) {
       // do following every 1s
+      next_beat_time = millis() + 1000;
       upgrade.Check();
       canhost.SendHeartbeat();
     }
-
+    
     // sleep for 10ms
     vTaskDelay(pdMS_TO_TICKS(10));
   }
@@ -317,11 +320,6 @@ void SnapmakerSetupPost() {
     enable_power_domain(POWER_DOMAIN_SCREEN);
     SERIAL_ECHOLN("Screen exists!\n");
   }
-
-  // forced update of speed parameters
-  process_cmd_imd("M201 X1000 Y1000");
-  process_cmd_imd("M203 X100 Y100 Z40 E40");
-  process_cmd_imd("M204 S1000");
 
   // power on the modules by default
   enable_all_steppers();

@@ -78,6 +78,7 @@
  */
 
 #include "stepper.h"
+#include "ft_motion.h"
 
 Stepper stepper; // Singleton
 #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
@@ -353,6 +354,9 @@ Stepper::stepper_laser_t Stepper::laser_trap = {
 #define B_APPLY_DIR(v,Q) B_DIR_WRITE(v)
 #define B_APPLY_STEP(v,Q) B_STEP_WRITE(v)
 
+#define I_APPLY_DIR B_APPLY_DIR
+#define I_APPLY_STEP B_APPLY_STEP
+
 #if DISABLED(MIXING_EXTRUDER)
   #define E_APPLY_STEP(v,Q) E_STEP_WRITE(stepper_extruder, v)
 #endif
@@ -387,6 +391,8 @@ void Stepper::set_directions() {
     }
 
   #else
+  // So, while bit is set of last_direction_bits
+  // indicates direction is negative
   #define SET_STEP_DIR(A)                       \
     if (motor_direction(_AXIS(A))) {            \
       A##_APPLY_DIR(A##_DIR, false);  \
@@ -1321,19 +1327,30 @@ void Stepper::isr() {
   // We need this variable here to be able to use it in the following loop
   hal_timer_t min_ticks;
 
+  #if ENABLED(FT_MOTION)
+    const bool using_ftMotion = ftMotion.cfg.mode;
+  #else
+    constexpr bool using_ftMotion = false;
+  #endif
 
   // checking power loss here because when no moves in block buffer, ISR will not
   // execute to endstop.update(), then we cannot check power loss there.
   // But if power loss happened and ISR cannot get block, no need to check again
   if (quickstop.CheckInISR(current_block) || emergency_stop.IsTriggered()) {
-    abort_current_block = false;
-    if (current_block) {
-      axis_did_move = 0;
-      current_block = NULL;
+    if (ftMotion.cfg.mode) {
+      if (current_block)
+        abort_current_block = true;
+    }
+    else {
+      abort_current_block = false;
     }
 
     planner.block_buffer_nonbusy = planner.block_buffer_tail = \
       planner.block_buffer_planned = planner.block_buffer_head;
+    if (current_block) {
+      axis_did_move = 0;
+      current_block = NULL;
+    }
 
     // interval = 1 ms
     HAL_timer_set_compare(STEP_TIMER_NUM,
@@ -1345,15 +1362,17 @@ void Stepper::isr() {
 
   #if (MOTHERBOARD == BOARD_SNAPMAKER_2_0)
   if (abort_e_moves) {
-    abort_e_moves = false;
     if (TEST(axis_did_move, E_AXIS)) {
       if (current_block) {
         axis_did_move = 0;
         current_block = NULL;
         planner.block_buffer_nonbusy = planner.block_buffer_tail = \
         planner.block_buffer_planned = planner.block_buffer_head;
+        if (ftMotion.cfg.mode)
+          abort_current_block = true;
       }
     }
+    abort_e_moves = false;
     // interval = 1 ms
     HAL_timer_set_compare(STEP_TIMER_NUM,
         hal_timer_t(HAL_timer_get_count(STEP_TIMER_NUM) + (STEPPER_TIMER_RATE / 1000)));
@@ -1367,37 +1386,52 @@ void Stepper::isr() {
     // Enable ISRs to reduce USART processing latency
     ENABLE_ISRS();
 
-    // Run main stepping pulse phase ISR if we have to
-    if (!nextMainISR) Stepper::stepper_pulse_phase_isr();
+    hal_timer_t interval = 0;
 
-    #if ENABLED(LIN_ADVANCE)
-      // Run linear advance stepper ISR if we have to
-      if (!nextAdvanceISR) nextAdvanceISR = Stepper::advance_isr();
+    #if ENABLED(FT_MOTION)
+      if (using_ftMotion) {
+        if (!nextMainISR) {               // Main ISR is ready to fire during this iteration?
+          // nextMainISR = FTM_MIN_TICKS;    // Set to minimum interval (a limit on the top speed)
+          nextMainISR = ftMotion_stepper();             // Run FTM Stepping
+        }
+        interval = nextMainISR;           // Interval is either some old nextMainISR or FTM_MIN_TICKS
+        nextMainISR = 0;                  // For FT Motion fire again ASAP
+      }
     #endif
 
-    // ^== Time critical. NOTHING besides pulse generation should be above here!!!
+    if (!using_ftMotion) {
+      // Run main stepping pulse phase ISR if we have to
+      if (!nextMainISR) Stepper::stepper_pulse_phase_isr();
 
-    // Run main stepping block processing ISR if we have to
-    if (!nextMainISR) nextMainISR = Stepper::stepper_block_phase_isr();
-
-    uint32_t interval =
       #if ENABLED(LIN_ADVANCE)
-        MIN(nextAdvanceISR, nextMainISR)  // Nearest time interval
-      #else
-        nextMainISR                       // Remaining stepper ISR time
+        // Run linear advance stepper ISR if we have to
+        if (!nextAdvanceISR) nextAdvanceISR = Stepper::advance_isr();
       #endif
-    ;
 
-    // Limit the value to the maximum possible value of the timer
-    NOMORE(interval, (uint32_t)HAL_TIMER_TYPE_MAX);
+      // ^== Time critical. NOTHING besides pulse generation should be above here!!!
 
-    // Compute the time remaining for the main isr
-    nextMainISR -= interval;
+      // Run main stepping block processing ISR if we have to
+      if (!nextMainISR) nextMainISR = Stepper::stepper_block_phase_isr();
 
-    #if ENABLED(LIN_ADVANCE)
-      // Compute the time remaining for the advance isr
-      if (nextAdvanceISR != LA_ADV_NEVER) nextAdvanceISR -= interval;
-    #endif
+      interval =
+        #if ENABLED(LIN_ADVANCE)
+          MIN(nextAdvanceISR, nextMainISR)  // Nearest time interval
+        #else
+          nextMainISR                       // Remaining stepper ISR time
+        #endif
+      ;
+
+      // Limit the value to the maximum possible value of the timer
+      NOMORE(interval, (uint32_t)HAL_TIMER_TYPE_MAX);
+
+      // Compute the time remaining for the main isr
+      nextMainISR -= interval;
+
+      #if ENABLED(LIN_ADVANCE)
+        // Compute the time remaining for the advance isr
+        if (nextAdvanceISR != LA_ADV_NEVER) nextAdvanceISR -= interval;
+      #endif
+    }
 
     /**
      * This needs to avoid a race-condition caused by interleaving
@@ -2220,6 +2254,13 @@ void Stepper::PrintStepperBind() {
   LOG_I("\n");
 }
 
+void Stepper::post_init() {
+  // LOG_I("stepper dir: X: %d, Y: %d, Z: %d\n", X_DIR, Y_DIR, Z_DIR);
+  // LOG_I("dir sta: X: %d, Y: %d, Z: %d\n", READ_OUTPUT(x_dir_pin), READ_OUTPUT(y_dir_pin), READ_OUTPUT(z_dir_pin));
+  set_directions();
+  // LOG_I("dir sta post: X: %d, Y: %d, Z: %d\n\n", READ_OUTPUT(x_dir_pin), READ_OUTPUT(y_dir_pin), READ_OUTPUT(z_dir_pin));
+}
+
 void Stepper::init() {
 
   #if MB(ALLIGATOR)
@@ -2362,6 +2403,12 @@ void Stepper::init() {
       initialized = true;
     #endif
     digipot_init();
+  #endif
+}
+
+void Stepper::reinit_for_ftmotion() {
+  #if ENABLED(LIN_ADVANCE)
+    count_direction[E_AXIS] = 0;
   #endif
 }
 
@@ -3183,3 +3230,290 @@ void Stepper::report_positions() {
   }
 
 #endif // HAS_MICROSTEPS
+
+#if ENABLED(FT_MOTION)
+
+#define CYCLES_TO_NS(CYC) (1000UL * (CYC) / ((F_CPU) / 1000000))
+#define NS_PER_PULSE_TIMER_TICK (1000000000UL / (STEPPER_TIMER_RATE))
+
+#if MINIMUM_STEPPER_POST_DIR_DELAY > 0
+  #define DIR_WAIT_AFTER() DELAY_NS(MINIMUM_STEPPER_POST_DIR_DELAY)
+#else
+  #define DIR_WAIT_AFTER()
+#endif
+
+// By default stepper drivers require an active-HIGH signal but some high-power drivers require an active-LOW signal to step.
+#define STEP_STATE_X HIGH
+#define STEP_STATE_Y HIGH
+#define STEP_STATE_Z HIGH
+#define STEP_STATE_I HIGH
+#define STEP_STATE_J HIGH
+#define STEP_STATE_K HIGH
+#define STEP_STATE_U HIGH
+#define STEP_STATE_V HIGH
+#define STEP_STATE_W HIGH
+#define STEP_STATE_E HIGH
+  // Set stepper I/O for fixed time controller.
+  uint32_t Stepper::ftMotion_stepper() {
+    volatile uint32_t interval = FTM_MIN_TICKS;
+
+    // Check if the buffer is empty.
+    ftMotion.sts_stepperBusy = (ftMotion.stepperCmdBuff_produceIdx != ftMotion.stepperCmdBuff_consumeIdx);
+    if (!ftMotion.sts_stepperBusy) return STEPPER_TIMER_RATE / 1000;
+
+    // "Pop" one command from current motion buffer
+    // Use one byte to restore one stepper command in the format:
+    // |X_step|X_direction|Y_step|Y_direction|Z_step|Z_direction|E_step|E_direction|
+    volatile ft_command_t command = ftMotion.stepperCmdBuff[ftMotion.stepperCmdBuff_consumeIdx];
+    if (++ftMotion.stepperCmdBuff_consumeIdx == (FTM_STEPPERCMD_BUFF_SIZE))
+      ftMotion.stepperCmdBuff_consumeIdx = 0;
+
+    if (abort_current_block || !Running) {
+      return STEPPER_TIMER_RATE / 500;
+    }
+
+    while (TEST(command, FT_BIT_SYNC_BLOCK_INFO)) {
+      count_position[E_AXIS] += ftMotion.ft_current_block.new_block_steps_e;
+
+      ftMotion.ft_current_block.last_block_axis_count_x = count_position[X_AXIS];
+      ftMotion.ft_current_block.last_block_axis_count_y = count_position[Y_AXIS];
+      ftMotion.ft_current_block.last_block_axis_count_e = count_position[E_AXIS];
+
+      ftMotion.ft_current_block.new_block_steps_x = ftMotion.blockInfoSyncBuff[command & 0xff].new_block_steps_x;
+      ftMotion.ft_current_block.new_block_steps_y = ftMotion.blockInfoSyncBuff[command & 0xff].new_block_steps_y;
+      ftMotion.ft_current_block.new_block_steps_e = ftMotion.blockInfoSyncBuff[command & 0xff].new_block_steps_e;
+
+      pl_recovery.SaveCmdLine(ftMotion.blockInfoSyncBuff[command & 0xff].new_block_file_position);
+
+      ftMotion.sts_stepperBusy = (ftMotion.stepperCmdBuff_produceIdx != ftMotion.stepperCmdBuff_consumeIdx);
+      if (!ftMotion.sts_stepperBusy) return STEPPER_TIMER_RATE / 1000;
+
+      command = ftMotion.stepperCmdBuff[ftMotion.stepperCmdBuff_consumeIdx];
+      if (++ftMotion.stepperCmdBuff_consumeIdx == (FTM_STEPPERCMD_BUFF_SIZE))
+        ftMotion.stepperCmdBuff_consumeIdx = 0;
+    }
+
+    if (0 == command) {
+      return interval;
+    }
+
+    if (TEST(command, FT_BIT_SYNC_POS_E)) {
+      count_position[E_AXIS] = ftMotion.positionSyncBuff[command & 0xff][E_AXIS];
+      return interval;
+    }
+
+    if (TEST(command, FT_BIT_SYNC_POS)) {
+      count_position[X_AXIS] = ftMotion.positionSyncBuff[command & 0xff][X_AXIS];
+      count_position[Y_AXIS] = ftMotion.positionSyncBuff[command & 0xff][Y_AXIS];
+      count_position[Z_AXIS] = ftMotion.positionSyncBuff[command & 0xff][Z_AXIS];
+      count_position[I_AXIS] = ftMotion.positionSyncBuff[command & 0xff][I_AXIS];
+      return interval;
+    }
+
+    // ftMotion.max_st_inv[ftMotion.st_i] = interval;
+    // if (++ftMotion.st_i >= 10)
+    //   ftMotion.st_i = 0;
+
+    // USING_TIMED_PULSE();
+
+    // axis_did_move = LOGICAL_AXIS_ARRAY(
+    //   TEST(command, FT_BIT_STEP_E),
+    //   TEST(command, FT_BIT_STEP_X), TEST(command, FT_BIT_STEP_Y), TEST(command, FT_BIT_STEP_Z),
+    //   TEST(command, FT_BIT_STEP_I), TEST(command, FT_BIT_STEP_J), TEST(command, FT_BIT_STEP_K),
+    //   TEST(command, FT_BIT_STEP_U), TEST(command, FT_BIT_STEP_V), TEST(command, FT_BIT_STEP_W)
+    // );
+
+    LOGICAL_AXIS_CODE(
+      SET_BIT_TO(axis_did_move, E_AXIS, TEST(command, FT_BIT_STEP_E)),
+      SET_BIT_TO(axis_did_move, X_AXIS, TEST(command, FT_BIT_STEP_X)),
+      SET_BIT_TO(axis_did_move, Y_AXIS, TEST(command, FT_BIT_STEP_Y)),
+      SET_BIT_TO(axis_did_move, Z_AXIS, TEST(command, FT_BIT_STEP_Z)),
+      SET_BIT_TO(axis_did_move, I_AXIS, TEST(command, FT_BIT_STEP_I)),
+      SET_BIT_TO(axis_did_move, J_AXIS, TEST(command, FT_BIT_STEP_J)),
+      SET_BIT_TO(axis_did_move, K_AXIS, TEST(command, FT_BIT_STEP_K)),
+      SET_BIT_TO(axis_did_move, U_AXIS, TEST(command, FT_BIT_STEP_U)),
+      SET_BIT_TO(axis_did_move, V_AXIS, TEST(command, FT_BIT_STEP_V)),
+      SET_BIT_TO(axis_did_move, V_AXIS, TEST(command, FT_BIT_STEP_W))
+    );
+
+    uint8_t new_dir = 0;
+    LOGICAL_AXIS_CODE(
+      if (TEST(axis_did_move, E_AXIS) && TEST(command, FT_BIT_DIR_E)) SBI(new_dir, E_AXIS),
+      if (TEST(axis_did_move, X_AXIS) && TEST(command, FT_BIT_DIR_X)) SBI(new_dir, X_AXIS),
+      if (TEST(axis_did_move, Y_AXIS) && TEST(command, FT_BIT_DIR_Y)) SBI(new_dir, Y_AXIS),
+      if (TEST(axis_did_move, Z_AXIS) && TEST(command, FT_BIT_DIR_Z)) SBI(new_dir, Z_AXIS),
+      if (TEST(axis_did_move, I_AXIS) && TEST(command, FT_BIT_DIR_I)) SBI(new_dir, I_AXIS),
+      if (TEST(axis_did_move, J_AXIS) && TEST(command, FT_BIT_DIR_J)) SBI(new_dir, J_AXIS),
+      if (TEST(axis_did_move, K_AXIS) && TEST(command, FT_BIT_DIR_K)) SBI(new_dir, K_AXIS),
+      if (TEST(axis_did_move, U_AXIS) && TEST(command, FT_BIT_DIR_U)) SBI(new_dir, U_AXIS),
+      if (TEST(axis_did_move, V_AXIS) && TEST(command, FT_BIT_DIR_V)) SBI(new_dir, V_AXIS),
+      if (TEST(axis_did_move, W_AXIS) && TEST(command, FT_BIT_DIR_W)) SBI(new_dir, W_AXIS)
+    );
+
+    // last_direction_bits = LOGICAL_AXIS_ARRAY(
+    //   axis_did_move.e ? TEST(command, FT_BIT_DIR_E) : last_direction_bits.e,
+    //   axis_did_move.x ? TEST(command, FT_BIT_DIR_X) : last_direction_bits.x,
+    //   axis_did_move.y ? TEST(command, FT_BIT_DIR_Y) : last_direction_bits.y,
+    //   axis_did_move.z ? TEST(command, FT_BIT_DIR_Z) : last_direction_bits.z,
+    //   axis_did_move.i ? TEST(command, FT_BIT_DIR_I) : last_direction_bits.i,
+    //   axis_did_move.j ? TEST(command, FT_BIT_DIR_J) : last_direction_bits.j,
+    //   axis_did_move.k ? TEST(command, FT_BIT_DIR_K) : last_direction_bits.k,
+    //   axis_did_move.u ? TEST(command, FT_BIT_DIR_U) : last_direction_bits.u,
+    //   axis_did_move.v ? TEST(command, FT_BIT_DIR_V) : last_direction_bits.v,
+    //   axis_did_move.w ? TEST(command, FT_BIT_DIR_W) : last_direction_bits.w
+    // );
+
+    if (new_dir != last_direction_bits || last_moved_extruder != stepper_extruder) {
+      last_direction_bits = new_dir;
+      last_moved_extruder = stepper_extruder;
+      // bit is set indicates direction is negative
+      if (motor_direction(E_AXIS)) {
+        REV_E_DIR(stepper_extruder);
+        count_direction[E_AXIS] = -1;
+      }
+      else {
+        NORM_E_DIR(stepper_extruder);
+        count_direction[E_AXIS] = 1;
+      }
+      set_directions();
+    }
+
+    hal_timer_t pulse_end = HAL_timer_get_count(PULSE_TIMER_NUM) + hal_timer_t(MIN_PULSE_TICKS);
+
+    // Start a step pulse
+    // count_position[_AXIS(AXIS)] += count_direction[_AXIS(AXIS)];
+    LOGICAL_AXIS_CODE(
+      if (TEST(axis_did_move, E_AXIS)) E_APPLY_STEP(STEP_STATE_E, false),
+      if (TEST(axis_did_move, X_AXIS)) X_APPLY_STEP(STEP_STATE_X, false),
+      if (TEST(axis_did_move, Y_AXIS)) Y_APPLY_STEP(STEP_STATE_Y, false),
+      if (TEST(axis_did_move, Z_AXIS)) Z_APPLY_STEP(STEP_STATE_Z, false),
+      if (TEST(axis_did_move, I_AXIS)) I_APPLY_STEP(STEP_STATE_I, false),
+      if (TEST(axis_did_move, J_AXIS)) J_APPLY_STEP(STEP_STATE_J, false),
+      if (TEST(axis_did_move, K_AXIS)) K_APPLY_STEP(STEP_STATE_K, false),
+      if (TEST(axis_did_move, U_AXIS)) U_APPLY_STEP(STEP_STATE_U, false),
+      if (TEST(axis_did_move, V_AXIS)) V_APPLY_STEP(STEP_STATE_V, false),
+      if (TEST(axis_did_move, W_AXIS)) W_APPLY_STEP(STEP_STATE_W, false)
+    );
+
+    // TERN_(I2S_STEPPER_STREAM, i2s_push_sample());
+
+    // Begin waiting for the minimum pulse duration
+    // START_TIMED_PULSE();
+
+    // Update step counts
+    LOGICAL_AXIS_CODE(
+      // if (TEST(axis_did_move, E_AXIS)) count_position[E_AXIS] += count_direction[E_AXIS],
+      if (TEST(axis_did_move, E_AXIS)) ,    // do notiong
+      if (TEST(axis_did_move, X_AXIS)) count_position[X_AXIS] += count_direction[X_AXIS],
+      if (TEST(axis_did_move, Y_AXIS)) count_position[Y_AXIS] += count_direction[Y_AXIS],
+      if (TEST(axis_did_move, Z_AXIS)) count_position[Z_AXIS] += count_direction[Z_AXIS],
+      if (TEST(axis_did_move, I_AXIS)) count_position[I_AXIS] += count_direction[I_AXIS],
+      if (TEST(axis_did_move, J_AXIS)) count_position[J_AXIS] += count_direction[J_AXIS],
+      if (TEST(axis_did_move, K_AXIS)) count_position[K_AXIS] += count_direction[K_AXIS],
+      if (TEST(axis_did_move, U_AXIS)) count_position[U_AXIS] += count_direction[U_AXIS],
+      if (TEST(axis_did_move, V_AXIS)) count_position[V_AXIS] += count_direction[V_AXIS],
+      if (TEST(axis_did_move, W_AXIS)) count_position[W_AXIS] += count_direction[W_AXIS]
+    );
+
+    // Allow pulses to be registered by stepper drivers
+    // TODO: need to deal with MINIMUM_STEPPER_PULSE over i2s
+    #if MINIMUM_STEPPER_PULSE && DISABLED(I2S_STEPPER_STREAM)
+      // Just wait for the requested pulse duration
+      while (HAL_timer_get_count(PULSE_TIMER_NUM) < pulse_end) { /* nada */ }
+    #endif
+
+    // Stop pulses. Axes with DEDGE will do nothing, assuming STEP_STATE_* is HIGH
+    LOGICAL_AXIS_CODE(
+      E_APPLY_STEP(!STEP_STATE_E, false),
+      X_APPLY_STEP(!STEP_STATE_X, false), Y_APPLY_STEP(!STEP_STATE_Y, false), Z_APPLY_STEP(!STEP_STATE_Z, false),
+      I_APPLY_STEP(!STEP_STATE_I, false), J_APPLY_STEP(!STEP_STATE_J, false), K_APPLY_STEP(!STEP_STATE_K, false),
+      U_APPLY_STEP(!STEP_STATE_U, false), V_APPLY_STEP(!STEP_STATE_V, false), W_APPLY_STEP(!STEP_STATE_W, false)
+    );
+
+    // Check endstops on every step
+    endstops.update();
+
+    // Also handle babystepping here
+    // TERN_(BABYSTEPPING, if (babystep.has_steps()) babystepping_isr());
+
+    return interval;
+  } // Stepper::ftMotion_stepper
+
+  void Stepper::ftMotion_blockQueueUpdate() {
+
+    if (current_block) {
+      // If the current block is not done processing, return right away
+      if (!ftMotion.getBlockProcDn()) return;
+      axis_did_move = 0;
+      planner.discard_current_block();
+
+      #if FILAMENT_RUNOUT_DISTANCE_MM > 0
+        runout.block_completed(current_block);
+      #endif
+    }
+
+    // Check the buffer for a new block
+    current_block = planner.get_current_block();
+
+    if (current_block) {
+      while (TEST(current_block->flag, BLOCK_BIT_SYNC_POSITION)) {
+        ftMotion.addSyncCommand(current_block);
+        planner.discard_current_block();
+
+        // Try to get a new block
+        if (!(current_block = planner.get_current_block()))
+          return; // No more queued movements!
+      }
+
+      stepper_extruder = current_block->extruder;
+
+      ftMotion.addSyncCommandBlockInfo(current_block);
+
+      ftMotion.startBlockProc();
+      return;
+    }
+
+    // indicates block queue is empty or block is invalid
+    ftMotion.runoutBlock();
+
+  } // Stepper::ftMotion_blockQueueUpdate()
+
+  void Stepper::ftMotion_syncPosition() {
+    //planner.synchronize(); planner already synchronized in M493
+
+    #ifdef __AVR__
+      // Protect the access to the position. Only required for AVR, as
+      //  any 32bit CPU offers atomic access to 32bit variables
+      const bool was_enabled = suspend();
+    #endif
+
+    // Update stepper positions from the planner
+    LOOP_X_TO_EN(i) {
+      count_position[i] = planner.position[i];
+    }
+
+    #ifdef __AVR__
+      // Reenable Stepper ISR
+      if (was_enabled) wake_up();
+    #endif
+  }
+
+  void Stepper::ftMotionSyncCurrentBlock() {
+    float k = 0.0000f;
+    
+    if (ftMotion.ft_current_block.new_block_steps_x && 
+        ABS(ftMotion.ft_current_block.new_block_steps_x) > ABS(ftMotion.ft_current_block.new_block_steps_y)) {
+      k = (float)(count_position[X_AXIS] - ftMotion.ft_current_block.last_block_axis_count_x) 
+          / (float)ftMotion.ft_current_block.new_block_steps_x;
+    }
+    else if (ftMotion.ft_current_block.new_block_steps_y) {
+      k = (float)(count_position[Y_AXIS] - ftMotion.ft_current_block.last_block_axis_count_y) 
+          / (float)ftMotion.ft_current_block.new_block_steps_y;
+    }
+    else {
+
+    }
+
+    count_position[E_AXIS] += ABS(k) * ftMotion.ft_current_block.new_block_steps_e;
+  }
+#endif // FT_MOTION

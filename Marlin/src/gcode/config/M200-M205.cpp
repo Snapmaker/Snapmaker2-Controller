@@ -23,6 +23,7 @@
 #include "../gcode.h"
 #include "../../Marlin.h"
 #include "../../module/planner.h"
+#include "module/module_base.h"
 
 #if DISABLED(NO_VOLUMETRICS)
 
@@ -62,7 +63,24 @@ void GcodeSuite::M201() {
   LOOP_X_TO_E(i) {
     if (parser.seen(axis_codes[i])) {
       const uint8_t a = (i == E_AXIS ? E_AXIS_N(target_extruder) : i);
-      planner.settings.max_acceleration_mm_per_s2[a] = parser.value_axis_units((AxisEnum)a);
+      // 3DP toolhead
+      if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+        planner.settings.max_acceleration_mm_per_s2[a] = 
+          planner.settings.fdm.max_acceleration_mm_per_s2[a] = parser.value_axis_units((AxisEnum)a);
+      }
+      // Laser toolhead
+      else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER)) {
+        planner.settings.max_acceleration_mm_per_s2[a] = 
+          planner.settings.laser.max_acceleration_mm_per_s2[a] = parser.value_axis_units((AxisEnum)a);
+      }
+      // CNC toolhead
+      else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
+        planner.settings.max_acceleration_mm_per_s2[a] = 
+          planner.settings.cnc.max_acceleration_mm_per_s2[a] = parser.value_axis_units((AxisEnum)a);
+      }
+      else {
+        planner.settings.max_acceleration_mm_per_s2[a] = parser.value_axis_units((AxisEnum)a);
+      }
     }
   }
   // steps per sq second need to be updated to agree with the units per sq second (as they are what is used in the planner)
@@ -79,14 +97,35 @@ void GcodeSuite::M203() {
   const int8_t target_extruder = get_target_extruder_from_command();
   if (target_extruder < 0) return;
 
-  LOOP_X_TO_E(i)
+  LOOP_X_TO_E(i) {
     if (parser.seen(axis_codes[i])) {
       const uint8_t a = (i == E_AXIS ? E_AXIS_N(target_extruder) : i);
-      planner.settings.max_feedrate_mm_s[a] = parser.value_axis_units((AxisEnum)a);
-      if (i == Z_AXIS && planner.settings.max_feedrate_mm_s[a] > 40) {
-        planner.settings.max_feedrate_mm_s[a] = 40;
+      float tmp_value = parser.value_axis_units((AxisEnum)a);
+
+      if (i == Z_AXIS && tmp_value > 40) {
+        tmp_value = 40;
+      }
+
+      // 3DP toolhead
+      if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+        planner.settings.max_feedrate_mm_s[a] = 
+          planner.settings.fdm.max_feedrate_mm_s[a] = tmp_value;
+      }
+      // Laser toolhead
+      else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER)) {
+        planner.settings.max_feedrate_mm_s[a] = 
+          planner.settings.laser.max_feedrate_mm_s[a] = tmp_value;
+      }
+      // CNC toolhead
+      else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
+        planner.settings.max_feedrate_mm_s[a] = 
+          planner.settings.cnc.max_feedrate_mm_s[a] = tmp_value;
+      }
+      else {
+        planner.settings.max_feedrate_mm_s[a] = tmp_value;
       }
     }
+  }
 }
 
 /**
@@ -104,11 +143,75 @@ void GcodeSuite::M204() {
   }
   else {
     //planner.synchronize();
-    // 'S' for legacy compatibility. Should NOT BE USED for new development
-    if (parser.seenval('S')) planner.settings.travel_acceleration = planner.settings.acceleration = parser.value_linear_units();
-    if (parser.seenval('P')) planner.settings.acceleration = parser.value_linear_units();
-    if (parser.seenval('R')) planner.settings.retract_acceleration = parser.value_linear_units();
-    if (parser.seenval('T')) planner.settings.travel_acceleration = parser.value_linear_units();
+    // 3DP toolhead
+    if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_FDM)) {
+      // 'S' for legacy compatibility. Should NOT BE USED for new development
+      if (parser.seenval('S')) {
+        float tmp_value = parser.value_linear_units();
+        planner.settings.acceleration = planner.settings.fdm.acceleration = tmp_value;
+        planner.settings.travel_acceleration = planner.settings.fdm.travel_acceleration = tmp_value;
+      }
+      if (parser.seenval('P')) {
+        planner.settings.acceleration = planner.settings.fdm.acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('R')) {
+        planner.settings.retract_acceleration = planner.settings.fdm.retract_acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('T')) {
+        planner.settings.travel_acceleration = planner.settings.fdm.travel_acceleration = parser.value_linear_units();
+      }
+    }
+    // Laser toolhead
+    else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_LASER)) {
+      // 'S' for legacy compatibility. Should NOT BE USED for new development
+      if (parser.seenval('S')) {
+        float tmp_value = parser.value_linear_units();
+        planner.settings.acceleration = planner.settings.laser.acceleration = tmp_value;
+        planner.settings.travel_acceleration = planner.settings.laser.travel_acceleration = tmp_value;
+      }
+      if (parser.seenval('P')) {
+        planner.settings.acceleration = planner.settings.laser.acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('R')) {
+        planner.settings.retract_acceleration = planner.settings.laser.retract_acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('T')) {
+        planner.settings.travel_acceleration = planner.settings.laser.travel_acceleration = parser.value_linear_units();
+      }
+    }
+    // CNC toolhead
+    else if (ModuleBase::IsKindOfToolhead(MODULE_TOOLHEAD_KIND_CNC)) {
+      // 'S' for legacy compatibility. Should NOT BE USED for new development
+      if (parser.seenval('S')) {
+        float tmp_value = parser.value_linear_units();
+        planner.settings.acceleration = planner.settings.cnc.acceleration = tmp_value;
+        planner.settings.travel_acceleration = planner.settings.cnc.travel_acceleration = tmp_value;
+      }
+      if (parser.seenval('P')) {
+        planner.settings.acceleration = planner.settings.cnc.acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('R')) {
+        planner.settings.retract_acceleration = planner.settings.cnc.retract_acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('T')) {
+        planner.settings.travel_acceleration = planner.settings.cnc.travel_acceleration = parser.value_linear_units();
+      }
+    }
+    else {
+      // 'S' for legacy compatibility. Should NOT BE USED for new development
+      if (parser.seenval('S')) {
+        planner.settings.acceleration = planner.settings.travel_acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('P')) {
+        planner.settings.acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('R')) {
+        planner.settings.retract_acceleration = parser.value_linear_units();
+      }
+      if (parser.seenval('T')) {
+        planner.settings.travel_acceleration = parser.value_linear_units();
+      }
+    }
   }
 }
 

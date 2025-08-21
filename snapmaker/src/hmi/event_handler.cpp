@@ -1050,6 +1050,8 @@ static ErrCode DoEInfinityMove(SSTP_Event_t &event) {
   PDU_TO_LOCAL_WORD(speed, event.data + 1);
   speed = speed / 1000;
 
+  LOG_I("HMI req Infinity E Move\r\n");
+
   if (event.data[0] == 0) {
     current_position[E_AXIS] += 100000;
     line_to_current_position(speed);
@@ -1068,17 +1070,22 @@ EXIT:
 
 static ErrCode StopEMoves(SSTP_Event_t &event) {
   ErrCode err = E_SUCCESS;
+  uint32_t time_elaspe = millis() + 300;
+
   stepper.e_moves_quick_stop_triggered();
 
-  uint32_t time_elaspe = millis();
-
-  while ((stepper.get_abort_e_moves_state() == false) || (time_elaspe + 1000 > millis()));
+  // waiting for 300ms even if e move state become false
+  while ((stepper.get_abort_e_moves_state() == true) || (PENDING(millis(), time_elaspe))) {
+    idle();
+  }
 
   // Get E where the steppers were interrupted
   current_position[E_AXIS] = planner.get_axis_position_mm(E_AXIS);
 
   // Tell the planner where we actually are
   sync_plan_position();
+
+  LOG_I("Done\r\n");
 
   event.data   = &err;
   event.length = 1;

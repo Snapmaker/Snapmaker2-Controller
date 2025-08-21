@@ -159,8 +159,18 @@ void GcodeSuite::M600() {
 #else
 #include "../../../gcode/gcode.h"
 #include "../snapmaker/src/module/toolhead_3dp.h"
+#include "../../../feature/runout.h"
 void GcodeSuite::M600() {
-  printer1->ResetFilamentState(0, 0);
+  planner.synchronize();
+  if (systemservice.GetCurrentStatus() == SYSTAT_WORK) {
+    RunoutResponseDelayed::modify_runout_distance_mm(0.001);
+  }
+  
+  #if EXTRUDERS > 1
+    printer1->ResetFilamentState(0, actual_extruder);
+  #else
+    printer1->ResetFilamentState(0, active_extruder);
+  #endif
 }
 
 #endif // ADVANCED_PAUSE_FEATURE

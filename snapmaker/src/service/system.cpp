@@ -130,7 +130,10 @@ ErrCode SystemService::PauseTrigger(TriggerSource type)
     // save the command line of heating Gcode
     taskEXIT_CRITICAL();
   }
-  pl_recovery.SaveCmdLine(CommandLine[cmd_queue_index_r]);
+
+  if (!ftMotion.cfg.modeHasShaper()) {
+    pl_recovery.SaveCmdLine(CommandLine[cmd_queue_index_r]);
+  }
 
   // clear event in queue to marlin
   xMessageBufferReset(sm2_handle->event_queue);
@@ -504,6 +507,7 @@ ErrCode SystemService::ResumeOver() {
   switch (ModuleBase::toolhead()) {
   case MODULE_TOOLHEAD_3DP:
   case MODULE_TOOLHEAD_DUALEXTRUDER:
+    RunoutResponseDelayed::modify_runout_distance_mm(FILAMENT_RUNOUT_DISTANCE_MM);
     if (runout.is_filament_runout()) {
       LOG_E("No filemant! Please insert filemant!\n");
       PauseTrigger(TRIGGER_SOURCE_RUNOUT);
@@ -511,12 +515,18 @@ ErrCode SystemService::ResumeOver() {
     }
     // filament has been retracted for 6mm in resume process
     // we pre-extruder 6.2 to get better print quality
-    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER)
+    if (ModuleBase::toolhead() == MODULE_TOOLHEAD_DUALEXTRUDER) {
       current_position[E_AXIS] += (DUAL_EXTRUDER_RESUME_RETRACT_E_LENGTH + 0.2);
-    else
+    }
+    else {
       current_position[E_AXIS] += (SINGLE_RESUME_RETRACT_E_LENGTH + 0.2);
+    }
+
     line_to_current_position(5);
     planner.synchronize();
+    if (ftMotion.cfg.modeHasShaper()) {
+      ftMotion.reset();
+    }
     current_position[E_AXIS] = pl_recovery.cur_data_.PositionData[E_AXIS];
     sync_plan_position_e();
     break;

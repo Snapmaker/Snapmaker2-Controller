@@ -36,7 +36,7 @@
 
 #define CALIBRATION_PAPER_THICKNESS 0.1
 
-#define INIT_Z_FOR_DUAL_EXTRUDER    (50)  // mm
+#define INIT_Z_FOR_DUAL_EXTRUDER    (75)  // mm
 #define Z_SPEED_FOR_DUAL_EXTRUDER   (30)  // mm/s
 #define XY_SPEED_FOR_DUAL_EXTRUDER  (80)  // mm/s
 
@@ -44,6 +44,43 @@ BedLevelService levelservice;
 
 extern uint32_t GRID_MAX_POINTS_X;
 extern uint32_t GRID_MAX_POINTS_Y;
+
+void BedLevelService::RecoverMotionEnv() {
+  planner.synchronize();
+  ftMotion.setMode((ftMotionMode_t)backup_level.ft_mode);
+  planner.settings.acceleration = backup_level.acceleration;
+  planner.settings.retract_acceleration = backup_level.retract_acceleration;
+  planner.settings.travel_acceleration = backup_level.travel_acceleration;
+  LOOP_X_TO_EN(i) {
+    planner.settings.max_acceleration_mm_per_s2[i] = backup_level.max_acceleration_mm_per_s2[i];
+    planner.settings.max_feedrate_mm_s[i] = backup_level.max_feedrate_mm_s[i];
+  }
+
+  planner.reset_acceleration_rates();
+}
+
+void BedLevelService::AdjustMotionEnv() {
+  planner.synchronize();
+  backup_level.acceleration = planner.settings.acceleration;
+  backup_level.retract_acceleration = planner.settings.retract_acceleration;
+  backup_level.travel_acceleration = planner.settings.travel_acceleration;
+  LOOP_X_TO_EN(i) {
+    backup_level.max_acceleration_mm_per_s2[i] = planner.settings.max_acceleration_mm_per_s2[i];
+    backup_level.max_feedrate_mm_s[i] = planner.settings.max_feedrate_mm_s[i];
+  }
+  backup_level.ft_mode = (uint32_t)ftMotion.disable();
+
+  planner.settings.acceleration = DEFAULT_ACCELERATION;
+  planner.settings.retract_acceleration = DEFAULT_RETRACT_ACCELERATION;
+  planner.settings.travel_acceleration = DEFAULT_TRAVEL_ACCELERATION;                                           
+  uint32_t tmp_max_acceleration[X_TO_EN] = DEFAULT_MAX_ACCELERATION;
+  float tmp_max_feedrate[X_TO_EN] = DEFAULT_MAX_FEEDRATE;
+  LOOP_X_TO_EN(i) {
+    planner.settings.max_acceleration_mm_per_s2[i] = tmp_max_acceleration[i];
+    planner.settings.max_feedrate_mm_s[i] = tmp_max_feedrate[i];
+  }
+  planner.reset_acceleration_rates();
+}
 
 ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
   ErrCode err = E_FAILURE;
@@ -74,6 +111,8 @@ ErrCode BedLevelService::DoAutoLeveling(SSTP_Event_t &event) {
     // otherwise will apply live z after homing
     live_z_offset_[0] = 0;
     live_z_offset_[1] = 0;
+
+    AdjustMotionEnv();
 
     process_cmd_imd("G28");
 
@@ -152,6 +191,8 @@ ErrCode BedLevelService::DoManualLeveling(SSTP_Event_t &event) {
 
     planner.settings.max_feedrate_mm_s[Z_AXIS] = max_speed_in_calibration[Z_AXIS];
 
+    AdjustMotionEnv();
+
     process_cmd_imd("G28");
 
     snprintf(cmd, 16, "G1029 P%u\n", grid);
@@ -170,7 +211,7 @@ ErrCode BedLevelService::DoManualLeveling(SSTP_Event_t &event) {
 
     // increase 3mm for first leveling point
     // to avoid nozzle gouging the surface when user place glass on the steel sheet
-    do_blocking_move_to_z(12, 10);
+    do_blocking_move_to_z(37, 10);
 
     for (j = 0; j < GRID_MAX_POINTS_Y; j++) {
       for (i = 0; i < GRID_MAX_POINTS_X; i++) {
@@ -300,6 +341,7 @@ ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
   else {
     LOG_E("didn't start leveling!\n");
     err = E_FAILURE;
+    RecoverMotionEnv();
     return hmi.Send(event);
   }
 
@@ -323,6 +365,8 @@ ErrCode BedLevelService::SaveAndExitLeveling(SSTP_Event_t &event) {
   // clear flag
   level_mode_ = LEVEL_MODE_INVALD;
 
+  RecoverMotionEnv();
+
   return hmi.Send(event);
 }
 
@@ -337,6 +381,7 @@ ErrCode BedLevelService::ExitLeveling(SSTP_Event_t &event) {
 
   if (level_mode_ == LEVEL_MODE_INVALD) {
     err = E_FAILURE;
+    RecoverMotionEnv();
     return hmi.Send(event);
   }
 
@@ -361,6 +406,8 @@ ErrCode BedLevelService::ExitLeveling(SSTP_Event_t &event) {
 
   // make sure we are in absolute mode
   relative_mode = false;
+
+  RecoverMotionEnv();
 
   return hmi.Send(event);
 }
@@ -500,6 +547,8 @@ ErrCode BedLevelService::ProbeSensorCalibrationLeftExtruderAutoProbe() {
   live_z_offset_temp_[1] = live_z_offset_[1];
   live_z_offset_[0] = live_z_offset_[1] = 0;
 
+  AdjustMotionEnv();
+
   feedrate_percentage = 100;
   // go home will make sure active left extruder
   process_cmd_imd("G28 N");
@@ -609,6 +658,8 @@ ErrCode BedLevelService::ProbeSensorCalibraitonLeftExtruderPositionConfirm() {
 
   settings.save();
 
+  RecoverMotionEnv();
+
   return err;
 }
 
@@ -632,6 +683,8 @@ ErrCode BedLevelService::ProbeSensorCalibraitonAbort() {
   printer1->ToolChange(0, false);
   set_bed_leveling_enabled(true);
   printer1->ModuleCtrlSetExtruderChecking(true);
+
+  RecoverMotionEnv();
 
   return E_SUCCESS;
 }
@@ -676,6 +729,8 @@ ErrCode BedLevelService::DoDualExtruderAutoLeveling(SSTP_Event_t &event) {
       z_values_tmp[x][y] = 0;
     }
   }
+
+  AdjustMotionEnv();
 
   // go home will make sure active left extruder
   process_cmd_imd("G28 N\n");
@@ -836,6 +891,8 @@ EXIT:
   event.data   = &err;
   event.length = 1;
 
+  RecoverMotionEnv();
+
   return hmi.Send(event);
 }
 
@@ -856,7 +913,7 @@ ErrCode BedLevelService::DoDualExtruderManualLeveling(SSTP_Event_t &event) {
   }
 
   i = systemservice.GetFaultFlag();
-  if (i & (ETYPE_3DP2E_EXTRUDER_MISMATCH | ETYPE_3DP2E_UNKNOWN_NOZZLE)) {
+  if (i & (FAULT_FLAG_3DP2E_EXTRUDER_MISMATCH | FAULT_FLAG_3DP2E_UNKNOWN_NOZZLE)) {
     err = E_HARDWARE;
     goto EXIT;
   }
@@ -865,6 +922,8 @@ ErrCode BedLevelService::DoDualExtruderManualLeveling(SSTP_Event_t &event) {
   live_z_offset_[1] = 0;
 
   feedrate_percentage = 100;
+
+  AdjustMotionEnv();
 
   process_cmd_imd("G28 N");
   snprintf(cmd, 16, "G1029 P%u\n", grid);
@@ -966,6 +1025,8 @@ ErrCode BedLevelService::FinishDualExtruderManualLeveling(SSTP_Event_t &event) {
   set_bed_leveling_enabled(true);
   event.data = &err;
   event.length = 1;
+
+  RecoverMotionEnv();
   return hmi.Send(event);
 }
 
@@ -981,6 +1042,8 @@ ErrCode BedLevelService::DualExtruderAutoBedDetect(SSTP_Event_t &event) {
 
   feedrate_percentage = 100;
 
+  AdjustMotionEnv();
+
   switch (event.data[0]) {
     case 0:
       err = DualExtruderLeftExtruderAutoBedDetect();
@@ -994,6 +1057,8 @@ ErrCode BedLevelService::DualExtruderAutoBedDetect(SSTP_Event_t &event) {
   }
 
   LOG_I("auto bed detect ret = %u\n", err);
+
+  RecoverMotionEnv();
 
 EXIT:
   event.data = &err;
@@ -1136,6 +1201,8 @@ ErrCode BedLevelService::DualExtruderManualBedDetect(SSTP_Event_t &event) {
 
   feedrate_percentage = 100;
 
+  AdjustMotionEnv();
+
   switch (event.data[0]) {
     case 0:
       err = DualExtruderLeftExtruderManualBedDetect();
@@ -1165,6 +1232,8 @@ ErrCode BedLevelService::DualExtruderLeftExtruderManualBedDetect() {
   live_z_offset_[1] = 0;
 
   feedrate_percentage = 100;
+
+  AdjustMotionEnv();
 
   // make active left extruder
   process_cmd_imd("G28 N");
@@ -1217,6 +1286,8 @@ ErrCode BedLevelService::FinishDualExtruderManualBedDetect() {
   set_bed_leveling_enabled(true);
 
   printer1->ToolChange(0,false);
+
+  RecoverMotionEnv();
 
   return E_SUCCESS;
 }
